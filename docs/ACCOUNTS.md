@@ -13,9 +13,9 @@ the existing game save format and keeps gameplay available without an account.
 | Real-provider adapter | Local handler ↔ hosted Supabase Auth/RPC verified disposable-account sessions, save/read, conflicts, isolation, deletion/recreation and a 2,000-card boundary fixture; cleanup confirmed. No email was sent. |
 | Hosted Auth settings | Site/redirect origin `https://mythseal.com`, confirmed email required, six-digit code, 600-second expiry and 60-second resend interval applied and read back. |
 | Email provider | Resend verified `auth.mythseal.com` and all five DNS records at **2026-09-21 21:15:31 UTC**. Supabase custom SMTP and both OTP templates passed all 16 non-secret setting readbacks at **21:16:00.449 UTC**. Tracking remains off; the owner's receiving-enabled setting was preserved. |
-| Public player login | Live v0.5.0 remains gated. Source v0.5.1 has `OTP_ENABLED=true` prepared for release; activation and public browser verification are not yet deployed/completed. |
+| Public player login | **Enabled in deployed v0.5.1: `OTP_ENABLED=true`.** Real HTTPS generated-OTP verification, secure session cookies, account/journey read and logout passed at 21:24:50.578 UTC; fixture cleanup verified. |
 | Local owner pilot | At **21:18:34.252 UTC**, the owner confirmed receiving a numeric email code and successful login through `http://127.0.0.1:8791/`. Setup/check tools sent no real email; the owner initiated this flow. |
-| Website release | v0.5.0 deployed from `339e4f5`; real authenticated HTTPS backup/isolation/conflict/logout and 2,000-card checks passed at 20:32:27 UTC using disposable injected sessions, with cleanup verified. No mail was sent. See [HOSTING.md](HOSTING.md). |
+| Website release | v0.5.1 deployed from `ea48558` at 21:24:31.875 UTC. Live 19-asset/13-private-path checks passed; browser assets are unchanged from v0.5.0. Earlier backup/isolation/conflict and 2,000-card evidence remains recorded in [HOSTING.md](HOSTING.md). |
 
 The release describes the archive UI as present and email login/private backup as
 features controlled by runtime readiness. Developer CLI login is a separate
@@ -138,16 +138,17 @@ through the SDK. Numeric codes do not require a browser callback or a shared
 device with the mail reader.
 [Supabase email OTP guide](https://supabase.com/docs/guides/auth/auth-email-passwordless).
 
-At this checkpoint, the loopback pilot is running at
-`http://127.0.0.1:8791/` with OTP enabled only in its local configuration. The owner
-can open **旅程閣**, enter their email, choose **取得登入驗證碼**, then enter the code
-and choose **登入旅程閣**. Setup/check tools sent no real email. At **21:18:34.252 UTC**, the owner
-confirmed receiving the code and successfully signing in. The pilot's browser storage is
-separate from mythseal.com.
+The owner initiated and confirmed numeric-code delivery and successful local-pilot
+login at **21:18:34.252 UTC**. The pilot used `http://127.0.0.1:8791/`, whose browser
+storage is separate from mythseal.com. Setup/check tools sent no real email.
+Players can now open **旅程閣** on mythseal.com, enter their email, choose
+**取得登入驗證碼**, then enter the code and choose **登入旅程閣**.
 
-Source v0.5.1 enables OTP for the next release; live v0.5.0 remains gated until
-deployment. Public browser sign-in and cross-device restore remain separate
-activation checks.
+v0.5.1 is deployed with public OTP enabled. A synthetic generated-code check through
+the real HTTPS API verified sign-in, secure cookies, private account/journey access
+and logout, then confirmed fixture cleanup. That check sent no email. A mailbox-delivered
+sign-in through the public browser origin and physical cross-device restore remain
+separately unverified.
 Real-provider adapter tests already cover disposable accounts and storage
 isolation, but intercepted browser smoke cannot establish mailbox delivery.
 [CONNECTIONS.md](CONNECTIONS.md) records service evidence;

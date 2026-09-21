@@ -1,6 +1,6 @@
-# Validation · v0.5.0 · 2026-09-21
+# Validation · v0.5.1 · 2026-09-21
 
-v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. Public activation is prepared in v0.5.1 source but not yet deployed. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
+v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
 ## Account and private-backup evidence
 
@@ -21,7 +21,7 @@ The subsequent developer-connection update passed **12 targeted Node connection 
 
 **Sender configuration, 2026-09-21:** Resend verified `auth.mythseal.com` and all five DNS records at **21:15:31 UTC**. At **21:16:00.449 UTC**, setup passed project/domain identity guards, captured a dedicated domain-restricted `sending_access` key privately in an ignored mode-`0600` file and configured Supabase SMTP. All **16 non-secret settings** matched on readback, including port `465`, user `resend`, sender `Mythseal <login@auth.mythseal.com>`, both OTP templates, six-digit codes, 600-second expiry and a 60-second resend interval. Receiving enabled by the owner was preserved; no incoming-mail game feature was added. Setup/check tools sent no real email.
 
-**Owner-reported mailbox evidence, 21:18:34.252 UTC:** the owner confirmed receiving the numeric code and logging in through `http://127.0.0.1:8791/`. This owner-initiated flow is separate from the earlier synthetic no-email checks. Source v0.5.1 now enables OTP for the next release; live v0.5.0 remains gated until deployment. Public browser login and cross-device restoration are still pending. [Account behavior and setup](ACCOUNTS.md).
+**Owner-reported mailbox evidence, 21:18:34.252 UTC:** the owner confirmed receiving the numeric code and logging in through `http://127.0.0.1:8791/`. This owner-initiated flow is separate from the earlier synthetic no-email checks. v0.5.1 deployed from `ea48558` at **21:24:31.875 UTC**, following [successful exact-source CI](https://github.com/cambridgetcg/mythseal/actions/runs/35656826179). Live checks matched 19 asset hashes and 13 private-path exclusions. At **21:24:47–21:24:50 UTC**, a generated six-digit code verified through the real HTTPS API; secure host cookies, enabled account, empty private journey, logout and return to guest passed. Cleanup found zero matching fixture users. This synthetic API check sent no email. A mailbox-delivered public-browser login and physical cross-device restoration remain separately unverified. [Account behavior and setup](ACCOUNTS.md).
 
 ## Previous v0.4.1 branding and hosting
 

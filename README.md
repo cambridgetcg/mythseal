@@ -4,9 +4,9 @@
 
 An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The game now has 24 characters: 12 original山海 characters and 12 new interpretations of classical literary, historical and legendary figures. Illustrations, map, character writing and card balance are created for this game.
 
-**Play [萬象契 · Mythseal](https://mythseal.com).** v0.5.0 is deployed on Cloudflare. The source repository remains private at `cambridgetcg/mythseal`. Exact public deployment revisions and live checks are recorded in [HOSTING.md](docs/HOSTING.md).
+**Play [萬象契 · Mythseal](https://mythseal.com).** v0.5.1 is deployed on Cloudflare with email login enabled. The source repository remains private at `cambridgetcg/mythseal`. Exact public deployment revisions and live checks are recorded in [HOSTING.md](docs/HOSTING.md).
 
-**v0.5.0 adds 旅程閣:** player account screens and private cloud backups of your offline journey. The implementation preserves individual card IDs, XP, decks and progress, with explicit upload, restore and a local recovery copy. **Resend domain verification and Supabase SMTP setup are complete; the owner has confirmed mailbox delivery and local-pilot login. Public activation is prepared for v0.5.1 but not yet deployed.** Guest play works as before. See [accounts and cloud journeys](docs/ACCOUNTS.md).
+**v0.5.0 adds 旅程閣:** player account screens and private cloud backups of your offline journey. The implementation preserves individual card IDs, XP, decks and progress, with explicit upload, restore and a local recovery copy. **Resend domain verification and Supabase SMTP setup are complete; the owner has confirmed mailbox delivery and local-pilot login. Public email login is enabled in v0.5.1, and hosted OTP/session checks passed.** Guest play works as before. See [accounts and cloud journeys](docs/ACCOUNTS.md).
 
 Gameplay still runs from editable browser-local saves; an account backup is not trusted online ownership. iOS, Android, an authoritative game economy, online player trading and limited-edition NFT cards remain planned. See the [roadmap](ROADMAP.md), [technical plan](docs/TECHNICAL-PLAN.md), [backend stack](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md), [content and release pipeline](docs/CONTENT-RELEASE-PIPELINE.md), [mobile plan](docs/MOBILE-RELEASE.md) and [blockchain design](docs/BLOCKCHAIN-DESIGN.md). [Naming history](docs/NAMING.md) preserves the earlier research; selecting a name and owning its domain do not establish trademark clearance.
 
@@ -56,7 +56,7 @@ Open **旅程閣** to compare this device's journey with your account's cloud ba
 
 **備份此裝置** uploads the current journey. **恢復雲端旅程** asks for confirmation and saves the displaced local journey as a recovery copy first; that copy can be downloaded or restored. Finish or abandon any pending battle before uploading or restoring. If another device has changed the cloud backup, reread and compare it before choosing another action. Cloud deletion also requires confirmation and leaves this device's journey intact.
 
-Backups retain the exact local card IDs, XP, levels, history, locks, three deck slots and merchant-held copies. They remain editable offline game data and cannot establish trade or NFT rights. [ACCOUNTS.md](docs/ACCOUNTS.md) explains limits, session handling and the remaining mailbox/public-login verification.
+Backups retain the exact local card IDs, XP, levels, history, locks, three deck slots and merchant-held copies. They remain editable offline game data and cannot establish trade or NFT rights. [ACCOUNTS.md](docs/ACCOUNTS.md) explains limits, session handling and delivery/session verification and remaining device checks.
 
 ## 山海行囊 · v0.4
 

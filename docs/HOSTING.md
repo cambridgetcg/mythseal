@@ -1,6 +1,6 @@
 # Mythseal hosting
 
-Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). **v0.5.0 is deployed** with public email login disabled. **v0.5.1 is prepared** to enable it after verified Resend/Supabase setup and the owner's successful mailbox/local-browser test. Deployment receipts below distinguish actual live versions from source changes.
+Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). **v0.5.1 is deployed with email login enabled**, following verified Resend/Supabase setup and the owner's successful mailbox/local-browser test. Deployment receipts below distinguish actual live versions from source changes.
 
 ## Topology and public boundary
 
@@ -50,11 +50,19 @@ To roll back, use Cloudflare deployment history for the affected Worker and rest
 
 Local progress belongs to the browser origin. The old `shanhai.*` keys remain intact, but `localhost`, apex and other hosts do not share them. Export remains available; the new journey archive provides explicit cloud backup/restore after email login is enabled. It creates a local recovery copy before replacing progress. No valuable ownership is inferred from local saves.
 
-## v0.5.1 email-login release preparation
+## v0.5.1 email-login deployment record
 
-The owner confirmed receipt of the numeric OTP and successful sign-in through the local Worker pilot after `auth.mythseal.com` verified and Supabase SMTP/templates passed exact settings readback. Source configuration now enables public OTP. The 19-asset build and apex Worker dry run passed; deployment and live release verification are still pending at this source revision. The unchanged browser assets retain manifest `7c18fcebe9d184987658caef56cbe4df9cac6ff6c8126aa80dd8d16541474e88`.
+Deployment completed **2026-09-21 21:24:31.875 UTC** from source/tag **v0.5.1**, commit `ea485586d14032bc145a993749a49d5c343ff5f8`. Apex Worker version: **`f254ef87-286c-4960-9888-4986b1a34f5b`**. Public `OTP_ENABLED=true`. The unchanged 19 browser assets retain manifest `7c18fcebe9d184987658caef56cbe4df9cac6ff6c8126aa80dd8d16541474e88`.
 
-Only the apex Worker needs this configuration release. The redirect Worker stays at `c14a675f-3474-4d66-a341-5fa0d388108e`. SMTP credentials remain in Supabase and ignored local recovery storage; the Worker continues to receive only the Supabase publishable key. The prepared ignored `.runtime/publish-email-login.mjs` requires a clean versioned checkout and successful sender/pilot receipts, captures deployment output without exposing bindings, and removes its temporary secret file afterward.
+Only the apex Worker was redeployed. The redirect Worker stays at `c14a675f-3474-4d66-a341-5fa0d388108e`. SMTP credentials remain in Supabase and ignored mode-0600 local recovery storage; the Worker continues to receive only the Supabase publishable key. The ignored deployment helper required a clean versioned checkout and successful sender/pilot receipts, captured provider output privately, and removed its temporary secret file afterward.
+
+- [Exact release CI](https://github.com/cambridgetcg/mythseal/actions/runs/35656826179) passed before deployment: Node/Python suites, disposable PostgreSQL security/concurrency checks, contract fixture, public build, syntax and both Worker dry runs.
+- The owner confirmed receiving a six-digit email code and successful local-pilot browser login at **21:18:34.252 UTC**, after the domain and SMTP/templates verified. This is owner-reported mailbox evidence.
+- `npm run verify:hosting` matched the live v0.5.1 commit/manifest, all **19 assets**, security headers/MIME, **13 private-path 404s**, canonical redirects, anonymous account JSON and CSRF rejection through normal DNS/TLS.
+- At **21:24:47–21:24:50 UTC**, a separate synthetic account verified a generated six-digit code through the real HTTPS `/auth/verify` endpoint, received host-only Secure/HttpOnly/SameSite cookies, read the enabled account and empty private journey, then logged out and returned to guest state. This API check sent no email. Cleanup confirmed **zero matching fixture users** remaining; no owner journey was changed.
+- The browser assets are identical to the previously tested v0.5.0 UI. A mailbox-delivered sign-in through the public browser origin and a physical cross-device restore were not independently exercised in this release check.
+
+Ignored receipts: `test-results/otp-deploy.json`, `test-results/email-release-check.json`, `.runtime/resend-smtp-config.json` and `.runtime/owner-otp-pilot.json`. Later documentation commits do not change the deployed source/tag above. Reverting the apex to the v0.5.0 Worker closes public code login while retaining stored journeys; SMTP configuration is managed separately.
 
 ## v0.5.0 deployment record
 
