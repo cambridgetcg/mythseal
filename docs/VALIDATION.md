@@ -15,7 +15,9 @@ v0.5.0 implements 旅程閣, player-session handling and account-private backups
 - Six account screenshots are stored in ignored `test-results/account-*.png`; the mobile signed-in screenshot was also visually inspected. This browser evidence validates UI integration with mocked services, not cookies against a live Supabase session or physical mobile apps.
 - The shared public allowlist contains 19 game assets. Server source, migrations, tests, credentials and private documents are excluded from both the built assets and local Python server. CI now includes a disposable PostgreSQL 17 service for the SQL harness alongside deterministic suites and Worker dry runs. Its configuration is not a claim that the corresponding remote CI job has passed.
 
-Pending activation evidence: confirmed owner Resend connection, verified sending domain, accepted custom SMTP/templates, delivered numeric email code, a public browser session through the deployed Worker, and cross-device restoration. Keep public `OTP_ENABLED=false` while sender setup is incomplete. The real-provider check above verifies the local adapter/storage path only. [Account behavior and setup](ACCOUNTS.md).
+**Deployed verification:** source `339e4f5` passed [CI](https://github.com/cambridgetcg/mythseal/actions/runs/35651299770), including the updated `PT409` parallel SQL races. Production asset/private-path checks, a full desktop battle and mobile interactions passed. Nine mocked account flow groups passed against deployed assets. Separately, real HTTPS requests through the Worker passed authenticated backup, isolation, conflict/tombstone/logout and 2,000-card checks at **20:32:27 UTC**, with zero synthetic users/backups remaining. These checks used injected sessions and sent no mail. See [hosting evidence](HOSTING.md).
+
+Pending activation evidence: confirmed owner Resend connection, verified sending domain, accepted custom SMTP/templates, delivered numeric email code, a public browser login and cross-device restoration. Keep public `OTP_ENABLED=false` while sender setup is incomplete. [Account behavior and setup](ACCOUNTS.md).
 
 ## Previous v0.4.1 branding and hosting
 

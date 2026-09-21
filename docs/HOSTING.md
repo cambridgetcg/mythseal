@@ -1,6 +1,6 @@
 # Mythseal hosting
 
-Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). The v0.5.0 implementation adds an account API to the existing static host; public email login stays gated pending Resend setup. Deployment receipts below distinguish actual live versions from source changes.
+Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). **v0.5.0 is deployed**, adding an account API to the existing static host; public email login stays gated pending Resend setup. Deployment receipts below distinguish actual live versions from source changes.
 
 ## Topology and public boundary
 
@@ -50,7 +50,27 @@ To roll back, use Cloudflare deployment history for the affected Worker and rest
 
 Local progress belongs to the browser origin. The old `shanhai.*` keys remain intact, but `localhost`, apex and other hosts do not share them. Export remains available; the new journey archive provides explicit cloud backup/restore after email login is enabled. It creates a local recovery copy before replacing progress. No valuable ownership is inferred from local saves.
 
-## First deployment record
+## v0.5.0 deployment record
+
+Deployment completed **2026-09-21 20:30:58 UTC**. Source/tag: **v0.5.0**, commit `339e4f57979affe54fb705cde755552795ba7330`. Later validation/documentation commits do not imply another deployment.
+
+| Artifact | Recorded identity |
+| --- | --- |
+| Apex Worker version | `a60b4dd0-761f-4f05-bf90-be780be8ddc6` |
+| Redirect Worker version | `c14a675f-3474-4d66-a341-5fa0d388108e` |
+| Public assets manifest SHA-256 | `7c18fcebe9d184987658caef56cbe4df9cac6ff6c8126aa80dd8d16541474e88` |
+| Public email login | `OTP_ENABLED=false`; Resend connection/SMTP and delivered-code verification pending |
+
+- [Deployed-source CI](https://github.com/cambridgetcg/mythseal/actions/runs/35651299770) passed: 172 Node tests, six Python tests, disposable PostgreSQL isolation/CAS/tombstone/parallel-race checks, the existing local contract fixture, syntax, build and both Worker dry runs.
+- Normal DNS and TLS worked without edge overrides. `npm run verify:hosting` matched all **19 asset hashes**, the release manifest, security headers/JavaScript MIME, **13 private-path 404s**, canonical redirects, anonymous account JSON and cross-origin mutation rejection.
+- Production browser smoke completed a four-round desktop match, deck persistence, collection/rules and mobile interactions without page/network errors or horizontal overflow.
+- Nine account UI flow groups passed against deployed assets using isolated browsers and **intercepted API fixtures**. The 390px views included guest, long-email account and confirmation layouts. Screenshots are in ignored `test-results/live-account/`; this is UI evidence, not email delivery.
+- At **20:32:22–20:32:27 UTC**, real authenticated HTTPS requests traversed the deployed Worker and Supabase: exact backups, account isolation, identity mismatch rejection, HTTP 409 conflicts, deletion tombstones, stale recreation rejection and logout passed. The checker injected valid synthetic sessions without sending mail. Its **2,000-card** snapshot was 486,009 compact bytes; PUT/GET took 734/178 ms wall time. This demonstrates that request, not a general CPU or latency guarantee. Cleanup independently found zero test users and backups remaining.
+- The Worker receives only the Supabase **publishable** key. Elevated credentials for disposable test-user administration stayed in local process memory. No SMTP credential, wallet, paid upgrade, mint or public GitHub release was created.
+
+Ignored deployment receipt: `test-results/account-deploy.json`. The database migrations remain separate from Cloudflare versions. A static rollback to v0.4.1 hides the archive UI while leaving backup rows intact; do not roll back the database merely to roll back the UI. The hosted checker lets Cloudflare supply its trusted client-IP header; a simulated header is used only in local-handler tests.
+
+## First deployment record · v0.4.1
 
 Final canonical-routing check: **2026-09-21 18:52:13 UTC**. Release tag **v0.4.1** points to deployed source commit `ff89b9a2b7144c015bc902c67cc03c128448915f`; later documentation-only commits do not imply another deployment.
 

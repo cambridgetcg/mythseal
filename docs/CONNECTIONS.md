@@ -54,6 +54,8 @@ The subsequent `.runtime/mythseal-setup-check.json` confirms that CLI project-li
 
 The generated database password is saved as `SUPABASE_DB_PASSWORD` in ignored `.env.local`, mode **0600**, alongside the new `SUPABASE_PROJECT_REF` and `SUPABASE_URL`; existing Pinata settings were preserved. The owner management token remains in macOS Keychain. No credential was printed, passed as a command-line argument, committed or copied to the public website.
 
+The v0.5.0 account Worker was deployed at **20:30:58 UTC**. Real authenticated HTTPS checks through `mythseal.com` and Supabase passed at **20:32:27 UTC**, including a 2,000-card backup, conflicts, isolation and logout. Disposable sessions were injected without sending email; cleanup verified zero synthetic users/backups. Only the publishable key is bound to the Worker; elevated test credentials remained in local process memory. Public OTP is still disabled pending Resend and delivery verification. See [deployment evidence](HOSTING.md).
+
 ## Installed project toolkit
 
 `npm ci` restores exact versions from `package-lock.json`; these are development dependencies and are not added to the public browser runtime.

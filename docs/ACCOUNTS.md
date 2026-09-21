@@ -14,7 +14,7 @@ the existing game save format and keeps gameplay available without an account.
 | Hosted Auth settings | Site/redirect origin `https://mythseal.com`, confirmed email required, six-digit code, 600-second expiry and 60-second resend interval applied and read back. |
 | Email provider | Free Resend account setup opened; owner connection and domain verification are not confirmed. Supabase custom SMTP remains disabled. |
 | Public player login | **Disabled: `OTP_ENABLED=false`.** The UI reports that login is not open yet. Mailbox delivery and a public browser sign-in remain unverified. |
-| Website release | Consult [HOSTING.md](HOSTING.md) for the actual deployed revision and live checks; these implementation checks do not certify deployment. |
+| Website release | v0.5.0 deployed from `339e4f5`; real authenticated HTTPS backup/isolation/conflict/logout and 2,000-card checks passed at 20:32:27 UTC using disposable injected sessions, with cleanup verified. No mail was sent. See [HOSTING.md](HOSTING.md). |
 
 The release describes the archive UI as present and email login/private backup as
 features controlled by runtime readiness. Developer CLI login is a separate

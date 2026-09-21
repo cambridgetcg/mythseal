@@ -4,7 +4,7 @@
 
 An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The game now has 24 characters: 12 original山海 characters and 12 new interpretations of classical literary, historical and legendary figures. Illustrations, map, character writing and card balance are created for this game.
 
-**Play [萬象契 · Mythseal](https://mythseal.com).** The source repository remains private at `cambridgetcg/mythseal`. Exact public deployment revisions and live checks are recorded in [HOSTING.md](docs/HOSTING.md).
+**Play [萬象契 · Mythseal](https://mythseal.com).** v0.5.0 is deployed on Cloudflare. The source repository remains private at `cambridgetcg/mythseal`. Exact public deployment revisions and live checks are recorded in [HOSTING.md](docs/HOSTING.md).
 
 **v0.5.0 adds 旅程閣:** player account screens and private cloud backups of your offline journey. The implementation preserves individual card IDs, XP, decks and progress, with explicit upload, restore and a local recovery copy. **Public email login is still disabled while the new free Resend sender is being connected.** Guest play works as before. See [accounts and cloud journeys](docs/ACCOUNTS.md).
 

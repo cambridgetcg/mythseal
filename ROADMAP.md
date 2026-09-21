@@ -1,6 +1,6 @@
 # 萬象契 · Mythseal roadmap
 
-Planning baseline: **2026-09-21 · v0.4.1 static browser release deployed**. The selected brand is **萬象契 / Mythseal**; the private repository is `cambridgetcg/mythseal`. The game is deployed at [mythseal.com](https://mythseal.com), with HTTPS and the `www` redirect verified. Some recursive DNS caches still held negative results at **18:52 UTC**; direct Cloudflare-edge checks retained normal TLS verification. [HOSTING.md](docs/HOSTING.md) records deployed revisions, exact checks and propagation status. [NAMING.md](docs/NAMING.md) preserves the earlier shortlist and pre-purchase domain snapshot.
+Planning baseline: **2026-09-21 · v0.5.0 deployed with private journey backups; public email login gated**. The selected brand is **萬象契 / Mythseal**; the private repository is `cambridgetcg/mythseal`. The game is deployed at [mythseal.com](https://mythseal.com), with normal DNS, HTTPS and the `www` redirect verified. [HOSTING.md](docs/HOSTING.md) records deployed revisions and exact checks. [NAMING.md](docs/NAMING.md) preserves the earlier shortlist and pre-purchase domain snapshot.
 
 This document describes intended work, not a token offering. Native launch dates, team size, backend budget, production chain and mint quantities remain uncommitted. The [technical plan](docs/TECHNICAL-PLAN.md) coordinates the proposed [backend](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md) and [content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md).
 
@@ -74,7 +74,7 @@ Detailed alternatives, trust boundaries and future test invariants are in [BLOCK
 | Decision | Current recommendation | Still to resolve |
 | --- | --- | --- |
 | Brand/domain | **Selected and deployed:** 萬象契 / Mythseal; private repo renamed; `mythseal.com` acquired and hosting live. | DNS cache propagation, target-store/title checks and trademark review. Domain ownership is not name clearance. |
-| Web/backend | **Static host deployed:** Cloudflare Workers Static Assets. Proposed future API uses Workers + Hyperdrive/pg + Supabase Postgres/Auth. | Backend region, account recovery, measured load and paid-service budget before provisioning. Compare alternatives in BACKEND-STACK.md. |
+| Web/backend | **Deployed:** Cloudflare assets/account Worker plus Free Supabase in London for private offline backups. Authoritative commands still propose Hyperdrive/pg. | Public email activation, recovery, authoritative economy, measured load and any future paid-service budget. Compare alternatives in BACKEND-STACK.md. |
 | Mobile architecture | Trial Capacitor around the current web client and pure engine. | Real-device performance and native UX evidence; no rewrite by default. |
 | Gameplay and NFT relationship | Preserve transferable per-card history as the goal; prove store-compatible access separately. | Exact native functionality and whether the NFT gameplay loop initially lives on web. |
 | Chain/token standard | Evaluate Base Sepolia + ERC-721 first; keep Polygon Amoy as fallback. | Fees, finality, wallet recovery, operations, indexer support and contract audit. No contract deployed or production network selected. |

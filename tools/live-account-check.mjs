@@ -76,7 +76,7 @@ export async function runLiveAccountCheck({ mode = process.env.MYTHSEAL_ACCOUNT_
       AUTH_RATE_LIMIT: { limit: async () => ({ success: true }) }, BACKUP_RATE_LIMIT: { limit: async () => ({ success: true }) },
     };
     async function request(fixture, path, { method = 'GET', body, expectedId = fixture?.id, expectedStatus = 200 } = {}) {
-      const headers = new Headers({ Accept: 'application/json', 'cf-connecting-ip': '192.0.2.1' });
+      const headers = new Headers({ Accept: 'application/json', ...(mode === 'local' ? { 'cf-connecting-ip': '192.0.2.1' } : {}) });
       if (fixture?.cookies.size) headers.set('Cookie', [...fixture.cookies].map(([name, value]) => `${name}=${value}`).join('; '));
       if (path === 'journey' && expectedId) headers.set('X-Mythseal-Account', expectedId);
       if (body !== undefined) { headers.set('Content-Type', 'application/json'); headers.set('Origin', GAME_ORIGIN); }
