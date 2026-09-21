@@ -5,7 +5,7 @@ Configured **2026-09-21**, client **v0.4.1**. Target: [mythseal.com](https://myt
 ## Topology and public boundary
 
 - `mythseal`: Cloudflare Workers Static Assets, apex custom domain, assets only, no game API or database.
-- `mythseal-www`: tiny Worker at `www.mythseal.com`, permanent 308 redirect to HTTPS apex, preserving path and query. It serves no assets and has no secrets.
+- `mythseal-www`: tiny Worker at `www.mythseal.com`, plus the scheme-specific `http://mythseal.com/*` route, returning permanent 308 redirects to HTTPS apex while preserving path and query. It serves no assets and has no secrets. HTTPS apex requests still go directly to static assets.
 - `workers.dev` and version preview URLs are disabled in both configs. Unknown paths return 404; this UI does not need a catch-all SPA fallback.
 
 Cloudflare manages the custom-domain DNS record and certificate in the existing active zone. This deployment does not change nameservers, mail records or another site's routes. The account ID in Wrangler config is a routing identifier, not a credential. [Custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
@@ -44,7 +44,7 @@ Wrangler uses local OAuth. No OAuth token, API token or account secret is stored
 
 After deployment, check HTTPS, the correct title, JS MIME type, CSP, all images, `www` redirect, desktop/mobile browser navigation and a battle. Compare `/release.json` to the committed build. Confirm `/README.md`, `/docs/BACKEND-STACK.md`, `/.git/config`, `/package.json`, `/wrangler.jsonc` and `/_headers` return 404.
 
-`npm run verify:hosting` checks the live manifest against local `dist/release.json`, hashes all 15 public assets, checks security headers/JS MIME, probes nine private paths and checks the `www` redirect. Browser flow remains a separate check: run `tools/smoke.mjs` with `GAME_URL=https://mythseal.com` and a configured Playwright installation. Both use isolated test state; no real player account is involved.
+`npm run verify:hosting` checks the live manifest against local `dist/release.json`, hashes all 15 public assets, checks security headers/JS MIME, probes nine private paths and checks both `www` and HTTP-to-HTTPS redirects. Browser flow remains a separate check: run `tools/smoke.mjs` with `GAME_URL=https://mythseal.com` and a configured Playwright installation. Both use isolated test state; no real player account is involved.
 
 To roll back, use Cloudflare deployment history for the affected Worker and restore its last known-good version. Keep apex and redirect version records separate; version IDs are not Git SHAs. `wrangler deployments list` and `wrangler rollback <version-id>` accept the applicable `--config` file. The first deployment has no earlier production version. Before a later rollback, check that the old client can read the existing save schema. [Cloudflare rollback](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/).
 

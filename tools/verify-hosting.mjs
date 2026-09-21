@@ -26,5 +26,8 @@ if (new URL(base).hostname === 'mythseal.com') {
   const redirect = await fetch('https://www.mythseal.com/test%20path?release=0.4.1', { redirect: 'manual', signal: AbortSignal.timeout(30000) });
   assert.equal(redirect.status, 308);
   assert.equal(redirect.headers.get('location'), 'https://mythseal.com/test%20path?release=0.4.1');
+  const http = await fetch('http://mythseal.com/test%20path?release=0.4.1', { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+  assert.equal(http.status, 308);
+  assert.equal(http.headers.get('location'), 'https://mythseal.com/test%20path?release=0.4.1');
 }
 console.log(JSON.stringify({ verified: base, version: release.clientVersion, commit: release.gitCommit, publicAssets: release.assets.length, privatePaths: 9, manifest: release.assetsManifestSHA256 }, null, 2));
