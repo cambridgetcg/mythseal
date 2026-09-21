@@ -2,6 +2,8 @@
 
 An original browser card game inspired by the four-round bluffing and resource allocation of 神魔令. Traditional Chinese interface, original characters and artwork.
 
+- New agents: start with `docs/HANDOVER.md` for current architecture, infrastructure, fresh-checkout setup and verification boundaries; choose a bounded task from `ROADMAP.md`. Dated design proposals are not evidence of deployed services.
+- Coordinate one writer per artifact and preserve uncommitted work. Hand off the source commit, changed behavior, checks actually completed and any service/migration changes; keep credentials and player data out of handoffs.
 - Keep the browser runtime dependency-free: HTML, CSS and JavaScript ES modules. Use Node's built-in test runner; Python serves the local game. Build/deployment tooling is separate from runtime dependencies.
 - `engine.mjs` owns pure battle rules and card data; `app.mjs` owns UI and match presentation. Keep randomness injectable and do not give AI access to the player's hidden move.
 - Document historical ambiguities and prototype choices in `docs/DESIGN.md`. Do not claim perfect original-game fidelity without evidence.
@@ -11,3 +13,4 @@ An original browser card game inspired by the four-round bluffing and resource a
 - Future paid backend services, native/store releases and NFT issuance remain design work, not actions authorized by the static-site deployment request. `ROADMAP.md` and `docs/TECHNICAL-PLAN.md` distinguish planned scope from implemented features; consult the backend, NFT, mobile and content design documents before those phases. Do not turn local saves into trusted ownership or mint claims.
 - The owner subsequently authorized setup of developer authentication, service connections and local toolkits for the recommended stack. Preserve existing GitHub/Cloudflare logins; use official owner login flows for new accounts, and keep Pinata setup on its free account path. Toolkit setup does not itself authorize paid upgrades, production minting or store enrollment. Record actual connection evidence and remaining owner steps in `docs/CONNECTIONS.md`.
 - Keep credentials, signing keys, wallet secrets, player saves and generated test output out of Git. No open-source license has been selected.
+- The live v0.5.1 account Worker uses the project named `mythseal-dev` for real player accounts/backups. Do not treat that name as permission to reset it. Use the authenticated-release procedure in `docs/HOSTING.md`; the generic deployment helper needs explicit secret-binding preservation before it is suitable for that path.

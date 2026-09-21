@@ -30,13 +30,45 @@ WRANGLER_SEND_METRICS=false npx --no-install wrangler deploy --dry-run
 WRANGLER_SEND_METRICS=false npx --no-install wrangler deploy --config wrangler.www.jsonc --dry-run
 ```
 
-Review the changes, commit the selected release, push it and verify GitHub CI. From that clean checkout:
+Review the changes, commit the selected release, push it and verify exact-source
+GitHub CI. Use a clean checkout and confirm the intended Cloudflare account.
+For the **existing authenticated apex Worker**, inspect secret names without
+retrieving their values, then deploy with explicit binding preservation. Replace
+the example release message with the actual version and source SHA:
 
 ```sh
-npm run deploy
+npm run build
+npx --no-install wrangler secret list --config wrangler.jsonc
+npx --no-install wrangler deploy --config wrangler.jsonc --keep-vars \
+  --message "Mythseal vX.Y.Z SOURCE_SHA"
 ```
 
-The deploy command refuses outstanding Git changes, rebuilds the public files with the current commit, deploys apex, then deploys the `www` redirect. The two Workers deploy sequentially, not atomically: if the second fails, the apex may already be live. Inspect provider output and retry only the unresolved deployment. Never upload the repository root with `--assets .`.
+`SUPABASE_PUBLISHABLE_KEY` must already be present for this path. A missing
+binding needs the selected project's publishable key provisioned through secure
+owner setup; `--keep-vars` cannot create it. The pinned Wrangler 4.136.1 deployment
+source retains omitted secret bindings with this flag while still sending the
+explicit variables in `wrangler.jsonc`; it also retains other omitted dashboard
+variables. This source inspection is not a hosted retention test. Verify account
+readiness after the next release. A reviewed `--secrets-file` containing only the
+publishable key is the alternative used for the recorded account releases; keep
+it outside Git, mode `0600`, and remove the temporary file afterward.
+
+The generic `npm run deploy` / `tools/deploy.mjs` helper checks a clean checkout
+and the pinned CLI, builds, then deploys both Workers. **It currently passes
+neither `--keep-vars` nor `--secrets-file`; do not use that shortcut for an account
+release until binding preservation is added and verified.** Portability of this
+workflow is a concrete [roadmap task](../ROADMAP.md), not an assumed capability.
+
+Deploy the separate redirect Worker only when its code/config needs changing:
+
+```sh
+npx --no-install wrangler deploy --config wrangler.www.jsonc \
+  --message "Mythseal redirect vX.Y.Z SOURCE_SHA"
+```
+
+The two Workers are independent, not an atomic release. If one deployment fails,
+inspect provider state and retry only the unresolved deployment. Never upload
+the repository root with `--assets .`.
 
 Wrangler uses local OAuth. No OAuth token, API token or account secret is stored in Git or GitHub Actions. Existing CI runs deterministic tests, the allowlist build and syntax checks; it does **not** deploy production. A later Cloudflare Git integration or narrowly scoped deploy credential can automate a reviewed release path after preview/promotion is implemented. This release does not create unattended CD, staging or a public GitHub release.
 
@@ -45,6 +77,13 @@ Wrangler uses local OAuth. No OAuth token, API token or account secret is stored
 After deployment, check HTTPS, the correct title, JS MIME type, CSP, all images, `www` redirect, desktop/mobile browser navigation and a battle. Compare `/release.json` to the committed build. Confirm `/README.md`, `/docs/BACKEND-STACK.md`, `/.git/config`, `/package.json`, `/wrangler.jsonc` and `/_headers` return 404.
 
 `npm run verify:hosting` checks the live manifest against local `dist/release.json`, hashes every public asset, checks security headers/JS MIME, probes 13 private paths, checks both `www` and HTTP-to-HTTPS redirects, and verifies anonymous account JSON and CSRF rejection. Browser flow remains a separate check: run `tools/smoke.mjs` with `GAME_URL=https://mythseal.com` and a configured Playwright installation. `tools/account-smoke.mjs` exercises UI flows with intercepted API fixtures; it does not prove real email delivery.
+
+The manifest comparison includes Git SHA. After documentation-only commits,
+verify the unchanged live site from a separate worktree of its deployed tag;
+building current `main` would correctly produce different source metadata. The
+guest/browser and connected-preview setup for a new machine is in
+[HANDOVER.md](HANDOVER.md). Neither that guide nor a documentation push deploys
+the website.
 
 To roll back, use Cloudflare deployment history for the affected Worker and restore its last known-good version. Keep apex and redirect version records separate; version IDs are not Git SHAs. `wrangler deployments list` and `wrangler rollback <version-id>` accept the applicable `--config` file. The first deployment has no earlier production version. Before a later rollback, check that the old client can read the existing save schema. [Cloudflare rollback](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/).
 

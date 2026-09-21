@@ -10,6 +10,8 @@ An original Eastern fantasy card game inspired by the four-round card selection,
 
 Gameplay still runs from editable browser-local saves; an account backup is not trusted online ownership. iOS, Android, an authoritative game economy, online player trading and limited-edition NFT cards remain planned. See the [roadmap](ROADMAP.md), [technical plan](docs/TECHNICAL-PLAN.md), [backend stack](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md), [content and release pipeline](docs/CONTENT-RELEASE-PIPELINE.md), [mobile plan](docs/MOBILE-RELEASE.md) and [blockchain design](docs/BLOCKCHAIN-DESIGN.md). [Naming history](docs/NAMING.md) preserves the earlier research; selecting a name and owning its domain do not establish trademark clearance.
 
+**Joining development?** Start with the [agent handover](docs/HANDOVER.md) for the live architecture, infrastructure/access map, fresh-checkout setup, checks and release procedure. The [roadmap](ROADMAP.md) breaks future work into bounded tasks with dependencies and acceptance criteria. Read [AGENTS.md](AGENTS.md) before editing.
+
 ## Run locally
 
 Clone the private repository with an authorized GitHub account:
@@ -43,16 +45,16 @@ The publishing workflow uses Node to produce 19 explicitly allowlisted game file
 ```sh
 npm ci
 npm run build
-npm run deploy
+npx --no-install wrangler deploy --dry-run
 ```
 
-`npm ci` restores pinned development tooling, including **Wrangler 4.136.1** and the Supabase SDK. The SDK is bundled only into the server Worker; the browser still uses native ES modules and same-origin `fetch`. `/api/*` runs through the Worker while static assets use the allowlisted bundle. The separate redirect Worker canonicalizes HTTP and `www` URLs. See [HOSTING.md](docs/HOSTING.md) for the actual deployed version and verification.
+`npm ci` restores pinned development tooling, including **Wrangler 4.136.1** and the Supabase SDK. The SDK is bundled only into the server Worker; the browser still uses native ES modules and same-origin `fetch`. `/api/*` runs through the Worker while static assets use the allowlisted bundle. The separate redirect Worker canonicalizes HTTP and `www` URLs. The commands above build/check without deploying. Use the [authenticated release procedure](docs/HOSTING.md#build-and-deploy), which preserves the existing publishable-key binding; the older generic `npm run deploy` helper does not explicitly preserve it.
 
 Do not publish the repository root: server source, design documents, tests, credentials and local saves are excluded from website assets. Deployment is a manual maintainer operation; GitHub CI checks the build, API, SQL and other tests without deploying production. The Free London Supabase development project has been provisioned. Local checks, hosted migration evidence and public deployment evidence remain distinct in [VALIDATION.md](docs/VALIDATION.md), [CONNECTIONS.md](docs/CONNECTIONS.md) and [HOSTING.md](docs/HOSTING.md).
 
 ## 旅程閣 · v0.5
 
-Open **旅程閣** to compare this device's journey with your account's cloud backup. Once email delivery is enabled, sign in with a six-digit email code. Signing in never automatically uploads, merges or replaces progress.
+Open **旅程閣** to compare this device's journey with your account's cloud backup. Sign in with a six-digit email code. Signing in never automatically uploads, merges or replaces progress.
 
 **備份此裝置** uploads the current journey. **恢復雲端旅程** asks for confirmation and saves the displaced local journey as a recovery copy first; that copy can be downloaded or restored. Finish or abandon any pending battle before uploading or restoring. If another device has changed the cloud backup, reread and compare it before choosing another action. Cloud deletion also requires confirmation and leaves this device's journey intact.
 

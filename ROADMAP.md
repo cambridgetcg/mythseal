@@ -1,86 +1,145 @@
 # 萬象契 · Mythseal roadmap
 
-Planning baseline: **2026-09-21 · v0.5.0 deployed with private journey backups; public email login gated**. The selected brand is **萬象契 / Mythseal**; the private repository is `cambridgetcg/mythseal`. The game is deployed at [mythseal.com](https://mythseal.com), with normal DNS, HTTPS and the `www` redirect verified. [HOSTING.md](docs/HOSTING.md) records deployed revisions and exact checks. [NAMING.md](docs/NAMING.md) preserves the earlier shortlist and pre-purchase domain snapshot.
+**Current release: v0.5.1 is deployed at [mythseal.com](https://mythseal.com), with email login and private backups of the offline journey.** The source repository is private. Gameplay, rewards and card ownership remain editable local state; the account service does not make them authoritative.
 
-This document describes intended work, not a token offering. Native launch dates, team size, backend budget, production chain and mint quantities remain uncommitted. The [technical plan](docs/TECHNICAL-PLAN.md) coordinates the proposed [backend](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md) and [content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md).
+Start with [HANDOVER.md](docs/HANDOVER.md) for repository orientation, infrastructure and the next agent's workflow. Use [HOSTING.md](docs/HOSTING.md) for deployed revisions, [ACCOUNTS.md](docs/ACCOUNTS.md) for actual account behavior, [CONNECTIONS.md](docs/CONNECTIONS.md) for service readiness and [VALIDATION.md](docs/VALIDATION.md) for evidence. This roadmap sets priorities and acceptance criteria; it does not authorize paid services, store enrollment, chain transactions or a sale. No release dates or production supply have been committed.
 
 ## Product direction
 
-An Eastern mythic strategy card game with four-round duels, travel, daily progression and cards that develop their own history. Characters draw from Chinese mythology, literature and history. The intended collectible model gives each limited-edition card a verifiable identity and ownership record; its earned experience follows that particular card when transferred.
+An Eastern mythic strategy card game with refined dark-fantasy artwork, four-round bluffing battles, travel, daily progression and cards with individual histories. Characters draw from Chinese mythology, literature and history, using original artwork and documented provenance. Target clients are browser, **iOS and Android**.
 
-Target clients: browser, **iOS and Android**. Blockchain is intended for scarce collectible issuance and ownership; ordinary battles should resolve promptly without a wallet confirmation or blockchain transaction every turn. A backend will validate battle outcomes and card growth. This hybrid model does not make the whole game decentralized.
+The long-term goal is a limited-edition collectible that retains its identity and earned XP when traded. The backend should validate ordinary battles and growth promptly; players should not need a wallet confirmation or a chain transaction each turn. Blockchain would establish collectible issuance and ownership. Wallets, collectible rights and native gameplay must be designed together before promising playable NFT transfers across every platform.
 
-**Mobile product decision still required:** the desired transferable, playable NFT card model cannot simply be assumed to qualify for both app stores. Apple's current NFT rule limits ownership unlocking app functionality; Google's policy restricts paying for random NFTs of unknown value. The first mobile milestone therefore proves the game with ordinary earned cards. Whether NFT-linked progression is web-only, separately represented as collectible history, or part of a specifically accepted native flow must be resolved before selling NFTs. This is an open decision about the requested feature, not a claim that collectible-only NFTs already fulfill it. See the dated [mobile policy analysis](docs/MOBILE-RELEASE.md) and the official [Apple](https://developer.apple.com/app-store/review/guidelines/#in-app-purchase) / [Google](https://support.google.com/googleplay/android-developer/answer/13607354?hl=en) rules.
+The detailed [technical plan](docs/TECHNICAL-PLAN.md), [backend design](docs/BACKEND-STACK.md), [mobile plan](docs/MOBILE-RELEASE.md), [NFT stack](docs/NFT-STACK.md) and [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md) explain the proposed architecture. Their original baseline and policy research are dated; the current-state documents above take precedence for what is implemented. Recheck platform requirements when selecting an actual release flow.
 
-## What exists today
+## Shipped baseline and its limits
 
-- [x] Playable browser game with 24 characters, arena, six travel locations, daily tasks, earned-coin packs and NPC trading.
-- [x] Individual local card IDs, levels, XP, battle records, protected sale/buyback and three saved decks.
-- [x] v2→v3 save migration with old keys retained; pending battle recovery and single-use rewards.
-- [x] Deterministic unit coverage and four local browser scripts, including desktop/mobile layouts; recorded results are in [VALIDATION.md](docs/VALIDATION.md).
-- [x] Private GitHub repository created and renamed to `cambridgetcg/mythseal`; selected brand 萬象契 / Mythseal.
-- [x] Owner acquired `mythseal.com`; Cloudflare zone active.
-- [x] v0.4.1 deployed: HTTPS apex, all HTTP/`www` canonical 308 redirects, 15 asset hashes, security headers/JS MIME and nine private-path 404 checks verified; live desktop battle and mobile emulation passed. DNS propagation limits are recorded in [HOSTING.md](docs/HOSTING.md).
-- [x] v0.5.0 journey archive UI and private offline backup API; London Free Supabase schema, account isolation and revision checks. Resend domain verification and Supabase SMTP/templates are configured; the owner confirmed mailbox delivery/local-pilot login. v0.5.1 enables public login; hosted OTP/session checks and fixture cleanup passed. See [account status](docs/ACCOUNTS.md).
-- [ ] Authoritative online economy, matchmaking and real player transfers.
-- [ ] Native builds, signing, TestFlight/Play testing, app-store submission or release.
-- [ ] Wallets, smart contracts, token ownership, production minting or NFT marketplace.
-
-Current local saves and card IDs are **not** blockchain assets or entitlement to a future mint. See [validation evidence](docs/VALIDATION.md).
-
-## Delivery milestones
-
-| Stage | Deliverables | Evidence required to move on |
+| Area | Implemented | Still absent or unverified |
 | --- | --- | --- |
-| **M0 · Brand and public playable prototype** | Private `cambridgetcg/mythseal` source; 萬象契 / Mythseal identity; allowlisted static build; assets-only Cloudflare host at `mythseal.com`; `www` redirect; unit/syntax/build CI; original-art provenance. Existing local folder and save namespaces remain compatible. | Repository visibility/commit verified; static artifact excludes internal files; HTTPS/assets/redirect tested and recorded in HOSTING.md; CI result separate from local browser checks. Static hosting does not imply a trusted backend. |
-| **M1 · Game alpha and portable clients** | Balance/economy sessions; onboarding and clear card growth; save export/import; English + Traditional Chinese text structure; mobile touch/audio/safe-area work; small Capacitor iOS/Android trial using the existing engine. | New players complete a full loop without assistance; real-device lifecycle/resume tests; migrations retain their cards. Select wrapper or a later native renderer from measurements. |
-| **M2 · Authoritative online foundation** | Proposed Workers API + Supabase Postgres/Auth; accounts and recovery, cloud saves, globally unique server card identities, server-executed battles, idempotent ledger, atomic in-game transfers, inventory/deck invalidation and account deletion. Hyperdrive + pg is the proposed transactional adapter. | Multi-device and concurrent-trade tests; forged local state cannot create currency, XP or collectible entitlement; backup restore demonstrated. Guest play remains available where practical. No backend service is provisioned by the static-host release. |
-| **M3 · Mobile closed beta** | Signed iOS/TestFlight and Android testing builds; native polish; account lifecycle, support/privacy pages, store disclosures and an explicit feature/payment matrix by storefront. First beta uses ordinary earned cards. | Device testing plus store review of the actual flow; crash/performance evidence; recovery/delete-account and purchase restoration if purchases are introduced. A web wrapper alone is not the acceptance test. |
-| **M4 · Collectible testnet** | Evaluate Base Sepolia with unique-copy ERC-721; Polygon Amoy fallback; wallet/recovery choice; capped edition contract; metadata/provenance service; confirmed ownership indexer; XP-to-token proof of concept; fixed-content test editions; marketplace transfer simulation. | Supply invariants, replay protection, reorg recovery, transfer-during-battle and XP continuity tests; no real funds; explicit decision on mobile utility before expanding native integration. These are candidates, not deployed networks/contracts. |
-| **M5 · Limited-batch production readiness** | Final supply manifest and artwork terms; account/contract/metadata review; independent contract audit; permission/key procedures; monitored launch rehearsal; supported-market and payment review. | No unresolved critical/high security findings; mint cap cannot be bypassed by another mint path, burning or privileged supply changes; recovery plan tested; exact mobile/web product accepted for intended distribution. |
-| **M6 · First edition and mobile release** | Launch only the accepted mobile feature set; release the approved fixed-content collectible batch through its approved channel; publish supply/provenance and support information; measure retention and economy health. | Verified contracts and counted issued/reserved stock; successful store release; support and ownership reconciliation operational. Further batches require a separate manifest and release review. |
+| Game loop | 24 characters; local AI battles/arena; six travel locations; daily tasks/training; earned-coin packs; NPC sale and buyback. | Server-validated rewards, competitive ladder, matchmaking and player-to-player trading. |
+| Backpack | Per-copy UID, XP, level, battle history and protection; three exact-card decks; legacy save migration and pending-battle recovery. NPC buyback keeps the same copy and XP. | Server-issued card identities and transferable ownership. Local UIDs confer no future mint entitlement. |
+| Accounts | Public numeric email-code login, secure server sessions, explicit private backup/upload/restore, revision conflicts and backup deletion. Guest play is preserved. | Automatic synchronization/merging, full account deletion and a complete account-recovery/support flow. Backup deletion is not account deletion. |
+| Backup boundary | At most 2,000 owned plus merchant-held copies and 512 KiB PostgreSQL JSONB text; pending battles cannot be uploaded or replaced. Hosted isolation/conflict/boundary checks passed. | A mailbox-delivered login through the public browser and physical cross-device restoration remain unverified. The owner confirmed mail delivery and login through the local pilot; synthetic hosted API checks are separate evidence. |
+| Delivery | Private GitHub source/CI; Cloudflare static assets plus account API; Free Supabase development project; configured Resend SMTP. | An authoritative game database/API, production operations/recovery readiness and native store releases. |
+| Future tooling | Capacitor/toolkit preparation, read-only chain/Pinata checks and a local contract fixture. | Native builds/signing, a deployed game contract, wallet integration, IPFS persistence/restore and any NFT issuance. |
 
-M1 and M2 can overlap; the client trial does not require choosing a chain. M4 design can run alongside M3, but testnet success does not authorize a production mint. Mobile release can precede the NFT edition if the ownership-linked gameplay decision remains open.
+Preserve `shanhai.*` save namespaces and existing guest progress throughout the following phases. A local save or cloud backup must never become trusted currency, competitive XP, ownership or a mint claim merely because its owner signs in.
 
-## Limited quantities: proposed edition model
+## Ordered delivery phases
 
-Distinguish **character** (Wukong's rules), **edition** (a particular release/art treatment with a cap), and **copy** (one numbered card, owner and XP history). Different copies of the same character grow independently. A new edition is identified openly; it must not silently dilute a promised character-wide or edition-wide limit.
+Each phase ends with reviewable behavior and recorded evidence. Split work by artifact ownership; agree API/schema contracts before parallel implementation. Local tests, CI, deployed API checks, browser behavior and physical-device checks are distinct results.
 
-Draft illustration for discussion, **not an approved supply**:
+### M1 · Complete the account journey and portable operations
 
-| Edition | Illustrative cap | Delivery |
+**Dependencies:** deployed v0.5.1. Account evidence, deployment tooling and online design can progress independently.
+
+- Complete an owner-initiated public-browser email login, explicit upload on one device and explicit restore on another. Check the recovery copy, a stale-revision conflict, logout and guest-save preservation without overwriting the owner's only save.
+- Make connected local preview and deployment reproducible from a fresh clone without ignored helper scripts. The tracked deployment helper needs explicit publishable-binding preservation: review Wrangler's actual inheritance behavior, the documented `--keep-vars` path and safe owner-supplied bindings. Never copy credentials into source, public assets or logs.
+- Define account recovery, session revocation, deletion and retention behavior. Separate deleting a backup from deleting an identity; document how future owned cards or active matches change deletion semantics.
+- Specify the first authoritative API commands, a separate online inventory/read model and the UI boundary between offline practice and online progression. Decide the server-issued starter grant without importing local balances or XP.
+- Record the operating budget, backup/restore procedure and measured service limits needed for an online alpha. Existing free infrastructure is the baseline; any paid expansion is a separate decision.
+
+**Acceptance:** record actual public-browser/cross-device results. A fresh-clone preview and deployment dry run verify the intended environment/identity and binding configuration; the next planned release verifies publishable-binding preservation and runtime account availability. Account lifecycle requirements and one reviewed online API/schema contract are explicit. Open evidence gaps remain labeled rather than inferred from unit or API tests.
+
+### M2 · One authoritative battle with exact-card XP
+
+**Dependencies:** M1 online contract and starter-grant decision. This is the next gameplay implementation priority; the entire future economy is not a prerequisite.
+
+- Add an isolated authoritative schema with server-issued card UIDs, versioned rules, matches and append-only XP/reward events. Select one transactional adapter using the [backend design](docs/BACKEND-STACK.md); Hyperdrive/pg remains proposed, not deployed.
+- Implement sign-in → read starter inventory → start AI match → submit four rounds → settle once. Reuse pure rules, inject controlled randomness in tests, freeze the participating UIDs/rules version and keep hidden choices private.
+- Add a client adapter and one playable online path. Commands submit player choices; they never submit a trusted winner, XP total or replacement inventory. Preserve the existing offline mode and backups.
+- Prove request retries, disconnect/resume, concurrent commands and a settlement retry cannot pay twice or move XP to a different copy. Reject forged ownership, stale card state and invalid turns.
+
+**Acceptance:** two devices can resume the same server match and read the same resulting cards; each played copy receives the correct XP exactly once; local edits grant nothing online. Tests cover transaction rollback and duplicate commands, followed by a deployed integration check with disposable fixtures and verified cleanup.
+
+### M3 · Move the daily economy online, then add player trading
+
+**Dependencies:** M2 server identity, transactions and reward ledger. Move one command family at a time; do not maintain two competing authorities for an online balance.
+
+- Add daily claims/training and travel rewards with server dates, unique claim keys and atomic currency/XP entries. Preserve existing rules unless a separately documented balance change is intended.
+- Add earned-coin packs with server randomness, recorded results and idempotent payment/card creation. Retrying a request returns its original pack, including the same card UIDs.
+- Add upgrades, decks and NPC sale/buyback with exact-copy history, ownership checks, pending-match restrictions and atomic costs. Exercise concurrent requests and minimum legal-deck protection.
+- Design and implement a small in-game player listing/purchase flow only after ordinary inventory/currency invariants pass. Specify fees, cancellation, expiration, active-battle locks and transfer history; no cash-out or real-money marketplace is implied.
+
+**Acceptance:** currency/card conservation, one-time rewards, failed-transaction rollback and concurrent buy/cancel behavior are verified. A sold card retains its UID/XP/history, leaves the seller's usable decks and appears once in the buyer's inventory. Administrative correction uses an auditable event rather than editing away ledger history.
+
+### M4 · Grow the game, presentation and competitive play
+
+**Dependencies:** content/onboarding work can start now. Server competitive play depends on M2; valuable trading/rewards depend on M3.
+
+- Improve onboarding, explain four-round decisions and exact-card growth, and organize Traditional Chinese/English text without changing save identities. Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
+- Add new classical characters through explicit rules/content versions. Build per-card artwork manifests/derivatives with provenance; trial one card's CSS/Web Animations effects with reduced-motion, skip and background/resume support before scaling the art pipeline.
+- If PvP is selected, add matchmaking and a server-owned arena ladder as a separate slice. Specify simultaneous hidden moves, timeout/abandonment, reconnection and match outcomes before ranking or seasonal rewards.
+
+**Acceptance:** a new player completes a battle → travel/daily → backpack/upgrade loop without assistance; assets and rules have reproducible versioned manifests; selected phone performance/accessibility targets are measured. PvP is complete only when two real clients finish/reconnect without exposing hidden moves, and duplicate settlements cannot change ranking or rewards twice.
+
+### M5 · iOS and Android closed beta
+
+**Dependencies:** a stable client/API contract and M1 account lifecycle. Packaging and physical mobile-web experiments can run alongside M2–M4; chain selection is not required.
+
+- Finish the owner-controlled native toolchain/signing setup, then trial Capacitor with the allowlisted bundled assets. Implement a storage/lifecycle adapter, safe areas, Android back handling and audio recovery.
+- Test physical iPhone and Android devices: cold starts, upgrade/migration, background/process termination, poor connectivity and interrupted settlement. Keep offline practice usable; verify exact-card save recovery.
+- Prepare support/privacy information, account deletion, accessibility, ratings and release-specific data/plugin disclosures. Define the actual feature/payment matrix for each storefront using freshly checked requirements.
+- Produce TestFlight/Play testing builds when the owner has chosen the necessary accounts and release scope. Start with ordinary earned cards; make no assumption that a wrapped website is a finished native experience.
+
+**Acceptance:** signed builds pass the agreed physical-device matrix, recover after interruption without losing cards or duplicating payouts, and meet measured performance targets. Record actual closed-beta/store review outcomes. NFT ownership granting playable rights on native remains a separate product decision, not an implied feature of the beta.
+
+### M6 · Limited-edition collectible rehearsal
+
+**Dependencies:** authoritative card identity/history from M2–M3; an explicit rights/mobile decision; a selected owner-controlled wallet and recovery workflow. Local contract/content tests can proceed before any authorized testnet writes.
+
+- Evaluate Base Sepolia and ERC-721 first, with Polygon Amoy as a measured fallback. Define wallet linking, recovery and asset exit without making wallets mandatory for ordinary play.
+- Implement the capped edition contract and token-to-card mapping, then the ownership indexer and versioned XP checkpoints. Distinguish submission, confirmation and finality; handle replay, duplicate events, restarts and chain reorganizations.
+- Package approved original art and edition metadata with immutable content identities. Verify two independent pin locations plus a restorable CAR backup before depending on IPFS availability. A Pinata read check does not satisfy this step.
+- Rehearse known-content test editions and transfers using disposable test assets. Define active-battle and ownership-change behavior without assuming an in-game lock prevents an external ERC-721 transfer.
+
+**Acceptance:** all mint paths obey lifetime caps; burning cannot reopen supply; replay/privilege tests pass. Rebuilding the index reproduces ownership, transferred copies retain the same history, and a primary pin/gateway outage permits full restoration. Record wallet recovery, finality and cost measurements against agreed targets from [NFT-STACK.md](docs/NFT-STACK.md). No real funds, production entitlement or launch approval follows from a successful testnet rehearsal.
+
+### M7 · Production edition and store release
+
+**Dependencies:** for mobile, M5 and review of the selected store flow; for collectibles, M6 plus the owner's separate choice of production network, supply, rights, budget, supported markets and sale scope. These release tracks can proceed independently.
+
+- Freeze the edition/supply/art manifest and issuance permissions; independently review the contract and resolve critical/high findings. Rehearse key recovery, ownership reconciliation, incident response and content/database restoration.
+- Publish clear rights, reserves, support and provenance for the approved known-content edition. Verify deployed code and every issued/reserved copy against its cap; subsequent chapters need separate manifests and review.
+- Release only the accepted mobile feature set, with staged rollout and version compatibility. Monitor game balance, service health and support capacity. Mobile may launch before collectibles if the NFT gameplay decision remains open.
+
+**Acceptance:** actual deployment/store receipts, supply reconciliation, recovery evidence and operational ownership are recorded for the applicable release track. A plan, audit of a dependency or passing testnet suite alone does not satisfy production readiness.
+
+## Next tasks suitable for separate agents
+
+These are bounded starting points, not instructions to start every phase at once. Give each file/module one writer and a separate reviewer.
+
+| Task | Reviewable output | Dependency / boundary |
 | --- | --- | --- |
-| Testnet rehearsal | Small disposable test set | Free test tokens, clearly unrelated to mainnet supply. |
-| First classical edition | 12 characters × 100 numbered copies = 1,200 total | Known card contents; serials within each character edition; allocations for team/promotions included inside the same cap. |
-| Subsequent chapters | Quantities decided and published separately | New, clearly labeled edition IDs/art, with a stated relationship to earlier scarcity promises. |
+| Portable account preview/deployment | Tracked setup/helper improvements, fresh-clone dry run, identity/binding checks and a next-release runtime verification procedure. | M1; follow [HOSTING.md](docs/HOSTING.md), preserve bound values and keep credentials private. |
+| Account journey evidence | A short owner-driven public login/two-device restore procedure and recorded outcome, including unresolved browser/device issues. | M1; tools do not initiate real email without the user's instruction. |
+| Online command contract | Request/response examples, authoritative tables/invariants, guest/online separation and a single battle sequence. | M1; no infrastructure purchase or migration application required for design. |
+| Transaction adapter spike | One least-privilege transaction path with rollback, concurrent-start and duplicate-settlement tests. | Agreed contract; local isolated fixtures first. Coordinate schema ownership with the API author. |
+| Online client adapter | One match/inventory UI using contract fixtures; clear offline versus online status and reconnect handling. | Agreed contract; can run alongside server implementation. No local-save promotion. |
+| Content/animation sample | One card's original-art manifest, derivatives and reduced-motion animation, with measured payload/render cost. | Independent M4 task; preserve the existing asset fallback. |
+| Mobile readiness report | Missing toolchain/signing prerequisites and an agreed physical-device/storage test matrix. | Independent M5 preparation; installation, enrollment and release are separate tasks. |
 
-Before production, freeze a manifest with edition IDs, per-edition lifetime caps, total batch cap, art/metadata hashes, any reserves, release windows and issuance permissions. Every mint route consumes the same cap. Burning never creates new mint capacity. Multiple sale waves share the original edition cap; they do not reset it. Prefer one production chain initially so cross-chain copies cannot obscure total supply.
+Start with portable operations and the contract for one authoritative battle, not a simultaneous rewrite of accounts, economy, UI and chain services. Record each finished slice in the current-state/evidence documents and advance this roadmap only when its acceptance criteria are demonstrated.
 
-For the first collectible pilot, use known-content acquisition. Keep the current randomly drawn **ordinary, earned-only, non-redeemable cards** separate from NFT stock. Paid randomized NFT packs are not a committed feature; future implementation would require a distinct platform/product decision. Do not sell currency that indirectly buys an NFT chance under a different label.
+## Limited quantities and transferable card history
 
-## Card history and transfer
+Distinguish **character** (Wukong's rules), **edition** (a release/art treatment with a cap) and **copy** (one numbered card with owner and XP history). Different copies grow independently. The draft first-edition illustration remains **12 characters × 100 copies = 1,200 total**, for discussion only; it is not approved supply. Testnet cards are disposable and convey no mainnet allocation. Later chapters must state whether scarcity was promised per edition or across a character's entire lifetime.
 
-The current NPC buyback proves local continuity. Real ownership adds the following work:
+Before issuance, freeze edition IDs, per-edition lifetime caps, total batch cap, art/metadata hashes, reserves and issuance permissions. Team, promotional and compensation allocations consume the same cap. Burning never restores mint capacity; later sale waves do not reset it. Start with one canonical production chain to keep total supply inspectable.
 
-1. The server issues globally unique card records and append-only XP events. A client cannot submit a trusted finished result or edit its own balance.
-2. A collectible binds to `(chain, contract, tokenId)` and a published edition. XP, battle record and metadata revisions refer to that stable identity, independent of the current owner.
-3. A confirmed transfer invalidates the old owner's deck/use rights in the applicable product, keeps XP on the card and permits the new owner to use it only under the selected client/store policy. Define the precise behavior for an active battle, a listing, delayed confirmations and a chain reorganization.
-4. Original art, edition and supply commitments remain fixed; growth fields are intentionally mutable and versioned. Export enough provenance and signed history that ownership remains inspectable if the game service is unavailable; this does not promise a playable game after shutdown.
+The first collectible pilot uses known contents. Keep ordinary earned-only random packs distinct from collectible inventory. Paid randomized NFTs, redeemable pack currency, a fungible game token and cash-out are not committed features.
 
-Detailed alternatives, trust boundaries and future test invariants are in [BLOCKCHAIN-DESIGN.md](docs/BLOCKCHAIN-DESIGN.md).
+The server records append-only XP against a stable card identity. A collectible adds `(chain, contract, tokenId)` and edition identity; transfer changes its owner while retaining that copy's XP/history. Define when the previous owner's use ends and the new owner's begins, including active matches, delayed indexing and reorgs. Native access depends on the selected product/store flow. Original art and supply commitments stay fixed; growth checkpoints are explicitly mutable, sequenced and recoverable. Public provenance can remain inspectable without promising that the game will operate after its service shuts down. See [BLOCKCHAIN-DESIGN.md](docs/BLOCKCHAIN-DESIGN.md).
 
-## Decisions before implementation
+## Decisions that change scope
 
-| Decision | Current recommendation | Still to resolve |
+| Decision | Working direction | Needed before |
 | --- | --- | --- |
-| Brand/domain | **Selected and deployed:** 萬象契 / Mythseal; private repo renamed; `mythseal.com` acquired and hosting live. | DNS cache propagation, target-store/title checks and trademark review. Domain ownership is not name clearance. |
-| Web/backend | **Deployed:** Cloudflare assets/account Worker plus Free Supabase in London for private offline backups. Authoritative commands still propose Hyperdrive/pg. | Public email activation, recovery, authoritative economy, measured load and any future paid-service budget. Compare alternatives in BACKEND-STACK.md. |
-| Mobile architecture | Trial Capacitor around the current web client and pure engine. | Real-device performance and native UX evidence; no rewrite by default. |
-| Gameplay and NFT relationship | Preserve transferable per-card history as the goal; prove store-compatible access separately. | Exact native functionality and whether the NFT gameplay loop initially lives on web. |
-| Chain/token standard | Evaluate Base Sepolia + ERC-721 first; keep Polygon Amoy as fallback. | Fees, finality, wallet recovery, operations, indexer support and contract audit. No contract deployed or production network selected. |
-| Wallet custody | Offer ordinary account onboarding; evaluate optional wallet linking/recovery. | Custodial vs non-custodial responsibilities, regions, account loss and age handling. |
-| Economy | No required fungible game token. Scarcity concerns editions, not a promise of resale value. | Supply, pricing, rewards, reserves, art rights and supported markets before any sale. |
+| Online economy entry | Fresh server-issued inventory; offline journeys remain preserved and editable. | M2 starter grant and progression contract. |
+| Infrastructure/operations | Existing Workers + Supabase; one transactional command authority; expand services only from measured need. | Authoritative alpha rollout and any paid resource. |
+| Audience and native product | Capacitor trial, ordinary earned cards first; choose launch regions/ages and NFT gameplay rights explicitly. | Closed beta/store disclosures; any collectible sale promise. |
+| Wallet and production chain | Evaluate optional wallet recovery and Base Sepolia first; production choice remains open. | Testnet integration and later production issuance, separately. |
+| Supply, rights and commercial terms | Known-content limited editions; no promised resale value or required fungible token. | Approved edition manifest, sale or marketplace. |
+| Name, artwork and source licensing | 萬象契 / Mythseal selected; original art with provenance; no open-source license selected. | Public licensing/commercial release; domain ownership does not establish trademark clearance. |
 
-## Next implementation slice
-
-The v0.5.0 slice adds account-private backups of the existing offline journey. Resend verified all five domain records at 21:15:31 UTC on 2026-09-21; Supabase custom SMTP and both numeric-code templates passed settings readback at 21:16:00.449 UTC. The owner confirmed a delivered numeric code and successful local-pilot login at **21:18:34.252 UTC**. v0.5.1 enabled public OTP at 21:24:31.875 UTC; hosted OTP/session/logout checks passed at 21:24:50.578 UTC with fixture cleanup verified. These backups preserve local progress across devices without promoting it to trusted game ownership. Next, implement a separate sign-in → server match → exact-card XP settlement slice for M2. M1 onboarding, localization and a small native packaging experiment can proceed independently. Artwork and animation changes follow the versioned [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md).
+Web, API/rules, native binaries, artwork and contracts have separate releases. Use the [content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md) for compatibility and rollback design; rolling back a website cannot undo an economy settlement, published NFT or transferred ownership.

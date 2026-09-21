@@ -90,7 +90,7 @@ npm run connect
 
 The Pinata JWT is currently in root `.env.local`, Git-ignored, mode **0600**, outside the public asset allowlist. The helper preserves other entries, replaces only its own JWT setting atomically, rejects symlinks/multiline injection and refuses an echoed-input fallback. Temporary files are also ignored. It never prints the JWT or provider response bodies. `.env.example` contains only names/placeholders and the public Base Sepolia RPC URL. No wallet private key belongs in this file.
 
-Developer API credentials are separate from **player** authentication. The player UI and Worker adapter now exist; ordinary Supabase player sessions authorize private backups. The Worker uses the project's publishable key and no service-role credential. Session tokens stay in HttpOnly cookies, not browser storage. Google/Apple providers and production SMTP are not configured. Developer login alone does not sign a player into the game.
+Developer API credentials are separate from **player** authentication. The player UI and Worker adapter now exist; ordinary Supabase player sessions authorize private backups. The Worker uses the project's publishable key and no service-role credential. Session tokens stay in HttpOnly cookies, not browser storage. Resend custom SMTP is configured for the live site's current Supabase project; Google/Apple providers are not configured. Developer login alone does not sign a player into the game. A fresh-machine checklist is in [HANDOVER.md](HANDOVER.md).
 
 ## Repeatable checks
 
