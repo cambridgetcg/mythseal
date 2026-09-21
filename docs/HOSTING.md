@@ -1,6 +1,6 @@
 # Mythseal hosting
 
-Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). **v0.5.0 is deployed**, adding an account API to the existing static host; public email login stays gated pending Resend setup. Deployment receipts below distinguish actual live versions from source changes.
+Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). **v0.5.0 is deployed** with public email login disabled. **v0.5.1 is prepared** to enable it after verified Resend/Supabase setup and the owner's successful mailbox/local-browser test. Deployment receipts below distinguish actual live versions from source changes.
 
 ## Topology and public boundary
 
@@ -49,6 +49,12 @@ After deployment, check HTTPS, the correct title, JS MIME type, CSP, all images,
 To roll back, use Cloudflare deployment history for the affected Worker and restore its last known-good version. Keep apex and redirect version records separate; version IDs are not Git SHAs. `wrangler deployments list` and `wrangler rollback <version-id>` accept the applicable `--config` file. The first deployment has no earlier production version. Before a later rollback, check that the old client can read the existing save schema. [Cloudflare rollback](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/).
 
 Local progress belongs to the browser origin. The old `shanhai.*` keys remain intact, but `localhost`, apex and other hosts do not share them. Export remains available; the new journey archive provides explicit cloud backup/restore after email login is enabled. It creates a local recovery copy before replacing progress. No valuable ownership is inferred from local saves.
+
+## v0.5.1 email-login release preparation
+
+The owner confirmed receipt of the numeric OTP and successful sign-in through the local Worker pilot after `auth.mythseal.com` verified and Supabase SMTP/templates passed exact settings readback. Source configuration now enables public OTP. The 19-asset build and apex Worker dry run passed; deployment and live release verification are still pending at this source revision. The unchanged browser assets retain manifest `7c18fcebe9d184987658caef56cbe4df9cac6ff6c8126aa80dd8d16541474e88`.
+
+Only the apex Worker needs this configuration release. The redirect Worker stays at `c14a675f-3474-4d66-a341-5fa0d388108e`. SMTP credentials remain in Supabase and ignored local recovery storage; the Worker continues to receive only the Supabase publishable key. The prepared ignored `.runtime/publish-email-login.mjs` requires a clean versioned checkout and successful sender/pilot receipts, captures deployment output without exposing bindings, and removes its temporary secret file afterward.
 
 ## v0.5.0 deployment record
 

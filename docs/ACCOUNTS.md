@@ -12,8 +12,9 @@ the existing game save format and keeps gameplay available without an account.
 | Development database | Migrations `20260921210000` and `20260921210100` applied to Free London `mythseal-dev`; hosted rollback isolation/CAS checks passed with zero fixture users left. |
 | Real-provider adapter | Local handler ↔ hosted Supabase Auth/RPC verified disposable-account sessions, save/read, conflicts, isolation, deletion/recreation and a 2,000-card boundary fixture; cleanup confirmed. No email was sent. |
 | Hosted Auth settings | Site/redirect origin `https://mythseal.com`, confirmed email required, six-digit code, 600-second expiry and 60-second resend interval applied and read back. |
-| Email provider | Resend official CLI OAuth and domain-read access verified. `auth.mythseal.com` created in Ireland with tracking off. Owner-added DNS values matched at 21:10:39 UTC, including optional inbound MX; provider DKIM verification remained pending. Supabase custom SMTP remains disabled. |
-| Public player login | **Disabled: `OTP_ENABLED=false`.** The UI reports that login is not open yet. Mailbox delivery and a public browser sign-in remain unverified. |
+| Email provider | Resend verified `auth.mythseal.com` and all five DNS records at **2026-09-21 21:15:31 UTC**. Supabase custom SMTP and both OTP templates passed all 16 non-secret setting readbacks at **21:16:00.449 UTC**. Tracking remains off; the owner's receiving-enabled setting was preserved. |
+| Public player login | Live v0.5.0 remains gated. Source v0.5.1 has `OTP_ENABLED=true` prepared for release; activation and public browser verification are not yet deployed/completed. |
+| Local owner pilot | At **21:18:34.252 UTC**, the owner confirmed receiving a numeric email code and successful login through `http://127.0.0.1:8791/`. Setup/check tools sent no real email; the owner initiated this flow. |
 | Website release | v0.5.0 deployed from `339e4f5`; real authenticated HTTPS backup/isolation/conflict/logout and 2,000-card checks passed at 20:32:27 UTC using disposable injected sessions, with cleanup verified. No mail was sent. See [HOSTING.md](HOSTING.md). |
 
 The release describes the archive UI as present and email login/private backup as
@@ -108,34 +109,46 @@ The 19-file public allowlist includes only browser assets. Server source, SQL,
 tests, credentials and private documentation stay outside the public artifact.
 See the [server contract](../server/README.md) for endpoint and environment details.
 
-## Complete the free email connection
+## Email setup and owner pilot
 
-Supabase's default sender is restricted to organization-team addresses and
-currently has a two-message-per-hour limit. It is unsuitable for public player
-login. The hosted project also rejected custom template configuration while that
-default sender remains active. Connect a custom SMTP sender before enabling the
-public code flow. [Supabase SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp).
+Supabase custom SMTP is now configured. The earlier default sender rejected the
+custom-template update; the successful configuration at **2026-09-21
+21:16:00.449 UTC** supersedes that limitation for this project.
+[Supabase SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp).
 
-The intended sender is `Mythseal <login@auth.mythseal.com>` through Resend Free.
-The owner's official Resend account connection is verified. Complete verification of
-the existing `auth.mythseal.com` sending domain using the provider's exact DNS records, and configure Supabase
-with `smtp.resend.com`, port `465`, username `resend` and the private API key as
-SMTP password. Use a dedicated domain-restricted sending key. Keep the key out of Git, browser assets and chat. Receiving mail
-and a paid Supabase API custom domain are not required for this code flow.
+The sender is `Mythseal <login@auth.mythseal.com>`, using `smtp.resend.com`, port
+`465` and username `resend`. A dedicated `sending_access` key restricted to the
+verified domain supplies the SMTP password. It was captured privately in an
+ignored mode-`0600` file and is absent from Git, browser assets and Worker
+bindings. The setup passed the expected project/domain identity guards and all
+16 non-secret settings matched on readback. Resend verified all five DNS records
+at **21:15:31 UTC**. The owner's manual DNS setup also enabled receiving; that
+setting was preserved and does not implement an incoming-mail game feature.
+No paid plan change was made; the Resend billing tier was not independently
+inspected. Receiving mail and a paid Supabase API custom domain are unnecessary
+for the code flow.
 [Resend Supabase SMTP setup](https://resend.com/docs/send-with-supabase-smtp),
 [domain verification](https://resend.com/docs/dashboard/domains/introduction).
 
-Apply the checked-in `supabase/templates/otp.html` to both relevant email templates
-after SMTP is connected. Supabase's `signInWithOtp` sends a magic link by default;
-the template must include `{{ .Token }}` for the numeric-code UI. The Worker then
-verifies `{email,token,type:"email"}` through the SDK. Numeric codes do not require
-a browser callback or a shared device with the mail reader.
+The checked-in `supabase/templates/otp.html` is applied to both confirmation and
+magic-link email templates. It includes `{{ .Token }}` for the numeric-code UI;
+the configured code has six digits, expires after 600 seconds and has a
+60-second resend interval. The Worker verifies `{email,token,type:"email"}`
+through the SDK. Numeric codes do not require a browser callback or a shared
+device with the mail reader.
 [Supabase email OTP guide](https://supabase.com/docs/guides/auth/auth-email-passwordless).
 
-Verify sender readiness and an owner-initiated mailbox sign-in before opening
-public login. Verify the deployed Worker/browser session and cross-device restore
-as a separate release step. Real-provider adapter tests already cover disposable
-accounts and storage isolation, but the browser smoke intercepts API calls and
-cannot substitute for mailbox or deployed-browser checks. [CONNECTIONS.md](CONNECTIONS.md) records
-service evidence; [VALIDATION.md](VALIDATION.md) separates local, hosted SQL and
-browser checks.
+At this checkpoint, the loopback pilot is running at
+`http://127.0.0.1:8791/` with OTP enabled only in its local configuration. The owner
+can open **旅程閣**, enter their email, choose **取得登入驗證碼**, then enter the code
+and choose **登入旅程閣**. Setup/check tools sent no real email. At **21:18:34.252 UTC**, the owner
+confirmed receiving the code and successfully signing in. The pilot's browser storage is
+separate from mythseal.com.
+
+Source v0.5.1 enables OTP for the next release; live v0.5.0 remains gated until
+deployment. Public browser sign-in and cross-device restore remain separate
+activation checks.
+Real-provider adapter tests already cover disposable accounts and storage
+isolation, but intercepted browser smoke cannot establish mailbox delivery.
+[CONNECTIONS.md](CONNECTIONS.md) records service evidence;
+[VALIDATION.md](VALIDATION.md) separates local, hosted SQL and browser checks.
