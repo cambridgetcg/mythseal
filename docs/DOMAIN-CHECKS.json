@@ -1,0 +1,43 @@
+{
+  "checked_at_utc": "2026-09-21T18:13:19.479737+00:00",
+  "method": "Verisign .com registry RDAP lookup",
+  "scope": "Registration records only; HTTP404 is not a registrar availability, price, reservation or trademark check. No domain was purchased.",
+  "results": [
+    {
+      "domain": "shanhaioath.com",
+      "url": "https://rdap.verisign.com/com/v1/domain/shanhaioath.com",
+      "http_status": 404,
+      "result": "no_registration_record"
+    },
+    {
+      "domain": "oathscroll.com",
+      "url": "https://rdap.verisign.com/com/v1/domain/oathscroll.com",
+      "http_status": 200,
+      "result": "registered",
+      "ldhName": "OATHSCROLL.COM",
+      "events": [
+        {
+          "eventAction": "registration",
+          "eventDate": "2025-07-13T01:57:05Z"
+        },
+        {
+          "eventAction": "expiration",
+          "eventDate": "2027-07-13T01:57:05Z"
+        }
+      ]
+    },
+    {
+      "domain": "mythseal.com",
+      "url": "https://rdap.verisign.com/com/v1/domain/mythseal.com",
+      "http_status": 404,
+      "result": "no_registration_record"
+    },
+    {
+      "domain": "playoathscroll.com",
+      "url": "https://rdap.verisign.com/com/v1/domain/playoathscroll.com",
+      "checked_at_utc": "2026-09-21T18:17:39.828229+00:00",
+      "http_status": 404,
+      "result": "no_registration_record"
+    }
+  ]
+}
