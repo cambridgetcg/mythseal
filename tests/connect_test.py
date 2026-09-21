@@ -65,5 +65,44 @@ class SecretStorageTests(unittest.TestCase):
             self.assertIn('Cancelled without reading a token', output.getvalue())
 
 
+class ResendLoginTests(unittest.TestCase):
+    def test_official_interactive_login_isolated_from_inherited_keys_and_ci(self):
+        inherited = {'CI': 'true', 'GITHUB_ACTIONS': 'true', 'RESEND_API_KEY': 'unrelated-key',
+                     'RESEND_BASE_URL': 'https://example.invalid', 'RESEND_CREDENTIAL_STORE': 'file', 'TERM': 'xterm-256color',
+                     'XDG_CONFIG_HOME': '/fixture/unrelated', 'NODE_OPTIONS': '--require /fixture/hook.cjs',
+                     'npm_config_node_options': '--require /fixture/hook.cjs', 'NPM_CONFIG_NODE_OPTIONS': '--inspect'}
+        with mock.patch.dict(connect.os.environ, inherited), \
+                mock.patch.object(connect.sys, 'platform', 'darwin'), \
+                mock.patch.object(connect.sys.stdin, 'isatty', return_value=True), \
+                mock.patch('sys.stdout', new_callable=io.StringIO) as output, \
+                mock.patch.object(connect.subprocess, 'run', return_value=mock.Mock(returncode=1)) as run:
+            with mock.patch.object(output, 'isatty', return_value=True):
+                connect.resend_login()
+            args, kwargs = run.call_args
+            self.assertEqual(args[0], [str(connect.ROOT / 'node_modules/.bin/resend'), '--profile', 'mythseal', 'login'])
+            self.assertNotIn('capture_output', kwargs)
+            self.assertEqual(kwargs['env']['RESEND_BASE_URL'], 'https://api.resend.com')
+            self.assertEqual(kwargs['env']['RESEND_CREDENTIAL_STORE'], 'secure_storage')
+            self.assertNotIn('CI', kwargs['env'])
+            self.assertNotIn('GITHUB_ACTIONS', kwargs['env'])
+            self.assertNotIn('RESEND_API_KEY', kwargs['env'])
+            for setting in ('XDG_CONFIG_HOME', 'NODE_OPTIONS', 'npm_config_node_options', 'NPM_CONFIG_NODE_OPTIONS'):
+                self.assertNotIn(setting, kwargs['env'])
+            self.assertEqual(connect.os.environ['RESEND_API_KEY'], 'unrelated-key')
+            self.assertNotIn('unrelated-key', output.getvalue())
+
+    def test_read_only_check_prints_count_without_provider_records_or_errors(self):
+        for result, success in [(mock.Mock(returncode=0, stdout='{"object":"list","data":[{"id":"fixture-id","name":"private.example","token":"secret-fixture"}],"has_more":false}'), True),
+                                (mock.Mock(returncode=1, stdout='secret-fixture', stderr='private.example'), False),
+                                (mock.Mock(returncode=0, stdout='{"error":{"token":"secret-fixture"},"data":[]}'), False),
+                                (mock.Mock(returncode=0, stdout='{"object":"list","data":[null],"has_more":false}'), False),
+                                (mock.Mock(returncode=0, stdout='{"object":"list","data":[],"has_more":true}'), False)]:
+            with mock.patch.object(connect.subprocess, 'run', return_value=result) as run, mock.patch('sys.stdout', new_callable=io.StringIO) as output:
+                self.assertEqual(connect.resend_check(), success)
+                self.assertEqual(run.call_args.args[0][-5:], ['domains', 'list', '--limit', '100', '--json'])
+                self.assertNotIn('private.example', output.getvalue())
+                self.assertNotIn('secret-fixture', output.getvalue())
+
+
 if __name__ == '__main__':
     unittest.main()

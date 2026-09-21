@@ -19,8 +19,8 @@ const ENV_KEYS = [
   'GH_TOKEN', 'GITHUB_TOKEN', 'VERCEL_TOKEN', 'FLY_API_TOKEN',
   'AWS_PROFILE', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN',
 ];
-const MODULES = ['wrangler', 'supabase', '@supabase/supabase-js', 'pg', 'viem', '@openzeppelin/contracts', '@capacitor/cli', '@capacitor/core', '@capacitor/ios', '@capacitor/android'];
-const CLI_NAMES = ['gh', 'wrangler', 'supabase', 'forge', 'cast', 'anvil', 'docker', 'xcodebuild', 'java', 'adb', 'vercel', 'fly', 'flyctl', 'aws'];
+const MODULES = ['wrangler', 'supabase', 'resend-cli', '@supabase/supabase-js', 'pg', 'viem', '@openzeppelin/contracts', '@capacitor/cli', '@capacitor/core', '@capacitor/ios', '@capacitor/android'];
+const CLI_NAMES = ['gh', 'wrangler', 'supabase', 'resend', 'forge', 'cast', 'anvil', 'docker', 'xcodebuild', 'java', 'adb', 'vercel', 'fly', 'flyctl', 'aws'];
 
 // Only status values derived from untrusted subprocess/API output enter the report.
 // In particular, never return Error.message, stderr, a response body, or env values.
@@ -55,6 +55,29 @@ export function summarizeSupabase(result, projectRef) {
     if (!projectRef) return { status: 'authenticated_project_not_selected', projectCount: body.length };
     const projectMatched = body.some(project => project.id === projectRef);
     return { status: projectMatched ? 'verified' : 'configured_project_not_found', projectCount: body.length, projectMatched };
+  } catch { return { status: 'unexpected_response' }; }
+}
+
+export function summarizeResend(result) {
+  if (result.code !== 0) {
+    // The CLI writes structured errors to stderr. Never copy their message,
+    // response body, headers, credential hints or available profile names.
+    let error;
+    try { error = JSON.parse(result.stderr)?.error; } catch { /* Fall back to fixed classification. */ }
+    if (error?.statusCode === 403 || ['insufficient_permissions', 'restricted_api_key'].includes(error?.code)) return { status: 'access_denied' };
+    if (error?.statusCode === 401 || error?.code === 'unrecognized_scope') return { status: 'authentication_required' };
+    if (error?.statusCode === 429) return { status: 'rate_limited' };
+    const status = classifyFailure(result);
+    return { status: status === 'check_failed' && error?.code === 'auth_error' ? 'authentication_required' : status };
+  }
+  try {
+    // resend-cli 2.21.1 emits the API list directly, not its SDK envelope.
+    const body = JSON.parse(result.stdout);
+    if (!body || body.object !== 'list' || !Array.isArray(body.data) || typeof body.has_more !== 'boolean' || Object.hasOwn(body, 'error') ||
+      body.data.some(domain => !domain || typeof domain.id !== 'string' || !domain.id || typeof domain.name !== 'string' || !domain.name) ||
+      (body.has_more && body.data.length === 0)) return { status: 'unexpected_response' };
+    // A page proves account access, but cannot establish the total domain count.
+    return { status: 'verified', domainsReadAccess: true, domainCount: body.has_more ? null : body.data.length };
   } catch { return { status: 'unexpected_response' }; }
 }
 
@@ -154,6 +177,25 @@ function runCommand(executable, args, env) {
   });
 }
 
+export async function verifyResend(executable, env, run = runCommand) {
+  const childEnv = { ...env };
+  // Use the owner's standard profile store, regardless of a calling shell's
+  // config directory or Node preload settings. Never change the parent env.
+  for (const key of [
+    'RESEND_API_KEY', 'RESEND_PROFILE', 'RESEND_BASE_URL', 'RESEND_CREDENTIAL_STORE',
+    'XDG_CONFIG_HOME', 'NODE_OPTIONS', 'npm_config_node_options', 'NPM_CONFIG_NODE_OPTIONS',
+  ]) delete childEnv[key];
+  Object.assign(childEnv, {
+    RESEND_BASE_URL: 'https://api.resend.com',
+    RESEND_CREDENTIAL_STORE: 'secure_storage',
+    RESEND_TELEMETRY_DISABLED: '1',
+  });
+  try {
+    const result = await run(executable, ['--profile', 'mythseal', 'domains', 'list', '--limit', '100', '--json'], childEnv);
+    return summarizeResend(result);
+  } catch (error) { return { status: classifyFailure(error) }; }
+}
+
 async function verifyBase(env) {
   try {
     const endpoint = env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
@@ -193,7 +235,7 @@ export async function auditConnections({ live = false, all = false } = {}) {
     environment: Object.fromEntries(ENV_KEYS.map(key => [key, Boolean(env[key])])),
     tools: Object.fromEntries(Object.entries(executables).map(([name, value]) => [name, { status: value ? 'executable_found' : 'missing_cli' }])),
     modules,
-    services: Object.fromEntries(['github', 'cloudflare', 'r2', 'hyperdrive', 'supabase', 'baseSepolia', 'pinata', 'vercel', 'fly', 'aws'].map(name => [name, { status: 'not_checked' }])),
+    services: Object.fromEntries(['github', 'cloudflare', 'r2', 'hyperdrive', 'supabase', 'resend', 'baseSepolia', 'pinata', 'vercel', 'fly', 'aws'].map(name => [name, { status: 'not_checked' }])),
   };
   if (!live && !all) return report;
   const run = (name, args) => runCommand(executables[name], args, env);
@@ -212,6 +254,7 @@ export async function auditConnections({ live = false, all = false } = {}) {
       report.services.hyperdrive = summarizeCloudflareList(hyperdrive, 'hyperdrive');
     }),
     run('supabase', ['projects', 'list', '--output', 'json']).then(result => { report.services.supabase = summarizeSupabase(result, env.MYTHSEAL_SUPABASE_PROJECT_REF || env.SUPABASE_PROJECT_REF); }),
+    verifyResend(executables.resend, env).then(result => { report.services.resend = result; }),
     verifyBase(env).then(result => { report.services.baseSepolia = result; }),
     verifyPinata(env).then(result => { report.services.pinata = result; }),
   ];

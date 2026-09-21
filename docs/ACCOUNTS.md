@@ -12,7 +12,7 @@ the existing game save format and keeps gameplay available without an account.
 | Development database | Migrations `20260921210000` and `20260921210100` applied to Free London `mythseal-dev`; hosted rollback isolation/CAS checks passed with zero fixture users left. |
 | Real-provider adapter | Local handler ↔ hosted Supabase Auth/RPC verified disposable-account sessions, save/read, conflicts, isolation, deletion/recreation and a 2,000-card boundary fixture; cleanup confirmed. No email was sent. |
 | Hosted Auth settings | Site/redirect origin `https://mythseal.com`, confirmed email required, six-digit code, 600-second expiry and 60-second resend interval applied and read back. |
-| Email provider | Free Resend account setup opened; owner connection and domain verification are not confirmed. Supabase custom SMTP remains disabled. |
+| Email provider | Resend official CLI OAuth and domain-read access verified. `auth.mythseal.com` created in Ireland with tracking off. Owner-added DNS values matched at 21:10:39 UTC, including optional inbound MX; provider DKIM verification remained pending. Supabase custom SMTP remains disabled. |
 | Public player login | **Disabled: `OTP_ENABLED=false`.** The UI reports that login is not open yet. Mailbox delivery and a public browser sign-in remain unverified. |
 | Website release | v0.5.0 deployed from `339e4f5`; real authenticated HTTPS backup/isolation/conflict/logout and 2,000-card checks passed at 20:32:27 UTC using disposable injected sessions, with cleanup verified. No mail was sent. See [HOSTING.md](HOSTING.md). |
 
@@ -117,10 +117,10 @@ default sender remains active. Connect a custom SMTP sender before enabling the
 public code flow. [Supabase SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp).
 
 The intended sender is `Mythseal <login@auth.mythseal.com>` through Resend Free.
-Finish the owner's official Resend account connection, verify the `auth.mythseal.com`
-sending domain using the provider's exact DNS records, and configure Supabase
+The owner's official Resend account connection is verified. Complete verification of
+the existing `auth.mythseal.com` sending domain using the provider's exact DNS records, and configure Supabase
 with `smtp.resend.com`, port `465`, username `resend` and the private API key as
-SMTP password. Keep the key out of Git, browser assets and chat. Receiving mail
+SMTP password. Use a dedicated domain-restricted sending key. Keep the key out of Git, browser assets and chat. Receiving mail
 and a paid Supabase API custom domain are not required for this code flow.
 [Resend Supabase SMTP setup](https://resend.com/docs/send-with-supabase-smtp),
 [domain verification](https://resend.com/docs/dashboard/domains/introduction).

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Owner-operated login helper. Never pass a credential through shell arguments."""
 import getpass
+import json
 import os
 from pathlib import Path
 import re
@@ -14,6 +15,65 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent.parent
 PINATA_FILES = 'https://api.pinata.cloud/v3/files/public?limit=1'
+
+
+def resend_environment():
+    """Owner Terminal login must use official Resend and native credential storage."""
+    env = os.environ.copy()
+    for name in ('CI', 'GITHUB_ACTIONS', 'RESEND_API_KEY', 'RESEND_PROFILE',
+                 'RESEND_BASE_URL', 'RESEND_CREDENTIAL_STORE', 'XDG_CONFIG_HOME',
+                 'NODE_OPTIONS', 'npm_config_node_options', 'NPM_CONFIG_NODE_OPTIONS'):
+        env.pop(name, None)
+    env['RESEND_BASE_URL'] = 'https://api.resend.com'
+    env['RESEND_CREDENTIAL_STORE'] = 'secure_storage'
+    return env
+
+
+def resend_check():
+    """Read domain access; never display credentials or provider response bodies."""
+    try:
+        result = subprocess.run([
+            str(ROOT / 'node_modules/.bin/resend'), '--profile', 'mythseal',
+            'domains', 'list', '--limit', '100', '--json',
+        ], cwd=ROOT, env=resend_environment(), capture_output=True, text=True, timeout=30)
+        if result.returncode != 0:
+            print('Resend connection not verified. Choose 4 to complete owner login; no email sent.')
+            return False
+        body = json.loads(result.stdout)
+        domains = body.get('data') if isinstance(body, dict) else None
+        if (not isinstance(body, dict) or body.get('object') != 'list' or 'error' in body
+                or not isinstance(body.get('has_more'), bool) or not isinstance(domains, list)
+                or (body['has_more'] and not domains)
+                or any(not isinstance(domain, dict) or not isinstance(domain.get('id'), str)
+                       or not domain['id'] or not isinstance(domain.get('name'), str)
+                       or not domain['name'] for domain in domains)):
+            print('Resend returned an unexpected response. No response body or credential displayed.')
+            return False
+        print(f'Resend domain-read access verified for profile mythseal ({len(domains)} domains on this page).')
+        print('No email sent. Sending-domain verification and Supabase SMTP are separate setup steps.')
+        return True
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        print('Resend check could not complete. No credential or provider response displayed.')
+        return False
+
+
+def resend_login():
+    if not sys.stdin.isatty() or not sys.stdout.isatty() or os.environ.get('TERM') == 'dumb':
+        print('Open Connect.command in your own Terminal for Resend browser login.')
+        return
+    if sys.platform != 'darwin':
+        print('This helper requires macOS Keychain. Use the official Resend CLI on other platforms.')
+        return
+    print('\nChoose "Login with Resend (opens browser)" — the first choice — then press Enter.')
+    print('Complete sign-in and authorization in the official Resend browser page.')
+    print('Profile: mythseal. Credentials stay in macOS Keychain; no API key is needed in chat.')
+    result = subprocess.run([
+        str(ROOT / 'node_modules/.bin/resend'), '--profile', 'mythseal', 'login',
+    ], cwd=ROOT, env=resend_environment())
+    if result.returncode != 0:
+        print('Resend login did not complete. Choose 4 to retry when ready.')
+        return
+    resend_check()
 
 
 def supabase_login():
@@ -104,6 +164,8 @@ def main():
         print('1. Supabase official browser login')
         print('2. Pinata hidden JWT entry + read-only connection check')
         print('3. Read-only connection report')
+        print('4. Resend official browser login (macOS Keychain)')
+        print('5. Resend read-only connection check')
         print('0. Exit')
         action = input('Choose: ').strip()
         if action == '1':
@@ -112,6 +174,10 @@ def main():
             pinata()
         elif action == '3':
             subprocess.run(['npm', 'run', 'connections:check', '--', '--live'], cwd=ROOT)
+        elif action == '4':
+            resend_login()
+        elif action == '5':
+            resend_check()
         elif action == '0':
             return 0
 

@@ -17,7 +17,9 @@ v0.5.0 implements 旅程閣, player-session handling and account-private backups
 
 **Deployed verification:** source `339e4f5` passed [CI](https://github.com/cambridgetcg/mythseal/actions/runs/35651299770), including the updated `PT409` parallel SQL races. Production asset/private-path checks, a full desktop battle and mobile interactions passed. Nine mocked account flow groups passed against deployed assets. Separately, real HTTPS requests through the Worker passed authenticated backup, isolation, conflict/tombstone/logout and 2,000-card checks at **20:32:27 UTC**, with zero synthetic users/backups remaining. These checks used injected sessions and sent no mail. See [hosting evidence](HOSTING.md).
 
-Pending activation evidence: confirmed owner Resend connection, verified sending domain, accepted custom SMTP/templates, delivered numeric email code, a public browser login and cross-device restoration. Keep public `OTP_ENABLED=false` while sender setup is incomplete. [Account behavior and setup](ACCOUNTS.md).
+The subsequent developer-connection update passed **12 targeted Node connection tests and eight Python helper/server tests**. Coverage includes strict Resend list parsing, diagnostic redaction, official endpoint/profile selection, inherited credential/config/Node-hook isolation and an interactive owner-login flow without output capture. Resend CLI OAuth and live domain-read access passed. Exact public sending DNS values matched; provider DKIM verification remains pending. These checks sent no email and did not change the deployed website.
+
+Pending activation evidence: verified sending domain, accepted custom SMTP/templates, delivered numeric email code, a public browser login and cross-device restoration. Keep public `OTP_ENABLED=false` while sender setup is incomplete. [Account behavior and setup](ACCOUNTS.md).
 
 ## Previous v0.4.1 branding and hosting
 
