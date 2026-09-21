@@ -31,6 +31,14 @@ jobs:
         run: npm ci
       - name: Run deterministic suites
         run: npm test
+      - name: Check local credential storage helper
+        run: python3 -m unittest discover -s tests -p '*_test.py'
+      - name: Set up pinned local contract toolchain
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.7.1
+      - name: Compile and test the local contract toolkit fixture
+        run: npm run test:contracts
       - name: Build public asset allowlist
         run: npm run build
       - name: Validate Cloudflare bundles without deploying

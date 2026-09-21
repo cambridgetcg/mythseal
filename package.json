@@ -8,9 +8,25 @@
     "start": "python3 tools/serve.py",
     "build": "node tools/build.mjs",
     "deploy": "node tools/deploy.mjs",
-    "verify:hosting": "node tools/verify-hosting.mjs"
+    "verify:hosting": "node tools/verify-hosting.mjs",
+    "connect": "python3 tools/connect.py",
+    "connections:check": "node tools/connections.mjs",
+    "test:connections": "node --test tests/connections.test.mjs && python3 -m unittest discover -s tests -p '*_test.py'",
+    "test:contracts": "forge test --root contracts"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "11.1.1"
+    }
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "@openzeppelin/contracts": "5.6.1",
+    "@supabase/supabase-js": "2.116.0",
+    "pg": "8.23.0",
+    "supabase": "2.117.0",
+    "viem": "2.56.8",
     "wrangler": "4.136.1"
   }
 }

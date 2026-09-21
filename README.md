@@ -36,6 +36,8 @@ Default address: **http://127.0.0.1:4177**. If occupied, the launcher selects an
 
 ## Static build and hosting
 
+Developer service access and pinned backend/NFT/mobile toolkits are tracked in [CONNECTIONS.md](docs/CONNECTIONS.md). Use `npm run connect` for owner login and `npm run connections:check -- --live` for a credential-safe status report. These tools do not add player login or change the live game's local save model.
+
 The v0.4.1 publishing workflow uses Node to produce an explicit allowlist of game files in `dist`, then deploys that artifact with locally authenticated Wrangler:
 
 ```sh

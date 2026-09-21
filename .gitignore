@@ -10,6 +10,7 @@ coverage/
 dist/
 .wrangler/
 .dev.vars*
+.mythseal-secret-*
 *.log
 *.pem
 *.key
