@@ -16,6 +16,20 @@ ROOT = Path(__file__).resolve().parent.parent
 PINATA_FILES = 'https://api.pinata.cloud/v3/files/public?limit=1'
 
 
+def supabase_login():
+    print('\nFollow the Supabase prompts in this Terminal; press Enter if asked to open the browser.')
+    print('If the browser does not open, use the official login link printed below.')
+    # A Terminal opened from Codex can inherit agent markers. This action is
+    # owner-operated, so explicitly retain interactive text output and streams.
+    result = subprocess.run([
+        'npx', '--no-install', 'supabase',
+        '--agent', 'no', '--output-format', 'text',
+        'login', '--name', 'mythseal-dev',
+    ], cwd=ROOT)
+    if result.returncode != 0:
+        print('Supabase login did not complete. You can choose 1 to try again.')
+
+
 def save_pinata_token(root, token):
     """Preserve unrelated settings and atomically store a validated, single-line JWT."""
     if len(token) > 16384 or not re.fullmatch(r'[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+', token):
@@ -93,7 +107,7 @@ def main():
         print('0. Exit')
         action = input('Choose: ').strip()
         if action == '1':
-            subprocess.run(['npx', '--no-install', 'supabase', 'login', '--name', 'mythseal-dev'], cwd=ROOT)
+            supabase_login()
         elif action == '2':
             pinata()
         elif action == '3':

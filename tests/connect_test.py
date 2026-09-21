@@ -12,6 +12,23 @@ connect = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(connect)
 
 
+class SupabaseLoginTests(unittest.TestCase):
+    def test_owner_menu_forces_interactive_mode_and_keeps_terminal_streams(self):
+        with mock.patch.dict(connect.os.environ, {'CODEX_CI': '1'}), \
+                mock.patch.object(connect.sys.stdin, 'isatty', return_value=True), \
+                mock.patch('builtins.input', side_effect=['1', '0']), \
+                mock.patch.object(connect.subprocess, 'run', return_value=mock.Mock(returncode=1)) as run, \
+                mock.patch('sys.stdout', new_callable=io.StringIO) as output:
+            self.assertEqual(connect.main(), 0)
+            run.assert_called_once_with([
+                'npx', '--no-install', 'supabase',
+                '--agent', 'no', '--output-format', 'text',
+                'login', '--name', 'mythseal-dev',
+            ], cwd=connect.ROOT)
+            self.assertEqual(connect.os.environ['CODEX_CI'], '1')
+            self.assertIn('Supabase login did not complete', output.getvalue())
+
+
 class SecretStorageTests(unittest.TestCase):
     def test_replacement_preserves_other_settings_and_restricts_permissions(self):
         with tempfile.TemporaryDirectory() as root:
