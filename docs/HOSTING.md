@@ -1,20 +1,20 @@
 # Mythseal hosting
 
-Deployed **2026-09-21**, client **v0.4.1**. Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). HTTPS and gameplay were verified against the production host with a DNS-only edge override; some recursive resolvers still held pre-deployment negative records at the recorded check time. Details below distinguish that propagation state from the working deployment.
+Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). The v0.5.0 implementation adds an account API to the existing static host; public email login stays gated pending Resend setup. Deployment receipts below distinguish actual live versions from source changes.
 
 ## Topology and public boundary
 
-- `mythseal`: Cloudflare Workers Static Assets, apex custom domain, assets only, no game API or database.
+- `mythseal`: Cloudflare Workers Static Assets at the apex custom domain. Only `/api/*` runs the account Worker first; static files retain asset-first delivery. The Worker uses Supabase Auth and account-private offline backup RPCs, never trusted game economy commands.
 - `mythseal-www`: tiny Worker at `www.mythseal.com`, plus the scheme-specific `http://mythseal.com/*` route, returning permanent 308 redirects to HTTPS apex while preserving path and query. It serves no assets and has no secrets. HTTPS apex requests still go directly to static assets.
 - `workers.dev` and version preview URLs are disabled in both configs. Unknown paths return 404; this UI does not need a catch-all SPA fallback.
 
 Cloudflare manages the custom-domain DNS record and certificate in the existing active zone. This deployment does not change nameservers, mail records or another site's routes. The account ID in Wrangler config is a routing identifier, not a credential. [Custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
-`npm run build` copies exactly the runtime files named in `tools/build.mjs` plus HTTP headers and a generated `release.json` into ignored `dist/`. It rejects symlinked inputs and discards stale output. Docs, tests, credentials, player exports, source configuration and `.git` are excluded. A private repo still delivers browser JavaScript and approved artwork publicly as part of the game.
+`npm run build` copies the 19 runtime files in `hosting/public-assets.json` plus HTTP headers and a generated `release.json` into ignored `dist/`. The local Python server shares this allowlist. The build rejects symlinked inputs and discards stale output. Docs, server source, tests, credentials, player exports, source configuration and `.git` are excluded. Wrangler bundles the Worker separately for server execution. A private repo still delivers browser JavaScript and approved artwork publicly as part of the game.
 
 Headers restrict scripts to the same origin, prevent framing and MIME sniffing, and revalidate assets whose filenames are not fingerprinted. Inline styles remain necessary for existing card rendering. The release manifest hashes each approved file; secrets and internal provenance are never part of that manifest. `_headers` configures responses and is not a downloadable runtime resource. [Static assets](https://developers.cloudflare.com/workers/static-assets/), [headers](https://developers.cloudflare.com/workers/static-assets/headers/).
 
-Cloudflare's static `_redirects` format does not support domain-level redirects, hence the separate `www` Worker. Keeping the apex assets-only also avoids running application code for every static request. [Redirect limitations](https://developers.cloudflare.com/workers/static-assets/redirects/).
+Cloudflare's static `_redirects` format does not support domain-level redirects, hence the separate `www` Worker. Asset-first routing avoids running application code for static requests. [Redirect limitations](https://developers.cloudflare.com/workers/static-assets/redirects/), [Worker routing](https://developers.cloudflare.com/workers/static-assets/routing/worker-script/).
 
 ## Build and deploy
 
@@ -44,11 +44,11 @@ Wrangler uses local OAuth. No OAuth token, API token or account secret is stored
 
 After deployment, check HTTPS, the correct title, JS MIME type, CSP, all images, `www` redirect, desktop/mobile browser navigation and a battle. Compare `/release.json` to the committed build. Confirm `/README.md`, `/docs/BACKEND-STACK.md`, `/.git/config`, `/package.json`, `/wrangler.jsonc` and `/_headers` return 404.
 
-`npm run verify:hosting` checks the live manifest against local `dist/release.json`, hashes all 15 public assets, checks security headers/JS MIME, probes nine private paths and checks both `www` and HTTP-to-HTTPS redirects. Browser flow remains a separate check: run `tools/smoke.mjs` with `GAME_URL=https://mythseal.com` and a configured Playwright installation. Both use isolated test state; no real player account is involved.
+`npm run verify:hosting` checks the live manifest against local `dist/release.json`, hashes every public asset, checks security headers/JS MIME, probes 13 private paths, checks both `www` and HTTP-to-HTTPS redirects, and verifies anonymous account JSON and CSRF rejection. Browser flow remains a separate check: run `tools/smoke.mjs` with `GAME_URL=https://mythseal.com` and a configured Playwright installation. `tools/account-smoke.mjs` exercises UI flows with intercepted API fixtures; it does not prove real email delivery.
 
 To roll back, use Cloudflare deployment history for the affected Worker and restore its last known-good version. Keep apex and redirect version records separate; version IDs are not Git SHAs. `wrangler deployments list` and `wrangler rollback <version-id>` accept the applicable `--config` file. The first deployment has no earlier production version. Before a later rollback, check that the old client can read the existing save schema. [Cloudflare rollback](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/).
 
-Local progress belongs to the browser origin. The old `shanhai.*` keys remain intact, but `localhost`, apex and other hosts do not share them. Existing export remains available; import/cloud migration is future work. No valuable ownership is inferred from local saves.
+Local progress belongs to the browser origin. The old `shanhai.*` keys remain intact, but `localhost`, apex and other hosts do not share them. Export remains available; the new journey archive provides explicit cloud backup/restore after email login is enabled. It creates a local recovery copy before replacing progress. No valuable ownership is inferred from local saves.
 
 ## First deployment record
 

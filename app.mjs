@@ -4,6 +4,9 @@ import { PROFILE_KEY, LEGACY_PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_P
 import { getInstance, getPreferredInstance, getActiveDeck, getDeckLevels, toggleInstanceLock, saveInstanceDeck, activateDeck, deleteDeck } from './collection.mjs';
 import { backpackMarkup, instanceMarkup } from './backpack-ui.mjs';
 import { profileStrip, worldMarkup, dailyMarkup, marketMarkup, arenaMarkup, rewardText } from './adventure-ui.mjs';
+import { createAccountController } from './account-client.mjs';
+import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
+import { createSnapshot, restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -11,6 +14,7 @@ const announcer = document.querySelector('#announcer');
 const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const BATTLE_KEY='shanhai.battle.v3', LEGACY_BATTLE_KEY='shanhai.battle.v2';
+const RECOVERY_KEY='shanhai.profile.recovery.v3';
 const loadProfile=()=>hydrateProfile(read(PROFILE_KEY,null)??read(LEGACY_PROFILE_KEY,null),{legacyDeck:read('shanhai.deck.v1',null),legacyStats:read('shanhai.stats.v1',null),legacyBattle:read(LEGACY_BATTLE_KEY,null)});
 let profile=loadProfile(), savedDeck=profile.deck, stats=profile.stats;
 let collectionSet='all', sourceFilter='all', ownedOnly=false, selectedPack='classics';
@@ -19,15 +23,60 @@ let screen='home', draftDeck=[...savedDeck], filter='all', selectedNode=profile.
 let bagView={tab:'cards',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};
 let match=null, encounter=null, selected=null, pills=0, fury=false, aiMove=null, busy=false, recorded=false, revealPending=false, lastReward=null;
 let sound=false, audioContext=null, toastTimer, lastFocus=null, economyBusy=false;
+let recoveryDraft=null;
+const account = createAccountController({
+  getLocalProfile: loadProfile,
+  restoreLocalProfile,
+  onChange: () => {
+    if (screen === 'account') render();
+    else {
+      const button = app.querySelector('[data-action="account"], [data-action="account-open"]');
+      if (button) button.outerHTML = accountButtonMarkup(account.getState());
+    }
+  },
+  notify: message => toast(message),
+});
+const accountChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('mythseal-account') : null;
+accountChannel?.addEventListener('message', event => {
+  const state = account.getState();
+  if (event.data?.type !== 'session-changed' || (!state.initialized && !state.busy)) return;
+  account.invalidateSession();
+  account.init();
+});
 const modeName=kind=>({practice:'自由切磋',expedition:'山海遊歷',arena:'問道擂台'}[kind]||'山海對弈');
 function syncProfile(next){profile=next;savedDeck=profile.deck;stats=profile.stats;}
 async function transact(change,onSaved){
   const apply=()=>{
     const result=change(loadProfile()), next=result.profile||result;
     localStorage.setItem(PROFILE_KEY,JSON.stringify(next));
-    syncProfile(next);if(onSaved)onSaved(result);return result;
+    syncProfile(next);account.markLocalChanged();if(onSaved)onSaved(result);return result;
   };
   return navigator.locks ? navigator.locks.request('shanhai-profile-v3',apply) : apply();
+}
+async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = () => true } = {}) {
+  const restored = restoreSnapshot(snapshot);
+  if (!navigator.locks) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
+  return navigator.locks.request('shanhai-profile-v3', () => {
+    const current = loadProfile();
+    if (!isCurrent()) throw Error('登入狀態已改變，未有恢復旅程。');
+    if (economyBusy || current.pending) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');
+    if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
+    // Preserve a complete, validated local recovery copy before replacing anything.
+    localStorage.setItem(RECOVERY_KEY, JSON.stringify({ savedAt: new Date().toISOString(), snapshot: createSnapshot(current) }));
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(restored));
+    localStorage.removeItem(BATTLE_KEY);
+    syncProfile(restored);
+    match=null;encounter=null;selected=null;busy=false;recorded=false;revealPending=false;lastReward=null;
+    draftDeck=[...savedDeck];selectedNode=profile.location||NODES[0].id;
+    trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
+    bagView={tab:'cards',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};
+    return restored;
+  });
+}
+function recoveryMarkup() {
+  const saved = read(RECOVERY_KEY, null);
+  if (!saved?.snapshot) return '';
+  return `<aside class="account-recovery"><p>上次恢復前的本機旅程已保留。你可以下載副本，或復原到當時進度。</p><button class="text-button" data-action="export-recovery">下載本機回復備份 ↗</button><button class="text-button" data-action="restore-recovery">復原上次本機旅程 →</button></aside>`;
 }
 async function economy(change,message,after,onSaved){
   if(economyBusy)return;economyBusy=true;
@@ -61,7 +110,7 @@ function header() {
   const links=[['world','山海遊歷'],['arena','問道擂台'],['bag','山海行囊'],['daily','每日功課'],['market','商旅市集'],['collection','萬象藏典'],['rules','弈道']];
   return `<header class="topbar"><button class="brand" data-action="home" aria-label="萬象契首頁"><img src="assets/mark.svg" alt=""><span><span class="brand-name">萬象契</span><span class="brand-en">MYTHSEAL</span></span></button>
     <nav class="nav" aria-label="主選單">${links.map(([id,name])=>`<button data-action="${id}" class="${screen===id?'active':''}" ${screen===id?'aria-current="page"':''}>${name}</button>`).join('')}</nav>
-    <div class="header-actions"><div class="wallet"><span title="金幣">◈ <b>${profile.coins.toLocaleString()}</b><small>金幣</small></span><span title="靈砂">✧ <b>${profile.dust.toLocaleString()}</b><small>靈砂</small></span></div><button class="icon-button" data-action="sound" aria-label="${sound?'關閉':'開啟'}音效" aria-pressed="${sound}">${sound?'♫':'♪'}</button></div></header>`;
+    <div class="header-actions"><div class="wallet"><span title="金幣">◈ <b>${profile.coins.toLocaleString()}</b><small>金幣</small></span><span title="靈砂">✧ <b>${profile.dust.toLocaleString()}</b><small>靈砂</small></span></div>${accountButtonMarkup(account.getState())}<button class="icon-button" data-action="sound" aria-label="${sound?'關閉':'開啟'}音效" aria-pressed="${sound}">${sound?'♫':'♪'}</button></div></header>`;
 }
 const footer=()=>`<footer class="footer"><span>MYTHSEAL · 原創山海卡牌對弈</span><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><span>四局之內，自有天地。</span></footer>`;
 
@@ -136,7 +185,7 @@ function restoreFocus(container,focus) {
 function render() {
   const focus=captureFocus(app);
   profile=refreshDaily(profile);
-  const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode),daily:()=>dailyMarkup(profile,trainingId),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup)};
+  const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode),daily:()=>dailyMarkup(profile,trainingId),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup),account:()=>accountMarkup(account.getState(),profile)+recoveryMarkup()};
   app.innerHTML=`<div class="shell">${header()}${screen==='battle'?'':profileStrip(profile)+pendingBanner()}${(pages[screen]||homeMarkup)()}${screen==='battle'?'':footer()}</div>`;
   restoreFocus(app,focus);
 }
@@ -265,6 +314,7 @@ function requestNavigation(destination) {
 }
 function navigate(destination) {
   closeModal();screen=destination==='classics'?'collection':destination;if(screen==='collection'){draftDeck=[...savedDeck];filter='all';collectionSet=destination==='classics'?'classics':'all';sourceFilter='all';ownedOnly=false;}if(screen==='bag'){bagView={...bagView,tab:'cards'};loadBagDeck(profile.activeDeckId);}render();window.scrollTo({top:0,behavior:'instant'});
+  if(screen==='account') account.init();
 }
 function updateMovePanel() {
   const panel=app.querySelector('.move-panel');
@@ -315,7 +365,38 @@ function roundHoldMarkup(){
 document.addEventListener('click', event=>{
   const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
   const {action,id}=button.dataset;
-  if(['home','collection','world','daily','market','arena','classics','bag'].includes(action))return requestNavigation(action);
+  if(action==='account-open')return requestNavigation('account');
+  if(['home','collection','world','daily','market','arena','classics','bag','account'].includes(action))return requestNavigation(action);
+  const accountActions = {
+    'account-retry': () => account.init(),
+    'account-refresh': () => account.refreshCloud(),
+    'account-upload': () => account.upload(),
+    'account-confirm-restore': () => account.setConfirmation('restore'),
+    'account-confirm-delete': () => account.setConfirmation('delete'),
+    'account-cancel-confirmation': () => account.cancelConfirmation(),
+    'account-restore': () => account.restore(),
+    'account-delete': () => account.deleteBackup(),
+    'account-change-email': () => account.changeEmail(),
+    'account-logout': async () => { await account.logout(); accountChannel?.postMessage({type:'session-changed'}); },
+  };
+  if(accountActions[action]) { Promise.resolve(accountActions[action]()).catch(error=>toast(error.message)); return; }
+  if(action==='export-recovery'){
+    const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
+    const url=URL.createObjectURL(new Blob([JSON.stringify(saved.snapshot.profile,null,2)],{type:'application/json'})),link=document.createElement('a');
+    link.href=url;link.download='萬象契旅程-本機回復備份.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
+  }
+  if(action==='restore-recovery'){
+    if(profile.pending||economyBusy)return toast('請先完成或放棄未完對局。');
+    const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
+    recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
+    modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>');return;
+  }
+  if(action==='confirm-restore-recovery'){
+    const saved=read(RECOVERY_KEY,null),draft=recoveryDraft;
+    if(!draft||saved?.savedAt!==draft.savedAt)return toast('回復備份已更新，請重新查看。');
+    recoveryDraft=null;
+    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>toast(error.message));return;
+  }
   if(action==='bag-tab'){bagView.tab=id;if(id==='decks'&&!bagView.draftInstanceIds.length)loadBagDeck(profile.activeDeckId);render();return;}
   if(action==='bag-card'){navigate('bag');bagView.query=getCard(id).name;render();return;}
   if(action==='instance-inspect')return showInstance(id);
@@ -419,10 +500,13 @@ document.addEventListener('change',event=>{
   if(event.target.id==='owned-only'){ownedOnly=event.target.checked;render();}
 });
 window.addEventListener('pagehide',()=>{if(match?.status==='playing')try{persistBattle();}catch{}});
-window.addEventListener('storage',event=>{if(event.key===PROFILE_KEY){syncProfile(loadProfile());render();}});
+window.addEventListener('storage',event=>{if(event.key===PROFILE_KEY){syncProfile(loadProfile());account.markLocalChanged();render();}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncProfile(loadProfile());render();}});
 setInterval(()=>{const next=refreshDaily(profile);if(next.daily.date!==profile.daily.date){syncProfile(loadProfile());render();announce('新一天的功課與商旅貨架已更新。');}},30000);
 document.addEventListener('input',event=>{
+  if(event.target.closest('[data-account-form]')){
+    account.setDraft(event.target.name,event.target.value);return;
+  }
   if(event.target.id==='bag-search'){
     const cursor=event.target.selectionStart;bagView.query=event.target.value;render();const input=document.querySelector('#bag-search');input?.setSelectionRange(cursor,cursor);return;
   }
@@ -434,6 +518,13 @@ document.addEventListener('input',event=>{
   app.querySelector('#pill-amount').textContent=pills;app.querySelector('#attack-value').textContent=preview.attack;
   app.querySelector('#cost-note').textContent=`共消耗 ${preview.cost} 丹，出牌後剩 ${match.player.pills-preview.cost} 丹。`;
   app.querySelector('[data-action="pill-minus"]').disabled=pills===0;app.querySelector('[data-action="pill-plus"]').disabled=pills===max;
+});
+document.addEventListener('submit',event=>{
+  const kind=event.target.dataset.accountForm;if(!kind)return;
+  event.preventDefault();
+  const fields=new FormData(event.target);
+  const action=kind==='email'?account.requestCode(String(fields.get('email')||'')):account.verifyCode(String(fields.get('token')||''));
+  Promise.resolve(action).then(()=>{if(kind==='verify'&&account.getState().account)accountChannel?.postMessage({type:'session-changed'});}).catch(error=>toast(error.message));
 });
 overlay.addEventListener('click',event=>{if(event.target.classList.contains('modal-backdrop')&&event.target.dataset.dismissible==='true')closeModal();});
 document.addEventListener('keydown',event=>{

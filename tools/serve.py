@@ -4,13 +4,32 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import argparse
+import json
 import threading
 import webbrowser
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
+PUBLIC_FILES = frozenset(json.loads((ROOT / 'hosting/public-assets.json').read_text()))
 
 class GameHandler(SimpleHTTPRequestHandler):
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.mjs': 'text/javascript'}
+
+    def send_head(self):
+        path = unquote(urlsplit(self.path).path)
+        relative = 'index.html' if path == '/' else path.removeprefix('/')
+        if relative not in PUBLIC_FILES:
+            self.send_error(404, 'Not found')
+            return None
+        current = Path(self.directory)
+        for part in Path(relative).parts:
+            current /= part
+            if current.is_symlink():
+                self.send_error(404, 'Not found')
+                return None
+        # Never fall back to a repository directory listing, even without index.html.
+        self.path = '/' + relative
+        return super().send_head()
 
 def main():
     parser = argparse.ArgumentParser()

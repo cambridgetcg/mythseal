@@ -1,8 +1,20 @@
 # Mythseal backend stack and data boundaries
 
-**Design proposal — sources checked 2026-09-21.** The target public site is `mythseal.com`; its selected static host is Cloudflare Workers Static Assets. The source repository is private `cambridgetcg/mythseal`. Actual hosting/DNS deployment is tracked separately. A Free Supabase development project, `mythseal-dev`, has subsequently been provisioned in London; actual resources and verification are in [CONNECTIONS.md](CONNECTIONS.md). The future command API, game schema, Hyperdrive connection and other backend resources below remain proposals. This design is not a running game backend.
+**Current account slice and future authority design — sources checked 2026-09-21.** The public site is `mythseal.com`; its selected host is Cloudflare Workers Static Assets. The source repository is private `cambridgetcg/mythseal`. A Free Supabase development project, `mythseal-dev`, is provisioned in London. v0.5.0 implements player account UI, a Worker auth adapter and private backups of editable offline journeys; both backup migrations have been applied and tested on the hosted development project. The local handler has also passed real Supabase Auth/RPC checks with disposable accounts. Public email login is disabled pending custom SMTP. Actual resources and hosting evidence are in [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
 
-The current game is a dependency-free browser application with editable local saves. Publishing those files makes the game accessible on a website; it does not create trusted ownership, multiplayer, cloud saves or NFTs. A private source repository also does not hide JavaScript and artwork delivered to visitors.
+The browser remains dependency-free. Its Supabase SDK runs only in the server Worker; the 19 public assets exclude server source and credentials. A private source repository does not hide the JavaScript and artwork intentionally delivered to visitors. Private account backups preserve local card records without turning those records into trusted ownership, online rewards or NFTs. The authoritative command API, game economy schema and Hyperdrive connection described below remain proposals.
+
+## Implemented account and backup slice
+
+The browser calls same-origin `/api/v1/account`, `/api/v1/auth/*` and `/api/v1/journey`. Supabase Auth identifies the player; the Worker restores and verifies the session through the maintained server SDK, uses HttpOnly cookies and rejects cross-origin mutations. Public OTP delivery is gated by `OTP_ENABLED=false` until the Resend sender is connected. Supabase's default sender is restricted to organization-team addresses and is unsuitable for public sign-in. [Supabase SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
+
+`private_backup.journeys` stores one private offline snapshot per account. Direct schema/table access is revoked from client roles; authenticated-only SQL RPCs derive the actor from `auth.uid()`. A transaction advisory lock serializes first creation and later writes before comparing the expected revision. Deleting a backup clears its snapshot and preserves a revision tombstone so an old device cannot recreate it with revision zero. RLS is enabled as defense in depth; the RPCs' explicit actor checks enforce this elevated function path.
+
+Stale revisions return `PT409`, a permanent HTTP 409. They must not use the retryable serialization SQLSTATE `40001`: PostgREST can retry that transaction rather than report the user's conflict. Migration `20260921210100` applies this distinction. [Supabase RPC retry guidance](https://supabase.com/docs/guides/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions-77326b).
+
+The UI requires deliberate upload, restore or deletion. Restoration retains a local recovery copy and refuses unfinished battles or a local save that changed during confirmation. Complete snapshots retain card IDs, XP, levels, decks, locks and NPC-held copies. The canonical validator applies a 512 KiB database-text budget and a 2,000-card bound. None of those checks make the editable snapshot an online asset ledger. See [ACCOUNTS.md](ACCOUNTS.md) and the [server contract](../server/README.md).
+
+This slice uses Supabase's player-authenticated REST/RPC path. It does not need the proposed `game_api` role, direct `pg` connection or Hyperdrive, and it does not implement the future game-command transaction path below.
 
 ## Recommendation
 
@@ -24,7 +36,7 @@ flowchart LR
   I --> B[Selected chain RPC]
 ```
 
-The diagram is proposed infrastructure, not a deployment record. Auth identifies the account; Postgres decides ordinary game ownership and growth; a future chain decides token ownership, with Postgres retaining a rebuildable confirmed index. Notifications never decide any of these.
+The diagram describes the future authoritative infrastructure, not the implemented backup slice or a deployment record. In that future design, Auth identifies the account, Postgres decides ordinary game ownership and growth, and a chain decides token ownership with Postgres retaining a rebuildable confirmed index. Notifications never decide any of these. Current backups merely retain account-private offline progress.
 
 ## Platform comparison
 
@@ -45,6 +57,8 @@ Disable query caching for balances, card ownership, authorization, matches and r
 
 ## Who may change which data
 
+The authority columns below define the future online economy. Current gold, XP, daily claims and battles remain local game state; backing them up does not move their authority to the server.
+
 | Data | Authority | Client role |
 | --- | --- | --- |
 | Character definitions, illustrations and battle rules | Versioned release data; server selects `rulesVersion` | Download/display; local previews may calculate expected results |
@@ -53,16 +67,17 @@ Disable query caching for balances, card ownership, authorization, matches and r
 | Ordinary card UID, owner, XP, origin and battle history | Server game ledger | Select a UID; never submit a replacement authoritative profile |
 | Decks and card locks | Validated server commands | Request an edit; server checks ownership and deck rules |
 | Local offline progress | The local browser/device | Retain as a separate offline journey; no scarce-asset entitlement |
+| Private offline backup | Verified account owns the stored copy; content remains client-authored | Explicit upload/restore/delete with optimistic revision checks |
 | NFT token owner and mint supply | Future contract/chain, subject to its documented finality policy | Display confirmed information; wallet assertions alone do not transfer ownership |
 | Token metadata / provenance / optional collection record | Versioned backend publication tied to the token | Inspect; gameplay entitlement remains separately modeled |
 
 `engine.mjs` remains the rules source. `progression.mjs` and `collection.mjs` provide reusable rules and test fixtures, but their client profile-mutation functions are not network authorization boundaries. Create server command handlers rather than exposing `finishBattle({ winner })` or accepting uploaded `instances` arrays.
 
-Hosting on `mythseal.com` also creates a different storage origin from `localhost`. Provide a deliberate offline backup/import experience later; never treat a browser-imported UID or 700 XP as server-verified growth or mint eligibility. The current `card-000001` sequence is local, so online copies receive globally unique server IDs.
+Hosting on `mythseal.com` creates a different storage origin from `localhost`. The implemented backup/restore flow is deliberate and preserves local IDs, but never treats a browser-imported UID or 700 XP as server-verified growth or mint eligibility. The current `card-000001` sequence is local; future authoritative online copies require globally unique server IDs.
 
 ## Proposed relational model
 
-Names below are design sketches, not migrations. Store currencies and XP as bounded integers; use foreign keys, unique constraints and explicit command validation together.
+Names below are future economy design sketches, not migrations. The implemented `private_backup.journeys` schema is separate. Store authoritative currencies and XP as bounded integers; use foreign keys, unique constraints and explicit command validation together.
 
 | Records | Essential fields and constraints |
 | --- | --- |
@@ -141,7 +156,7 @@ GitHub CI should run existing rules/browser checks plus future API/RLS/concurren
 
 ## Cost model — assumptions, not a quote
 
-All figures are USD before tax, checked 2026-09-21. **The current assets-only site does not require this paid backend bundle:** static asset delivery can use the Workers Free plan; no paid plan change is made here. The budget below is for a future authoritative API and production database. [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/).
+All figures are USD before tax, checked 2026-09-21. **The current development account/private-backup slice does not authorize this paid backend bundle:** static delivery and the development Worker use the selected Free setup, and the database is Supabase Free. No paid plan change is made here. The budget below is for a future authoritative API and production database. [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/).
 
 Example workload: **1,000 monthly active players**, 100 daily players, 10 matches per daily player, 30 days, and about 20 dynamic requests per match plus menus/claims: budget **1 million API requests/month**. At an assumed 10 ms API CPU average that is 10 million CPU ms. Actual CPU, database load, image downloads and retry traffic must be measured.
 
@@ -162,10 +177,11 @@ Set component alerts and review usage weekly during beta. A spend cap or budget 
 
 ## Implementation sequence and acceptance gates
 
-1. **Static hosting:** publish the existing game under the agreed domain; verify TLS, assets, caching and save-origin behavior. Keep the product labelled as local-save gameplay until accounts exist.
-2. **Authority slice:** implement sign-in, one authoritative inventory, `start-match` → four turns → settlement and reconnect. Reuse engine fixtures; prove no client win/XP injection and no duplicate settlement.
-3. **Economy slice:** add daily claims, packs, upgrades, NPC sale/buyback and exact-copy decks. Test simultaneous last-copy sales, double claims, pack retries, interrupted commits and deck changes during a match.
-4. **Online beta:** add restore exercise, observability, abuse limits, isolated staging and mobile API compatibility. Introduce notifications only when useful; keep offline saves separate.
-5. **Trading / collectibles:** first agree entitlement, platform, custody and supply policy; then implement escrow/indexing/testnet independently. Confirm the recovery and security budget before any asset of real value is involved.
+1. **Static hosting:** implemented; exact deployment checks are in [HOSTING.md](HOSTING.md).
+2. **Account/private backup:** implemented and locally tested, with the development schema applied. Complete custom SMTP, real email delivery and owner sign-in verification before opening public login. Keep the product labelled as an editable offline journey with manual backups.
+3. **Authority slice:** implement one authoritative inventory, `start-match` → four turns → settlement and reconnect. Reuse engine fixtures; prove no client win/XP injection and no duplicate settlement. Offline backups are not an import path for trusted inventory.
+4. **Economy slice:** add daily claims, packs, upgrades, NPC sale/buyback and exact-copy decks. Test simultaneous last-copy sales, double claims, pack retries, interrupted commits and deck changes during a match.
+5. **Online beta:** add restore exercise, observability, abuse limits, isolated staging and mobile API compatibility. Introduce notifications only when useful; keep offline saves separate.
+6. **Trading / collectibles:** first agree entitlement, platform, custody and supply policy; then implement escrow/indexing/testnet independently. Confirm the recovery and security budget before any asset of real value is involved.
 
 Cloudflare static hosting is selected, and the Free London Supabase development project is provisioned. Before provisioning production resources, confirm the beta audience/region, monthly budget and account recovery approach, and validate the proposed Workers/Hyperdrive adapter locally. The portable parts are the pure rules, SQL data model and command contract; platform-specific adapters can change without redefining what it means to own or grow a card.

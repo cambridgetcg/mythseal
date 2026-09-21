@@ -4,6 +4,8 @@ Initial toolkit setup and live audit: **2026-09-21 19:10:56 UTC**. This record s
 
 Supabase owner login was verified at **2026-09-21 19:26:31 UTC**. The new hosted development project was verified separately at **2026-09-21 19:39:48 UTC**; Supabase project selection and Pinata access were rechecked at **19:42:27 UTC**. Other service evidence retains the initial audit timestamp above.
 
+The private journey migration was applied through the official CLI at **2026-09-21 20:16:06 UTC**, with direct database password authentication verified. Follow-up migration `20260921210100` was applied at **20:24:59 UTC**, and the hosted rollback suite passed again with zero synthetic fixture users remaining. A local handler integration against real Supabase Auth/RPC passed at **20:25:35–20:25:41 UTC**, with its fixtures also removed. Mailbox delivery is separate: the new free Resend account connection is still pending and `OTP_ENABLED` remains `false`. See [ACCOUNTS.md](ACCOUNTS.md).
+
 ## Verified access
 
 | Service | Evidence | Remaining boundary |
@@ -12,7 +14,8 @@ Supabase owner login was verified at **2026-09-21 19:26:31 UTC**. The new hosted
 | Cloudflare | Existing OAuth matches account `cf4198e651bf3009877d49f688c9d88e`; the game was deployed through it. | Account login does not automatically enable every product. |
 | Hyperdrive | Configuration list request succeeded; zero configurations. | No database connection, origin credential or pool has been created. |
 | R2 | API returned service-not-enabled, code `10042`. | Owner must activate R2 in the Cloudflare dashboard before bucket/pinning work; no billing setting was changed. Current static hosting does not depend on R2. |
-| Supabase project / CLI | `mythseal-dev` is linked locally; London `eu-west-2`, organization plan `free`, project status `ACTIVE_HEALTHY`. Database/Auth/REST/Storage/Realtime health checks passed; a Management API read-only SQL query returned `ok: 1`. | Development infrastructure only. Game schema, application roles, player sign-in and Hyperdrive remain unimplemented. Direct database password authentication has not been tested. |
+| Supabase project / CLI | `mythseal-dev` is linked locally; London `eu-west-2`, organization plan `free`. Initial health checks passed. Migrations `20260921210000` and `20260921210100`, direct password authentication and hosted rollback tests passed. A local handler also exercised real Auth/RPC with disposable accounts. | Account-private offline backup storage is implemented. Public email delivery is pending; authoritative game tables, the `game_api` role and Hyperdrive remain future work. |
+| Resend / player email | A new free account setup was opened and optional integrations were suggested. Owner account/key connection and sending-domain verification have **not** been confirmed. | `OTP_ENABLED=false`. Mailbox delivery and public browser login remain unverified. Supabase rejected custom email-template configuration while its default sender is in use; connect custom SMTP first. |
 | Supabase assistant integration | Available, but installation/connection was not confirmed by the latest integration inventory. | Optional alternative to CLI access; installing tooling and authorizing an account are separate operations. |
 | Base Sepolia | Read-only public RPC returned chain ID **84532**; viem independently confirmed the expected chain. | No wallet, signer, funded account, contract or transaction. Public RPC is a development endpoint, not an SLA. |
 | Pinata | `GET /v3/files/public?limit=1` returned **200** using the locally entered JWT. | File-read access verified; no upload was made and upload/delete scope was not exercised. Billing tier was not inspected. |
@@ -35,7 +38,17 @@ The ignored `.runtime/connections.json` holds the machine-readable, secret-free 
 
 The existing `cambridgetcg` organization is Pro. A separate Free organization was created for this project because Supabase plans apply at organization level and additional paid projects incur compute charges. No existing project or billing setting was changed. [Supabase billing](https://supabase.com/docs/guides/platform/billing-on-supabase).
 
-The ignored `.runtime/supabase-provision.json` records the specific provisioning and health evidence. Local CLI linking was confirmed by matching `supabase/.temp/project-ref` to the new reference. The separate `POST /v1/projects/{ref}/database/query/read-only` check used `select 1 as ok`; linking alone does not demonstrate a SQL connection. The health request omitted optional `timeout_ms`: the live API rejected its documented query-string form as a string/number type mismatch. No application tables, migrations or cloud Auth configuration were pushed.
+The ignored `.runtime/supabase-provision.json` records the initial provisioning and health evidence. Local CLI linking was confirmed by matching `supabase/.temp/project-ref` to the new reference. The initial `POST /v1/projects/{ref}/database/query/read-only` check used `select 1 as ok`; linking alone did not demonstrate a SQL connection. The health request omitted optional `timeout_ms`: the live API rejected its documented query-string form as a string/number type mismatch. Initial provisioning made no application schema or Auth configuration changes.
+
+The later ignored `.runtime/account-migration.json` records the applied private-backup migration and direct database check. The hosted rollback suite exercised anonymous execution denial, missing identity, per-account isolation, snapshot bounds, stale revisions and deletion/recreation protection. A follow-up check found zero synthetic fixture users. The separate local PostgreSQL harness also exercised genuinely concurrent first inserts and updates. These tests verify the backup storage boundary; they do not certify email delivery or an authoritative game economy.
+
+Follow-up migration `20260921210100_backup_conflict_http_status.sql` returns `PT409` for a stale expected revision. This is a permanent HTTP conflict; using serialization-failure `40001` caused PostgREST to retry instead of returning the decision to the client. The hosted rollback suite passed after the correction. [Supabase RPC retry guidance](https://supabase.com/docs/guides/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions-77326b).
+
+The later real-provider check used the local Worker handler and SDK against hosted Supabase, with a generated verification code that sent **no email**. It verified identity, save/read, `PT409` conflicts, unauthorized access, two-account isolation, deletion tombstones, stale recreation rejection, recreation and logout clearing. A 2,000-card fixture with 486,009 compact JSON bytes and 522,196 JSONB text bytes saved and read successfully. Both disposable users and their backups were removed and zero remaining fixtures were confirmed. This evidence does not claim a deployed Worker or mailbox-delivered login.
+
+The hosted Auth API rejected an attempt to configure the checked-in email templates with HTTP 400 because the default sender does not permit those template changes. No paid upgrade was made. The six-digit OTP templates remain ready in `supabase/templates/otp.html`; configure them after connecting custom SMTP. A local `config.toml` entry is not evidence that the hosted setting changed.
+
+At **2026-09-21 20:18:39 UTC**, the hosted Auth settings were updated and read back: Site URL `https://mythseal.com`, an exact matching redirect allowlist, email confirmation enabled, unverified-email sign-in disabled, six-digit codes expiring after 600 seconds and a 60-second resend interval. SMTP remains disabled and the custom templates remain pending. The Worker feature flag remains `OTP_ENABLED=false`.
 
 The subsequent `.runtime/mythseal-setup-check.json` confirms that CLI project-list access includes the exact selected project (two accessible projects in total), the environment file remains mode `0600`, and the preserved Pinata JWT still receives HTTP `200` from the read-only file-list endpoint.
 
@@ -48,7 +61,7 @@ The generated database password is saved as `SUPABASE_DB_PASSWORD` in ignored `.
 | Toolkit | Pinned version | Purpose |
 | --- | --- | --- |
 | Wrangler | 4.136.1 | Existing Cloudflare build/deploy tooling |
-| Supabase CLI / JS SDK | 2.117.0 / 2.116.0 | Local configuration, future migrations/auth adapter |
+| Supabase CLI / JS SDK | 2.117.0 / 2.116.0 | Versioned migrations and server-only player auth/private-backup adapter |
 | `pg` | 8.23.0 | Future transactional Hyperdrive/Postgres adapter |
 | viem | 2.56.8 | EVM read client and future wallet/contract adapter |
 | OpenZeppelin Contracts | 5.6.1 | Standard ERC-721 library for future reviewed contracts |
@@ -73,7 +86,7 @@ npm run connect
 
 The Pinata JWT is currently in root `.env.local`, Git-ignored, mode **0600**, outside the public asset allowlist. The helper preserves other entries, replaces only its own JWT setting atomically, rejects symlinks/multiline injection and refuses an echoed-input fallback. Temporary files are also ignored. It never prints the JWT or provider response bodies. `.env.example` contains only names/placeholders and the public Base Sepolia RPC URL. No wallet private key belongs in this file.
 
-Developer API credentials are different from future **player** authentication. This work does not add sign-in screens, player Google/Apple providers, a Supabase service-role browser key or production SMTP. Those follow the game account implementation.
+Developer API credentials are separate from **player** authentication. The player UI and Worker adapter now exist; ordinary Supabase player sessions authorize private backups. The Worker uses the project's publishable key and no service-role credential. Session tokens stay in HttpOnly cookies, not browser storage. Google/Apple providers and production SMTP are not configured. Developer login alone does not sign a player into the game.
 
 ## Repeatable checks
 
@@ -87,10 +100,12 @@ npm run test:contracts                # local EVM only; no RPC/signing
 
 Connection checks emit boolean presence, bounded counts and status codes. They do not echo tokens, provider records, raw command errors or API response bodies. Each external request has a timeout. R2/Hyperdrive checks run only after the intended Cloudflare account is confirmed. Unknown output and a failed identity check are not treated as verified access.
 
-Completed local validation: **117 Node tests**, **4 Python credential-helper tests**, **1 local Forge ERC-721 integration test**, syntax checks and the public build. The public asset manifest remains `fe448b3147b0cea2f6d57b941ff4da912da4b8e7722b5c2873d9114ca6705240`; toolkits and credentials are not website assets. CI also runs the Node/Python checks and pinned Foundry fixture. CI is separate from the owner-authenticated live audit.
+The initial toolkit validation covered Node/Python helper tests, a local Forge ERC-721 fixture, syntax and the previous 15-file public build. v0.5.0 adds account/client/snapshot tests, SQL isolation/concurrency checks and a nine-flow intercepted browser smoke. The new public allowlist contains 19 game assets; server source, toolkits, tests and credentials remain excluded. Current evidence is in [VALIDATION.md](VALIDATION.md), with actual deployed manifests and CI results recorded separately from account-access checks.
 
 ## Next setup steps
 
-The London development project is ready and locally linked. Next implement versioned game-schema migrations, a restricted `game_api` role, the Hyperdrive connection and Auth redirect URLs for the actual player login flow. Production resources, recovery and paid-service budgets remain separate decisions. The selected initial gameplay path can proceed without AWS, Vercel, Fly or an R2 bucket.
+The London development project now has the versioned private-backup schema. Finish the free Resend owner connection, verify the authentication sending domain, configure Supabase custom SMTP and the numeric-code templates, and verify an owner-initiated email sign-in before enabling public login. Keep `OTP_ENABLED=false` while that setup is incomplete. [Supabase SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [email OTP](https://supabase.com/docs/guides/auth/auth-email-passwordless).
+
+The authoritative game schema, restricted `game_api` role and Hyperdrive connection remain a later phase. Production resources, recovery budgets and paid-service changes remain separate decisions. The private-backup implementation uses authenticated SQL RPCs and can proceed without AWS, Vercel, Fly, Hyperdrive or an R2 bucket.
 
 When artwork archiving starts, activate R2 if it is chosen for the independent backup and verify a small explicit pin/upload/restore flow; a successful Pinata read does not prove persistence. Before native builds, finish Xcode/Java/Android toolchains and owner-controlled Apple/Google signing accounts. Before testnet writes, choose an owner-controlled wallet/signing workflow and verify recovery; this setup intentionally created no keys or token issuance.

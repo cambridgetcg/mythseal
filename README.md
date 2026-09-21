@@ -4,11 +4,11 @@
 
 An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The game now has 24 characters: 12 original山海 characters and 12 new interpretations of classical literary, historical and legendary figures. Illustrations, map, character writing and card balance are created for this game.
 
-**Play [萬象契 · Mythseal](https://mythseal.com).** v0.4.1 is deployed on Cloudflare static hosting; HTTPS and the `www` → apex redirect have been verified. The source repository remains private at `cambridgetcg/mythseal`.
+**Play [萬象契 · Mythseal](https://mythseal.com).** The source repository remains private at `cambridgetcg/mythseal`. Exact public deployment revisions and live checks are recorded in [HOSTING.md](docs/HOSTING.md).
 
-**DNS propagation:** as of **2026-09-21 18:52 UTC**, `1.1.1.1` resolved both names, while some recursive caches, including the local resolver and `8.8.8.8`, still returned earlier negative results. Live asset and desktop/mobile-emulation checks used explicit Cloudflare edge DNS resolution with normal TLS verification. If the domain does not yet resolve on your network, allow its cached result to expire. See [hosting evidence and current status](docs/HOSTING.md).
+**v0.5.0 adds 旅程閣:** player account screens and private cloud backups of your offline journey. The implementation preserves individual card IDs, XP, decks and progress, with explicit upload, restore and a local recovery copy. **Public email login is still disabled while the new free Resend sender is being connected.** Guest play works as before. See [accounts and cloud journeys](docs/ACCOUNTS.md).
 
-Gameplay still uses browser-local saves. iOS, Android, accounts, an authoritative backend, online player trading and limited-edition NFT cards remain planned. See the [roadmap](ROADMAP.md), [technical plan](docs/TECHNICAL-PLAN.md), [backend stack](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md), [content and release pipeline](docs/CONTENT-RELEASE-PIPELINE.md), [mobile plan](docs/MOBILE-RELEASE.md) and [blockchain design](docs/BLOCKCHAIN-DESIGN.md). [Naming history](docs/NAMING.md) preserves the earlier research; selecting a name and owning its domain do not establish trademark clearance.
+Gameplay still runs from editable browser-local saves; an account backup is not trusted online ownership. iOS, Android, an authoritative game economy, online player trading and limited-edition NFT cards remain planned. See the [roadmap](ROADMAP.md), [technical plan](docs/TECHNICAL-PLAN.md), [backend stack](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md), [content and release pipeline](docs/CONTENT-RELEASE-PIPELINE.md), [mobile plan](docs/MOBILE-RELEASE.md) and [blockchain design](docs/BLOCKCHAIN-DESIGN.md). [Naming history](docs/NAMING.md) preserves the earlier research; selecting a name and owning its domain do not establish trademark clearance.
 
 ## Run locally
 
@@ -32,13 +32,13 @@ Double-click **Play.command** and keep its Terminal window open while playing. C
 python3 tools/serve.py --open
 ```
 
-Default address: **http://127.0.0.1:4177**. If occupied, the launcher selects another port and prints its address. Python 3 and a modern browser are the only runtime requirements. Assets are local. No accounts, payments, tracking, Flash or external runtime dependencies. The server binds to this Mac only.
+Default address: **http://127.0.0.1:4177**. If occupied, the launcher selects another port and prints its address. Python 3 and a modern browser are sufficient for guest play. Assets are local, and the browser runtime remains dependency-free. The server binds to this Mac only and serves the explicit public-file allowlist. It does not run the account API; use the Worker environment for connected accounts or the intercepted browser smoke for UI development.
 
-## Static build and hosting
+## Build and hosting
 
-Developer service access and pinned backend/NFT/mobile toolkits are tracked in [CONNECTIONS.md](docs/CONNECTIONS.md). Use `npm run connect` for owner login and `npm run connections:check -- --live` for a credential-safe status report. These tools do not add player login or change the live game's local save model.
+Developer service access and pinned backend/NFT/mobile toolkits are tracked in [CONNECTIONS.md](docs/CONNECTIONS.md). Use `npm run connect` for owner login and `npm run connections:check -- --live` for a credential-safe status report. Developer credentials and player email sessions are separate; the account implementation is documented in [ACCOUNTS.md](docs/ACCOUNTS.md).
 
-The v0.4.1 publishing workflow uses Node to produce an explicit allowlist of game files in `dist`, then deploys that artifact with locally authenticated Wrangler:
+The publishing workflow uses Node to produce 19 explicitly allowlisted game files in `dist`, then deploys those assets and the separately bundled server Worker with locally authenticated Wrangler:
 
 ```sh
 npm ci
@@ -46,9 +46,17 @@ npm run build
 npm run deploy
 ```
 
-`npm ci` installs the pinned **Wrangler 4.136.1** deployment dependency from the lockfile; the game runtime remains free of npm dependencies. The deployed site uses an assets-only Cloudflare Worker at `mythseal.com` plus a separate redirect Worker. HTTP apex, HTTP `www` and HTTPS `www` all return verified 308 redirects to HTTPS apex, preserving path and query. See [HOSTING.md](docs/HOSTING.md).
+`npm ci` restores pinned development tooling, including **Wrangler 4.136.1** and the Supabase SDK. The SDK is bundled only into the server Worker; the browser still uses native ES modules and same-origin `fetch`. `/api/*` runs through the Worker while static assets use the allowlisted bundle. The separate redirect Worker canonicalizes HTTP and `www` URLs. See [HOSTING.md](docs/HOSTING.md) for the actual deployed version and verification.
 
-Do not publish the repository root: design documents, tests, credentials and local saves are not website assets. Deployment is a manual maintainer operation; GitHub CI checks the build and tests without deploying production. Live checks verified all 15 asset hashes, security headers, JavaScript MIME, nine private paths returning 404, and a complete desktop battle plus mobile emulation. Hosting this client has not provisioned Supabase, cloud accounts, payments or blockchain services. See [HOSTING.md](docs/HOSTING.md) for exact commands, deployed revisions and verification limits.
+Do not publish the repository root: server source, design documents, tests, credentials and local saves are excluded from website assets. Deployment is a manual maintainer operation; GitHub CI checks the build, API, SQL and other tests without deploying production. The Free London Supabase development project has been provisioned. Local checks, hosted migration evidence and public deployment evidence remain distinct in [VALIDATION.md](docs/VALIDATION.md), [CONNECTIONS.md](docs/CONNECTIONS.md) and [HOSTING.md](docs/HOSTING.md).
+
+## 旅程閣 · v0.5
+
+Open **旅程閣** to compare this device's journey with your account's cloud backup. Once email delivery is enabled, sign in with a six-digit email code. Signing in never automatically uploads, merges or replaces progress.
+
+**備份此裝置** uploads the current journey. **恢復雲端旅程** asks for confirmation and saves the displaced local journey as a recovery copy first; that copy can be downloaded or restored. Finish or abandon any pending battle before uploading or restoring. If another device has changed the cloud backup, reread and compare it before choosing another action. Cloud deletion also requires confirmation and leaves this device's journey intact.
+
+Backups retain the exact local card IDs, XP, levels, history, locks, three deck slots and merchant-held copies. They remain editable offline game data and cannot establish trade or NFT rights. [ACCOUNTS.md](docs/ACCOUNTS.md) explains limits, session handling and the remaining SMTP setup.
 
 ## 山海行囊 · v0.4
 
@@ -95,7 +103,7 @@ You start with 12 life and 12 pills. Attack is effective power × (1 + spent pil
 
 Progress lives in this browser's local storage under `shanhai.profile.v3`. Migration retains old v1/v2 keys, progress and classical welcome gifts. A matching pending v2 battle snapshot is carried forward into the new battle key. Currency changes and reward claims are saved immediately; pending battles can be resumed after reload, including a round whose result is being shown. A completed encounter pays and awards card XP only once. The home banner resumes a pending match; leaving can either preserve or abandon it. Switching decks does not change the exact cards assigned to an unfinished match.
 
-Use **匯出旅程備份** in the footer to download profile JSON. This is a local prototype: clearing site data removes the save, different browsers have separate progress, and changing the server port changes the browser storage origin. There is no cloud account or server-backed anti-cheat. Browser Web Locks serialize profile changes across tabs where available; keep active battles in one tab.
+Use **匯出旅程備份** in the footer to download profile JSON. Clearing site data removes local progress and recovery copies; different browsers and server ports have separate local saves. 旅程閣 provides manual account backups once email sign-in is enabled, with no automatic cross-device merging. Browser Web Locks serialize profile changes across tabs and are required for safe cloud restoration; keep active battles in one tab. There is no server-authoritative anti-cheat.
 
 The Mythseal rename preserves the existing `shanhai.*` storage namespaces. Visiting `mythseal.com` creates a different browser storage origin from `localhost`; local progress does not automatically follow the domain. Export important local journeys before changing where you play. A saved JSON file is not a server-verified collectible or mint claim.
 
@@ -103,9 +111,9 @@ The Mythseal rename preserves the existing `shanhai.*` storage namespaces. Visit
 
 This is an inspired new game, not an exact restoration. Historical sources support the broad arena/wilderness/market/training loops. Our currency prices, pack odds, map, daily rewards, cultivation curve and AI ladder are original prototype choices. No verified original source repository was recovered in the bounded search. See [historical research](docs/RESEARCH.md), [battle design](docs/DESIGN.md) and [progression rules/API](docs/PROGRESSION.md).
 
-Online multiplayer, real player trading, server accounts, timed furnaces and extensive economy/balance tuning are outside this local version.
+Online multiplayer, real player trading, timed furnaces and extensive economy/balance tuning remain outside this version.
 
-The roadmap proposes mobile distribution and limited-batch blockchain collectibles, with future server-validated battles and capped collectible issuance. Cloudflare Workers API + Supabase Postgres/Auth is the backend recommendation; Base Sepolia is a testnet research candidate. Neither backend provisioning nor chain deployment has been performed for the static release. Mobile NFT gameplay rights remain an explicit platform-policy decision. No token sale, launch date, production chain or mint quantity is committed by these planning documents.
+The roadmap proposes mobile distribution and limited-batch blockchain collectibles, with future server-validated battles and capped collectible issuance. Cloudflare Workers + Supabase Postgres/Auth now implement the account/private-backup slice; the authoritative game economy and Hyperdrive adapter remain future work. Base Sepolia is a testnet research candidate with no deployed game contract. Mobile NFT gameplay rights remain an explicit platform-policy decision. No token sale, launch date, production chain or mint quantity is committed by these planning documents.
 
 ## Checks
 
@@ -121,11 +129,12 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tools/smoke.mjs
 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tools/journey-smoke.mjs
 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tools/classics-smoke.mjs
 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tools/backpack-smoke.mjs
+PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs GAME_URL=http://127.0.0.1:4177 node tools/account-smoke.mjs
 ```
 
 `CHROME_PATH` and `GAME_URL` optionally select browser/server. Screenshots are written to ignored `test-results/`. See [validation evidence](docs/VALIDATION.md) for checks actually completed.
 
-GitHub Actions is configured for deterministic Node tests, module syntax checks, launcher/server syntax checks and the static build on pushes and pull requests. Browser scripts run separately; a passing unit/build workflow does not mean mobile builds, browser tests or production services have passed. Exact results and test counts belong in [VALIDATION.md](docs/VALIDATION.md), with public-host checks in [HOSTING.md](docs/HOSTING.md).
+The account browser smoke uses isolated contexts and intercepted fixture APIs; it sends no real email and does not validate live authentication. GitHub Actions is configured for deterministic Node tests, disposable PostgreSQL security/concurrency checks, local helper checks, the contract fixture, syntax, public builds and Worker dry runs. Browser scripts run separately; a passing CI job does not establish live SMTP delivery, native builds or production account health. Evidence belongs in [VALIDATION.md](docs/VALIDATION.md), with public-host checks in [HOSTING.md](docs/HOSTING.md).
 
 ## Repository use
 
@@ -137,6 +146,11 @@ This is a private development repository. No open-source license or NFT-holder a
 - `progression.mjs`: pure profile migration, daily/economy/map/arena rules.
 - `collection.mjs`: exact card identity, XP, deck slots and ownership protection.
 - `app.mjs`: persistence, navigation, battle UI and interaction.
+- `account-client.mjs`, `account-ui.mjs`, `account.css`: 旅程閣, email code UI and explicit backup choices.
+- `cloud-save.mjs`: bounded, versioned offline snapshots and safe restoration validation.
+- `server/account-api.mjs`: server-only Supabase auth/session adapter and private-backup API.
+- `supabase/migrations/`: private backup storage and account-scoped SQL RPCs.
+- `hosting/public-assets.json`: the shared 19-file public allowlist for builds and the local server.
 - `backpack-ui.mjs`, `backpack.css`: owned cards, saved decks and individual card records.
 - `adventure-ui.mjs`, `adventure.css`: travel, market, daily and arena screens.
 - `classics.css`: classical collection filters, feature banner and themed packs.
@@ -147,6 +161,7 @@ This is a private development repository. No open-source license or NFT-holder a
 - [Art generation record](docs/ART.md): exact prompts and provenance.
 - [Technical plan](docs/TECHNICAL-PLAN.md): implementation order and architecture decisions.
 - [Backend stack](docs/BACKEND-STACK.md): server authority, transactions, schema and cost assumptions.
+- [Accounts and cloud journeys](docs/ACCOUNTS.md): implemented backup behavior, security boundary and SMTP readiness.
 - [NFT stack](docs/NFT-STACK.md): testnet candidates, wallets, ownership indexing and metadata.
 - [Content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md): artwork, animation and versioned content delivery.
 - [Hosting](docs/HOSTING.md): build allowlist, Cloudflare setup and actual deployment evidence.

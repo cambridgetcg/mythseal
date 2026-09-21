@@ -19,15 +19,23 @@ for (const file of release.assets) {
   if (file.path.endsWith('.mjs')) assert.match(response.headers.get('content-type') || '', /(?:text|application)\/javascript/);
   if (file.path === 'index.html') assert.match(bytes.toString(), /<title>萬象契 · Mythseal<\/title>/);
 }
-for (const path of ['/README.md', '/docs/BACKEND-STACK.md', '/.git/config', '/.env', '/package.json', '/wrangler.jsonc', '/tools/build.mjs', '/tests/engine.test.mjs', '/_headers']) {
+const privatePaths = ['/README.md', '/docs/BACKEND-STACK.md', '/.git/config', '/.env', '/.env.local', '/package.json', '/wrangler.jsonc', '/tools/build.mjs', '/tests/engine.test.mjs', '/_headers', '/server/account-api.mjs', '/hosting/public-assets.json', '/supabase/config.toml'];
+for (const path of privatePaths) {
   assert.equal((await get(path)).status, 404, `Private path must return 404: ${path}`);
 }
 if (new URL(base).hostname === 'mythseal.com') {
-  const redirect = await fetch('https://www.mythseal.com/test%20path?release=0.4.1', { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+  const query = `?release=${encodeURIComponent(release.clientVersion)}`;
+  const redirect = await fetch('https://www.mythseal.com/test%20path' + query, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
   assert.equal(redirect.status, 308);
-  assert.equal(redirect.headers.get('location'), 'https://mythseal.com/test%20path?release=0.4.1');
-  const http = await fetch('http://mythseal.com/test%20path?release=0.4.1', { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+  assert.equal(redirect.headers.get('location'), 'https://mythseal.com/test%20path' + query);
+  const http = await fetch('http://mythseal.com/test%20path' + query, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
   assert.equal(http.status, 308);
-  assert.equal(http.headers.get('location'), 'https://mythseal.com/test%20path?release=0.4.1');
+  assert.equal(http.headers.get('location'), 'https://mythseal.com/test%20path' + query);
 }
-console.log(JSON.stringify({ verified: base, version: release.clientVersion, commit: release.gitCommit, publicAssets: release.assets.length, privatePaths: 9, manifest: release.assetsManifestSHA256 }, null, 2));
+const account = await get('/api/v1/account');
+assert.equal(account.status, 200);
+assert.match(account.headers.get('cache-control') || '', /no-store/);
+assert.equal((await account.json()).authenticated, false);
+const csrf = await fetch(new URL('/api/v1/auth/logout', base), {method:'POST',headers:{'Content-Type':'application/json',Origin:'https://example.invalid'},body:'{}',signal:AbortSignal.timeout(30000)});
+assert.equal(csrf.status, 403);
+console.log(JSON.stringify({ verified: base, version: release.clientVersion, commit: release.gitCommit, publicAssets: release.assets.length, privatePaths: privatePaths.length, anonymousAPI: true, csrfRejected: true, manifest: release.assetsManifestSHA256 }, null, 2));

@@ -1,15 +1,11 @@
 import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const PUBLIC_FILES = Object.freeze([
-  'index.html', 'app.mjs', 'engine.mjs', 'collection.mjs', 'progression.mjs',
-  'adventure-ui.mjs', 'backpack-ui.mjs',
-  'styles.css', 'adventure.css', 'classics.css', 'backpack.css',
-  'assets/mark.svg', 'assets/portraits.png', 'assets/classics.png', 'assets/world-map.png',
-]);
+export const PUBLIC_FILES = Object.freeze(JSON.parse(readFileSync(new URL('../hosting/public-assets.json', import.meta.url), 'utf8')));
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 
 async function readRegular(root, relative) {
@@ -41,7 +37,8 @@ export async function build(root = fileURLToPath(new URL('../', import.meta.url)
     schemaVersion: 1, name: 'mythseal', clientVersion: version, gitCommit: commit,
     assetsManifestSHA256: sha256(JSON.stringify(assets)), assets,
     hostingHeadersSHA256: sha256(headers), contractRefs: [],
-    enabledFeatures: ['offline-game', 'local-backpack', 'npc-market'],
+    enabledFeatures: ['offline-game', 'local-backpack', 'npc-market', 'journey-archive-ui'],
+    runtimeGatedFeatures: ['email-login', 'private-journey-backup'],
   };
   await rm(output, { recursive: true, force: true });
   for (const { path, bytes } of files) {

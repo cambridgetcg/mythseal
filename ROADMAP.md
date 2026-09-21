@@ -21,7 +21,8 @@ Target clients: browser, **iOS and Android**. Blockchain is intended for scarce 
 - [x] Private GitHub repository created and renamed to `cambridgetcg/mythseal`; selected brand 萬象契 / Mythseal.
 - [x] Owner acquired `mythseal.com`; Cloudflare zone active.
 - [x] v0.4.1 deployed: HTTPS apex, all HTTP/`www` canonical 308 redirects, 15 asset hashes, security headers/JS MIME and nine private-path 404 checks verified; live desktop battle and mobile emulation passed. DNS propagation limits are recorded in [HOSTING.md](docs/HOSTING.md).
-- [ ] Accounts, backend, cloud saves, online matchmaking and real player transfers.
+- [x] v0.5.0 journey archive UI and private offline backup API; London Free Supabase schema, account isolation and revision checks. Public email login remains gated pending Resend SMTP connection. See [account status](docs/ACCOUNTS.md).
+- [ ] Public email delivery, authoritative online economy, matchmaking and real player transfers.
 - [ ] Native builds, signing, TestFlight/Play testing, app-store submission or release.
 - [ ] Wallets, smart contracts, token ownership, production minting or NFT marketplace.
 
@@ -82,4 +83,4 @@ Detailed alternatives, trust boundaries and future test invariants are in [BLOCK
 
 ## Next implementation slice
 
-The v0.4.1 public static game is deployed; retain its hosting evidence and monitor DNS cache propagation. Start M1 with a browser save-import flow, onboarding, text localization structure and a small native packaging experiment. The existing backend design gives M2 a concrete command/schema baseline; implement a single sign-in → server match → exact-card XP settlement slice before expanding the economy. Artwork and animation changes follow the versioned [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md). These steps establish useful gameplay and trustworthy history before wallets or collectible issuance are added.
+The v0.5.0 slice adds account-private backups of the existing offline journey. Finish the owner-controlled Resend signup/connection, verify the sending domain and a delivered OTP before opening public login. This preserves local progress across devices without promoting it to trusted game ownership. Next, implement a separate sign-in → server match → exact-card XP settlement slice for M2. M1 onboarding, localization and a small native packaging experiment can proceed independently. Artwork and animation changes follow the versioned [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md).
