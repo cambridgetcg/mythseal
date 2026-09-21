@@ -1,6 +1,6 @@
 # Mythseal backend stack and data boundaries
 
-**Design proposal — sources checked 2026-09-21.** The target public site is `mythseal.com`; its selected static host is Cloudflare Workers Static Assets. The source repository is private `cambridgetcg/mythseal`. Actual hosting/DNS deployment is tracked separately. The future API, Supabase project and other backend resources below remain unprovisioned proposals. This document creates no cloud resources, migrations, accounts or running backend.
+**Design proposal — sources checked 2026-09-21.** The target public site is `mythseal.com`; its selected static host is Cloudflare Workers Static Assets. The source repository is private `cambridgetcg/mythseal`. Actual hosting/DNS deployment is tracked separately. A Free Supabase development project, `mythseal-dev`, has subsequently been provisioned in London; actual resources and verification are in [CONNECTIONS.md](CONNECTIONS.md). The future command API, game schema, Hyperdrive connection and other backend resources below remain proposals. This design is not a running game backend.
 
 The current game is a dependency-free browser application with editable local saves. Publishing those files makes the game accessible on a website; it does not create trusted ownership, multiplayer, cloud saves or NFTs. A private source repository also does not hide JavaScript and artwork delivered to visitors.
 
@@ -127,7 +127,7 @@ Use an outbox consumer with durable leases, bounded retry/backoff and a dead-let
 
 ## Regions, recovery and operations
 
-Supabase projects have one primary region. Choose it from the actual beta audience and residency needs: London is a candidate for UK testing; Singapore is a candidate for primarily Hong Kong/Asian testing. Measure both before provisioning, and use a specific region when jurisdiction matters. A global CDN does not make a single-region database globally local. [Supabase regions](https://supabase.com/docs/guides/platform/regions).
+Supabase projects have one primary region. The owner selected **London (`eu-west-2`)** for the initial development project. Choose the eventual production region from the actual beta audience and residency needs; Singapore remains a candidate for primarily Hong Kong/Asian testing. Measure candidate regions before production provisioning, and use a specific region when jurisdiction matters. A global CDN does not make a single-region database globally local. [Supabase regions](https://supabase.com/docs/guides/platform/regions).
 
 Place database-heavy API execution near that database where supported, and measure end-to-end latency rather than advertising an assumed edge speedup. Cloudflare placement can reduce repeated backend round trips; it is not a blanket data-residency guarantee. [Workers placement](https://developers.cloudflare.com/workers/configuration/placement/).
 
@@ -168,4 +168,4 @@ Set component alerts and review usage weekly during beta. A spend cap or budget 
 4. **Online beta:** add restore exercise, observability, abuse limits, isolated staging and mobile API compatibility. Introduce notifications only when useful; keep offline saves separate.
 5. **Trading / collectibles:** first agree entitlement, platform, custody and supply policy; then implement escrow/indexing/testnet independently. Confirm the recovery and security budget before any asset of real value is involved.
 
-Cloudflare static hosting is selected. Before provisioning the future backend, confirm the beta audience/region, monthly budget and account recovery approach, and validate the proposed Workers/Hyperdrive adapter locally. The portable parts are the pure rules, SQL data model and command contract; platform-specific adapters can change without redefining what it means to own or grow a card.
+Cloudflare static hosting is selected, and the Free London Supabase development project is provisioned. Before provisioning production resources, confirm the beta audience/region, monthly budget and account recovery approach, and validate the proposed Workers/Hyperdrive adapter locally. The portable parts are the pure rules, SQL data model and command contract; platform-specific adapters can change without redefining what it means to own or grow a card.
