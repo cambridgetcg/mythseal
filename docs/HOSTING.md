@@ -1,6 +1,6 @@
 # Mythseal hosting
 
-Configured **2026-09-21**, client **v0.4.1**. Target: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). Deployment verification is recorded below after the first publish.
+Deployed **2026-09-21**, client **v0.4.1**. Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). HTTPS and gameplay were verified against the production host with a DNS-only edge override; some recursive resolvers still held pre-deployment negative records at the recorded check time. Details below distinguish that propagation state from the working deployment.
 
 ## Topology and public boundary
 
@@ -52,4 +52,24 @@ Local progress belongs to the browser origin. The old `shanhai.*` keys remain in
 
 ## First deployment record
 
-Pending publication and live verification. Update this section with the deployed commit, both Cloudflare version IDs, manifest digest, actual checks and any unresolved propagation issue. Do not interpret a dry run as a live site.
+Final canonical-routing check: **2026-09-21 18:52:13 UTC**. Release tag **v0.4.1** points to deployed source commit `ff89b9a2b7144c015bc902c67cc03c128448915f`; later documentation-only commits do not imply another deployment.
+
+| Artifact | Recorded identity |
+| --- | --- |
+| Current apex Worker version | `7ee307bb-7601-4d03-bb0d-38537260f8a1` |
+| Current redirect Worker version | `de23c101-f710-43a9-8bab-39fbdd314964` |
+| Public assets manifest SHA-256 | `fe448b3147b0cea2f6d57b941ff4da912da4b8e7722b5c2873d9114ca6705240` |
+| Initial apex / redirect versions | `27118a67-35b6-402d-ad71-2ca0c605b5a2` / `ee12d625-daa5-44d1-a250-7ca2baaef460` |
+| Initial source revision | `d9294bb9c9f16e0bb4d293890a7cd9555c103bb5` |
+
+Completed checks:
+
+- **110 Node tests passed**, including public-build exclusion, symlink rejection and canonical redirect behavior. Syntax, build and both Wrangler dry runs passed. [Initial CI](https://github.com/cambridgetcg/mythseal/actions/runs/35640483554) and [deployed revision CI](https://github.com/cambridgetcg/mythseal/actions/runs/35640949473) succeeded.
+- Local pinned-Wrangler preview passed the desktop/mobile browser smoke and the public-hosting verification script. The earlier shared-CLI startup/root-routing failures were resolved before publishing.
+- Production HTTPS returned 200 with valid certificate verification. All **15 runtime asset hashes** matched the local manifest; JavaScript MIME and security headers were checked; **nine private paths returned 404**.
+- Production browser smoke passed a complete **four-round desktop match**, deck persistence, collection/rules and mobile-size interactions, with no page/network errors or horizontal overflow. These are Chrome desktop/emulated-mobile checks, not physical iOS/Android certification.
+- `https://www.mythseal.com`, `http://www.mythseal.com` and `http://mythseal.com` returned **308** to HTTPS apex, retaining an escaped path and query. The final deployed `/release.json` matched the committed build. The second deployment changed the release manifest and HTTP route; all 15 game asset hashes stayed identical to the browser-tested first deployment.
+
+**DNS propagation at check time:** Cloudflare's authoritative nameservers and public resolver `1.1.1.1` returned the new records (`104.21.51.73`, `172.67.177.62`). Local/system resolution and a later `8.8.8.8` query still returned negative answers. Therefore the ordinary-resolver production commands initially failed to resolve the new domain. Production checks above used `curl --resolve` and Chrome's process-local host-resolver mapping to a returned Cloudflare edge IP, retaining the real hostname/SNI and normal TLS verification. No system DNS, hosts file or certificate checks were changed. Allow cached negative answers to expire; these observations are a dated record, not a claim that every resolver worldwide already works.
+
+The ignored local receipt is `test-results/hosting-edge-verification.json`; browser screenshots are under `test-results/`. Future checks should first use normal DNS and `npm run verify:hosting`. No paid plan, Supabase project, cloud economy, native app, IPFS upload or NFT issuance was created by this deployment.

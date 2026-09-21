@@ -1,8 +1,17 @@
-# Validation · v0.4 · 2026-09-21
+# Validation · v0.4.1 · 2026-09-21
 
-Local browser prototype only. No deployment, account service, blockchain or player-to-player trading.
+The browser prototype is deployed at `https://mythseal.com`; saves remain local. No account service, authoritative economy, blockchain or player-to-player trading is implemented.
 
-## Private repository and release planning
+## Mythseal branding and hosting
+
+- **110/110 Node tests passed**: the existing 107 gameplay tests plus three build/hosting boundary tests. No gameplay rules or storage namespaces changed during rebranding.
+- The pinned Wrangler 4.136.1 preview passed the desktop/mobile smoke and hosting verification. Both production bundles passed dry runs; GitHub CI passed for deployed revision `ff89b9a2b7144c015bc902c67cc03c128448915f`.
+- The production host passed a four-round desktop match, mobile-size interactions and deck persistence. All 15 public asset hashes, security headers/JavaScript MIME and nine private-path 404 responses were checked. The final release manifest and all three HTTP/www canonical redirects were also verified.
+- New-domain DNS caches were still inconsistent: public `1.1.1.1` resolved both hostnames, while local resolution and a later Google query remained negative. Production HTTP/browser checks used a process-local edge-IP override with real hostname and normal TLS verification. No global resolver settings were changed.
+- [HOSTING.md](HOSTING.md) records exact provider version IDs, manifest digest, CI runs, evidence boundaries and rollback. Browser screenshots and the edge verification receipt remain ignored under `test-results/`. These checks are not physical-device certification or a deployed backend test.
+- A separate reviewer checked the public allowlist, symlink handling, redirect code, CSP and CI; no actionable source issue remained. Research documents distinguish current hosting from proposed backend, art, mobile and NFT infrastructure.
+
+## Previous v0.4 private repository and release planning
 
 - Repository preparation reran `npm test`: **107/107 passed**. JavaScript module syntax, Python server compilation and launcher shell syntax passed. Relative documentation links and the domain-research JSON were checked successfully.
 - A bounded pre-upload inspection found no credential-pattern matches or player saves among source candidates. Test screenshots/runtime files remain ignored; environment files, signing material and local saves/backups are also excluded. Private machine-specific provenance paths were generalized while preserving prompts and asset records.

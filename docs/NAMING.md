@@ -1,6 +1,6 @@
 # 萬象契 · Mythseal naming decision and history
 
-Decision update: **2026-09-21**. The owner selected **萬象契 / Mythseal**, the private GitHub repository was renamed to `cambridgetcg/mythseal`, and the owner reports acquiring **`mythseal.com`**. Its Cloudflare zone has been verified active. The configured publishing target is an assets-only apex site with a separate `www` redirect; live deployment remains pending the checks recorded in [HOSTING.md](HOSTING.md).
+Decision update: **2026-09-21**. The owner selected **萬象契 / Mythseal**, the private GitHub repository was renamed to `cambridgetcg/mythseal`, and the owner reports acquiring **`mythseal.com`**. The v0.4.1 site is deployed on Cloudflare; HTTPS apex and the `www` → apex 308 redirect have been verified. At **18:52 UTC**, `1.1.1.1` resolved both names while some recursive caches still held negative answers. Live tests used explicit Cloudflare edge DNS resolution with normal TLS verification. Exact deployment and propagation evidence is maintained in [HOSTING.md](HOSTING.md).
 
 The local workspace remains `/Users/macair/Games/shanhai-duel`, and existing `shanhai.*` save namespaces remain unchanged for compatibility. This brand/domain decision is not trademark clearance. The research below is retained as a **dated pre-purchase snapshot**, not current domain availability.
 
@@ -43,8 +43,8 @@ HTTP 404 meant the registry did not return a registration record **at that check
 
 ## Follow-through
 
-1. Complete the v0.4.1 visible-title/build metadata update and verify existing saves still load. The repository rename is already complete; renaming the local directory or storage keys is unnecessary.
-2. Verify the authorized apex hosting and `www` redirect, then record DNS/TLS/HTTP and asset checks in HOSTING.md. An active zone alone is not evidence that the game is serving.
+1. v0.4.1 uses the selected visible title and build identity. Preserve existing-save regression checks; renaming the local directory or storage keys remains unnecessary.
+2. Retain the verified HTTPS apex, all HTTP/`www` → HTTPS apex redirects and asset checks in HOSTING.md, and monitor remaining recursive DNS cache propagation. The redirects preserve path and query.
 3. Test pronunciation, spelling, icon legibility and card-back typography in both languages.
 4. Check intended app stores, relevant trademark registries, company names and social handles before native distribution. Select final store identifiers without implying that the domain settled those questions.
 5. Confirm registrar renewal/recovery details in the owner's account and plan any future `cards` or `support` subdomains when their services exist. No further domain purchase is proposed here.

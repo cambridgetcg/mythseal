@@ -1,6 +1,6 @@
 # 萬象契 · Mythseal roadmap
 
-Planning baseline: **2026-09-21 · playable prototype v0.4; branding/static-host target v0.4.1**. The selected brand is **萬象契 / Mythseal**; the private repository has been renamed to `cambridgetcg/mythseal`. The owner acquired `mythseal.com`, and its Cloudflare zone is active. Static deployment remains pending verification in [HOSTING.md](docs/HOSTING.md). [NAMING.md](docs/NAMING.md) preserves the earlier shortlist and pre-purchase domain snapshot.
+Planning baseline: **2026-09-21 · v0.4.1 static browser release deployed**. The selected brand is **萬象契 / Mythseal**; the private repository is `cambridgetcg/mythseal`. The game is deployed at [mythseal.com](https://mythseal.com), with HTTPS and the `www` redirect verified. Some recursive DNS caches still held negative results at **18:52 UTC**; direct Cloudflare-edge checks retained normal TLS verification. [HOSTING.md](docs/HOSTING.md) records deployed revisions, exact checks and propagation status. [NAMING.md](docs/NAMING.md) preserves the earlier shortlist and pre-purchase domain snapshot.
 
 This document describes intended work, not a token offering. Native launch dates, team size, backend budget, production chain and mint quantities remain uncommitted. The [technical plan](docs/TECHNICAL-PLAN.md) coordinates the proposed [backend](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md) and [content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md).
 
@@ -20,7 +20,7 @@ Target clients: browser, **iOS and Android**. Blockchain is intended for scarce 
 - [x] Deterministic unit coverage and four local browser scripts, including desktop/mobile layouts; recorded results are in [VALIDATION.md](docs/VALIDATION.md).
 - [x] Private GitHub repository created and renamed to `cambridgetcg/mythseal`; selected brand 萬象契 / Mythseal.
 - [x] Owner acquired `mythseal.com`; Cloudflare zone active.
-- [ ] v0.4.1 static artifact deployed and apex/`www` behavior verified; [HOSTING.md](docs/HOSTING.md) records the actual status.
+- [x] v0.4.1 deployed: HTTPS apex, all HTTP/`www` canonical 308 redirects, 15 asset hashes, security headers/JS MIME and nine private-path 404 checks verified; live desktop battle and mobile emulation passed. DNS propagation limits are recorded in [HOSTING.md](docs/HOSTING.md).
 - [ ] Accounts, backend, cloud saves, online matchmaking and real player transfers.
 - [ ] Native builds, signing, TestFlight/Play testing, app-store submission or release.
 - [ ] Wallets, smart contracts, token ownership, production minting or NFT marketplace.
@@ -72,8 +72,8 @@ Detailed alternatives, trust boundaries and future test invariants are in [BLOCK
 
 | Decision | Current recommendation | Still to resolve |
 | --- | --- | --- |
-| Brand/domain | **Selected:** 萬象契 / Mythseal; private repo renamed; `mythseal.com` acquired and Cloudflare active. | Static deployment verification, target-store/title checks and trademark review. Domain ownership is not name clearance. |
-| Web/backend | **Static host selected:** Cloudflare Workers Static Assets. Proposed future API uses Workers + Hyperdrive/pg + Supabase Postgres/Auth. | Backend region, account recovery, measured load and paid-service budget before provisioning. Compare alternatives in BACKEND-STACK.md. |
+| Brand/domain | **Selected and deployed:** 萬象契 / Mythseal; private repo renamed; `mythseal.com` acquired and hosting live. | DNS cache propagation, target-store/title checks and trademark review. Domain ownership is not name clearance. |
+| Web/backend | **Static host deployed:** Cloudflare Workers Static Assets. Proposed future API uses Workers + Hyperdrive/pg + Supabase Postgres/Auth. | Backend region, account recovery, measured load and paid-service budget before provisioning. Compare alternatives in BACKEND-STACK.md. |
 | Mobile architecture | Trial Capacitor around the current web client and pure engine. | Real-device performance and native UX evidence; no rewrite by default. |
 | Gameplay and NFT relationship | Preserve transferable per-card history as the goal; prove store-compatible access separately. | Exact native functionality and whether the NFT gameplay loop initially lives on web. |
 | Chain/token standard | Evaluate Base Sepolia + ERC-721 first; keep Polygon Amoy as fallback. | Fees, finality, wallet recovery, operations, indexer support and contract audit. No contract deployed or production network selected. |
@@ -82,4 +82,4 @@ Detailed alternatives, trust boundaries and future test invariants are in [BLOCK
 
 ## Next implementation slice
 
-Finish M0's v0.4.1 brand/static-host delivery and record actual HTTPS, asset, redirect and CI evidence. Then start M1 with a browser save-import flow, onboarding, text localization structure and a small native packaging experiment. The existing backend design gives M2 a concrete command/schema baseline; implement a single sign-in → server match → exact-card XP settlement slice before expanding the economy. Artwork and animation changes follow the versioned [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md). These steps establish useful gameplay and trustworthy history before wallets or collectible issuance are added.
+The v0.4.1 public static game is deployed; retain its hosting evidence and monitor DNS cache propagation. Start M1 with a browser save-import flow, onboarding, text localization structure and a small native packaging experiment. The existing backend design gives M2 a concrete command/schema baseline; implement a single sign-in → server match → exact-card XP settlement slice before expanding the economy. Artwork and animation changes follow the versioned [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md). These steps establish useful gameplay and trustworthy history before wallets or collectible issuance are added.

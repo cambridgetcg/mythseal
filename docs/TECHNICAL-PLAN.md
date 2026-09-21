@@ -4,7 +4,7 @@ Decision record: **2026-09-21 · 萬象契 / Mythseal · v0.4.1**. The owner acq
 
 ## What is shipping now
 
-The existing browser game, rebranded Mythseal, packaged into an explicit public-file allowlist and configured for Cloudflare Workers Static Assets at `https://mythseal.com`. A separate small Worker redirects `www` to the same origin. See [HOSTING.md](HOSTING.md) for deployment evidence, commands and rollback.
+The existing browser game is rebranded Mythseal, packaged into an explicit public-file allowlist and deployed on Cloudflare Workers Static Assets at `https://mythseal.com`. A separate small Worker redirects `www` and HTTP apex requests to the same HTTPS origin. See [HOSTING.md](HOSTING.md) for deployment evidence, the recorded DNS propagation caveat, commands and rollback.
 
 The game still uses local saves and AI opponents. Daily activities, the backpack, per-copy XP and the NPC market are playable; online accounts, player trading, on-chain ownership and native apps are not implemented. Existing `shanhai.*` storage namespaces are deliberately retained. A new website origin has its own browser storage; localhost progress does not automatically move with the repo rename.
 

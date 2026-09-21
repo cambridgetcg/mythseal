@@ -4,7 +4,9 @@
 
 An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The game now has 24 characters: 12 original山海 characters and 12 new interpretations of classical literary, historical and legendary figures. Illustrations, map, character writing and card balance are created for this game.
 
-**Private repository: `cambridgetcg/mythseal`.** The owner has selected 萬象契 / Mythseal and acquired `mythseal.com`; its Cloudflare zone is active. The v0.4.1 delivery target is the existing game on Cloudflare static hosting, with `www.mythseal.com` redirecting to the apex domain. Deployment is pending verification; consult [hosting status and evidence](docs/HOSTING.md) before treating the site as live.
+**Play [萬象契 · Mythseal](https://mythseal.com).** v0.4.1 is deployed on Cloudflare static hosting; HTTPS and the `www` → apex redirect have been verified. The source repository remains private at `cambridgetcg/mythseal`.
+
+**DNS propagation:** as of **2026-09-21 18:52 UTC**, `1.1.1.1` resolved both names, while some recursive caches, including the local resolver and `8.8.8.8`, still returned earlier negative results. Live asset and desktop/mobile-emulation checks used explicit Cloudflare edge DNS resolution with normal TLS verification. If the domain does not yet resolve on your network, allow its cached result to expire. See [hosting evidence and current status](docs/HOSTING.md).
 
 Gameplay still uses browser-local saves. iOS, Android, accounts, an authoritative backend, online player trading and limited-edition NFT cards remain planned. See the [roadmap](ROADMAP.md), [technical plan](docs/TECHNICAL-PLAN.md), [backend stack](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md), [content and release pipeline](docs/CONTENT-RELEASE-PIPELINE.md), [mobile plan](docs/MOBILE-RELEASE.md) and [blockchain design](docs/BLOCKCHAIN-DESIGN.md). [Naming history](docs/NAMING.md) preserves the earlier research; selecting a name and owning its domain do not establish trademark clearance.
 
@@ -42,7 +44,9 @@ npm run build
 npm run deploy
 ```
 
-The configured target is an assets-only Cloudflare Worker at `mythseal.com` plus a separate `www` redirect Worker. Do not publish the repository root: design documents, tests, credentials and local saves are not website assets. Deployment is a manual maintainer operation; GitHub CI checks the build and tests without claiming a production deployment. See [HOSTING.md](docs/HOSTING.md) for exact setup, commands and verification results. Hosting this client does not provision Supabase, cloud accounts, payments or blockchain services.
+`npm ci` installs the pinned **Wrangler 4.136.1** deployment dependency from the lockfile; the game runtime remains free of npm dependencies. The deployed site uses an assets-only Cloudflare Worker at `mythseal.com` plus a separate redirect Worker. HTTP apex, HTTP `www` and HTTPS `www` all return verified 308 redirects to HTTPS apex, preserving path and query. See [HOSTING.md](docs/HOSTING.md).
+
+Do not publish the repository root: design documents, tests, credentials and local saves are not website assets. Deployment is a manual maintainer operation; GitHub CI checks the build and tests without deploying production. Live checks verified all 15 asset hashes, security headers, JavaScript MIME, nine private paths returning 404, and a complete desktop battle plus mobile emulation. Hosting this client has not provisioned Supabase, cloud accounts, payments or blockchain services. See [HOSTING.md](docs/HOSTING.md) for exact commands, deployed revisions and verification limits.
 
 ## 山海行囊 · v0.4
 
