@@ -2,6 +2,8 @@
 
 Setup and live audit: **2026-09-21 19:10:56 UTC**. This record separates installed tooling, verified account access and resources that actually exist. The owner authorized authentication/connections for the selected stack and requested a new **free Pinata account** path. No paid upgrade, cloud database, bucket, contract deployment or store enrollment was performed.
 
+Supabase CLI was rechecked separately at **2026-09-21 19:26:31 UTC** after the owner completed browser login. Other service evidence retains the audit timestamp above.
+
 ## Verified access
 
 | Service | Evidence | Remaining boundary |
@@ -10,7 +12,7 @@ Setup and live audit: **2026-09-21 19:10:56 UTC**. This record separates install
 | Cloudflare | Existing OAuth matches account `cf4198e651bf3009877d49f688c9d88e`; the game was deployed through it. | Account login does not automatically enable every product. |
 | Hyperdrive | Configuration list request succeeded; zero configurations. | No database connection, origin credential or pool has been created. |
 | R2 | API returned service-not-enabled, code `10042`. | Owner must activate R2 in the Cloudflare dashboard before bucket/pinning work; no billing setting was changed. Current static hosting does not depend on R2. |
-| Supabase CLI | CLI installed; authenticated project-list request still requires login. | Owner login and a specific Mythseal project selection are pending. No project/region was assumed. |
+| Supabase CLI | Owner login verified: the read-only `projects list --output json` request succeeded and returned one accessible project. | A specific Mythseal project has not been selected or linked. No project/region was assumed; database access has not been tested. |
 | Supabase assistant integration | Available, but installation/connection was not confirmed by the latest integration inventory. | Optional alternative to CLI access; installing tooling and authorizing an account are separate operations. |
 | Base Sepolia | Read-only public RPC returned chain ID **84532**; viem independently confirmed the expected chain. | No wallet, signer, funded account, contract or transaction. Public RPC is a development endpoint, not an SLA. |
 | Pinata | `GET /v3/files/public?limit=1` returned **200** using the locally entered JWT. | File-read access verified; no upload was made and upload/delete scope was not exercised. Billing tier was not inspected. |
@@ -70,6 +72,6 @@ Completed local validation: **117 Node tests**, **4 Python credential-helper tes
 
 ## Next setup steps
 
-Finish owner Supabase login, then select the intended organization and a development project before linking or provisioning. Define the database region, restricted `game_api` role, Hyperdrive connection and Auth redirect URLs from that concrete project. The selected initial gameplay path can proceed without AWS, Vercel, Fly or an R2 bucket.
+Owner Supabase login is complete. Select the intended organization and a development project before linking or provisioning. Define the database region, restricted `game_api` role, Hyperdrive connection and Auth redirect URLs from that concrete project. The selected initial gameplay path can proceed without AWS, Vercel, Fly or an R2 bucket.
 
 When artwork archiving starts, activate R2 if it is chosen for the independent backup and verify a small explicit pin/upload/restore flow; a successful Pinata read does not prove persistence. Before native builds, finish Xcode/Java/Android toolchains and owner-controlled Apple/Google signing accounts. Before testnet writes, choose an owner-controlled wallet/signing workflow and verify recovery; this setup intentionally created no keys or token issuance.
