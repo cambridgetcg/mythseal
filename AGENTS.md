@@ -1,11 +1,12 @@
-# Shanhai Duel
+# 萬象契 · Mythseal
 
 An original browser card game inspired by the four-round bluffing and resource allocation of 神魔令. Traditional Chinese interface, original characters and artwork.
 
-- Keep the app dependency-free: HTML, CSS and JavaScript ES modules. Use Node's built-in test runner for the rules engine; Python serves static assets.
+- Keep the browser runtime dependency-free: HTML, CSS and JavaScript ES modules. Use Node's built-in test runner; Python serves the local game. Build/deployment tooling is separate from runtime dependencies.
 - `engine.mjs` owns pure battle rules and card data; `app.mjs` owns UI and match presentation. Keep randomness injectable and do not give AI access to the player's hidden move.
 - Document historical ambiguities and prototype choices in `docs/DESIGN.md`. Do not claim perfect original-game fidelity without evidence.
 - Keep generated artwork in `assets/` and its prompts/provenance in `docs/ART.md`.
-- Preserve other projects. The owner has authorized source upload to the private GitHub repository `cambridgetcg/shanhai-duel`. Public releases, store submission, live services and NFT issuance remain future roadmap work.
-- `ROADMAP.md` records planned scope; `docs/BLOCKCHAIN-DESIGN.md` and `docs/MOBILE-RELEASE.md` distinguish proposals from shipped features. Do not turn local saves into trusted ownership or mint claims.
+- The current brand is 萬象契 / Mythseal and the private repository is `cambridgetcg/mythseal`. The existing local directory remains `shanhai-duel`; preserve the `shanhai.*` save namespaces and legacy migrations through branding changes.
+- Preserve other projects. The owner has authorized the private repository rename/source upload and public static hosting at the user-owned `mythseal.com`, including the `www` redirect, on Cloudflare. Deploy only the allowlisted `dist` artifact; do not expose the repository root, internal documents, tests or secrets. Actual deployment verification belongs in `docs/HOSTING.md`.
+- Future paid backend services, native/store releases and NFT issuance remain design work, not actions authorized by the static-site deployment request. `ROADMAP.md` and `docs/TECHNICAL-PLAN.md` distinguish planned scope from implemented features; consult the backend, NFT, mobile and content design documents before those phases. Do not turn local saves into trusted ownership or mint claims.
 - Keep credentials, signing keys, wallet secrets, player saves and generated test output out of Git. No open-source license has been selected.

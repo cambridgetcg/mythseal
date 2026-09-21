@@ -8,6 +8,8 @@ node_modules/
 !.env.example
 coverage/
 dist/
+.wrangler/
+.dev.vars*
 *.log
 *.pem
 *.key
@@ -18,3 +20,4 @@ dist/
 saves/
 backups/
 山海弈旅程-*.json
+萬象契旅程-*.json

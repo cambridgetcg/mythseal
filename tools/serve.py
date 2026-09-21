@@ -28,7 +28,7 @@ def main():
     else:
         raise SystemExit('Could not find a free local port.')
     url = f'http://127.0.0.1:{port}'
-    print(f'山海弈 · {url}\nPress Ctrl+C to close the game server.', flush=True)
+    print(f'萬象契 Mythseal · {url}\nPress Ctrl+C to close the game server.', flush=True)
     if args.open:
         threading.Timer(0.4, lambda: webbrowser.open(url)).start()
     try:

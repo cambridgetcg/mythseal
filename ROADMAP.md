@@ -1,6 +1,8 @@
-# From 山海弈 to a mobile, collectible card world
+# 萬象契 · Mythseal roadmap
 
-Planning baseline: **2026-09-21 · prototype v0.4**. Working title: **山海弈 / Shanhai Duel**. Brand candidates live in [NAMING.md](docs/NAMING.md). This document describes intended work, not a launch announcement or token offering; dates, team size, budget, chain and production mint quantities remain uncommitted.
+Planning baseline: **2026-09-21 · playable prototype v0.4; branding/static-host target v0.4.1**. The selected brand is **萬象契 / Mythseal**; the private repository has been renamed to `cambridgetcg/mythseal`. The owner acquired `mythseal.com`, and its Cloudflare zone is active. Static deployment remains pending verification in [HOSTING.md](docs/HOSTING.md). [NAMING.md](docs/NAMING.md) preserves the earlier shortlist and pre-purchase domain snapshot.
+
+This document describes intended work, not a token offering. Native launch dates, team size, backend budget, production chain and mint quantities remain uncommitted. The [technical plan](docs/TECHNICAL-PLAN.md) coordinates the proposed [backend](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md) and [content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md).
 
 ## Product direction
 
@@ -15,8 +17,10 @@ Target clients: browser, **iOS and Android**. Blockchain is intended for scarce 
 - [x] Playable browser game with 24 characters, arena, six travel locations, daily tasks, earned-coin packs and NPC trading.
 - [x] Individual local card IDs, levels, XP, battle records, protected sale/buyback and three saved decks.
 - [x] v2→v3 save migration with old keys retained; pending battle recovery and single-use rewards.
-- [x] 107 deterministic unit tests and four local browser scripts, including desktop/mobile layouts.
-- [x] Private GitHub repository created; CI configuration and design documents prepared.
+- [x] Deterministic unit coverage and four local browser scripts, including desktop/mobile layouts; recorded results are in [VALIDATION.md](docs/VALIDATION.md).
+- [x] Private GitHub repository created and renamed to `cambridgetcg/mythseal`; selected brand 萬象契 / Mythseal.
+- [x] Owner acquired `mythseal.com`; Cloudflare zone active.
+- [ ] v0.4.1 static artifact deployed and apex/`www` behavior verified; [HOSTING.md](docs/HOSTING.md) records the actual status.
 - [ ] Accounts, backend, cloud saves, online matchmaking and real player transfers.
 - [ ] Native builds, signing, TestFlight/Play testing, app-store submission or release.
 - [ ] Wallets, smart contracts, token ownership, production minting or NFT marketplace.
@@ -27,11 +31,11 @@ Current local saves and card IDs are **not** blockchain assets or entitlement to
 
 | Stage | Deliverables | Evidence required to move on |
 | --- | --- | --- |
-| **M0 · Private development foundation** | Source/assets/docs in private GitHub; reproducible run instructions; unit/syntax CI; original-art provenance; brand shortlist. | Remote visibility and commit verified; CI result recorded separately from local browser checks. |
+| **M0 · Brand and public playable prototype** | Private `cambridgetcg/mythseal` source; 萬象契 / Mythseal identity; allowlisted static build; assets-only Cloudflare host at `mythseal.com`; `www` redirect; unit/syntax/build CI; original-art provenance. Existing local folder and save namespaces remain compatible. | Repository visibility/commit verified; static artifact excludes internal files; HTTPS/assets/redirect tested and recorded in HOSTING.md; CI result separate from local browser checks. Static hosting does not imply a trusted backend. |
 | **M1 · Game alpha and portable clients** | Balance/economy sessions; onboarding and clear card growth; save export/import; English + Traditional Chinese text structure; mobile touch/audio/safe-area work; small Capacitor iOS/Android trial using the existing engine. | New players complete a full loop without assistance; real-device lifecycle/resume tests; migrations retain their cards. Select wrapper or a later native renderer from measurements. |
-| **M2 · Authoritative online foundation** | Accounts and recovery, cloud saves, globally unique server card identities, validated battle/XP results, idempotent ledger, atomic in-game transfers, inventory/deck invalidation and account deletion. | Multi-device and concurrent-trade tests; forged local state cannot create currency, XP or collectible entitlement; backup restore demonstrated. Guest play remains available where practical. |
+| **M2 · Authoritative online foundation** | Proposed Workers API + Supabase Postgres/Auth; accounts and recovery, cloud saves, globally unique server card identities, server-executed battles, idempotent ledger, atomic in-game transfers, inventory/deck invalidation and account deletion. Hyperdrive + pg is the proposed transactional adapter. | Multi-device and concurrent-trade tests; forged local state cannot create currency, XP or collectible entitlement; backup restore demonstrated. Guest play remains available where practical. No backend service is provisioned by the static-host release. |
 | **M3 · Mobile closed beta** | Signed iOS/TestFlight and Android testing builds; native polish; account lifecycle, support/privacy pages, store disclosures and an explicit feature/payment matrix by storefront. First beta uses ordinary earned cards. | Device testing plus store review of the actual flow; crash/performance evidence; recovery/delete-account and purchase restoration if purchases are introduced. A web wrapper alone is not the acceptance test. |
-| **M4 · Collectible testnet** | Token-standard/chain decision record; wallet connection and recovery choice; capped edition contract; metadata/provenance service; ownership indexer; XP-to-token proof of concept; fixed-content test editions; marketplace transfer simulation. | Supply invariants, replay protection, reorg recovery, transfer-during-battle and XP continuity tests; no real funds; explicit decision on mobile utility before expanding native integration. |
+| **M4 · Collectible testnet** | Evaluate Base Sepolia with unique-copy ERC-721; Polygon Amoy fallback; wallet/recovery choice; capped edition contract; metadata/provenance service; confirmed ownership indexer; XP-to-token proof of concept; fixed-content test editions; marketplace transfer simulation. | Supply invariants, replay protection, reorg recovery, transfer-during-battle and XP continuity tests; no real funds; explicit decision on mobile utility before expanding native integration. These are candidates, not deployed networks/contracts. |
 | **M5 · Limited-batch production readiness** | Final supply manifest and artwork terms; account/contract/metadata review; independent contract audit; permission/key procedures; monitored launch rehearsal; supported-market and payment review. | No unresolved critical/high security findings; mint cap cannot be bypassed by another mint path, burning or privileged supply changes; recovery plan tested; exact mobile/web product accepted for intended distribution. |
 | **M6 · First edition and mobile release** | Launch only the accepted mobile feature set; release the approved fixed-content collectible batch through its approved channel; publish supply/provenance and support information; measure retention and economy health. | Verified contracts and counted issued/reserved stock; successful store release; support and ownership reconciliation operational. Further batches require a separate manifest and release review. |
 
@@ -68,13 +72,14 @@ Detailed alternatives, trust boundaries and future test invariants are in [BLOCK
 
 | Decision | Current recommendation | Still to resolve |
 | --- | --- | --- |
-| Brand/domain | Prefer a distinctive name that can include mythology and historical/literary figures. | Owner selection, store/title searches, trademark review and registrar purchase. No domain purchased. |
+| Brand/domain | **Selected:** 萬象契 / Mythseal; private repo renamed; `mythseal.com` acquired and Cloudflare active. | Static deployment verification, target-store/title checks and trademark review. Domain ownership is not name clearance. |
+| Web/backend | **Static host selected:** Cloudflare Workers Static Assets. Proposed future API uses Workers + Hyperdrive/pg + Supabase Postgres/Auth. | Backend region, account recovery, measured load and paid-service budget before provisioning. Compare alternatives in BACKEND-STACK.md. |
 | Mobile architecture | Trial Capacitor around the current web client and pure engine. | Real-device performance and native UX evidence; no rewrite by default. |
 | Gameplay and NFT relationship | Preserve transferable per-card history as the goal; prove store-compatible access separately. | Exact native functionality and whether the NFT gameplay loop initially lives on web. |
-| Chain/token standard | Compare EVM networks with unique-copy ERC-721 as a starting design. | Fees, finality, wallet recovery, operations, indexer support and contract audit. No network selected. |
+| Chain/token standard | Evaluate Base Sepolia + ERC-721 first; keep Polygon Amoy as fallback. | Fees, finality, wallet recovery, operations, indexer support and contract audit. No contract deployed or production network selected. |
 | Wallet custody | Offer ordinary account onboarding; evaluate optional wallet linking/recovery. | Custodial vs non-custodial responsibilities, regions, account loss and age handling. |
 | Economy | No required fungible game token. Scarcity concerns editions, not a promise of resale value. | Supply, pricing, rewards, reserves, art rights and supported markets before any sale. |
 
 ## Next implementation slice
 
-Start M1 with a browser save-import flow, onboarding, text localization structure and a small native packaging experiment. In parallel, specify M2's account/card/XP/transfer data model and test it with concurrent synthetic accounts. These steps improve the game and establish trustworthy card history before wallets or collectible issuance are added.
+Finish M0's v0.4.1 brand/static-host delivery and record actual HTTPS, asset, redirect and CI evidence. Then start M1 with a browser save-import flow, onboarding, text localization structure and a small native packaging experiment. The existing backend design gives M2 a concrete command/schema baseline; implement a single sign-in → server match → exact-card XP settlement slice before expanding the economy. Artwork and animation changes follow the versioned [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md). These steps establish useful gameplay and trustworthy history before wallets or collectible issuance are added.

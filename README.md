@@ -1,22 +1,26 @@
-# 山海弈 · Shanhai Duel
+# 萬象契 · Mythseal
 
-一念落子，神魔易位。
+一張卡，一段傳說。
 
 An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The game now has 24 characters: 12 original山海 characters and 12 new interpretations of classical literary, historical and legendary figures. Illustrations, map, character writing and card balance are created for this game.
 
-**Working title; private development repository.** The playable release is a local browser prototype. iOS, Android, accounts, online trading and limited-edition NFT cards are planned, not implemented. Follow the [roadmap](ROADMAP.md), [mobile release plan](docs/MOBILE-RELEASE.md), [blockchain design](docs/BLOCKCHAIN-DESIGN.md) and [name/domain shortlist](docs/NAMING.md). The current name is not a cleared release brand.
+**Private repository: `cambridgetcg/mythseal`.** The owner has selected 萬象契 / Mythseal and acquired `mythseal.com`; its Cloudflare zone is active. The v0.4.1 delivery target is the existing game on Cloudflare static hosting, with `www.mythseal.com` redirecting to the apex domain. Deployment is pending verification; consult [hosting status and evidence](docs/HOSTING.md) before treating the site as live.
+
+Gameplay still uses browser-local saves. iOS, Android, accounts, an authoritative backend, online player trading and limited-edition NFT cards remain planned. See the [roadmap](ROADMAP.md), [technical plan](docs/TECHNICAL-PLAN.md), [backend stack](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md), [content and release pipeline](docs/CONTENT-RELEASE-PIPELINE.md), [mobile plan](docs/MOBILE-RELEASE.md) and [blockchain design](docs/BLOCKCHAIN-DESIGN.md). [Naming history](docs/NAMING.md) preserves the earlier research; selecting a name and owning its domain do not establish trademark clearance.
 
 ## Run locally
 
 Clone the private repository with an authorized GitHub account:
 
 ```sh
-gh repo clone cambridgetcg/shanhai-duel
-cd shanhai-duel
+gh repo clone cambridgetcg/mythseal
+cd mythseal
 python3 tools/serve.py --open
 ```
 
 The Python server works on macOS, Linux and Windows with Python 3 installed. On Windows, use `py` if that is your Python launcher.
+
+The existing workspace on this Mac remains `/Users/macair/Games/shanhai-duel`. A fresh clone uses `mythseal`; the folder name does not define the brand or save format.
 
 ### Finder launcher on this Mac
 
@@ -27,6 +31,18 @@ python3 tools/serve.py --open
 ```
 
 Default address: **http://127.0.0.1:4177**. If occupied, the launcher selects another port and prints its address. Python 3 and a modern browser are the only runtime requirements. Assets are local. No accounts, payments, tracking, Flash or external runtime dependencies. The server binds to this Mac only.
+
+## Static build and hosting
+
+The v0.4.1 publishing workflow uses Node to produce an explicit allowlist of game files in `dist`, then deploys that artifact with locally authenticated Wrangler:
+
+```sh
+npm ci
+npm run build
+npm run deploy
+```
+
+The configured target is an assets-only Cloudflare Worker at `mythseal.com` plus a separate `www` redirect Worker. Do not publish the repository root: design documents, tests, credentials and local saves are not website assets. Deployment is a manual maintainer operation; GitHub CI checks the build and tests without claiming a production deployment. See [HOSTING.md](docs/HOSTING.md) for exact setup, commands and verification results. Hosting this client does not provision Supabase, cloud accounts, payments or blockchain services.
 
 ## 山海行囊 · v0.4
 
@@ -75,13 +91,15 @@ Progress lives in this browser's local storage under `shanhai.profile.v3`. Migra
 
 Use **匯出旅程備份** in the footer to download profile JSON. This is a local prototype: clearing site data removes the save, different browsers have separate progress, and changing the server port changes the browser storage origin. There is no cloud account or server-backed anti-cheat. Browser Web Locks serialize profile changes across tabs where available; keep active battles in one tab.
 
+The Mythseal rename preserves the existing `shanhai.*` storage namespaces. Visiting `mythseal.com` creates a different browser storage origin from `localhost`; local progress does not automatically follow the domain. Export important local journeys before changing where you play. A saved JSON file is not a server-verified collectible or mint claim.
+
 ## Fidelity and scope
 
 This is an inspired new game, not an exact restoration. Historical sources support the broad arena/wilderness/market/training loops. Our currency prices, pack odds, map, daily rewards, cultivation curve and AI ladder are original prototype choices. No verified original source repository was recovered in the bounded search. See [historical research](docs/RESEARCH.md), [battle design](docs/DESIGN.md) and [progression rules/API](docs/PROGRESSION.md).
 
 Online multiplayer, real player trading, server accounts, timed furnaces and extensive economy/balance tuning are outside this local version.
 
-The roadmap targets mobile distribution and limited-batch blockchain collectibles. It keeps battle simulation fast and server-validated, with blockchain recording collectible ownership and capped issuance. Mobile NFT gameplay rights are an explicit platform-policy decision before implementation, not an assumed entitlement. No token sale, launch date, chain or mint quantity is committed by these planning documents.
+The roadmap proposes mobile distribution and limited-batch blockchain collectibles, with future server-validated battles and capped collectible issuance. Cloudflare Workers API + Supabase Postgres/Auth is the backend recommendation; Base Sepolia is a testnet research candidate. Neither backend provisioning nor chain deployment has been performed for the static release. Mobile NFT gameplay rights remain an explicit platform-policy decision. No token sale, launch date, production chain or mint quantity is committed by these planning documents.
 
 ## Checks
 
@@ -101,7 +119,7 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tools/backpack-smoke.mjs
 
 `CHROME_PATH` and `GAME_URL` optionally select browser/server. Screenshots are written to ignored `test-results/`. See [validation evidence](docs/VALIDATION.md) for checks actually completed.
 
-GitHub Actions runs the 107 deterministic Node tests, module syntax checks and launcher/server syntax checks on pushes and pull requests. Browser scripts currently run separately; a passing unit workflow does not mean mobile builds, browser tests or production services have passed.
+GitHub Actions is configured for deterministic Node tests, module syntax checks, launcher/server syntax checks and the static build on pushes and pull requests. Browser scripts run separately; a passing unit/build workflow does not mean mobile builds, browser tests or production services have passed. Exact results and test counts belong in [VALIDATION.md](docs/VALIDATION.md), with public-host checks in [HOSTING.md](docs/HOSTING.md).
 
 ## Repository use
 
@@ -121,3 +139,8 @@ This is a private development repository. No open-source license or NFT-holder a
 - `assets/world-map.png`: original illustrated six-realm map.
 - `assets/classics.png`: 4 × 3 atlas of the twelve classical characters.
 - [Art generation record](docs/ART.md): exact prompts and provenance.
+- [Technical plan](docs/TECHNICAL-PLAN.md): implementation order and architecture decisions.
+- [Backend stack](docs/BACKEND-STACK.md): server authority, transactions, schema and cost assumptions.
+- [NFT stack](docs/NFT-STACK.md): testnet candidates, wallets, ownership indexing and metadata.
+- [Content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md): artwork, animation and versioned content delivery.
+- [Hosting](docs/HOSTING.md): build allowlist, Cloudflare setup and actual deployment evidence.

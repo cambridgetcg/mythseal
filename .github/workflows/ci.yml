@@ -27,8 +27,18 @@ jobs:
         with:
           node-version: '22'
           package-manager-cache: false
+      - name: Install pinned deployment tooling
+        run: npm ci
       - name: Run deterministic suites
         run: npm test
+      - name: Build public asset allowlist
+        run: npm run build
+      - name: Validate Cloudflare bundles without deploying
+        run: |
+          npx --no-install wrangler deploy --dry-run
+          npx --no-install wrangler deploy --config wrangler.www.jsonc --dry-run
+        env:
+          WRANGLER_SEND_METRICS: 'false'
       - name: Check JavaScript syntax
         run: |
           for module in *.mjs tools/*.mjs; do

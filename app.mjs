@@ -59,11 +59,11 @@ function cardMarkup(card, options = {}) {
 
 function header() {
   const links=[['world','山海遊歷'],['arena','問道擂台'],['bag','山海行囊'],['daily','每日功課'],['market','商旅市集'],['collection','萬象藏典'],['rules','弈道']];
-  return `<header class="topbar"><button class="brand" data-action="home" aria-label="山海弈首頁"><img src="assets/mark.svg" alt=""><span><span class="brand-name">山海弈</span><span class="brand-en">SHANHAI DUEL</span></span></button>
+  return `<header class="topbar"><button class="brand" data-action="home" aria-label="萬象契首頁"><img src="assets/mark.svg" alt=""><span><span class="brand-name">萬象契</span><span class="brand-en">MYTHSEAL</span></span></button>
     <nav class="nav" aria-label="主選單">${links.map(([id,name])=>`<button data-action="${id}" class="${screen===id?'active':''}" ${screen===id?'aria-current="page"':''}>${name}</button>`).join('')}</nav>
     <div class="header-actions"><div class="wallet"><span title="金幣">◈ <b>${profile.coins.toLocaleString()}</b><small>金幣</small></span><span title="靈砂">✧ <b>${profile.dust.toLocaleString()}</b><small>靈砂</small></span></div><button class="icon-button" data-action="sound" aria-label="${sound?'關閉':'開啟'}音效" aria-pressed="${sound}">${sound?'♫':'♪'}</button></div></header>`;
 }
-const footer=()=>`<footer class="footer"><span>SHANHAI DUEL · 原創山海卡牌對弈</span><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><span>四局之內，自有天地。</span></footer>`;
+const footer=()=>`<footer class="footer"><span>MYTHSEAL · 原創山海卡牌對弈</span><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><span>四局之內，自有天地。</span></footer>`;
 
 function homeMarkup() {
   return `<main class="screen-enter"><section class="hero"><div class="hero-copy"><div class="eyebrow">A DUEL BETWEEN REALMS</div><h1>一念落子，<br><em>神魔易位。</em></h1><p class="hero-description">四張戰卡，十二枚仙丹。<br>藏鋒，試探，或傾盡所有。<br>勝負不在神力，在你落子的那一刻。</p>
@@ -165,7 +165,7 @@ function closeModal() {
 }
 function modal(content, className='', dismissible=true) {
   if(!overlay.firstElementChild) lastFocus=document.activeElement;
-  overlay.innerHTML=`<div class="modal-backdrop" data-dismissible="${dismissible}"><section class="modal ${className}" role="dialog" aria-modal="true" aria-label="山海弈對話框">${dismissible?'<button class="modal-close" data-action="close-modal" aria-label="關閉">×</button>':''}${content}</section></div>`;
+  overlay.innerHTML=`<div class="modal-backdrop" data-dismissible="${dismissible}"><section class="modal ${className}" role="dialog" aria-modal="true" aria-label="萬象契對話框">${dismissible?'<button class="modal-close" data-action="close-modal" aria-label="關閉">×</button>':''}${content}</section></div>`;
   document.body.style.overflow='hidden';
   requestAnimationFrame(()=>overlay.querySelector('button:not(:disabled)')?.focus());
 }
@@ -375,7 +375,7 @@ document.addEventListener('click', event=>{
     modal(`<div class="eyebrow">${PACK_SETS[result.set].name} · THREE FATES</div><h2>三份緣，已入藏。</h2><p>卡牌已加入收藏。多出的卡可到商旅市集出售。</p><div class="pack-reveal">${result.cards.map(({cardId,rarity,instanceId})=>`<div class="pack-result" style="--rarity:${RARITIES[rarity].color}">${cardMarkup(getCard(cardId))}<span class="rarity-label">${RARITIES[rarity].name}</span><p>${getCard(cardId).name} · Lv.1<br><span class="instance-serial">#${safe(instanceId)}</span></p></div>`).join('')}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">收入行囊 ✓</button><button class="primary" data-action="buy-pack" data-set="${result.set}" ${profile.coins<PACK_PRICE?'disabled':''}>再開一匣 · ${PACK_PRICE} 金幣</button></div>`,'pack-modal');
   });}
   if(action==='export-save'){
-    const blob=new Blob([JSON.stringify(loadProfile(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`山海弈旅程-${profile.daily.date}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('旅程備份已匯出。');return;
+    const blob=new Blob([JSON.stringify(loadProfile(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`萬象契旅程-${profile.daily.date}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('旅程備份已匯出。');return;
   }
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}
   if(action==='rules')return rulesModal();
