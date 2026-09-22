@@ -13,7 +13,7 @@ await mkdir(output, { recursive: true });
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const fixedNow = '2026-09-21T12:00:00Z';
-const profileKey = 'shanhai.profile.v3', legacyProfileKey = 'shanhai.profile.v2', battleKey = 'shanhai.battle.v3';
+const profileKey = 'shanhai.profile.v4', legacyProfileKey = 'shanhai.profile.v2', battleKey = 'shanhai.battle.v4';
 const failures = [], checked = [], screenshots = [];
 const read = (page, key = profileKey) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
 const go = async (page, screen) => {
@@ -75,12 +75,12 @@ try {
   old.daily.loginClaimed = true;
   const { context, page } = await seededContext(old);
   const migrated = await read(page);
-  assert.equal(migrated.version, 3);
+  assert.equal(migrated.version, 4);
   assert.deepEqual(await read(page, legacyProfileKey), old, 'v2 backup remains unchanged');
-  assert.equal(migrated.collectionExpansion, 1);
+  assert.equal(migrated.collectionExpansion, 2);
   for (const key of ['coins', 'dust', 'xp', 'stats', 'arena', 'cleared', 'location', 'deck', 'daily']) assert.deepEqual(migrated[key], old[key]);
   assert.equal(migrated.levels.qingxiao, 3);
-  assert.equal(Object.keys(migrated.inventory).length, 24);
+  assert.equal(Object.keys(migrated.inventory).length, CARDS.length);
   assert.equal(countOwned(migrated), 16);
   for (const id of WELCOME_CARD_IDS) assert.equal(migrated.inventory[id], 1);
   for (const id of CLASSIC_CARD_IDS.filter(id => !WELCOME_CARD_IDS.includes(id))) assert.equal(migrated.inventory[id], 0);
@@ -90,9 +90,9 @@ try {
   checked.push('existing v2 progress unchanged, welcome four persist exactly once across reload');
 
   await go(page, 'collection');
-  assert.equal(await page.locator('.collection-item').count(), 24);
+  assert.equal(await page.locator('.collection-item').count(), CARDS.length);
   assert.equal(await page.locator('.collection-item:not(.unowned)').count(), 16);
-  assert.equal(await page.locator('.collection-item.unowned').count(), 8);
+  assert.equal(await page.locator('.collection-item.unowned').count(), CARDS.length - 16);
   const atlas = await page.evaluate(() => Object.fromEntries(['qingxiao', 'wukong'].map(id => [id, getComputedStyle(document.querySelector(`.collection-item[data-card-id="${id}"] .card-art`)).backgroundImage])));
   assert.match(atlas.qingxiao, /assets\/portraits\.png/);
   assert.match(atlas.wukong, /assets\/classics\.png/);
@@ -107,7 +107,7 @@ try {
   assert.deepEqual((await page.locator('.collection-item').evaluateAll(items => items.map(item => item.dataset.cardId))).sort(), ['lindaiyu', 'wangxifeng']);
   await page.locator('#source-filter').selectOption('all');
   await page.locator('[data-action="filter"][data-id="moon"]').click();
-  assert.equal(await page.locator('.collection-item').count(), 6);
+  assert.equal(await page.locator('.collection-item').count(), CARDS.filter(card=>card.faction==='moon').length);
   await page.locator('[data-action="filter"][data-id="all"]').click();
   await page.locator('[data-action="collection-set"][data-id="classics"]').click();
   assert.equal(await page.locator('.collection-item').count(), 12);
@@ -122,7 +122,7 @@ try {
   await shot(page, 'locked-detail-desktop');
   await page.locator('.modal-close').click();
   await shot(page, 'collection-desktop');
-  checked.push('24-card collection, 16 owned, source/faction/set/owned filters, locked inspection, distinct original/classic portrait atlases');
+  checked.push('39-card collection, 16 owned, source/faction/set/owned filters, locked inspection, distinct original/classic portrait atlases');
 
   await page.locator('.cards-hub-tabs [data-id="decks"]').click();
   const intended = ['kongzi', 'qingxiao', 'wukong', 'guanyu', 'lindaiyu', 'shuangli', 'cangjiao', 'cuixian'];
@@ -142,6 +142,7 @@ try {
   checked.push('exact-copy welcome preset stays a draft until saved, then persists a legal eight-card 24-star deck across reload');
 
   await go(page, 'market');
+  await page.locator('[data-action="pack-set"][data-id="classics"]').click();
   assert.equal(await page.locator('[data-action="pack-set"][data-id="classics"]').getAttribute('aria-pressed'), 'true');
   const beforePack = await read(page);
   await page.locator('[data-action="buy-pack"]').click();

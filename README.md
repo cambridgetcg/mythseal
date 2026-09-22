@@ -147,24 +147,34 @@ npm test
 Pure engine, progression and collection suites use Node's built-in test runner. Browser checks use Playwright as a development tool; the game itself has no JavaScript dependencies:
 
 `npm ci` includes pinned Playwright. Start `npm run preview` in another terminal,
-then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for all nine
+then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for all eleven
 flows. The scripts use installed Google Chrome on macOS; set `CHROME_PATH` for
 another executable, or install the matching browser with
 `npx --no-install playwright install chromium`. No browser download is needed
 when Chrome is already installed. `PLAYWRIGHT_MODULE` remains an optional override.
 
-The [WX-01 set proposal](docs/EXPANSION-WX01.md) has a separate art/pack-opening
-preview at `http://127.0.0.1:4177/atelier.html` when `npm start` is running.
-It never grants cards or changes a save, and its six preview assets are excluded
-from production builds. Run `npm run test:atelier` against that Python server;
-set `BROWSER=webkit` to check an installed Playwright WebKit runtime as well.
-Use `PLAYWRIGHT_BROWSERS_PATH` if that runtime is in a project-local cache.
+The [WX-01 西行 set](docs/EXPANSION-WX01.md) is playable in this local checkout:
+open **市集 → 西行秘匣** for 300 earned coins, three cards and one 西行印.
+There are 16 characters and 29 printings, including cosmetic 領契, AA, INK and
+TR. Exact prints remain with their owned copies through deck selection and battles.
+Existing v2/v3 saves migrate into a separate v4 namespace; the original keys remain.
+The public website has not received this expansion.
 
-The [WX-01 probability draft](docs/WX01-DROP-RATES.md) has an isolated analytical
+Run `npm run test:wx01` against the loopback server for Chrome and installed
+Playwright WebKit checks, including saved reveals, redemption, battle art, recovery
+and two-tab purchase races. Use `PLAYWRIGHT_BROWSERS_PATH` for a custom runtime;
+`test-results/webkit-runtime` is detected when present.
+
+The fixed art study remains at `http://127.0.0.1:4177/atelier.html` under
+`npm start`. Its page, stylesheet and script are preview-only; the three Wukong
+images are also used by actual collectible printings. `npm run test:atelier`
+checks that the study never grants cards or changes saves.
+
+The [WX-01 drop rules](docs/WX01-DROP-RATES.md) have an independent analytical
 model: `npm run analyze:wx01` enumerates outcomes and checks a seeded simulation;
-`npm run analyze:wx01 -- --json` emits the full per-print report. This does not
-open game packs, read saves or change live probabilities. Cosmetic 領契, new
-pack distribution and compatible collection storage remain implementation work.
+`npm run analyze:wx01 -- --json` emits the per-print report. This analysis never
+opens game packs or reads saves. Runtime/model tests compare 100,000 sequential
+packs, and hosted rollout gates remain in [HANDOVER](docs/HANDOVER.md).
 
 ```sh
 # Start the local server in another terminal first.

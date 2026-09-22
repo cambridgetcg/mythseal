@@ -4,7 +4,8 @@ import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createProfile, PROFILE_KEY } from '../progression.mjs';
-import { createSnapshot } from '../cloud-save.mjs';
+import { LEGACY_CARD_IDS } from '../engine.mjs';
+import { createSnapshot, restoreSnapshot } from '../cloud-save.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.GAME_URL || 'http://127.0.0.1:4185';
@@ -13,8 +14,8 @@ if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 const fixedNow = '2026-09-21T12:00:00Z';
-const recoveryKey = 'shanhai.profile.recovery.v3';
-const battleKey = 'shanhai.battle.v3';
+const recoveryKey = 'shanhai.profile.recovery.v4';
+const battleKey = 'shanhai.battle.v4';
 const checks = [], screenshots = [], errors = [], blockedExternal = new Set(), contexts = [];
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
@@ -22,7 +23,7 @@ const action = (page, name) => page.locator(`[data-action="${name}"]`);
 const readProfile = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROFILE_KEY);
 const readRecovery = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), recoveryKey);
 const complete = label => { checks.push(label); console.log(`PASS ${label}`); };
-const mutations = fixture => fixture.calls.filter(call => call.path === '/api/v1/journey' && call.method !== 'GET');
+const mutations = fixture => fixture.calls.filter(call => call.path.endsWith('/journey') && call.method !== 'GET');
 const idle = page => page.locator('.account-shell[aria-busy="false"]').waitFor();
 
 async function noOverflow(page, label) {
@@ -35,8 +36,8 @@ async function shot(page, name) {
   screenshots.push(name);
 }
 
-async function fixturePage(profile, { mobile = false, authenticated = false, emailEnabled = true } = {}) {
-  const fixture = { authenticated, emailEnabled, email: 'traveller@example.test', revision: 0, backup: null, calls: [] };
+async function fixturePage(profile, { mobile = false, authenticated = false, emailEnabled = true, journeyVersions = [1, 2] } = {}) {
+  const fixture = { authenticated, emailEnabled, journeyVersions, legacyBackup: null, legacyRevision: 0, email: 'traveller@example.test', revision: 0, backup: null, calls: [] };
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, reducedMotion: 'reduce', ...(mobile ? { isMobile: true, hasTouch: true, deviceScaleFactor: 1 } : {}) });
   contexts.push(context);
   await context.addInitScript(({ profile, profileKey, now }) => {
@@ -64,7 +65,7 @@ async function fixturePage(profile, { mobile = false, authenticated = false, ema
     fixture.calls.push({ method, path, body: structuredClone(body) });
     const reply = (value, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'cache-control': 'no-store' }, body: JSON.stringify(value) });
     const user = { id: 'smoke-account-fixture', email: fixture.email };
-    if (path === '/api/v1/account' && method === 'GET') return reply({ authenticated: fixture.authenticated, user: fixture.authenticated ? user : null, emailEnabled: fixture.emailEnabled });
+    if (path === '/api/v1/account' && method === 'GET') return reply({ authenticated: fixture.authenticated, user: fixture.authenticated ? user : null, emailEnabled: fixture.emailEnabled, journeyVersions: fixture.journeyVersions });
     if (path === '/api/v1/auth/otp' && method === 'POST') {
       if (!fixture.emailEnabled) return reply({ error: { code: 'email_unavailable' } }, 503);
       fixture.email = body.email;
@@ -73,10 +74,11 @@ async function fixturePage(profile, { mobile = false, authenticated = false, ema
     if (path === '/api/v1/auth/verify' && method === 'POST') {
       if (body.token !== '123456') return reply({ error: { code: 'invalid_code' } }, 400);
       fixture.authenticated = true;
-      return reply({ authenticated: true, user, emailEnabled: fixture.emailEnabled });
+      return reply({ authenticated: true, user, emailEnabled: fixture.emailEnabled, journeyVersions: fixture.journeyVersions });
     }
     if (path === '/api/v1/auth/logout' && method === 'POST') { fixture.authenticated = false; return reply({ authenticated: false }); }
-    if (path === '/api/v1/journey') {
+    if (path === '/api/v1/journey' && method === 'GET') return reply({ backup: fixture.legacyBackup, revision: fixture.legacyRevision });
+    if (path === '/api/v2/journey') {
       if (!fixture.authenticated) return reply({ error: { code: 'sign_in_required' } }, 401);
       if (method === 'GET') return reply({ backup: fixture.backup, revision: fixture.revision });
       if (['PUT', 'DELETE'].includes(method)) {
@@ -240,6 +242,27 @@ try {
   assert.equal(await unavailable.page.locator('[data-account-form]').count(), 0);
   assert.deepEqual(await readProfile(unavailable.page), seed);
   complete('Unconfigured email delivery has honest unavailable UI and leaves guest progress intact');
+
+  const oldServer = await fixturePage(seed, { mobile: true, authenticated: true, journeyVersions: undefined });
+  // Deliberately omit capabilities to model an already deployed pre-v2 server.
+  oldServer.journeyVersions = undefined;
+  const legacy = structuredClone(seed); legacy.version = 3; legacy.collectionVersion = 1; legacy.collectionExpansion = 1; delete legacy.wx01;
+  legacy.coins = 987;
+  legacy.instances.forEach(card => { delete card.printId; });
+  for (const key of ['inventory', 'levels']) legacy[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, legacy[key][id]]));
+  const legacySnapshot = { format: 'mythseal.offline-journey', version: 1, profile: legacy };
+  oldServer.legacyRevision = 8; oldServer.legacyBackup = { revision: 8, updatedAt: fixedNow, snapshot: legacySnapshot };
+  await action(oldServer.page, 'account-open').click(); await idle(oldServer.page);
+  assert(await action(oldServer.page, 'account-upload').isDisabled());
+  assert(await action(oldServer.page, 'account-confirm-delete').isDisabled());
+  assert.match(await oldServer.page.locator('.account-panel.cloud').innerText(), /西行收藏的雲端備份尚未開放/);
+  await action(oldServer.page, 'account-confirm-restore').click();
+  await action(oldServer.page, 'account-restore').click(); await idle(oldServer.page);
+  assert.deepEqual(await readProfile(oldServer.page), restoreSnapshot(legacySnapshot, { now: fixedNow }));
+  assert.deepEqual((await readRecovery(oldServer.page)).snapshot, createSnapshot(seed));
+  assert.equal(mutations(oldServer).length, 0);
+  await shot(oldServer.page, 'account-mobile-legacy-restore.png');
+  complete('Old-server capability absence blocks v4 upload/delete while explicit v1 restore migrates copies and preserves v4 recovery');
 
   assert.deepEqual(errors, [], 'Unexpected browser errors or failed static resources');
   console.log(JSON.stringify({ ok: true, evidence: 'Isolated browser UI with intercepted mock APIs; no live authentication or email delivery tested.', checks, screenshots, browserErrors: errors, externalOriginsBlocked: blockedExternal.size }, null, 2));

@@ -1,11 +1,12 @@
 # WX-01 · 西行・萬象初章
 
-Status: **set proposal + local visual prototype**, 2026-09-22.
+Status: **playable local implementation; not deployed**, 2026-09-22.
 The owner chose **西遊記 first, then other series**. This document fixes a useful
-working direction; proposed new cards, their stats, acquisition rates and owned
-special printings have not been implemented or released. The same-day
-[drop-rate design](WX01-DROP-RATES.md) adds four cosmetic 領契 printings and
-calculated draft probabilities; the owner chose battle Leader rules later.
+working direction. All 15 new rules cards, owned printings and the earned-coin
+booster are implemented locally; their initial stat budgets still need human
+balance playtests. The same-day [rate specification](WX01-DROP-RATES.md) describes
+the runtime sampler and finite choice routes. The owner chose cosmetic 領契
+first and battle Leader rules later. Public v0.5.1 remains unchanged.
 
 ## The promise
 
@@ -18,12 +19,13 @@ Scope: **16 base identities = 15 new characters + the existing Wukong**.
 **6 alternate arts + 4 Leader Art portraits + 2 ink-scroll prints + 1 treasure
 = 13 special printings**. Thus the updated set checklist has **29 printings of
 16 gameplay identities**, up from the first visual draft's 25. The game
-would grow from 24 to 39 characters. Special printings do not increase that count.
+has grown locally from 24 to 39 characters. Special printings do not increase that count.
 
-Today's work includes live frames for the existing three rarities, three original
-Wukong art studies and an interactive, fixed-content opening at `/atelier.html`.
+The local game includes the third pack, saved card-by-card opening, seal and
+story choices, exact-copy treatment display and owned LAA lobby selection.
+The earlier interactive, fixed-content opening remains at `/atelier.html`.
 The atelier consumes no currency, grants no copies, and reads/writes no saves.
-The playable market still contains its original two packs.
+The original two playable packs retain their original pools and draw rules.
 
 ## What the One Piece references teach us
 
@@ -67,18 +69,19 @@ always accompany colour; readable names, values and skills take precedence over
 foil. No default perpetual shine or automatic device-motion access. Any later
 sheen is brief on a deliberate reveal/inspection and has a static equivalent.
 
-All four Wukong treatments use the current **5 stars, power 7, damage 6,
+All five Wukong treatments use the current **5 stars, power 7, damage 6,
 破妄 · 封鎖技能**. No special printing adds a stat, extra turn, bonus XP or hidden
-match advantage. Each owned copy would still train individually under existing rules.
+match advantage. Each owned copy trains individually under existing rules.
 
-## Base checklist — proposed, not balanced engine data
+## Base checklist — implemented candidate balance
 
 All factions and roles below are Mythseal interpretations, not canonical novel
-allegiances. Names and episodes derive from the classical text. New power,
-damage and effect values need balance work; only the existing Wukong is fixed.
-Star costs below are initial deck-construction budgets.
+allegiances. Names and episodes derive from the classical text. The runtime
+values are in [wx01-cards.mjs](../wx01-cards.mjs); the existing Wukong remains
+unchanged in [engine.mjs](../engine.mjs). These initial budgets use existing
+effects and have targeted rules tests, not a claim of complete competitive balance.
 
-| Number | Character | Faction | Rarity | Stars | Proposed role / existing effect vocabulary |
+| Number | Character | Faction | Rarity | Stars | Implemented role / existing effect vocabulary |
 | --- | --- | --- | --- | ---: | --- |
 | WX01-001 | 唐三藏 | 雲闕 | 凡品 | 2 | Modest contest, life recovery · healOnWin |
 | WX01-002 | 白龍馬 | 雲闕 | 凡品 | 2 | Low-bid tempo · flat attack |
@@ -101,13 +104,18 @@ Totals: **8 凡品 / 5 靈品 / 3 神品; four characters per faction**.
 Rarity describes collection distribution, not a figure's status in the novel.
 
 Faction star totals: 雲闕 11, 赤燼 13, 月隱 11, 森羅 12. All six possible
-4+4 two-faction decks therefore cost 22–25 stars at this proposed stage. This is
+4+4 two-faction decks therefore cost 22–25 stars. This is
 a construction check, not balance evidence. Four cards per faction do not make an
 eight-character mono-faction deck; existing cards remain useful.
 
-Balance watchlist: a proposed two-star 銀角 with skill interruption must be tested
-against three-star 霜璃 and 月隱's low-bid attack reduction. Without power/damage
-budgets we cannot infer fairness or declare it overpowered.
+Initial power/damage pairs in checklist order are **5/3, 5/2, 6/4, 6/3, 7/6,
+6/4, 6/2, 6/5, 5/3, 6/4, 5/2, 7/4, 7/3, 6/2, 6/5, 6/3**. Exact effect values
+and descriptions live beside those cards, avoiding a second rules authority.
+
+Balance watchlist: two-star 銀角 uses 5/2 and Stop Ability; the targeted test
+covers its zero-pill tie advantage and paid-pill disadvantage against 霜璃.
+Also playtest 菩提's power reduction, 觀音's damage reduction and 鎮元's healing
+against the legacy roster. Passing effect/cap/AI tests does not establish fairness.
 
 Keep the first set within the current effect vocabulary. Do not introduce a
 resurrection zone, extra rounds, mind-reading bids or hidden-choice copying just
@@ -121,64 +129,69 @@ These names describe illustrations, not additional gameplay identities.
 
 | Print | Character | Scene and composition | Progress |
 | --- | --- | --- | --- |
-| WX01-005-AA1 | 孫悟空 · 踏碎凌霄 | Diagonal staff and crimson silk against a vast teal cloud gate | Original art study in atelier |
-| WX01-001-AA1 | 唐三藏 · 長安啟程 | A small traveller at monumental city gates; warm robe, morning silence | Art brief |
-| WX01-002-AA1 | 白龍馬 · 鷹愁照影 | Horse above clear water, dragon reflected below | Art brief |
-| WX01-013-AA1 | 豬八戒 · 行囊旁的月亮 | Rake and luggage at rest; the weary traveller gets a gentle moment | Original interlude, art brief |
-| WX01-003-AA1 | 觀音 · 甘露回春 | Willow, falling drops and a vast tree returning to life | Art brief |
-| WX01-010-AA1 | 鐵扇公主 · 翠雲一扇 | Fan opens across the frame; wind, green mountain, distant heat | Art brief |
-| WX01-001-LAA1 | 唐三藏 · 一願西行 | Composed frontal portrait, robe and a narrow dawn road | New Leader Art brief |
-| WX01-005-LAA1 | 孫悟空 · 我自齊天 | Defiant close gaze, upright staff and cloud engraving | New Leader Art brief |
-| WX01-009-LAA1 | 白骨精 · 千面一念 | Face, veil and a reflected silhouette | New Leader Art brief |
-| WX01-015-LAA1 | 牛魔王 · 萬妖共主 | Broad horns and mountain banners | New Leader Art brief |
-| WX01-005-INK1 | 孫悟空 · 大鬧天宮 | Hero with original cave, sea-palace and heavenly-conflict vignettes | Original art study in atelier |
-| WX01-012-INK1 | 六耳獼猴 · 二心三界 | Paired silhouettes through heaven, the underworld and 雷音 | Art brief |
-| WX01-005-TR1 | 孫悟空 · 定海神珍 | The upright staff in a dark sea palace; lacquer, carved gold and jade | Original art study in atelier |
+| WX01-005-AA1 | 孫悟空 · 踏碎凌霄 | Diagonal staff and crimson silk against a vast teal cloud gate | Earlier image reused |
+| WX01-001-AA1 | 唐三藏 · 長安啟程 | A small traveller at monumental city gates; warm robe, morning silence | Local asset |
+| WX01-002-AA1 | 白龍馬 · 鷹愁照影 | Horse above clear water, dragon reflected below | Local asset |
+| WX01-013-AA1 | 豬八戒 · 行囊旁的月亮 | Rake and luggage at rest; the weary traveller gets a gentle moment | Local asset; original interlude |
+| WX01-003-AA1 | 觀音 · 甘露回春 | Willow, falling drops and a vast tree returning to life | Local asset |
+| WX01-010-AA1 | 鐵扇公主 · 翠雲一扇 | Fan opens across the frame; wind, green mountain, distant heat | Local asset |
+| WX01-001-LAA1 | 唐三藏 · 一願西行 | Composed frontal portrait, robe and a narrow dawn road | Local asset |
+| WX01-005-LAA1 | 孫悟空 · 我自齊天 | Defiant close gaze, upright staff and cloud engraving | Local asset |
+| WX01-009-LAA1 | 白骨精 · 千面一念 | Face, veil and a reflected silhouette | Local asset |
+| WX01-015-LAA1 | 牛魔王 · 萬妖共主 | Broad horns and mountain banners | Local asset |
+| WX01-005-INK1 | 孫悟空 · 大鬧天宮 | Hero with original cave, sea-palace and heavenly-conflict vignettes | Earlier image reused |
+| WX01-012-INK1 | 六耳獼猴 · 二心三界 | Paired silhouettes through heaven, the underworld and 雷音 | Local asset |
+| WX01-005-TR1 | 孫悟空 · 定海神珍 | The upright staff in a dark sea palace; lacquer, carved gold and jade | Earlier image reused |
 
-Wukong deliberately anchors all four treatments so we can compare them side by
+Wukong deliberately anchors all five treatments so we can compare them side by
 side. Other AA subjects include low-star/common cards: a favourite illustration
 should not require choosing a high-star combat role. The quiet 八戒 scene is an
 invented interlude, not a claimed quotation or specific documented chapter scene.
 
-Base Wukong can reuse the existing atlas. Full set production then needs
-**15 new base illustrations + 13 special illustrations = 28 new card artworks**.
-Three studies exist; **25 remain**, subject to review. Packaging/key art is a
-separate deliverable. The current pack mockup reuses the AA illustration.
+Base Wukong reuses the unchanged classic atlas tile. The other **15 base
+illustrations + 13 special illustrations** are now supplied by **14 new files**
+(four 2×2 atlases containing 15 used cells, plus ten individual special images)
+and the **three earlier Wukong images**. Thus 25 new illustrated subjects/scenes
+are represented by 14 new files; there is no claim of 25 new standalone images.
+See [ART-WX01.md](ART-WX01.md) for the built-in generation prompts and mappings.
+The underlying model identifier was not exposed. Packaging/key art remains a
+separate deliverable; the market preview reuses catalogue art.
 
 ## Booster and collection experience
 
-Proposed product: **西行秘匣**, set `wx01`, earned coins, **300 coins / 3 cards**.
-This is a planned product, not a new button in the current market.
+Implemented local product: **西行秘匣**, set `wx01`, earned coins,
+**300 coins / 3 cards**, selected from the market alongside the two legacy packs.
 
 The [rate specification](WX01-DROP-RATES.md) supersedes the earlier
 character-first treatment proposal. It chooses one natural whole-pack outcome:
 83.70% standard, 12.50% AA, 2.50% cosmetic LAA, 1.00% TR, 0.25% INK and 0.05%
 神契匣 (AA + LAA + INK, three distinct characters). A twelve-pack dry-streak cap
 promotes an otherwise ordinary result to AA; special outcomes keep their identity.
-These are draft Mythseal rates, not live odds or Bandai manufacturer rates.
+These are local Mythseal runtime rates, not deployed-site or Bandai manufacturer rates.
 
 Ordinary packs retain the 60/30/10 base rule and third-slot guarantee. Single-
 special packs preserve their chosen illustration and upgrade the second standard
 slot if needed to retain at least one 靈品/神品. This intentionally changes the
-future WX-01 character distribution; the original two packs are unaffected.
+WX-01 character distribution; the original two packs are unaffected.
 The original **52.8/35.4/11.8** slot average describes only ordinary packs, not
-the full proposed WX-01 mix. Exact per-print, rarity and protected frequencies
+the full WX-01 mix. Exact per-print, rarity and protected frequencies
 are calculated by the offline model linked in the rate specification.
 
-Acquisition design to implement after compatibility work:
+Implemented grants and presentation follow-ups:
 
 - First Westward-volume completion offers one non-expiring AA choice. Each pack
   grants one 西行印; the existing ten-match weekly claim grants five. Redeem an
   exact AA/LAA/TR/INK for 20/40/100/200 印 respectively; 印 are consumed, cards
-  are not. Previously cleared profiles need once-only entitlement handling.
+  are not. Previously cleared profiles qualify; `storyClaimed` prevents a second
+  grant. Already claimed legacy weekly goals receive no retrospective 印.
 - A pack reward is a new UID at Lv.1/0 XP. A variant is not a new skin silently
   applied to a trained existing copy, and it does not inherit that copy's XP.
 - Duplicates remain distinct cards. Let the player inspect/lock/keep/sell; no
-  automatic conversion. New-print confirmation should say “新版本” separately
-  from “新角色”.
-- A complete base-character checklist and a separate treatment checklist.
-  Backpacks can group by character, then expand exact copies with version, XP
-  and UID. Keep deck duplicate detection at the character/rules identity.
+  automatic conversion. Follow-up: distinguish “新版本” from “新角色” in
+  first-acquisition notices without redrawing or regranting saved results.
+- Exact-copy displays retain version, XP and UID; deck duplicate detection stays
+  at the character/rules identity. A complete base-character checklist and a
+  separate treatment-completion checklist remain presentation follow-ups.
 - Unowned art previews explain what a player is collecting without presenting
   it as something already owned. Avoid false stock limits, resale promises or
   scarcity countdowns.
@@ -186,52 +199,59 @@ Acquisition design to implement after compatibility work:
 Opening: sealed packet → short paper/foil release → three face-down cards →
 player-chosen reveal → a calm collection summary. A rare reveal earns a brief
 pause and soft material sound, not a long mandatory celebration. Skip/fast/
-reduced motion all show the same already-saved result. A future real opening
-commits cost and card UIDs once before animation; reload resumes that receipt.
+reduced motion all show the same already-saved result. The real opening commits
+cost, three UIDs, dry/印 counters and a receipt before animation; reload resumes
+that receipt. Unacknowledged receipts block further pack/redemption/story grants;
+acknowledgement clears only the matching receipt. Its exact copies are protected
+from sale until confirmation. The displayed LAA copy is also protected until unset.
 
-Today's demonstration is fixed content and has no RNG, payment or receipt.
+The separate atelier demonstration is fixed content and has no RNG, payment or receipt.
 Its title and controls say so. It cannot be used as evidence of pull rates.
 
-## Copy identity and save compatibility — required before real distribution
+## Copy identity, migration and the hosted release gate
 
 Keep three identities distinct:
 - `cardId`: rules and same-character deck restriction, e.g. `wukong`.
 - `uid`: the exact copy that earned its own XP and history.
-- Proposed `printId`: an immutable catalogue binding such as
+- `printId`: an immutable catalogue binding such as
   `wx01-005-ink1` → cardId, set, treatment, art, frame and display label.
 
-Do not reuse `artSet` for treatments: the engine currently derives original/
-classic membership from it. Old copies must retain their legacy edition;
-do not relabel everyone's existing Wukong as a newly acquired WX-01 printing.
+`printing-catalogue.mjs` separates printings from rules and owns atlas coordinates.
+Copies of the original 24 characters migrate to `legacy/<cardId>`, including existing Wukong;
+they are not relabelled as new WX-01 acquisitions. `artSet` is not a treatment.
 
-The current collection hydrator reconstructs instance fields and would drop
-an unrecognized variant field. The strict cloud validator would reject it.
-An old cached client could silently strip it again. Also, bumping profile
-version under the same key is unsafe: current readers replace unknown versions
-with a starter profile. The database validator currently pins profile version 3.
+Local profile **v4**, collection **v2**, uses **`shanhai.profile.v4`** and matching
+v4 battle/recovery keys. `profile-store.mjs` reads v3/v2 deliberately, preserves
+the source keys, validates canonical records before writing and blocks malformed
+or unsupported current data. Legacy UIDs, XP, vault history and decks survive;
+the 15 new identities start unowned. Required v4 print IDs must bind to their
+card IDs. `pending.cardPrints` freezes presentation alongside the participating
+UIDs, so changing an active deck cannot change the saved battle's artwork.
 
-The same compatibility gate applies to **new base character IDs**. Adding to
-`CARDS` expands derived inventory/level keys and can fail old snapshots' strict
-canonical equality; old readers also discard unrecognized copies. The four-card
-pilot stays isolated candidate data until this gate passes.
+The source cloud adapter supports **v1/profile-v3** and **v2/profile-v4** envelopes.
+Validation returns an old valid payload unchanged; explicit restoration upgrades
+it locally. V2 permits 10,000 owned plus vault copies and 4 MiB of bounded JSONB
+text accounting. Grants preflight copy capacity; the store checks the final
+envelope and browser write before the UI treats the action as committed.
 
-Before new characters or owned variants enter real saves:
-1. Design supported-reader/version negotiation, migration and rollback together.
-   No destructive same-key profile bump; no reset of the live account database.
-2. Make missing print identity an explicit legacy-standard mapping. Validate
-   known print IDs against their cardId and accept legacy snapshots deliberately.
-3. Preserve identity through hydration, XP, locks, saved decks, sale/buyback,
-   merchant-vault records and old/new backup round trips.
-4. Resolve art through one presentation adapter everywhere: lobby, backpack,
-   exact-copy passport, deck thumbnails, prep, pack, battle, reveal and result.
-   A battle uses its frozen participating UID, not whichever deck is active now.
-5. Ship compatible client and account Worker together with actual hosted
-   retention checks; a local preview is not hosted compatibility evidence.
+**Hosted compatibility remains gated.** Public v0.5.1 and its existing database
+remain unchanged. The additive SQL file
+[20260922210000_wx01_journey_v2.sql](../supabase/migrations/20260922210000_wx01_journey_v2.sql)
+is source work, not an applied hosted migration. `JOURNEY_V2_ENABLED` must remain
+false or absent until a separately authorized migration is applied and verified.
+The account API advertises supported journey versions; clients must not strip
+or downgrade v4 data to make an old server accept it.
+
+A future release must also deliver a coherent hashed/versioned client module
+graph, compatible client/Worker code and actual hosted old/new backup and binding
+retention checks. Separate local keys protect legacy data but do not by themselves
+solve mixed cached-module loading or rollback to an old client. No hosted
+migration, release or public deployment occurred in this implementation turn.
 
 The existing two packs retain their price, odds, **card pools and pool ordering**,
-and six-RNG-call draw sequence. Their current pools derive from the global card
-catalogue, so freeze/version the legacy lists before expanding it. Exact-output
-fixtures must catch pool/order changes as well as extra RNG calls.
+and six-RNG-call draw sequence. Their pools now use frozen `LEGACY_CARD_IDS` /
+`CLASSIC_CARD_IDS` lists; the NPC market also remains legacy-only. Exact-output
+fixtures catch pool/order changes as well as extra RNG calls.
 No cosmetic draw may quietly perturb their old results. Offline collectible
 previews are not trusted online ownership; authority remains the separate M2/M3 track.
 
@@ -239,17 +259,25 @@ previews are not trusted online ownership; authority remains the separate M2/M3 
 
 | Slice | Concrete output | Acceptance |
 | --- | --- | --- |
-| A · Visual language | Existing rarity frames + four Wukong treatments + fixed opening study | Safari/WebKit and Chrome; 360/390/1440px; legible stats, keyboard, reduced motion; no save writes |
-| B · Four-card pilot | 白龍馬 / 紅孩兒 / 白骨精 / 沙悟淨 base art and candidate rules | One per faction, legal starter/mixed decks, injectable-RNG engine cases and four-round matchup review |
-| C · Copy compatibility | Print catalogue, one art resolver, guarded migration and backup support | Legacy/new snapshots round-trip; exact UID/XP/vault retained; old readers cannot erase prints; pending match stable |
-| D · WX-01 content | Remaining roster, all 29 printing entries including four LAA, art/edition checks | All faction pair decks legal; no empty rarity pools; no incorrect identity/print links; source/art review |
-| E · Earned booster | Playtested version of the draft rates, choice route and resumable opening | Exact probability enumeration + simulation; compatible storage capacity; one cost/result/counter/印 under retries/reload; result independent of animation |
+| A · Visual language | The earlier four-treatment Wukong atelier study and rarity frames remain separate from real grants | Safari/WebKit and Chrome; 360/390/1440px; legible stats, keyboard, reduced motion; atelier makes no save writes |
+| B · Candidate rules | All 15 new rules cards now implemented, including the initial four pilot roles | Targeted effect/deck/AI tests exist; human four-round matchup and balance review remains |
+| C · Copy compatibility | Local v4 keys, strict print bindings, legacy migration and dual snapshot source implemented | Local UID/XP/vault/pending and snapshot tests; hosted SQL/version negotiation, module graph and retention gate still open |
+| D · WX-01 content | All 29 printing entries and art assets are local | Four characters per faction, legal pair decks, correct printing bindings; final visual/phone review remains |
+| E · Earned booster | Runtime rates, choice grants, protected receipts, counters and 印 are local | Model/runtime equivalence, boundaries and transactional regressions exist; integrated browser/save failure review remains |
 | F · Narrative release | Relevant opponents use their own cast; journal shows collection goals | Existing story unlocks/rewards preserved; clear new-player path; physical iPhone/Android performance |
 
-Existing 西遊 maps can receive the new cast after cards pass slice B/D. New
+Existing 西遊 opponents retain their legacy deck generation for this slice;
+adapting them to the new cast is follow-up narrative/balance work. New
 chapters and boss abilities are separate content, not implied by sixteen cards.
 No public deployment, paid packs, store purchase, online issuance or NFT minting
-is part of this design pass.
+is part of this implementation.
+
+Relevant source checks: [card/rules tests](../tests/wx01-cards.test.mjs),
+[runtime sampler/model equivalence](../tests/wx01-pack.test.mjs),
+[grant/migration/receipt tests](../tests/wx01-progression.test.mjs),
+[profile-store tests](../tests/profile-store.test.mjs) and
+[cloud snapshot tests](../tests/cloud-save.test.mjs). These do not stand in for
+the integrated browser suite, physical-device review or hosted verification.
 
 ## The series after 西遊
 

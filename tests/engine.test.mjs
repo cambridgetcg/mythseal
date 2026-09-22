@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CARDS, FACTIONS, RULES, ORIGINAL_CARD_IDS, CLASSIC_CARD_IDS, defaultDeckIds, getCard, getBattleCard, validateDeck, createMatch, hasFactionBonus, previewMove, resolveRound, chooseAIMove } from '../engine.mjs';
+import { CARDS, LEGACY_CARD_IDS, FACTIONS, RULES, ORIGINAL_CARD_IDS, CLASSIC_CARD_IDS, defaultDeckIds, getCard, getBattleCard, validateDeck, createMatch, hasFactionBonus, previewMove, resolveRound, chooseAIMove } from '../engine.mjs';
 
 function seeded(seed) {
   return () => {
@@ -27,16 +27,17 @@ function deepFreeze(value) {
 
 const move = (cardId, pills = 0, fury = false) => ({ cardId, pills, fury });
 
-test('expanded collection covers two twelve-slot atlases and four factions; starter deck remains unchanged', () => {
-  assert.equal(CARDS.length, 24);
-  assert.equal(new Set(CARDS.map((card) => card.name)).size, 24);
-  assert.equal(new Set(CARDS.map((card) => `${card.artSet ?? 'original'}:${card.art}`)).size, 24);
+test('legacy collection retains two twelve-slot atlases and four factions; starter deck remains unchanged', () => {
+  const legacy = LEGACY_CARD_IDS.map(getCard);
+  assert.equal(legacy.length, 24);
+  assert.equal(new Set(legacy.map((card) => card.name)).size, 24);
+  assert.equal(new Set(legacy.map((card) => `${card.artSet ?? 'original'}:${card.art}`)).size, 24);
   for (const set of [ORIGINAL_CARD_IDS, CLASSIC_CARD_IDS]) {
     assert.equal(set.length, 12);
     assert.deepEqual(set.map((id) => getCard(id).art).sort((a, b) => a - b), Array.from({ length: 12 }, (_, index) => index));
     assert.ok(Object.isFrozen(set));
   }
-  for (const faction of Object.keys(FACTIONS)) assert.equal(CARDS.filter((card) => card.faction === faction).length, 6);
+  for (const faction of Object.keys(FACTIONS)) assert.equal(legacy.filter((card) => card.faction === faction).length, 6);
   assert.deepEqual(defaultDeckIds, ['qingxiao', 'chiling', 'shuangli', 'cangjiao', 'yaoheng', 'yanxin', 'duying', 'cuixian']);
   assert.deepEqual(validateDeck(defaultDeckIds), { valid: true, errors: [], stars: 24 });
   assert.throws(() => { getCard('qingxiao').power = 99; }, TypeError);

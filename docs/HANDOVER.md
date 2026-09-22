@@ -1,15 +1,17 @@
 # Mythseal agent handover
 
-Start here when joining development. Snapshot: **2026-09-21, v0.5.1 live**. Read
+Start here when joining development. Updated **2026-09-22; v0.5.1 remains live**. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
 
 ## The project in one minute
 
 **萬象契 / Mythseal** is an original Eastern mythology card game inspired by
-神魔令's four-round bluffing/resource mechanics. It has 24 characters, travel,
+神魔令's four-round bluffing/resource mechanics. Public v0.5.1 has 24 characters, travel,
 daily progression, earned-coin packs, an NPC market and a backpack with exact-copy
-XP/history and three decks. It is not a recovered copy of the old game.
+XP/history and three decks. Current local source adds 15 西遊 characters,
+29 WX-01 printings, a third pack, expanded stories and weekly quests. It is not
+a recovered copy of the old game.
 
 The browser game runs locally, against AI opponents. **旅程閣** adds email-code
 login and deliberate private cloud backup/restore. A cloud backup contains
@@ -53,36 +55,71 @@ haptics, other realm treatments and gameplay experiments remain planned. See
 The same day's resource/clash follow-up adds shared jade life meters, twelve
 pill capsules with bid/Fury preview, separate spending/impact/recovery beats and
 soft round arrivals in every battle mode. `battle-ui.mjs`, `battle.css` and
-`battle-presentation.mjs` bring the current allowlist to **27 files**. Presentation
+`battle-presentation.mjs` brought that slice's allowlist to **27 files**. Presentation
 reads accepted engine results; before-resource frames are transient, so resumed
 reveals show saved final totals. See [scope](IMMERSION.md#life-pills-and-battle-transitions--2026-09-22)
 and [checks](VALIDATION.md#life-pills-and-battle-transitions--2026-09-22).
 
-## 西行 booster planning and rarity frames
+## Playable local WX-01 and guarded saves
 
 The owner chose 西遊記 first, then other series. [WX-01](EXPANSION-WX01.md)
-contains the updated 16-character/29-print proposal, episode art briefs, three
-existing rarities, AA/LAA/INK/TR treatments and the delivery sequence.
+records the 16-character/29-print local implementation, episode art direction,
+three existing rarities, AA/LAA/INK/TR treatments and remaining release gates.
 `atelier.html` is a standalone local visual preview with four Wukong treatments and a fixed pack
 opening; it never reads or writes player saves, consumes coins or grants cards.
-`hosting/preview-assets.json` explicitly allows its six files on the Python
-loopback server; production builds exclude them. The public allowlist is now 33
-files, adding only `card-frames.css` to the previous 32.
-Three new original art studies and exact prompts are in [ART-EXPANSION.md](ART-EXPANSION.md).
+The atelier page/scripts remain preview-only. Its three Wukong images now also
+serve real local AA/INK/TR printings, so those images are allowlisted game assets.
+[ART-EXPANSION.md](ART-EXPANSION.md) records their original prompts.
 
 Existing game cards now derive their bronze/silver-jade/gold frame and rarity
-mark from `CARD_RARITIES` via `card-frames.css`. There are still 24 playable
-characters and the same two playable packs. New-card stats are not finalized.
-The [drop-rate design](WX01-DROP-RATES.md) specifies calculated draft odds,
-twelve-pack dry protection, 神契匣 and earned choices. The owner chose cosmetic
-Leader Art first; four new LAA artworks and all distribution remain planned.
-`tools/wx01-drop-model.mjs` is isolated analytical code, not an imported runtime
-sampler. Current snapshot limits (2,000 copies including vault / 512 KiB) require
-capacity planning before promising sustained collection growth.
-Owned printing metadata requires a separate compatible collection/cloud/old-reader
-rollout; current hydration would drop an unknown
-field. Do not casually add it or bump the profile version under the same key.
-This remains local development, with verification recorded in [VALIDATION.md](VALIDATION.md).
+mark from `CARD_RARITIES` via `card-frames.css`. The local catalogue now has
+**39 rules cards**: the unchanged original/classic 24 plus 15 candidate 西遊 cards.
+WX-01 has **16 identities / 29 printings**, including an unchanged Wukong reprint.
+Four new base atlases and ten special images make **14 new art files**; prompts
+and mappings are in [ART-WX01.md](ART-WX01.md). Generation used the built-in image
+tool; an underlying model identifier was not exposed.
+
+The [rate specification](WX01-DROP-RATES.md) is implemented by `wx01-pack.mjs`:
+300 earned coins / three new Lv.1 copies, twelve-pack dry protection, 神契匣 and
+one 西行印 per pack. The ten-match weekly claim adds five 印. Exact AA/LAA/TR/INK
+choices cost 20/40/100/200 印; the four Westward clears qualify for one AA choice,
+including older cleared saves. Cosmetic LAA lobby display is owned-copy only,
+has no combat effects and protects the displayed UID from sale until unset.
+
+`printing-catalogue.mjs` binds each print to one rules card; `card-presentation.mjs`
+resolves art. Old copies receive `legacy/<cardId>`, not a new WX-01 edition.
+`progression.mjs` and `wx01-state.mjs` commit exact grant receipts; a pending
+receipt blocks new pack/choice grants and is resumed after reload. Reveals do
+not draw, pay or grant. Legacy packs keep their frozen card pools/order and six
+RNG calls; the NPC market and existing opponent deck generation stay legacy-only.
+
+Profile **v4**, collection **v2**, uses **`shanhai.profile.v4`**, battle v4 and
+recovery v4 keys. `profile-store.mjs` preserves v3/v2 source keys, validates old
+canonical copies and current records, and rejects damaged/unsupported data
+without replacing it with a starter. Exact UIDs, XP, decks and vault history
+survive. Pending `cardPrints` preserve the participating copies' saved artwork.
+The existing profile lock name stays shared for stale-tab coordination.
+
+The cloud source accepts **v1/profile-v3** unchanged on validation and upgrades
+only on explicit restore; **v2/profile-v4** adds print/WX01 state and raises the
+local bounded format to 10,000 owned/vault copies and 4 MiB. Browser writes can
+still fail from quota. Core grants preflight count; the store checks final bytes
+and persistence before an opening is treated as accepted.
+
+**No release or hosted migration occurred.** `JOURNEY_V2_ENABLED` remains false
+or absent until [the additive SQL migration](../supabase/migrations/20260922210000_wx01_journey_v2.sql)
+is separately applied and verified. A future release needs a coherent hashed/
+versioned client module graph, compatible Worker/client rollout and hosted
+old/new backup and binding-retention evidence. The public site's existing v1
+limits (2,000 copies / 512 KiB) remain the deployed baseline.
+
+Use [WX01 rules](../tests/wx01-cards.test.mjs),
+[sampler/model equivalence](../tests/wx01-pack.test.mjs),
+[grant/migration/receipt](../tests/wx01-progression.test.mjs),
+[profile-store](../tests/profile-store.test.mjs) and
+[cloud snapshot](../tests/cloud-save.test.mjs) tests for relevant local checks.
+Full integration/browser checks are still in progress; do not infer final counts
+or hosted behavior from these source test links.
 
 ## What actually runs
 
@@ -93,9 +130,10 @@ and weekly activities share a journal; AI arena/practice are playable, real PvP
 and ranked remain explicitly deferred. `stories.mjs`, `stories.css` and three
 maps bring the source allowlist to **32 files**.
 
-Profile v3 has an additive weekly object; old local saves and old v1 backups
-remain supported without retroactive quest progress. No database migration or
-service change occurred. A future release must update the client and account
+That slice added an optional weekly object to profile v3; old local saves and old v1 backups
+remain supported without retroactive quest progress. It made no database migration or
+service change. WX-01 now upgrades local profiles to v4 as described above.
+A future release must update the client and account
 Worker validator together: live v0.5.1 rejects the new fields/story IDs. Recheck
 hosted old/new backup acceptance and binding retention; local fixture tests are
 not hosted evidence. All historical release information below remains unchanged.
@@ -251,7 +289,8 @@ APIs, so they do not verify hosted login or send real email. The older manual
 
 | Work | Smallest relevant existing checks |
 | --- | --- |
-| Rules / local saves / card copies | `node --test tests/engine.test.mjs tests/progression.test.mjs tests/collection.test.mjs` |
+| Rules / local saves / card copies | `node --test tests/engine.test.mjs tests/progression.test.mjs tests/collection.test.mjs tests/profile-store.test.mjs` |
+| WX-01 rules / collation / grants | `node --test tests/wx01-cards.test.mjs tests/wx01-pack.test.mjs tests/wx01-progression.test.mjs`; analytical checks in `tests/wx01-drop-model.test.mjs` |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |
@@ -261,8 +300,9 @@ APIs, so they do not verify hosted login or send real email. The older manual
 
 The SQL harness refuses remote databases and an existing Auth schema. Recreate
 only its disposable local database between full harness runs; never aim its
-bootstrap/reset at `mythseal-dev`. Both real migrations are already applied:
-`20260921210000` and `20260921210100`.
+bootstrap/reset at `mythseal-dev`. The two release migrations are already applied:
+`20260921210000` and `20260921210100`. The new `20260922210000` journey-v2 file
+has not been applied to hosted services in this turn.
 
 The last release CI passed; the preceding connection-update CI recorded **177
 Node tests and eight Python tests**. CI also covers PostgreSQL races, Forge,
@@ -288,7 +328,9 @@ metadata, then uses explicit `--keep-vars` on the apex Worker. Hosted retention
 and account readiness still need verification after the next authorized release. Never deploy the repository root or introduce administration credentials
 to solve a missing runtime binding.
 
-Commit reviewed source, check exact-source CI, build from that clean commit,
+For WX-01, first resolve the versioned-module and hosted journey-v2 gates above;
+do not enable the Worker flag merely because a local build passes. Then
+commit reviewed source, check exact-source CI, build from that clean commit,
 deploy the required Worker(s), then verify the live release manifest, account
 readiness and relevant behavior. Record source SHA/tag, Worker version IDs and
 evidence in HOSTING/VALIDATION. A successful push, build or dry run is not a
@@ -340,3 +382,14 @@ Credential or permission prerequisite (names only; never values):
 Use [ROADMAP.md](../ROADMAP.md) for the next bounded tasks. Keep operational
 discoveries here or in the specific service/release document, update dated
 evidence when rechecked, and keep player data and credentials out of Git.
+
+
+### Local WX-01 verification receipt · 2026-09-22
+
+- `npm test`: 311 Node tests pass, including 100,000 seeded runtime/model pack comparisons.
+- Python discovery: 9 tests pass. Allowlisted build: 60 public files; atelier page/scripts, docs, tests and SQL remain excluded.
+- Existing nine browser flows pass with current-version fixtures and explicit legacy migration coverage. New WX-01 presentation: 11 groups each in isolated Chrome/WebKit at 360/390/1440. Recovery and real native-lock two-tab races: 5 groups per browser.
+- `tools/test-backup-sql.sh` passed v1/v2 ownership, independent revisions, size bounds, tombstones and concurrent CAS races in a disposable loopback PostgreSQL cluster; it was stopped and removed. No live database or hosted mutation was performed.
+- Visual inspection included market, AA/LAA/INK receipt, Leader chooser, lobby, preparation, clash and recovery. Browser evidence is local generated output in ignored `test-results/`; it is not native iOS/Android or real Safari profile verification.
+- Built-in art outputs/prompts are recorded in [ART-WX01](ART-WX01.md). New full-resolution PNGs total about 40 MiB; transfer-size optimization remains before a mobile/hosted rollout.
+- No deployment, live SQL migration or user-save editing occurred. The account capability and coherent-module release gates above remain open.

@@ -49,7 +49,8 @@ def require_success(result, stage):
 
 for path in [root / 'supabase/tests/bootstrap.sql',
              *sorted((root / 'supabase/migrations').glob('*.sql')),
-             root / 'supabase/tests/private_journey_backups.sql']:
+             root / 'supabase/tests/private_journey_backups.sql',
+             root / 'supabase/tests/wx01_journey_v2.sql']:
     require_success(sql(path.read_text()), path.name)
 
 # Two genuinely independent database connections race their first insert and
@@ -58,23 +59,25 @@ actor = 'de73b050-00b6-4f47-966c-abcd00000003'
 saved = '{"format":"mythseal.offline-journey","version":1,"profile":{"version":3,"pending":null}}'
 require_success(sql(f"insert into auth.users(id) values ('{actor}');"), 'concurrency fixture')
 try:
-    for revision in (0, 1):
-        start = threading.Barrier(2)
-        def race():
-            start.wait(timeout=5)
-            return sql(f"""begin;
-              set local role authenticated;
-              select set_config('request.jwt.claim.sub', '{actor}', true);
-              select public.mythseal_backup_write({revision}, '{saved}'::jsonb);
-              select pg_sleep(0.2);
-              commit;""")
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-            pending = [pool.submit(race), pool.submit(race)]
-            outcomes = [future.result(timeout=40) for future in pending]
-        if (sum(result.returncode == 0 for result in outcomes) != 1
-                or sum('PT409' in result.stderr for result in outcomes) != 1):
-            sys.exit(f'Concurrent revision {revision} did not produce one success and one CAS conflict.')
+    v2 = '{"format":"mythseal.offline-journey","version":2,"profile":{"version":4,"collectionVersion":2,"collectionExpansion":2,"wx01":{},"pending":null}}'
+    for rpc, snapshot in [('mythseal_backup_write', saved), ('mythseal_backup_v2_write', v2)]:
+        for revision in (0, 1):
+            start = threading.Barrier(2)
+            def race():
+                start.wait(timeout=5)
+                return sql(f"""begin;
+                  set local role authenticated;
+                  select set_config('request.jwt.claim.sub', '{actor}', true);
+                  select public.{rpc}({revision}, '{snapshot}'::jsonb);
+                  select pg_sleep(0.2);
+                  commit;""")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                pending = [pool.submit(race), pool.submit(race)]
+                outcomes = [future.result(timeout=40) for future in pending]
+            if (sum(result.returncode == 0 for result in outcomes) != 1
+                    or sum('PT409' in result.stderr for result in outcomes) != 1):
+                sys.exit(f'{rpc} concurrent revision {revision} did not produce one success and one CAS conflict.')
 finally:
     require_success(sql(f"delete from auth.users where id = '{actor}';"), 'concurrency fixture cleanup')
-print('Backup SQL passed: private grants, account isolation, size bounds, CAS, tombstones, and parallel first-write/update races.')
+print('Backup SQL v1/v2 passed: private grants, account and namespace isolation, size bounds, CAS, tombstones, and parallel first-write/update races.')
 PY

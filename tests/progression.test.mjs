@@ -35,7 +35,7 @@ const complete = (profile, { kind = 'expedition', nodeId = NODES[0].id, winner =
 test('new profile and v1 migration preserve the playable roster, deck and stats', () => {
   const deck = [...defaultDeckIds].reverse();
   const profile = createProfile({ now, legacyDeck: deck, legacyStats: { played: 9, won: 4 } });
-  assert.equal(profile.version, 3);
+  assert.equal(profile.version, 4);
   assert.equal(profile.coins, 1200);
   assert.equal(profile.dust, 20);
   assert.equal(profile.xp, 0);
@@ -43,12 +43,12 @@ test('new profile and v1 migration preserve the playable roster, deck and stats'
   assert.deepEqual(profile.stats, { played: 9, won: 4 });
   assert.equal(profile.location, NODES[0].id);
   assert.equal(profile.collectionExpansion, COLLECTION_EXPANSION);
-  assert.equal(Object.keys(profile.inventory).length, 24);
+  assert.equal(Object.keys(profile.inventory).length, 39);
   assert.equal(Object.values(profile.inventory).reduce((sum, count) => sum + count, 0), 16);
   assert(ORIGINAL_CARD_IDS.every(id => profile.inventory[id] === 1));
   assert(WELCOME_CARD_IDS.every(id => profile.inventory[id] === 1));
   assert(CLASSIC_CARD_IDS.filter(id => !WELCOME_CARD_IDS.includes(id)).every(id => profile.inventory[id] === 0));
-  assert.deepEqual(Object.values(profile.levels), Array(24).fill(1));
+  assert.deepEqual(Object.values(profile.levels), Array(39).fill(1));
   assert.equal(getPreferredInstance(profile, 'qingxiao').origin, 'starter');
   assert.equal(getPreferredInstance(profile, 'wukong').origin, 'welcome');
   deck.pop();
@@ -59,7 +59,7 @@ test('invalid migration input falls back without inventing historic wins', () =>
   const profile = hydrateProfile(null, { now, legacyDeck: ['bad'], legacyStats: { played: -4, won: 80 } });
   assert.deepEqual(profile.deck, defaultDeckIds);
   assert.deepEqual(profile.stats, { played: 0, won: 0 });
-  assert.equal(hydrateProfile({ version: 1 }, { now }).version, 3);
+  assert.equal(hydrateProfile({ version: 1 }, { now }).version, 4);
 });
 
 test('v2 collection expansion keeps progress and grants only missing welcome cards once', () => {
@@ -75,7 +75,7 @@ test('v2 collection expansion keeps progress and grants only missing welcome car
   old.deck = [...defaultDeckIds].reverse();
   old.daily.loginClaimed = true;
   const migrated = hydrateProfile(freeze(old), { now });
-  assert.equal(migrated.collectionExpansion, 1);
+  assert.equal(migrated.collectionExpansion, 2);
   assert.equal(migrated.inventory.wukong, 3);
   assert.equal(migrated.inventory.pangu, 2);
   assert.equal(migrated.inventory.guanyu, 1);
@@ -234,7 +234,7 @@ test('pack threshold edges and third-slot guarantee use advertised rarity pools'
   const rare = buyPack(fresh(), { rng: sequence([0, 0, 0, 0, 0.749999, 0]), now });
   assert.equal(rare.cards[2].rarity, 'rare');
   const high = buyPack(fresh(), { rng: () => 0.999999, now });
-  const lastEpic = CARDS.filter(card => CARD_RARITIES[card.id] === 'epic').at(-1).id;
+  const lastEpic = PACK_SETS.all.cardIds.filter(id => CARD_RARITIES[id] === 'epic').at(-1);
   assert(high.cards.every(card => card.rarity === 'epic' && card.cardId === lastEpic));
   assert(Math.abs(PACK_RULES.averageCardOdds.common + PACK_RULES.averageCardOdds.rare + PACK_RULES.averageCardOdds.epic - 1) < 1e-12);
 });
@@ -529,15 +529,15 @@ test('hero and arena labels are stable at progression boundaries', () => {
   assert.equal(getArenaRank(profile).next, null);
 });
 
-test('v2 shared ranks migrate to every distinct copy once, while v2 remains a separate backup key', () => {
+test('v2 shared ranks migrate to every distinct copy once, while v3 has a separate backup key', () => {
   const old = legacy();
   old.inventory.qingxiao = 3;
   old.levels.qingxiao = 4;
   old.coins = 777; old.stats = { played: 11, won: 6 };
   const migrated = hydrateProfile(freeze(old), { now });
-  assert.equal(PROFILE_KEY, 'shanhai.profile.v3');
-  assert.equal(LEGACY_PROFILE_KEY, 'shanhai.profile.v2');
-  assert.equal(migrated.version, 3);
+  assert.equal(PROFILE_KEY, 'shanhai.profile.v4');
+  assert.equal(LEGACY_PROFILE_KEY, 'shanhai.profile.v3');
+  assert.equal(migrated.version, 4);
   assert.equal(getInstances(migrated, 'qingxiao').length, 3);
   assert(getInstances(migrated, 'qingxiao').every(card => card.level === 4 && card.xp === 400));
   assert.equal(new Set(migrated.instances.map(card => card.uid)).size, migrated.instances.length);

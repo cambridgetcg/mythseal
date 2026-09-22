@@ -1,7 +1,9 @@
 /** Exact-copy collection rules. No currency, random draws, storage or network access. */
 import { CARDS, ORIGINAL_CARD_IDS, defaultDeckIds, getCard, validateDeck } from './engine.mjs';
+import { getPrintForCard, defaultPrintId } from './printing-catalogue.mjs';
 
-export const COLLECTION_VERSION = 1;
+export const COLLECTION_VERSION = 2;
+export const MAX_COLLECTION_COPIES = 10_000;
 export const MAX_DECK_SLOTS = 3;
 export const MAX_CARD_XP = 700;
 export const XP_THRESHOLDS = Object.freeze([0, 80, 200, 400, 700]);
@@ -50,12 +52,17 @@ function originLabel(value, fallback = 'unknown') {
   return typeof value === 'string' && value.trim() ? value.trim().slice(0, 80) : fallback;
 }
 
-function cleanInstance(raw, acquiredAt) {
-  if (!raw || typeof raw !== 'object' || !validUID(raw.uid) || !CARD_IDS.includes(raw.cardId)) return null;
+function cleanInstance(raw, acquiredAt, strictPrints) {
+  if (!raw || typeof raw !== 'object' || !validUID(raw.uid) || !CARD_IDS.includes(raw.cardId)) {
+    if (strictPrints) throw new RangeError('卡牌實體資料無效。');
+    return null;
+  }
+  if (strictPrints && typeof raw.printId !== 'string') throw new RangeError('卡牌缺少版本記錄。');
+  const printId = getPrintForCard(raw.cardId, raw.printId).id;
   const xp = bounded(raw.xp, 0, MAX_CARD_XP);
   const battles = bounded(raw.battles);
   return {
-    uid: raw.uid, cardId: raw.cardId, level: getInstanceLevel(xp), xp,
+    uid: raw.uid, cardId: raw.cardId, printId, level: getInstanceLevel(xp), xp,
     locked: raw.locked === true, battles, wins: Math.min(battles, bounded(raw.wins)),
     acquiredAt: savedDate(raw.acquiredAt, acquiredAt), origin: originLabel(raw.origin),
   };
@@ -194,6 +201,8 @@ export function syncCollection(profile) {
   const seen = new Set();
   for (const instance of [...next.instances, ...(next.merchantVault ?? []).map(entry => entry.instance)]) {
     if (!instance || !validUID(instance.uid) || !CARD_IDS.includes(instance.cardId)) throw new RangeError('卡牌實體資料無效。');
+    if (typeof instance.printId !== 'string') throw new RangeError('卡牌缺少版本記錄。');
+    getPrintForCard(instance.cardId, instance.printId);
     if (seen.has(instance.uid)) throw new RangeError('卡牌編號重複或同時存在背包與商人保管區。');
     seen.add(instance.uid);
     instance.xp = Math.min(MAX_CARD_XP, instance.xp);
@@ -216,9 +225,9 @@ export function syncCollection(profile) {
 }
 
 /** Canonical data wins over compatibility counts, including an intentionally empty backpack. */
-export function hydrateCollection(profile = {}, { now = new Date() } = {}) {
+export function hydrateCollection(profile = {}, { now = new Date(), allowLegacyPrints = profile.version !== 4 } = {}) {
   const next = copy(profile), acquiredAt = nowISO(now);
-  const canonical = Object.hasOwn(profile, 'instances') || profile.collectionVersion === COLLECTION_VERSION;
+  const canonical = Object.hasOwn(profile, 'instances') || [1, COLLECTION_VERSION].includes(profile.collectionVersion);
   const serial = maximumSerial(profile);
   next.instanceSerial = serial;
   next.instances = [];
@@ -226,13 +235,13 @@ export function hydrateCollection(profile = {}, { now = new Date() } = {}) {
   const seen = new Set();
   if (canonical) {
     for (const raw of Array.isArray(profile.instances) ? profile.instances : []) {
-      const instance = cleanInstance(raw, acquiredAt);
+      const instance = cleanInstance(raw, acquiredAt, !allowLegacyPrints);
       if (!instance || seen.has(instance.uid)) continue;
       next.instances.push(instance);
       seen.add(instance.uid);
     }
     for (const raw of Array.isArray(profile.merchantVault) ? profile.merchantVault : []) {
-      const instance = cleanInstance(raw?.instance, acquiredAt);
+      const instance = cleanInstance(raw?.instance, acquiredAt, !allowLegacyPrints);
       if (!instance || seen.has(instance.uid)) continue;
       if (!Number.isSafeInteger(raw.sellPrice) || raw.sellPrice < 0 || raw.sellPrice > MAX_COUNTER
         || !Number.isSafeInteger(raw.buybackPrice) || raw.buybackPrice < raw.sellPrice || raw.buybackPrice > MAX_COUNTER) continue;
@@ -248,7 +257,7 @@ export function hydrateCollection(profile = {}, { now = new Date() } = {}) {
         if (next.instanceSerial >= Number.MAX_SAFE_INTEGER) throw new RangeError('卡牌編號已達上限。');
         next.instanceSerial++;
         next.instances.push({
-          uid: uidFor(next.instanceSerial), cardId, level, xp: getXPThreshold(level), locked: false,
+          uid: uidFor(next.instanceSerial), cardId, printId: defaultPrintId(cardId), level, xp: getXPThreshold(level), locked: false,
           battles: 0, wins: 0, acquiredAt, origin: 'migration',
         });
       }
@@ -261,13 +270,23 @@ export function hydrateCollection(profile = {}, { now = new Date() } = {}) {
 export const migrateCollection = hydrateCollection;
 export const createCollection = hydrateCollection;
 
-export function mintInstance(profile, cardId, { source = 'unknown', now = new Date() } = {}) {
+export function assertCollectionCapacity(profile, additional = 1) {
+  if (!Number.isSafeInteger(additional) || additional < 0) throw new RangeError('新增卡牌數量無效。');
+  if ((profile.instances?.length ?? 0) + (profile.merchantVault?.length ?? 0) + additional > MAX_COLLECTION_COPIES) {
+    throw new RangeError('收藏與商旅保管處合計最多保留 10,000 張卡，未有扣除資源。');
+  }
+  if (!Number.isSafeInteger(profile.instanceSerial) || profile.instanceSerial + additional > Number.MAX_SAFE_INTEGER) throw new RangeError('卡牌編號已達上限。');
+}
+
+export function mintInstance(profile, cardId, { source = 'unknown', now = new Date(), printId = undefined } = {}) {
   getCard(cardId);
+  const printing = getPrintForCard(cardId, printId);
   const next = syncCollection(profile);
+  assertCollectionCapacity(next);
   if (next.inventory[cardId] >= MAX_COPIES) throw new RangeError('這位角色的卡牌數量已達上限。');
   if (next.instanceSerial >= Number.MAX_SAFE_INTEGER) throw new RangeError('卡牌編號已達上限。');
   const instance = {
-    uid: uidFor(++next.instanceSerial), cardId, level: 1, xp: 0, locked: false, battles: 0, wins: 0,
+    uid: uidFor(++next.instanceSerial), cardId, printId: printing.id, level: 1, xp: 0, locked: false, battles: 0, wins: 0,
     acquiredAt: nowISO(now), origin: originLabel(source),
   };
   next.instances.push(instance);
@@ -282,6 +301,8 @@ function inPendingBattle(profile, uid) {
 export function getInstanceProtection(profile, uid) {
   const instance = ownedInstance(profile, uid);
   if (inPendingBattle(profile, uid)) return '此卡正在未完對局中，完成或放棄對局後再操作。';
+  if (profile.wx01?.receipt?.cards.some(card => card.instanceId === uid)) return '請先確認西行開匣結果，再操作這張卡牌。';
+  if (profile.wx01?.leaderInstanceId === uid) return '此卡正在主頁展示，取消展示後才可出售。';
   if (instance.locked) return '此卡已鎖定，解鎖後才可出售。';
   if ((profile.deckSlots ?? []).some(slot => slot.instanceIds.includes(uid))) return '此卡已加入儲存牌組，移出所有牌組後才可出售。';
   if (profile.instances.filter(item => item.cardId === instance.cardId).length <= 1) return '須保留這位角色的最後一張卡。';

@@ -13,7 +13,7 @@ await mkdir(output, { recursive: true });
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const failures = [], checked = [], screenshots = [];
-const profileKey = 'shanhai.profile.v3', battleKey = 'shanhai.battle.v3';
+const profileKey = 'shanhai.profile.v4', battleKey = 'shanhai.battle.v4';
 const profile = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), profileKey);
 const snapshot = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), battleKey);
 const watch = page => {
@@ -146,6 +146,7 @@ try {
   checked.push('login/training costs, once-daily buttons and reload persistence');
 
   await go(page, 'market');
+  await page.locator('[data-action="pack-set"][data-id="classics"]').click();
   const beforePack = await profile(page);
   await page.locator('[data-action="buy-pack"]').click();
   await page.locator('.pack-reveal').waitFor();
@@ -318,6 +319,7 @@ try {
     await screenshot(mobile.page, `${screen}-mobile`);
   }
   await go(mobile.page, 'market');
+  await mobile.page.locator('[data-action="pack-set"][data-id="classics"]').click();
   await mobile.page.locator('[data-action="buy-pack"]').click();
   await mobile.page.locator('.pack-reveal').waitFor();
   await screenshot(mobile.page, 'pack-mobile');

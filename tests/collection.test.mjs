@@ -91,7 +91,7 @@ test('hydration whitelists instance data and derives rank from XP rather than a 
   const profile = fresh(), card = profile.instances[0];
   Object.assign(card, { xp: 81, level: 5, locked: 'yes', battles: 2, wins: 9, secret: 'drop', acquiredAt: 'not-a-date', origin: '  market  ' });
   const instance = getInstance(hydrateCollection(profile, { now }), card.uid);
-  assert.deepEqual(instance, { uid: card.uid, cardId: card.cardId, xp: 81, level: 2, locked: false, battles: 2, wins: 2, acquiredAt: now, origin: 'market' });
+  assert.deepEqual(instance, { uid: card.uid, cardId: card.cardId, printId: card.printId, xp: 81, level: 2, locked: false, battles: 2, wins: 2, acquiredAt: now, origin: 'market' });
 });
 
 test('duplicate and overlapping vault UIDs are repaired without duplicating cards or reusing a rejected serial', () => {
@@ -100,8 +100,8 @@ test('duplicate and overlapping vault UIDs are repaired without duplicating card
   profile.instances.push({ ...original, uid: 'card-000999', cardId: 'unknown' });
   profile.merchantVault = [
     { instance: original, sellPrice: 40, buybackPrice: 60, soldAt: now },
-    { instance: { ...original, uid: 'card-000100', cardId: 'wukong' }, sellPrice: 180, buybackPrice: 270, soldAt: now },
-    { instance: { ...original, uid: 'card-000100', cardId: 'guanyu' }, sellPrice: 90, buybackPrice: 135, soldAt: now },
+    { instance: { ...original, uid: 'card-000100', cardId: 'wukong', printId: 'legacy/wukong' }, sellPrice: 180, buybackPrice: 270, soldAt: now },
+    { instance: { ...original, uid: 'card-000100', cardId: 'guanyu', printId: 'legacy/guanyu' }, sellPrice: 90, buybackPrice: 135, soldAt: now },
   ];
   profile.instanceSerial = 1;
   const repaired = hydrateCollection(profile, { now });
@@ -132,7 +132,7 @@ test('minted copies begin fresh and serial allocation considers held and sold ca
   const profile = fresh();
   profile.instanceSerial = 200;
   const minted = mintInstance(freeze(profile), 'qingxiao', { source: 'npc-market', now });
-  assert.deepEqual(minted.instance, { uid: 'card-000201', cardId: 'qingxiao', level: 1, xp: 0, locked: false, battles: 0, wins: 0, acquiredAt: now, origin: 'npc-market' });
+  assert.deepEqual(minted.instance, { uid: 'card-000201', cardId: 'qingxiao', printId: 'legacy/qingxiao', level: 1, xp: 0, locked: false, battles: 0, wins: 0, acquiredAt: now, origin: 'npc-market' });
   assert.equal(minted.profile.inventory.qingxiao, 2);
   assert.equal(profile.inventory.qingxiao, 1);
   assert.equal(minted.profile.levels.qingxiao, 3);

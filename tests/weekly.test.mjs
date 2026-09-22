@@ -5,12 +5,21 @@ import {
   weekKey, getWeeklyTasks, claimWeeklyTask, beginBattle, finishBattle, abandonBattle,
 } from '../progression.mjs';
 import { createSnapshot, validateSnapshot, restoreSnapshot, fingerprintProfile } from '../cloud-save.mjs';
+import { LEGACY_CARD_IDS } from '../engine.mjs';
 
 const now = '2026-09-21T12:00:00Z';
 const nextWeek = '2026-09-27T23:00:00Z';
 const fresh = date => createProfile({ now: date || now });
 const empty = week => ({ week, matches: 0, expeditionWins: 0, arenaMatches: 0, claimedTasks: [] });
 function freeze(value) { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; }
+function legacyV3(profile) {
+  const old = structuredClone(profile);
+  old.version = 3; old.collectionVersion = 1; old.collectionExpansion = 1;
+  delete old.wx01;
+  for (const instance of [...old.instances, ...old.merchantVault.map(entry => entry.instance)]) delete instance.printId;
+  for (const field of ['inventory', 'levels']) old[field] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, old[field][id]]));
+  return old;
+}
 function completed(profile, kind, winner = 'player', date = now) {
   const started = beginBattle(profile, { kind, nodeId: 'mist-gate', now: date });
   return finishBattle(started.profile, { encounterId: started.encounter.id, winner, playedCardIds: ['qingxiao'], now: date }).profile;
@@ -24,7 +33,7 @@ test('London weeks start on Monday across summer/winter DST and year boundaries'
     ['2027-01-01T12:00:00Z', '2026-12-28'], ['2027-01-04T00:00:00Z', '2027-01-04'],
   ]) assert.equal(weekKey(instant), expected, instant);
   assert.throws(() => weekKey('invalid'), /日期無效/);
-  assert.equal(PROFILE_VERSION, 3); assert.equal(PROFILE_KEY, 'shanhai.profile.v3');
+  assert.equal(PROFILE_VERSION, 4); assert.equal(PROFILE_KEY, 'shanhai.profile.v4');
   assert.deepEqual(fresh().weekly, empty('2026-09-21'));
 });
 
@@ -56,6 +65,7 @@ test('weekly rewards require actual completion, pay exactly once and stay claime
   assert.deepEqual(getWeeklyTasks(profile, now).map(task => [task.id, task.progress, task.target, task.claimed]), [
     ['matches', 10, 10, false], ['expedition', 5, 5, false], ['arena', 5, 5, false],
   ]);
+  assert.equal(getWeeklyTasks(profile, now).find(task => task.id === 'matches').reward.seals, 5);
   const currency = { coins: profile.coins, dust: profile.dust, xp: profile.xp }, cards = structuredClone(profile.instances);
   for (const task of WEEKLY_TASKS) {
     const before = freeze(profile); profile = claimWeeklyTask(before, task.id, now);
@@ -137,16 +147,18 @@ test('weekly hydration rejects invalid week keys and normalizes only allowed cou
 });
 
 test('old v3 cloud payloads validate unchanged, and restoration alone adds zero weekly progress', () => {
-  const profile = completed(fresh(), 'expedition'); delete profile.weekly;
+  const profile = legacyV3(completed(fresh(), 'expedition')); delete profile.weekly;
   const snapshot = { format: 'mythseal.offline-journey', version: 1, profile }, original = structuredClone(snapshot);
   const validated = validateSnapshot(freeze(snapshot));
   assert.deepEqual(validated, original); assert.equal(Object.hasOwn(validated.profile, 'weekly'), false);
   assert.deepEqual(createSnapshot(profile), original);
   const restored = restoreSnapshot(snapshot, { now });
   assert.deepEqual(restored.weekly, empty('2026-09-21'));
-  delete restored.weekly; assert.deepEqual(restored, original.profile);
+  assert.equal(restored.wx01.seals, 0);
+  const legacyRestored = legacyV3(restored); delete legacyRestored.weekly;
+  assert.deepEqual(legacyRestored, original.profile);
   assert.deepEqual(snapshot, original);
-  assert.equal(createSnapshot(restored).version, 1);
+  assert.equal(createSnapshot(restored).version, 2);
 });
 
 test('weekly cloud round trips preserve claims and fingerprints, with rollover only on restore', () => {
@@ -160,7 +172,7 @@ test('weekly cloud round trips preserve claims and fingerprints, with rollover o
   assert.deepEqual(validateSnapshot(snapshot).profile.weekly, profile.weekly);
   const altered = structuredClone(profile); altered.weekly.matches++;
   assert.notEqual(fingerprintProfile(altered), fingerprint);
-  assert.equal(snapshot.version, 1); assert.equal(snapshot.profile.version, 3);
+  assert.equal(snapshot.version, 2); assert.equal(snapshot.profile.version, 4);
 });
 
 test('cloud validation rejects malformed or repaired weekly state without changing its payload', () => {

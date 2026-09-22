@@ -1,7 +1,10 @@
 /** Local, original progression rules. Pure functions; the UI owns persistence. */
-import { CARDS, ORIGINAL_CARD_IDS, CLASSIC_CARD_IDS, defaultDeckIds, validateDeck } from './engine.mjs';
-import { hydrateCollection, syncCollection, getInstance, getInstances, getPreferredInstance, getActiveDeck, mintInstance, setInstanceXP, awardInstanceXP, getXPThreshold, getInstanceProtection, saveInstanceDeck, validateInstanceDeck } from './collection.mjs';
+import { CARDS, LEGACY_CARD_IDS, ORIGINAL_CARD_IDS, CLASSIC_CARD_IDS, defaultDeckIds, validateDeck } from './engine.mjs';
+import { hydrateCollection, syncCollection, getInstance, getInstances, getPreferredInstance, getActiveDeck, mintInstance, setInstanceXP, awardInstanceXP, getXPThreshold, getInstanceProtection, saveInstanceDeck, validateInstanceDeck, assertCollectionCapacity } from './collection.mjs';
 import { STORY_NODES } from './stories.mjs';
+import { WX01_CARD_IDS, WX01_RARITIES, getPrinting, getPrintForCard } from './printing-catalogue.mjs';
+import { drawWX01Pack, WX01_PRICE, WX01_SEAL_COSTS } from './wx01-pack.mjs';
+import { createWX01State, validateWX01State } from './wx01-state.mjs';
 
 const freeze = value => {
   if (value && typeof value === 'object') {
@@ -13,16 +16,17 @@ const freeze = value => {
 const CARD_IDS = CARDS.map(card => card.id);
 const LIMIT = 1_000_000_000;
 const MAX_COPIES = 99_999;
-export const PROFILE_VERSION = 3;
-export const PROFILE_KEY = 'shanhai.profile.v3';
-export const LEGACY_PROFILE_KEY = 'shanhai.profile.v2';
+export const PROFILE_VERSION = 4;
+export const PROFILE_KEY = 'shanhai.profile.v4';
+export const LEGACY_PROFILE_KEY = 'shanhai.profile.v3';
 export const PACK_PRICE = 300;
 export const MAX_CARD_LEVEL = 5;
-export const COLLECTION_EXPANSION = 1;
+export const COLLECTION_EXPANSION = 2;
 export const WELCOME_CARD_IDS = freeze(['wukong', 'guanyu', 'lindaiyu', 'kongzi']);
 export const PACK_SETS = freeze({
-  all: { name: '萬象秘匣', description: '原創山海與古典群英，二十四位角色皆可相逢。', cardIds: [...CARD_IDS] },
+  all: { name: '萬象秘匣', description: '原創山海與古典群英，二十四位角色皆可相逢。', cardIds: [...LEGACY_CARD_IDS] },
   classics: { name: '群英秘匣', description: '只出現十二位古典群英，同樣三張保底靈品或以上。', cardIds: [...CLASSIC_CARD_IDS] },
+  wx01: { name: '西行秘匣', description: '十六位西行角色；三張保底靈品或以上，收藏異畫與墨卷。', cardIds: [...WX01_CARD_IDS] },
 });
 export const RARITIES = freeze({
   common: { name: '凡品', color: '#b7c6c4', weight: 60, buyPrice: 140, sellPrice: 40 },
@@ -37,6 +41,7 @@ export const CARD_RARITIES = freeze({
   huangdi: 'epic', wukong: 'epic', lindaiyu: 'rare', pangu: 'epic',
   kongzi: 'common', guanyu: 'rare', wangxifeng: 'rare', luzhishen: 'common',
   zhugeliang: 'rare', nezha: 'epic', diaochan: 'rare', wusong: 'common',
+  ...WX01_RARITIES,
 });
 export const PACK_RULES = freeze({
   cardsPerPack: 3, guaranteedRarity: 'rare',
@@ -69,7 +74,7 @@ const TASKS = freeze([
   { id: 'pack', title: '星匣初啟', description: '開啟 1 包卡牌', field: 'packs', target: 1, reward: { coins: 80, dust: 5, xp: 20 } },
 ]);
 export const WEEKLY_TASKS = freeze([
-  { id: 'matches', title: '七日弈緣', description: '本週完成 10 場對局', field: 'matches', target: 10, reward: { coins: 300, dust: 20, xp: 80 } },
+  { id: 'matches', title: '七日弈緣', description: '本週完成 10 場對局', field: 'matches', target: 10, reward: { coins: 300, dust: 20, xp: 80, seals: 5 } },
   { id: 'expedition', title: '踏遍山海', description: '本週贏得 5 場遊歷對局', field: 'expeditionWins', target: 5, reward: { coins: 350, dust: 25, xp: 100 } },
   { id: 'arena', title: '問道五弈', description: '本週完成 5 場擂台對局', field: 'arenaMatches', target: 5, reward: { coins: 250, dust: 15, xp: 70 } },
 ]);
@@ -131,7 +136,7 @@ function createBaseProfile({ now = new Date(), legacyDeck, legacyStats } = {}) {
     deck: validateDeck(legacyDeck).valid && legacyDeck.every(id => inventory[id] > 0) ? [...legacyDeck] : [...defaultDeckIds],
     stats: { played, won: Math.min(played, integer(legacyStats?.won)) },
     cleared: [], location: NODES[0].id, daily: freshDaily(dayKey(now)), weekly: freshWeekly(weekKey(now)),
-    arena: { points: 0, played: 0, won: 0 }, pending: null, serial: 0,
+    arena: { points: 0, played: 0, won: 0 }, pending: null, serial: 0, wx01: createWX01State(),
   };
 }
 
@@ -161,24 +166,24 @@ function legacyPendingInstances(profile, snapshot) {
 /** Repair untrusted local JSON with a whitelist; v1 deck and stats remain useful. */
 export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats, legacyBattle } = {}) {
   const base = createBaseProfile({ now, legacyDeck, legacyStats });
-  if (!raw || typeof raw !== 'object' || ![2, PROFILE_VERSION].includes(raw.version)) return createProfile({ now, legacyDeck, legacyStats });
+  if (!raw || typeof raw !== 'object' || ![2, 3, PROFILE_VERSION].includes(raw.version)) return createProfile({ now, legacyDeck, legacyStats });
   const profile = { ...base };
   for (const field of ['coins', 'dust', 'xp', 'serial']) profile[field] = integer(raw[field], base[field]);
-  if (raw.version === PROFILE_VERSION) {
+  if (raw.version >= 3) {
     // Canonical v3 records own the collection: never mint from derived counters.
-    profile.collectionVersion = 1;
+    profile.collectionVersion = 2;
     profile.instances = Array.isArray(raw.instances) ? copy(raw.instances) : [];
     profile.instanceSerial = integer(raw.instanceSerial, 0, 0, Number.MAX_SAFE_INTEGER);
     profile.deckSlots = Array.isArray(raw.deckSlots) ? copy(raw.deckSlots) : [];
     profile.activeDeckId = typeof raw.activeDeckId === 'string' ? raw.activeDeckId : null;
     profile.merchantVault = Array.isArray(raw.merchantVault) ? copy(raw.merchantVault) : [];
   } else {
-    for (const id of CARD_IDS) {
+    for (const id of LEGACY_CARD_IDS) {
       const minimum = ORIGINAL_CARD_IDS.includes(id) ? 1 : 0;
       profile.inventory[id] = integer(raw.inventory?.[id], minimum, minimum, MAX_COPIES);
       profile.levels[id] = integer(raw.levels?.[id], 1, 1, MAX_CARD_LEVEL);
     }
-    if (!Number.isSafeInteger(raw.collectionExpansion) || raw.collectionExpansion < COLLECTION_EXPANSION) {
+    if (!Number.isSafeInteger(raw.collectionExpansion) || raw.collectionExpansion < 1) {
       for (const id of WELCOME_CARD_IDS) profile.inventory[id] = Math.max(1, profile.inventory[id]);
     }
     const usableDeck = ids => validateDeck(ids).valid && ids.every(id => profile.inventory[id] > 0);
@@ -212,7 +217,7 @@ export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats,
       profile.pending = { id: pending.id, kind: pending.kind, nodeId: pending.kind === 'expedition' ? pending.nodeId : null };
     }
   }
-  const hydrated = hydrateCollection(profile, { now });
+  const hydrated = hydrateCollection(profile, { now, allowLegacyPrints: raw.version < 4 });
   if (hydrated.pending) {
     const ids = raw.version === 2 ? legacyPendingInstances(hydrated, legacyBattle) : raw.pending?.instanceIds;
     const validation = validateInstanceDeck(hydrated, ids);
@@ -220,14 +225,25 @@ export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats,
     else {
       hydrated.pending.instanceIds = [...ids];
       hydrated.pending.cardInstances = Object.fromEntries(ids.map(uid => [getInstance(hydrated, uid).cardId, uid]));
+      const savedPrints = raw.pending?.cardPrints;
+      if (savedPrints !== undefined) {
+        const cardIds = Object.keys(hydrated.pending.cardInstances);
+        if (!savedPrints || typeof savedPrints !== 'object' || Array.isArray(savedPrints)
+          || Object.keys(savedPrints).length !== cardIds.length || cardIds.some(id => typeof savedPrints[id] !== 'string')) throw new RangeError('未完對局的卡牌版本記錄無效。');
+        hydrated.pending.cardPrints = Object.fromEntries(cardIds.map(id => [id, getPrintForCard(id, savedPrints[id]).id]));
+      } else {
+        hydrated.pending.cardPrints = Object.fromEntries(ids.map(uid => { const instance = getInstance(hydrated, uid); return [instance.cardId, instance.printId]; }));
+      }
     }
   }
+  hydrated.wx01 = raw.version === 4 ? validateWX01State(raw.wx01, hydrated) : createWX01State();
   return hydrated;
 }
 
 /** London midnight, including DST. A backward clock cannot reopen an old day. */
 export function refreshDaily(profile, now = new Date()) {
   const next = syncCollection(profile);
+  next.wx01 = validateWX01State(next.wx01, next);
   const date = dayKey(now);
   if (date > next.daily.date) next.daily = freshDaily(date);
   // The retained daily date also guards upgrades of old saves without weekly data.
@@ -245,9 +261,9 @@ function spend(profile, cost) {
   profile.dust -= cost.dust ?? 0;
 }
 const increment = (object, field, amount = 1) => { object[field] = Math.min(LIMIT, object[field] + amount); };
-function grantCard(profile, id, { source, now }) {
+function grantCard(profile, id, { source, now, printId }) {
   if (profile.inventory[id] >= MAX_COPIES) throw new RangeError('這張卡牌的收藏數量已達上限。');
-  return mintInstance(profile, id, { source, now });
+  return mintInstance(profile, id, { source, now, printId });
 }
 
 export function claimLogin(profile, now = new Date()) {
@@ -279,6 +295,7 @@ export function claimWeeklyTask(profile, id, now = new Date()) {
   if (next.weekly.claimedTasks.includes(id)) throw new RangeError('這項每週任務獎勵已領取。');
   if (next.weekly[task.field] < task.target) throw new RangeError('每週任務尚未完成。');
   next.weekly.claimedTasks.push(id);
+  if (task.reward.seals) increment(next.wx01, 'seals', task.reward.seals);
   return addReward(next, task.reward);
 }
 export function claimArenaChest(profile, now = new Date()) {
@@ -297,6 +314,25 @@ function randomUnit(rng) {
 export function buyPack(profile, { set = 'all', rng = Math.random, now = new Date() } = {}) {
   if (!Object.hasOwn(PACK_SETS, set)) throw new RangeError('找不到這款卡包。');
   let next = refreshDaily(profile, now);
+  assertNoWX01Receipt(next);
+  assertCollectionCapacity(next, 3);
+  if (set === 'wx01') {
+    assertWX01Counters(next.wx01, ['opened', 'serial', 'seals']);
+    spend(next, { coins: WX01_PRICE });
+    const draw = drawWX01Pack({ dry: next.wx01.dry, rng });
+    const cards = [];
+    for (const card of draw.cards) {
+      const minted = grantCard(next, card.cardId, { source: 'pack:wx01', now, printId: card.printId });
+      next = minted.profile;
+      cards.push({ ...card, instanceId: minted.instance.uid });
+    }
+    next.wx01.dry = draw.dry;
+    increment(next.wx01, 'opened');
+    increment(next.wx01, 'seals');
+    increment(next.daily, 'packs');
+    saveWX01Receipt(next, { kind: 'pack', mode: draw.mode, cards, now, cost: WX01_PRICE, sealsEarned: 1 });
+    return { profile: next, cards: copy(cards), receipt: copy(next.wx01.receipt), cost: WX01_PRICE, set, mode: draw.mode, forced: draw.forced };
+  }
   spend(next, { coins: PACK_PRICE });
   const cards = [];
   for (let slot = 0; slot < PACK_RULES.cardsPerPack; slot++) {
@@ -307,10 +343,69 @@ export function buyPack(profile, { set = 'all', rng = Math.random, now = new Dat
     const cardId = pool[Math.floor(randomUnit(rng) * pool.length)];
     const minted = grantCard(next, cardId, { source: `pack:${set}`, now });
     next = minted.profile;
-    cards.push({ cardId, rarity, instanceId: minted.instance.uid });
+    cards.push({ cardId, printId: minted.instance.printId, rarity, instanceId: minted.instance.uid });
   }
   increment(next.daily, 'packs');
   return { profile: next, cards, cost: PACK_PRICE, set };
+}
+
+function assertNoWX01Receipt(profile) {
+  if (profile.wx01.receipt) throw new RangeError('請先確認上次西行開匣結果，再領取新卡。');
+}
+function assertWX01Counters(state, keys) {
+  if (keys.some(key => state[key] >= LIMIT)) throw new RangeError('西行收藏記錄已達上限，未有扣除資源。');
+}
+function saveWX01Receipt(profile, { kind, mode, cards, now, cost = 0, sealsEarned = 0 }) {
+  increment(profile.wx01, 'serial');
+  profile.wx01.receipt = { id: `wx01-${profile.wx01.serial}`, kind, mode, cards: copy(cards), openedAt: new Date(now).toISOString(), cost, sealsEarned };
+}
+export function acknowledgeWX01Receipt(profile, id) {
+  const next = syncCollection(profile);
+  next.wx01 = validateWX01State(next.wx01, next);
+  if (typeof id !== 'string' || !/^wx01-[1-9]\d*$/.test(id)) throw new RangeError('開匣記錄編號無效。');
+  const serial = Number(id.slice(5));
+  if (!Number.isSafeInteger(serial) || serial > next.wx01.serial) throw new RangeError('找不到這次開匣記錄。');
+  if (next.wx01.receipt === null) return next;
+  if (next.wx01.receipt.id !== id) throw new RangeError('開匣記錄已更新，請先查看目前結果。');
+  next.wx01.receipt = null;
+  return next;
+}
+function grantWX01Choice(profile, printId, { now, kind }) {
+  let next = refreshDaily(profile, now);
+  assertNoWX01Receipt(next);
+  const print = getPrinting(printId);
+  if (print.setId !== 'wx01' || !Object.hasOwn(WX01_SEAL_COSTS, print.treatment)) throw new RangeError('請選擇可領取的西行特別版本。');
+  if (kind === 'story') {
+    const nodes = STORY_NODES.filter(node => node.worldId === 'westward');
+    if (print.treatment !== 'aa') throw new RangeError('西行首卷獎勵只可選擇異畫。');
+    if (next.wx01.storyClaimed) throw new RangeError('西行首卷異畫已領取。');
+    if (nodes.length !== 4 || !nodes.every(node => next.cleared.includes(node.id))) throw new RangeError('通過西行首卷四處地點後可領取異畫。');
+  } else if (next.wx01.seals < WX01_SEAL_COSTS[print.treatment]) throw new RangeError('西行印不足。');
+  assertCollectionCapacity(next);
+  assertWX01Counters(next.wx01, kind === 'story' ? ['serial'] : ['serial', 'redeemed']);
+  const minted = grantCard(next, print.cardId, { source: `wx01:${kind}`, now, printId });
+  next = minted.profile;
+  if (kind === 'story') next.wx01.storyClaimed = true;
+  else { next.wx01.seals -= WX01_SEAL_COSTS[print.treatment]; increment(next.wx01, 'redeemed'); }
+  const cards = [{ cardId: print.cardId, printId, instanceId: minted.instance.uid, rarity: WX01_RARITIES[print.cardId] }];
+  saveWX01Receipt(next, { kind, mode: print.treatment, cards, now });
+  return { profile: next, cards, receipt: copy(next.wx01.receipt), cost: 0, sealsCost: kind === 'story' ? 0 : WX01_SEAL_COSTS[print.treatment], set: 'wx01' };
+}
+export function redeemWX01Print(profile, printId, { now = new Date() } = {}) {
+  return grantWX01Choice(profile, printId, { now, kind: 'redeem' });
+}
+export function claimWX01StoryPrint(profile, printId, { now = new Date() } = {}) {
+  return grantWX01Choice(profile, printId, { now, kind: 'story' });
+}
+export function setLeaderInstance(profile, uid) {
+  const next = syncCollection(profile);
+  next.wx01 = validateWX01State(next.wx01, next);
+  if (uid !== null) {
+    const instance = getInstance(next, uid);
+    if (getPrintForCard(instance.cardId, instance.printId).treatment !== 'leader') throw new RangeError('請選擇背包中的領航異畫。');
+  }
+  next.wx01.leaderInstanceId = uid;
+  return next;
 }
 
 function hash(text) {
@@ -323,7 +418,7 @@ function hash(text) {
 }
 export function getMarket(profile, now = new Date()) {
   const current = refreshDaily(profile, now);
-  const ordered = CARD_IDS.map(cardId => ({ cardId, order: hash(`${current.daily.date}:${cardId}`) }))
+  const ordered = LEGACY_CARD_IDS.map(cardId => ({ cardId, order: hash(`${current.daily.date}:${cardId}`) }))
     .sort((a, b) => a.order - b.order || a.cardId.localeCompare(b.cardId));
   const classics = ordered.filter(item => CLASSIC_CARD_IDS.includes(item.cardId)).slice(0, 2);
   const offers = [...classics, ...ordered.filter(item => !classics.includes(item)).slice(0, 2)];
@@ -446,7 +541,8 @@ export function beginBattle(profile, { kind = 'practice', nodeId = null, now = n
   increment(next, 'serial');
   const instanceIds = [...slot.instanceIds];
   const cardInstances = Object.fromEntries(instanceIds.map(uid => [getInstance(next, uid).cardId, uid]));
-  const encounter = { id: `battle-${next.serial}`, kind, nodeId: kind === 'expedition' ? nodeId : null, instanceIds, cardInstances };
+  const cardPrints = Object.fromEntries(instanceIds.map(uid => { const instance = getInstance(next, uid); return [instance.cardId, instance.printId]; }));
+  const encounter = { id: `battle-${next.serial}`, kind, nodeId: kind === 'expedition' ? nodeId : null, instanceIds, cardInstances, cardPrints };
   if (kind === 'expedition') next.location = nodeId;
   next.pending = copy(encounter);
   return { profile: next, encounter };

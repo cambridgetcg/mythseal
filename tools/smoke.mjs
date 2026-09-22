@@ -1,3 +1,4 @@
+import { CARDS } from '../engine.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -26,14 +27,14 @@ try {
   await page.keyboard.press('Escape');
   await page.locator('.game-dock [data-action="bag"]').click();
   await page.locator('.cards-hub-tabs [data-id="codex"]').click();
-  assert.equal(await page.locator('.collection-item').count(), 24);
+  assert.equal(await page.locator('.collection-item').count(), CARDS.length);
   await page.locator('[data-action="filter"][data-id="moon"]').click();
-  assert.equal(await page.locator('.collection-item').count(), 6);
+  assert.equal(await page.locator('.collection-item').count(), CARDS.filter(card=>card.faction==='moon').length);
   await page.locator('[data-action="filter"][data-id="all"]').click();
   await page.locator('[data-action="bag-card"][data-id="chiling"]').click();
   assert.equal(await page.locator('.bag-item').count(), 1);
   await page.locator('.cards-hub-tabs [data-id="decks"]').click();
-  const copies = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v3')).instances);
+  const copies = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v4')).instances);
   const oldUID = copies.find(copy => copy.cardId === 'chiling').uid;
   const newUID = copies.find(copy => copy.cardId === 'yunya').uid;
   await page.locator('#bag-search').fill('');
@@ -42,9 +43,9 @@ try {
   assert.equal(await page.locator('[data-action="bag-save-deck"]').isDisabled(), true);
   await page.locator(`.bag-grid [data-action="bag-pick-instance"][data-id="${newUID}"]`).click();
   await page.locator('[data-action="bag-save-deck"]').click();
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('shanhai.profile.v3')).deck.includes('yunya'));
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('shanhai.profile.v4')).deck.includes('yunya'));
   await page.reload();
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v3')).deck);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v4')).deck);
   assert.ok(saved.includes('yunya') && !saved.includes('chiling'));
   await page.locator('.game-dock [data-action="arena"]').click();
   await page.locator('[data-action="start"]').click();
@@ -88,7 +89,7 @@ try {
   }
   await page.locator('.match-score').waitFor();
   assert.equal(await page.locator('.history-row').count(), rounds);
-  const stats = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v3')).stats);
+  const stats = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v4')).stats);
   assert.equal(stats.played, 1);
   await page.locator('[data-action="end-home"]').click();
   await page.locator('.game-lobby').waitFor();

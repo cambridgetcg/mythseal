@@ -1,4 +1,5 @@
 /** Game-shell regressions using isolated local saves and real UI actions. */
+import { CARDS } from '../engine.mjs';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -11,7 +12,7 @@ const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw Error('Navigation smoke requires a loopback game server.');
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
-const fixedNow = '2026-09-21T12:00:00Z', battleKey = 'shanhai.battle.v3';
+const fixedNow = '2026-09-21T12:00:00Z', battleKey = 'shanhai.battle.v4';
 const checks = [], screenshots = [], errors = [], contexts = [];
 const action = (page, name, id, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${id ? `[data-id="${id}"]` : ''}`);
 const go = (page, destination) => action(page, destination, null, '.game-dock ').click();
@@ -218,7 +219,7 @@ try {
   await page.keyboard.press('Enter');
   await page.locator('.detail-rank').waitFor();
   await page.keyboard.press('Escape');
-  assert.equal(await page.locator('.collection-item').count(), 6);
+  assert.equal(await page.locator('.collection-item').count(), CARDS.filter(card=>card.faction==='moon').length);
   assert.equal(await catalogueButton.evaluate(element => document.activeElement === element), true);
   assert(Math.abs(await page.evaluate(() => scrollY) - catalogueScroll) <= 2);
   passed('Owned-copy and codex details restore filter, scroll and keyboard focus without leaving the card destination');

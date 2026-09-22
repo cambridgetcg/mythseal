@@ -27,16 +27,17 @@ The long-term goal is a limited-edition collectible that retains its identity an
 The detailed [technical plan](docs/TECHNICAL-PLAN.md), [backend design](docs/BACKEND-STACK.md), [mobile plan](docs/MOBILE-RELEASE.md), [NFT stack](docs/NFT-STACK.md) and [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md) explain the proposed architecture. Their original baseline and policy research are dated; the current-state documents above take precedence for what is implemented. Recheck platform requirements when selecting an actual release flow.
 
 **Booster direction confirmed · 2026-09-22:** start with **西遊記**, then develop
-other series. [WX-01 · 西行・萬象初章](docs/EXPANSION-WX01.md) proposes 16 base
+other series. [WX-01 · 西行・萬象初章](docs/EXPANSION-WX01.md) now implements 16 base
 identities (existing Wukong + 15 new characters) and thirteen cosmetic special
 printings: six AA, four 領契 LAA, two ink-scroll and one treasure. Keep
 凡品/靈品/神品 distinct
-from printing treatments and battle strength. The first local slice adds rarity
-frames and an `atelier.html` art/opening preview; new owned prints, the playable
-booster and character balance remain planned. The owner chose cosmetic 領契
-first, with Leader battle effects later. The [drop-rate draft](docs/WX01-DROP-RATES.md)
-now specifies natural/protected probabilities, 神契匣 contents, earned choices
-and economic/capacity limits; it is verified offline and is not enabled in game.
+from printing treatments and battle strength. The local game has 39 playable
+characters, three earned-coin packs, exact owned printings and a saved opening
+receipt. The owner chose cosmetic 領契 first, with Leader battle effects later.
+The [rate specification](docs/WX01-DROP-RATES.md) is implemented locally with
+twelve-pack protection, 神契匣, 西行印 redemption and a first-volume AA choice.
+Candidate card balance and phone experience still need playtesting. Production
+v0.5.1 is unchanged; no release or hosted migration accompanies this work.
 
 ## Shipped baseline and its limits
 
@@ -139,17 +140,27 @@ player moments, first-encounter storyboard and implementation/validation seams.
 | --- | --- | --- |
 | **M4.1 · Feedback foundation** | Tactile card/pill/commit cues, public-result presentation, persistent audio/motion/pace preferences and one faction/card sample using the existing DOM/art. | Normal, fast, skipped and reduced-motion paths show the same accepted result; hidden bids remain private and controls work with touch/keyboard. |
 | **M4.2 · First immersive encounter** | One complete 霧隱渡口 journey: arrival/preparation → commitment → readable reveal/impact → exact-copy XP → next/retry. | Recorded playtests for clarity and repeat-play pace; interruption/reload cannot duplicate rewards or strand a match. Measure phone behaviour with M5. |
-| **M4.3 · World and companion identity** | Distinct realm atmosphere, short guardian writing, clearer 同行記 and an earned-pack opening ritual; owned favourite-card display is an optional later selection. | Asset provenance/budgets and static/muted alternatives; any new memory derives from recorded events; no rule, rarity-odds or reward changes hidden inside effects. |
+| **M4.3 · World and companion identity** | Distinct realm atmosphere, short guardian writing and clearer 同行記; the local WX-01 slice now supplies an earned-pack opening and owned LAA lobby display. | Asset provenance/budgets and static/muted alternatives; any new memory derives from recorded events; no rule, rarity-odds or reward changes hidden inside effects. |
 | **M4.4 · Encounter depth experiments** | Candidate training puzzles, distinct legal opponent playstyles and later encounter/route variants. | A bounded prototype with versioned content/rules, reproducible scenarios and balance/AI information-boundary evidence before adoption. Optional for initial mobile scope. |
 
 **M4.5 · 西行 booster and printing identity:** follow the
 [set bible and delivery slices](docs/EXPANSION-WX01.md#delivery-slices-and-acceptance).
-Next content step: a four-character pilot, one per faction. In parallel, design
-the print catalogue and supported-reader/save/backup migration before issuing
-owned variants. Then complete the 16-character/29-print checklist and implement
-the earned-coin booster only after exact odds, a finite art-acquisition route,
-once-only opening receipts, dry counters, collection currency, storage capacity
-and old-save retention pass. The current two packs keep their rules.
+The local implementation now includes all 15 new rules cards, the Wukong reprint,
+29 printings, 14 new art files and the three earlier Wukong illustrations.
+Profile v4 uses a separate save key, preserves legacy exact copies and pending
+battles, and records printing IDs, protected pack receipts, dry counters and
+西行印. Weekly ten-match claims add five 印; previously cleared Westward volumes
+qualify for the once-only AA choice. The original two packs retain their card
+pools/order, prices and six-call draw sequence.
+
+Next: finish integrated browser/accessibility review and balance playtests, then
+physical-phone review with M5. Before any separate authorized public release,
+apply and verify the additive journey-v2 SQL migration, verify old/new backup
+retention and account bindings, and ship a coherent hashed/versioned client
+module graph. `JOURNEY_V2_ENABLED` stays false or absent until hosted schema
+compatibility is verified. Local v2 snapshots allow 10,000 owned/vault copies
+and 4 MiB; deployed v0.5.1 still has its v1 limits. Passing local tests is not
+evidence that the hosted migration or rollout has happened.
 Later series: 封神 → a smaller 白蛇 collection, with 三國、水滸、
 聊齋、紅樓 and original 山海 companions in the editorial backlog. No dates set.
 

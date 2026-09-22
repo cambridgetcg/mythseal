@@ -1,16 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createProfile, claimLogin, buyPack, sellInstance, beginBattle } from '../progression.mjs';
+import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { getActiveDeck, mintInstance, setInstanceXP, saveInstanceDeck, syncCollection } from '../collection.mjs';
 import {
   createSnapshot, validateSnapshot, restoreSnapshot, snapshotSummary, fingerprintProfile,
-  MAX_SNAPSHOT_BYTES, MAX_SNAPSHOT_CARDS,
+  MAX_SNAPSHOT_BYTES, MAX_SNAPSHOT_CARDS, LEGACY_MAX_SNAPSHOT_BYTES,
 } from '../cloud-save.mjs';
 
 const now = '2026-09-21T12:00:00.000Z';
 const tomorrow = '2026-09-22T12:00:00.000Z';
 const fresh = () => createProfile({ now });
 const copy = value => structuredClone(value);
+
+function legacySnapshot(profile = fresh()) {
+  const p = copy(profile); p.version = 3; p.collectionVersion = 1; p.collectionExpansion = 1; delete p.wx01;
+  for (const card of [...p.instances, ...p.merchantVault.map(e => e.instance)]) delete card.printId;
+  for (const key of ['inventory', 'levels']) p[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, p[key][id]]));
+  return { format: 'mythseal.offline-journey', version: 1, profile: p };
+}
 
 function travelledProfile() {
   let profile = claimLogin(fresh(), now);
@@ -27,7 +35,7 @@ test('cloud journey round trip keeps exact copies, XP, decks and NPC custody wit
   const profile = travelledProfile(), original = copy(profile);
   const snapshot = createSnapshot(profile);
   assert.equal(snapshot.format, 'mythseal.offline-journey');
-  assert.equal(snapshot.version, 1);
+  assert.equal(snapshot.version, 2);
   assert.deepEqual(restoreSnapshot(snapshot, { now }), original);
   assert.deepEqual(profile, original);
   assert.equal(snapshot.profile.merchantVault[0].instance.xp, 430);
@@ -51,17 +59,17 @@ test('restore rolls London daily state forward while preserving collection and d
 test('unfinished battles cannot be uploaded or restored and original pending remains untouched', () => {
   const profile = beginBattle(fresh(), { kind: 'arena', now }).profile, original = copy(profile);
   assert.throws(() => createSnapshot(profile), /未完對局/);
-  assert.throws(() => restoreSnapshot({ format: 'mythseal.offline-journey', version: 1, profile }, { now }), /未完對局/);
+  assert.throws(() => restoreSnapshot({ format: 'mythseal.offline-journey', version: 2, profile }, { now }), /未完對局/);
   assert.deepEqual(profile, original);
   assert.equal(typeof fingerprintProfile(profile), 'string', 'local change checks can include pending state');
 });
 
 test('invalid envelopes, old/future schemas and incomplete canonical data never produce a starter save', () => {
   const snapshot = createSnapshot(fresh());
-  for (const value of [null, [], {}, snapshot.profile, { ...snapshot, version: 2 }, { ...snapshot, format: 'nft' }]) {
+  for (const value of [null, [], {}, snapshot.profile, { ...snapshot, version: 3 }, { ...snapshot, format: 'nft' }]) {
     assert.throws(() => restoreSnapshot(value, { now }));
   }
-  for (const version of [1, 2, 4]) {
+  for (const version of [1, 2, 3, 5]) {
     const invalid = copy(snapshot); invalid.profile.version = version;
     assert.throws(() => validateSnapshot(invalid), /版本/);
   }
@@ -119,12 +127,25 @@ test('bounded JSON rejects accessors without invoking them, prototype keys, cycl
 test('cloud byte/card limits include cards in NPC custody', () => {
   const snapshot = createSnapshot(fresh());
   snapshot.profile.instances = Array.from({ length: MAX_SNAPSHOT_CARDS }, (_, i) => ({ ...snapshot.profile.instances[0], uid: `card-${String(i + 1).padStart(6, '0')}` }));
-  snapshot.profile.merchantVault.push({ instance: { ...snapshot.profile.instances[0], uid: 'card-002001' }, sellPrice: 40, buybackPrice: 50, soldAt: now });
-  assert.throws(() => validateSnapshot(snapshot), /2,000/);
+  snapshot.profile.merchantVault.push({ instance: { ...snapshot.profile.instances[0], uid: 'card-010001' }, sellPrice: 40, buybackPrice: 50, soldAt: now });
+  assert.throws(() => validateSnapshot(snapshot), /10,000/);
   const large = createSnapshot(fresh());
-  large.profile.instances = Array.from({ length: 1500 }, (_, i) => ({ ...large.profile.instances[0], uid: `card-${String(i + 1).padStart(6, '0')}`, origin: '字'.repeat(80) }));
+  large.profile.instances = Array.from({ length: 10000 }, (_, i) => ({ ...large.profile.instances[0], uid: `card-${String(i + 1).padStart(6, '0')}`, origin: '字'.repeat(100) }));
   assert(new TextEncoder().encode(JSON.stringify(large)).byteLength > MAX_SNAPSHOT_BYTES);
-  assert.throws(() => validateSnapshot(large), /512 KiB/);
+  assert.throws(() => validateSnapshot(large), /4 MiB/);
+});
+
+test('the full 10,000-copy boundary preserves exact printings and custody', () => {
+  const base = fresh();
+  const profile = syncCollection({ ...base, instanceSerial: 10000,
+    instances: [...base.instances, ...Array.from({ length: 9999 - base.instances.length }, (_, index) => ({
+      ...base.instances[0], uid: `card-${String(base.instances.length + index + 1).padStart(6, '0')}`,
+    }))],
+    merchantVault: [{ instance: { ...base.instances[0], uid: 'card-010000' }, sellPrice: 40, buybackPrice: 50, soldAt: now }],
+  });
+  const snapshot = createSnapshot(profile);
+  assert.equal(snapshot.profile.instances.length + snapshot.profile.merchantVault.length, 10000);
+  assert.deepEqual(restoreSnapshot(snapshot, { now }), profile);
 });
 
 test('byte budget includes PostgreSQL JSONB separator spaces at the storage boundary', () => {
@@ -138,11 +159,11 @@ test('byte budget includes PostgreSQL JSONB separator spaces at the storage boun
   const jsonbText = value => value === null || typeof value !== 'object' ? JSON.stringify(value)
     : Array.isArray(value) ? `[${value.map(jsonbText).join(', ')}]`
       : `{${Object.keys(value).map(key => `${JSON.stringify(key)}: ${jsonbText(value[key])}`).join(', ')}}`;
-  const fits = createSnapshot(largeProfile(32));
-  assert(Buffer.byteLength(jsonbText(fits)) <= MAX_SNAPSHOT_BYTES);
-  const over = { format: 'mythseal.offline-journey', version: 1, profile: largeProfile(33) };
-  assert(Buffer.byteLength(JSON.stringify(over)) < MAX_SNAPSHOT_BYTES, 'compact transport JSON alone fits');
-  assert(Buffer.byteLength(jsonbText(over)) > MAX_SNAPSHOT_BYTES, 'stored JSONB text does not fit');
+  const fits = validateSnapshot(legacySnapshot(largeProfile(32)));
+  assert(Buffer.byteLength(jsonbText(fits)) <= LEGACY_MAX_SNAPSHOT_BYTES);
+  const over = legacySnapshot(largeProfile(33));
+  assert(Buffer.byteLength(JSON.stringify(over)) < LEGACY_MAX_SNAPSHOT_BYTES, 'compact transport JSON alone fits');
+  assert(Buffer.byteLength(jsonbText(over)) > LEGACY_MAX_SNAPSHOT_BYTES, 'stored JSONB text does not fit');
   assert.throws(() => validateSnapshot(over), /512 KiB/);
 });
 
@@ -164,4 +185,45 @@ test('fingerprint ignores object key order but detects gameplay and exact-copy c
   assert.notEqual(fingerprintProfile(upgraded), fingerprint);
   const pack = buyPack(profile, { rng: () => 0.1, now }).profile;
   assert.notEqual(fingerprintProfile(pack), fingerprint);
+});
+
+test('legacy snapshots retain their exact payload and restore into v4 without replacing old copies', () => {
+  const legacy = legacySnapshot(travelledProfile()), original = copy(legacy);
+  assert.deepEqual(validateSnapshot(legacy, { version: 1 }), original);
+  const restored = restoreSnapshot(legacy, { now });
+  assert.equal(restored.version, 4); assert.equal(restored.collectionVersion, 2);
+  assert.equal(restored.coins, legacy.profile.coins);
+  assert.deepEqual(restored.deckSlots, legacy.profile.deckSlots);
+  for (const card of [...restored.instances, ...restored.merchantVault.map(e => e.instance)]) assert.equal(card.printId, `legacy/${card.cardId}`);
+  assert.deepEqual(legacy, original);
+  delete legacy.profile.weekly;
+  assert.deepEqual(validateSnapshot(legacy), legacy);
+  assert.equal(restoreSnapshot(legacy, { now }).weekly.matches, 0);
+  const bad = copy(legacy); bad.profile.instances[0].printId = 'legacy/qingxiao';
+  assert.throws(() => validateSnapshot(bad));
+  assert.throws(() => validateSnapshot(original, { version: 2 }));
+  assert.throws(() => validateSnapshot(createSnapshot(fresh()), { version: 1 }));
+});
+
+test('v2 print bindings and WX01 receipts reject loss or repair before restore', () => {
+  let profile = fresh();
+  const cards = [];
+  for (const [cardId, printId] of [['tangsanzang', 'wx01-001-base'], ['baigu', 'wx01-009-base'], ['wukong', 'wx01-005-aa1']]) {
+    const minted = mintInstance(profile, cardId, { source: 'pack:wx01', now, printId });
+    profile = minted.profile; cards.push({ cardId, printId, instanceId: minted.instance.uid, rarity: cardId === 'wukong' ? 'epic' : cardId === 'baigu' ? 'rare' : 'common' });
+  }
+  profile.wx01 = { ...profile.wx01, opened: 1, seals: 1, serial: 1, receipt: { id: 'wx01-1', kind: 'pack', mode: 'aa', cards, openedAt: now, cost: 300, sealsEarned: 1 } };
+  const snapshot = createSnapshot(profile);
+  assert.deepEqual(restoreSnapshot(snapshot, { now }), profile);
+  for (const corrupt of [
+    p => { delete p.instances[0].printId; },
+    p => { p.instances[0].printId = 'wx01-005-aa1'; },
+    p => { p.wx01.dry = 12; },
+    p => { p.wx01.seals = -1; },
+    p => { p.wx01.receipt.cost = 0; },
+    p => { p.wx01.receipt.cards[0].instanceId = 'card-999999'; },
+    p => { p.wx01.receipt.cards[0].printId = 'wx01-005-ink1'; },
+    p => { p.wx01.receipt.extra = true; },
+    p => { p.wx01.leaderInstanceId = p.instances[0].uid; },
+  ]) { const invalid = copy(snapshot); corrupt(invalid.profile); assert.throws(() => validateSnapshot(invalid)); }
 });

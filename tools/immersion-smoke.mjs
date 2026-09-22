@@ -12,7 +12,7 @@ if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 const fixedNow = '2026-09-22T12:00:00Z';
-const battleKey = 'shanhai.battle.v3', preferenceKey = 'shanhai.experience.v1';
+const battleKey = 'shanhai.battle.v4', preferenceKey = 'shanhai.experience.v1';
 const checks = [], screenshots = [], errors = [], timings = [], contexts = new Set();
 const action = (page, name, id, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${id ? `[data-id="${id}"]` : ''}`);
 const read = (page, key = PROFILE_KEY) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
@@ -50,7 +50,7 @@ async function seededPage(seed, { width = 1440, reducedMotion = 'no-preference',
     if (response.status() >= 400 && new URL(response.url()).origin === new URL(base).origin) errors.push(`${response.status()} ${response.url()}`);
   });
   await page.goto(base);
-  await page.locator('.game-lobby').waitFor();
+  await page.locator(blockedStorage ? '.startup-recovery' : '.game-lobby').waitFor();
   return page;
 }
 
@@ -331,15 +331,10 @@ try {
   passed('Audio defaults off; sound, mix, motion and pace settings persist independently of gameplay saves and remain adjustable after reload');
 
   const blocked = await seededPage(createProfile({ now: fixedNow }), { blockedStorage: true });
-  await blocked.locator('.toast').filter({ hasText: '瀏覽器儲存不可用' }).waitFor();
-  await action(blocked, 'experience-settings').first().click();
-  await blocked.locator('.experience-settings').waitFor();
-  assert.equal(await blocked.locator('#experience-sound').isChecked(), false);
-  await blocked.locator('#experience-motion').selectOption('reduce');
-  await blocked.keyboard.press('Escape');
-  await blocked.locator('.game-lobby').waitFor();
+  assert.match(await blocked.locator('.startup-recovery').innerText(), /原有進度/);
+  assert.equal(await blocked.locator('.game-lobby').count(), 0);
   await release(blocked);
-  passed('A throwing localStorage getter leaves the lobby and muted settings usable and shows the existing storage warning');
+  passed('A throwing localStorage getter shows recovery guidance and never creates a replacement lobby');
 
   const losing = await seededPage(createProfile({ now: fixedNow }), { reducedMotion: 'reduce', preferences: preference });
   await startMist(losing);

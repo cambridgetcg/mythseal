@@ -2,15 +2,16 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createProfile, PROFILE_KEY, LEGACY_PROFILE_KEY } from '../progression.mjs';
+import { createProfile, PROFILE_KEY } from '../progression.mjs';
 import { mintInstance, setInstanceXP } from '../collection.mjs';
-import { createMatch, chooseAIMove } from '../engine.mjs';
+import { createMatch, chooseAIMove, LEGACY_CARD_IDS } from '../engine.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 const fixedNow = '2026-09-21T12:00:00Z';
+const legacyProfileKey = 'shanhai.profile.v2';
 const errors = [], checks = [], screenshots = [], contexts = [];
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
@@ -57,7 +58,7 @@ async function seededPage(seed, { legacy = false, mobile = false, legacyBattle =
       localStorage.setItem(key, JSON.stringify(seed));
       if (legacyBattle) localStorage.setItem('shanhai.battle.v2', JSON.stringify(legacyBattle));
     }
-  }, { seed, key: legacy ? LEGACY_PROFILE_KEY : PROFILE_KEY, now: fixedNow, legacyBattle });
+  }, { seed, key: legacy ? legacyProfileKey : PROFILE_KEY, now: fixedNow, legacyBattle });
   const page = await context.newPage();
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => errors.push(error.message));
@@ -71,8 +72,9 @@ async function seededPage(seed, { legacy = false, mobile = false, legacyBattle =
 
 try {
   const old = createProfile({ now: fixedNow });
-  for (const key of ['instances', 'deckSlots', 'activeDeckId', 'merchantVault', 'instanceSerial', 'collectionVersion']) delete old[key];
-  old.version = 2;
+  for (const key of ['instances', 'deckSlots', 'activeDeckId', 'merchantVault', 'instanceSerial', 'collectionVersion', 'wx01']) delete old[key];
+  old.version = 2; old.collectionExpansion = 1;
+  for (const key of ['inventory', 'levels']) old[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, old[key][id]]));
   old.inventory.qingxiao = 2;
   old.levels.qingxiao = 3;
   old.coins = 4321; old.dust = 95; old.xp = 480;
@@ -80,16 +82,16 @@ try {
   old.deck.reverse();
   const migration = await seededPage(old, { legacy: true });
   const migrated = await read(migration);
-  assert.equal(migrated.version, 3);
+  assert.equal(migrated.version, 4);
   assert.equal(migrated.instances.length, Object.values(old.inventory).reduce((sum, count) => sum + count, 0));
   assert.equal(new Set(migrated.instances.map(instance => instance.uid)).size, migrated.instances.length);
   assert.deepEqual(migrated.instances.filter(instance => instance.cardId === 'qingxiao').map(instance => instance.level), [3, 3]);
   for (const field of ['coins', 'dust', 'xp', 'stats', 'deck']) assert.deepEqual(migrated[field], old[field]);
-  assert.equal(await migration.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(old));
+  assert.equal(await migration.evaluate(key => localStorage.getItem(key), legacyProfileKey), JSON.stringify(old));
   await migration.reload(); await migration.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(migration), migrated);
-  assert.equal(await migration.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(old));
-  passed('v2 migration retains copy counts, levels, deck and resources; original raw key and v3 IDs survive reload');
+  assert.equal(await migration.evaluate(key => localStorage.getItem(key), legacyProfileKey), JSON.stringify(old));
+  passed('v2 migration retains copy counts, levels, deck and resources; original raw key and migrated v4 IDs survive reload');
 
   const pendingOld = structuredClone(old);
   const oldMatch = createMatch({ deckIds: pendingOld.deck, mode: 'arena', playerLevels: pendingOld.levels, rng: () => 0.23 });
@@ -105,13 +107,13 @@ try {
   assert(oldMatch.player.hand.every(id => migratedBattle.pending.cardInstances[id]));
   const playedUID = migratedBattle.pending.cardInstances[removedRole];
   const beforePlayed = migratedBattle.instances.find(instance => instance.uid === playedUID);
-  assert.deepEqual(await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v3'))), oldBattle);
+  assert.deepEqual(await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v4'))), oldBattle);
   await resumed.reload(); await resumed.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(resumed)).pending, migratedBattle.pending);
   await action(resumed, 'resume').click();
   await resumed.locator('.player-hand').waitFor();
   for (let round = 0; round < 4; round++) {
-    const saved = await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v3')));
+    const saved = await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v4')));
     const role = round === 0 ? removedRole : saved.match.player.hand.find(id => !saved.match.player.used.includes(id));
     await action(resumed, 'select', role, '.player-hand ').click();
     await action(resumed, 'commit').click();
@@ -127,7 +129,7 @@ try {
   assert.equal(usedCopy.battles, beforePlayed.battles + 1);
   assert(usedCopy.xp > beforePlayed.xp);
   assert.deepEqual(settled.deck, pendingOld.deck);
-  assert.equal(await resumed.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(pendingOld));
+  assert.equal(await resumed.evaluate(key => localStorage.getItem(key), legacyProfileKey), JSON.stringify(pendingOld));
   assert.equal(await resumed.evaluate(() => localStorage.getItem('shanhai.battle.v2')), JSON.stringify(oldBattle));
   await resumed.reload(); await resumed.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(resumed), settled);

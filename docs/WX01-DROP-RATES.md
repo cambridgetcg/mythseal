@@ -1,8 +1,8 @@
 # WX-01 · 西行秘匣 probability design
 
-**Draft v1 · 2026-09-22.** Numerical design and offline analysis only. The owner
+**Local runtime v1 · 2026-09-22; not deployed.** The owner
 chose **cosmetic 領契 first; battle Leader rules later**. These rates are Mythseal
-proposals, not Bandai rates, live game odds or a distribution announcement.
+rules, not Bandai rates or odds on the unchanged public v0.5.1 site.
 The two existing packs and the fixed atelier demonstration remain unchanged.
 
 ## What we borrow from Bandai
@@ -37,7 +37,7 @@ Japanese and English editions. Product rarity counts are catalogue counts.
 
 **300 earned coins, exactly three copies, at least one 靈品 or 神品.** No paid
 currency, box collation, limited stock or time-limited probability boost is
-proposed. Prices/rarities do not imply that a printing is stronger in combat.
+implemented. Prices/rarities do not imply that a printing is stronger in combat.
 
 The natural table below selects **one mutually exclusive whole-pack outcome**.
 Percentages sum to 100%; they are not independent rolls on all three cards.
@@ -76,15 +76,16 @@ The checklist grows from 25 to **29 prints of the same 16 characters**:
 
 One subject per faction. Their portrait can personalise the lobby/deck display;
 it grants no initiative, faction bonus, stat, XP or deck-building exception.
-Choosing a basic representative must be available from an owned standard card.
-The fancy LAA is not needed to use that character or a future Leader role.
-Actual portrait selection and these four artworks remain unimplemented.
+The current optional lobby selector accepts an owned LAA copy and can be unset;
+that displayed copy is protected from sale. Standard cards retain the same
+gameplay role, and fancy art is not a requirement for any future Leader battle
+mechanic. These four artworks and cosmetic selection are implemented locally.
 
 ## Exact selection order and the rarity floor
 
 This **revises the earlier WX-01 character-first proposal**. A hard illustration
 guarantee cannot always retain character-first rolls when many characters have
-no AA. The future WX-01 sampler therefore chooses its outcome/printing first.
+no AA. The WX-01 sampler therefore chooses its outcome/printing first.
 It intentionally has a different character distribution from the original two
 packs, whose pools, ordering, price and six-call RNG sequence stay unchanged.
 
@@ -110,7 +111,7 @@ the analysis tool; do not divide every inclusive category rate by pool size.
 The two INK choices remain equally likely, including god packs.
 
 This also changes character access, even though special versions have identical
-stats: the proposed protected mix gives about **0.153189 Wukong copies per pack**
+stats: the protected mix gives about **0.153189 Wukong copies per pack**
 across printings, versus 0.118 under the ordinary-only rule. Expected copies of
 some unfeatured common characters fall about 6.33%. Treat this as a deliberate
 new-set distribution choice in balance review, not a purely cosmetic probability
@@ -210,17 +211,17 @@ valid pack draws, the chance after n opens is `1 - (1 - p)^n`.
 An average wait is not a ceiling. After 200 opens the natural chances are about
 45.17% for any INK, 25.93% for a particular INK and 9.52% for a god pack. These
 large-n calculations require sufficient collection/storage capacity; they are
-not evidence that the current game can support that many openings.
+not evidence that one current save can support that many retained copies.
 
 ## A finite route to the art you love
 
-Proposed **西行印** are an earned, non-expiring collection currency:
+Implemented local **西行印** are an earned, non-expiring collection currency:
 
 - Every committed WX-01 pack grants **one** 印, including protected/god packs.
   Receipt replay/reload cannot grant it again.
 - First completion of the full Westward story volume grants **one choice from
-  the six AA**, separate from existing coins. Previously cleared profiles need
-  an explicit once-only entitlement, not a replay requirement or silent gift.
+  the six AA**, separate from existing coins. Previously cleared profiles also
+  qualify; an explicit choice sets the once-only `storyClaimed` flag.
 - Claiming the existing weekly ten-match goal grants **five** 印 in addition
   to its existing reward. Wins and pack purchases are not required. Its current
   weekly goal/reset still applies; the earned 印 themselves never expire.
@@ -230,7 +231,8 @@ Proposed **西行印** are an earned, non-expiring collection currency:
 
 “At most 200 pack-earned 印 for your chosen INK” assumes those 印 are saved;
 spending on other prints delays that choice. Weekly 印 can shorten the route.
-These are acquisition rules to implement and test, not already-issued rewards.
+The grant rules are implemented in `progression.mjs`. Existing weekly claims
+are preserved during migration and do not receive a retrospective five 印.
 
 ## Economy and capacity checks before release
 
@@ -264,35 +266,59 @@ in this all-sellable scenario. This is expected value, not guaranteed profit;
 copy protections apply, and most players will retain cards. Selling a rare artwork must never be the
 normal route to collection currency or a surprise automatic conversion.
 
-**Capacity is a release gate.** Cloud backup currently caps owned plus merchant
-vault copies at 2,000 and the serialized snapshot at 512 KiB. Selling a card does
-not remove it from that count. Starter 16 + 661 packs = 1,999 copies before
-market/redeemed/story grants; the next pack breaches the count cap, and bytes may
-bind earlier. A finite choice reward needs capacity too. Plan compatible storage
-scaling/archival and preflight checks without deleting copies or weakening
-validation; do not advertise unlimited openings on today's schema.
+**Capacity remains a hosted release gate.** Public v0.5.1 keeps its v1 limits:
+2,000 owned plus merchant-vault copies / 512 KiB. The local v2 snapshot format
+supports **10,000 copies / 4 MiB**, preserving v1's old limits and validation.
+Selling still retains a vault copy. Starter 16 + 3,328 packs reaches 10,000
+before market, redeemed or story grants; bytes or browser quota may bind earlier.
+The long-tail table is mathematical, not an unlimited-storage promise.
+
+Local grants preflight the entire new-copy count before randomness/payment;
+the profile store checks final serialized size and the actual save write. A
+failed write must not produce an accepted opening. No copies are automatically
+deleted or converted. Hosted v2 requires the separately applied and verified
+[additive SQL migration](../supabase/migrations/20260922210000_wx01_journey_v2.sql).
+Keep `JOURNEY_V2_ENABLED` false or absent until that check passes. No hosted
+migration, release or deployment occurred in this turn.
 
 ## Delivery and verification
 
-The standalone `tools/wx01-drop-model.mjs` defines the proposed catalogue and
+The standalone `tools/wx01-drop-model.mjs` retains the reviewed analytical catalogue and
 probabilities. `node tools/analyze-wx01-drops.mjs --json` enumerates exact outcomes,
 derives the dry-counter stationary distribution and checks a seeded simulation.
 Its synthetic cards are not imported into engine/runtime/market data. Model
-`cardId` values are checklist numbers; any runtime adoption needs an explicit
-mapping to engine identities, including `WX01-005` → `wukong`. Tests cover
+`cardId` values are checklist numbers, requiring an explicit
+mapping to engine identities, including `WX01-005` → `wukong`. That mapping is now
+explicit in `WX01_ROSTER` and the runtime uses `wx01-pack.mjs` plus
+`printing-catalogue.mjs`, without importing analytical tooling. Tests cover
 the rarity floor, eligible print identity, unique god-pack characters, exact
 marginals, RNG boundaries and dry-counter transitions.
 
-Before player distribution: finish the four LAA artworks, balance all base cards,
-version the catalogue/odds, complete reader/backup/capacity compatibility, and
-commit cost + three UIDs + receipt + counter + 印 atomically. The receipt is saved
-before reveal; skip/reload/backgrounding can only display that accepted result.
-Inspect duplicate claims, previous Westward clears, full storage, old/new backup
-restores, offline conflict handling and explicit favourite selection. None of
-these fields or grants are added by this design pass.
+The local implementation commits cost + three UIDs + receipt + counter + 印
+before reveal. Skip/reload/backgrounding only presents that accepted result;
+pending receipts block new pack/choice grants and protect those exact copies
+until acknowledgement. Source regressions cover duplicate claims, old Westward
+clears, full copy capacity, invalid RNG, print binding and legacy migration.
+
+[Runtime sampler tests](../tests/wx01-pack.test.mjs) compare 100,000 sequential
+seeded packs with the mapped offline model, including exact RNG consumption,
+and independently check mode boundaries, rarity repair, twelve-pack protection
+and all 36 conditional god selections. See also
+[model tests](../tests/wx01-drop-model.test.mjs),
+[grant/receipt tests](../tests/wx01-progression.test.mjs),
+[store tests](../tests/profile-store.test.mjs) and
+[cloud tests](../tests/cloud-save.test.mjs). Integrated suites are still being
+checked; these statements are scoped local evidence, not a final release tally.
+
+Before public distribution: finish balance/browser/physical-phone review and
+the hosted schema/account checks, then deploy compatible client and Worker code
+with a coherent hashed/versioned module graph. Version-separated local keys
+alone do not prevent a browser from mixing cached old and new modules.
 
 Reveal direction: ordinary paper release; AA opens into a scene, LAA gives a
 brief portrait/crest beat, TR uses a soft metal tone, INK resolves through brush
 and paper. 神契匣 reveals its three genuine saved hits in sequence. No staged
 near-miss, fake upgrade roll or mandatory countdown. Skip, sound-off and reduced
-motion show the same cards. No new sound or animation is implemented here.
+motion show the same cards. `pack-opening.mjs`, `pack-ui.mjs` and `wx01.css`
+provide the local opening; audio uses the existing optional synthesized palette.
+Human pacing and physical-device review remain separate acceptance evidence.

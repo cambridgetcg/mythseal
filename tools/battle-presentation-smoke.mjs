@@ -11,7 +11,7 @@ const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw Error('Battle presentation smoke requires a loopback server.');
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
-const fixedNow = '2026-09-22T12:00:00Z', battleKey = 'shanhai.battle.v3', preferenceKey = 'shanhai.experience.v1';
+const fixedNow = '2026-09-22T12:00:00Z', battleKey = 'shanhai.battle.v4', preferenceKey = 'shanhai.experience.v1';
 const checks = [], screenshots = [], errors = [], traces = [], layouts = [], footerChecks = [], contexts = new Set();
 const action = (page, name) => page.locator(`[data-action="${name}"]`);
 const read = (page, key = PROFILE_KEY) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);

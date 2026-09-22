@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { createProfile, PROFILE_KEY } from '../progression.mjs';
+import { createProfile, hydrateProfile, PROFILE_KEY } from '../progression.mjs';
 import { setInstanceXP } from '../collection.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -11,13 +11,13 @@ const base = process.env.GAME_URL || 'http://127.0.0.1:4177', origin = new URL(b
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw Error('Stories smoke requires a loopback game server.');
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
-const fixedNow = '2026-09-22T12:00:00Z', battleKey = 'shanhai.battle.v3', recoveryKey = 'shanhai.profile.recovery.v3';
+const fixedNow = '2026-09-22T12:00:00Z', battleKey = 'shanhai.battle.v4', recoveryKey = 'shanhai.profile.recovery.v4';
 const checks = [], screenshots = [], errors = [], blockedExternal = new Set(), contexts = new Set();
 const action = (page, name, id, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${id ? `[data-id="${id}"]` : ''}`);
 const go = (page, destination) => action(page, destination, null, '.game-dock ').click();
 const read = (page, key = PROFILE_KEY) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
 const passed = label => { checks.push(label); console.log(`PASS ${label}`); };
-const snapshot = profile => ({ format: 'mythseal.offline-journey', version: 1, profile: structuredClone(profile) });
+const snapshot = profile => ({ format: 'mythseal.offline-journey', version: profile.version===3?1:2, profile: structuredClone(profile) });
 const idleAccount = page => page.locator('.account-shell[aria-busy="false"]').waitFor();
 // Deliberately literal acceptance data: tests must notice accidental chapter
 // removal, cross-world unlocking, deck mixing or reward formula changes.
@@ -50,7 +50,7 @@ async function openPage(seed, { width = 1440, authenticated = false, backup = nu
       localStorage.setItem(profileKey, JSON.stringify(seed));
       localStorage.setItem('shanhai.experience.v1', JSON.stringify({ sound: false, ambience: .35, effects: .6, motion: 'reduce', pace: 'fast' }));
     }
-  }, { seed, profileKey: PROFILE_KEY, now: fixedNow });
+  }, { seed, profileKey: seed.version===3?'shanhai.profile.v3':PROFILE_KEY, now: fixedNow });
   const api = { authenticated, revision: backup ? 1 : 0, backup: backup ? { revision: 1, updatedAt: fixedNow, snapshot: backup } : null, calls: [] };
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
@@ -60,9 +60,9 @@ async function openPage(seed, { width = 1440, authenticated = false, backup = nu
     let body = null; try { body = request.postDataJSON(); } catch {}
     api.calls.push({ method, path, body: structuredClone(body) });
     const reply = (value, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
-    if (path === '/api/v1/account' && method === 'GET') return reply({ authenticated, user: authenticated ? { id: 'stories-fixture', email: 'stories@example.test' } : null, emailEnabled: false });
-    if (path === '/api/v1/journey' && authenticated) {
-      if (method === 'GET') return reply({ backup: api.backup, revision: api.revision });
+    if (path === '/api/v1/account' && method === 'GET') return reply({ authenticated, user: authenticated ? { id: 'stories-fixture', email: 'stories@example.test' } : null, emailEnabled: false, journeyVersions:[1,2] });
+    if (['/api/v1/journey','/api/v2/journey'].includes(path) && authenticated) {
+      if (method === 'GET') return reply(api.backup?.snapshot.version===(path.includes('/v2/')?2:1)?{backup:api.backup,revision:api.revision}:{backup:null,revision:0});
       if (method === 'PUT') {
         assert.equal(body.expectedRevision, api.revision);
         api.revision++;
@@ -172,12 +172,17 @@ try {
   await release(locked);
   passed('Four literal maps expose 6/4/4/4 stages; a new journey can start only Mist Gate, and browsing locked chapters never changes its save');
 
-  const legacy = seasoned(); delete legacy.weekly;
+  const legacy = seasoned(); delete legacy.weekly; delete legacy.wx01;legacy.version=3;legacy.collectionVersion=1;legacy.collectionExpansion=1;
+  for(const instance of legacy.instances)delete instance.printId;
+  legacy.inventory=Object.fromEntries(Object.entries(legacy.inventory).filter(([id])=>!['tangsanzang','bailong','guanyin','puti','honghaier','huangfeng','jinjiao','baigu','tieshan','yinjiao','liuer','bajie','wujing','niumowang','zhenyuan'].includes(id)));
+  legacy.levels=Object.fromEntries(Object.entries(legacy.levels).filter(([id])=>id in legacy.inventory));
   legacy.coins = 2345; legacy.dust = 87; legacy.xp = 432;
   legacy.daily.loginClaimed = true; legacy.daily.claimedTasks = ['pack']; legacy.daily.packs = 1;
   const { page: migrated } = await openPage(legacy);
   const upgraded = await read(migrated), { weekly: upgradedWeekly, ...oldFields } = upgraded;
-  assert.deepEqual(oldFields, legacy, 'Missing-weekly migration preserves every legacy field and exact copy');
+  const {weekly:expectedWeekly,...expectedFields}=hydrateProfile(legacy,{now:fixedNow});
+  assert.deepEqual(oldFields, expectedFields, 'Missing-weekly legacy migration preserves fields and upgrades printing metadata');
+  assert.equal(await migrated.evaluate(()=>localStorage.getItem('shanhai.profile.v3')),JSON.stringify(legacy));
   assert.deepEqual(upgradedWeekly, weeklyZero);
   await go(migrated, 'world');
   for (const world of worlds.slice(1)) {
@@ -328,7 +333,7 @@ try {
   await action(account, 'account-confirm-restore').click(); await account.locator('.account-confirmation').waitFor();
   assert.deepEqual(await read(account), allClaimed);
   await action(account, 'account-restore').click(); await idleAccount(account);
-  assert.deepEqual(await read(account), { ...restoredOld, weekly: weeklyZero });
+  assert.deepEqual(await read(account), hydrateProfile(restoredOld,{now:fixedNow}));
   assert.deepEqual((await read(account, recoveryKey)).snapshot, snapshot(allClaimed));
   assert.deepEqual(api.backup.snapshot, snapshot(restoredOld), 'Restoring old cloud data never rewrites it remotely');
   api.revision++;

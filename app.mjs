@@ -1,6 +1,6 @@
-import { CARDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, previewMove, resolveRound, hasFactionBonus, getBattleCard, CLASSIC_CARD_IDS } from './engine.mjs';
+import { CARDS, LEGACY_CARDS, ORIGINAL_CARD_IDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, previewMove, resolveRound, hasFactionBonus, getBattleCard, CLASSIC_CARD_IDS } from './engine.mjs';
 
-import { PROFILE_KEY, LEGACY_PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, hydrateProfile, refreshDaily, claimLogin, claimTask, claimWeeklyTask, buyPack, buyCard, sellInstance, buybackInstance, getInstanceSale, upgradeCard, trainCard, beginBattle, finishBattle, abandonBattle, claimArenaChest, isNodeUnlocked } from './progression.mjs';
+import { PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, refreshDaily, claimLogin, claimTask, claimWeeklyTask, buyPack, buyCard, sellInstance, buybackInstance, getInstanceSale, upgradeCard, trainCard, beginBattle, finishBattle, abandonBattle, claimArenaChest, isNodeUnlocked } from './progression.mjs';
 import { WORLDS, getWorldForNode, nextNodeInWorld } from './stories.mjs';
 import { getInstance, getPreferredInstance, getActiveDeck, getDeckLevels, toggleInstanceLock, saveInstanceDeck, activateDeck, deleteDeck, validateInstanceDeck } from './collection.mjs';
 import { backpackMarkup, instanceMarkup } from './backpack-ui.mjs';
@@ -13,17 +13,22 @@ import { createRoundPresentation, paintRoundResources } from './battle-presentat
 import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { createSnapshot, restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
+import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './profile-store.mjs';
+import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
+import { WX01_CARD_IDS, WX01_PRINTINGS } from './printing-catalogue.mjs';
+import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
+import { createPackOpeningController } from './pack-opening.mjs';
+import { acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
 const announcer = document.querySelector('#announcer');
 const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
-const BATTLE_KEY='shanhai.battle.v3', LEGACY_BATTLE_KEY='shanhai.battle.v2';
-const RECOVERY_KEY='shanhai.profile.recovery.v3';
-const loadProfile=()=>hydrateProfile(read(PROFILE_KEY,null)??read(LEGACY_PROFILE_KEY,null),{legacyDeck:read('shanhai.deck.v1',null),legacyStats:read('shanhai.stats.v1',null),legacyBattle:read(LEGACY_BATTLE_KEY,null)});
-let profile=loadProfile();
-let collectionSet='all', sourceFilter='all', ownedOnly=false, selectedPack='classics';
+const profileStore=createProfileStore({storage:localStorage});
+const loadProfile=()=>profileStore.load();
+let profile=loadProfile(), startupReady=false;
+let collectionSet='all', sourceFilter='all', ownedOnly=false, selectedPack='wx01';
 const classicsDeck=['kongzi','qingxiao','wukong','guanyu','lindaiyu','shuangli','cangjiao','cuixian'];
 let deckDraftReady=false;
 let screen='home', filter='all', selectedNode=profile.location||NODES[0].id, trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
@@ -33,7 +38,7 @@ let bagView={tab:'cards',query:'',filter:'all',faction:'all',sort:'recent',editi
 let match=null, encounter=null, selected=null, pills=0, fury=false, aiMove=null, busy=false, recorded=false, revealPending=false, lastReward=null;
 let lastRoundPresentation=null, battleEntering=false;
 let sound=false, toastTimer, lastFocus=null, economyBusy=false;
-let experience, experienceReturn=null;
+let experience, experienceReturn=null, packOpening=null;
 experience=createExperienceController({storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},document,window,onPreferencesChange:applyExperiencePreferences});
 applyExperiencePreferences(experience.getPreferences());
 let recoveryDraft=null;
@@ -65,6 +70,7 @@ function applyExperiencePreferences(preferences) {
   sound=preferences.sound;
   document.body.dataset.motion=experience?.reducedMotion()?'reduce':'full';
   document.body.dataset.pageHidden=String(document.hidden);
+  packOpening?.syncPreferences();
   document.querySelectorAll('[data-action="sound"]').forEach(button=>{
     button.setAttribute('aria-pressed',String(sound));button.setAttribute('aria-label',`${sound?'關閉':'開啟'}音效`);button.textContent=sound?'♫':'♪';
   });
@@ -77,22 +83,24 @@ function syncProfile(next){profile=next;}
 async function transact(change,onSaved){
   const apply=()=>{
     const result=change(loadProfile()), next=result.profile||result;
-    localStorage.setItem(PROFILE_KEY,JSON.stringify(next));
+    profileStore.save(next);
     syncProfile(next);account.markLocalChanged();if(onSaved)onSaved(result);return result;
   };
-  return navigator.locks ? navigator.locks.request('shanhai-profile-v3',apply) : apply();
+  return navigator.locks ? navigator.locks.request(PROFILE_LOCK,apply) : apply();
 }
 async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = () => true } = {}) {
   const restored = restoreSnapshot(snapshot);
   if (!navigator.locks) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
-  return navigator.locks.request('shanhai-profile-v3', () => {
+  return navigator.locks.request(PROFILE_LOCK, () => {
     const current = loadProfile();
     if (!isCurrent()) throw Error('登入狀態已改變，未有恢復旅程。');
     if (economyBusy || current.pending) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');
+    if (current.wx01.receipt) throw Error('請先查看並確認已入藏的西行畫作，再恢復旅程。');
     if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
     // Preserve a complete, validated local recovery copy before replacing anything.
     localStorage.setItem(RECOVERY_KEY, JSON.stringify({ savedAt: new Date().toISOString(), snapshot: createSnapshot(current) }));
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(restored));
+    profileStore.save(restored);
+    packOpening?.destroy();packOpening=null;
     localStorage.removeItem(BATTLE_KEY);
     syncProfile(restored);
     match=null;encounter=null;selected=null;busy=false;recorded=false;revealPending=false;lastReward=null;lastRoundPresentation=null;battleEntering=false;
@@ -119,17 +127,18 @@ function persistBattle(){
   localStorage.setItem(BATTLE_KEY,JSON.stringify({match,encounter,selected,pills,fury,aiMove,revealPending,recorded,lastReward}));
 }
 function clearBattleSnapshot(id){if(read(BATTLE_KEY,null)?.encounter?.id===id)localStorage.removeItem(BATTLE_KEY);}
-function pendingBanner(){return profile.pending?`<div class="resume-banner"><span>你有一場未完的${modeName(profile.pending.kind)}，進度已保留。</span><button class="small-button" data-action="resume">繼續對局 →</button></div>`:'';}
+function pendingBanner(){return (profile.wx01.receipt?`<div class="resume-banner"><span>西行畫作已入藏，等你揭曉。</span><button class="small-button" data-action="pack-resume">查看這份相逢 →</button></div>`:'')+(profile.pending?`<div class="resume-banner"><span>你有一場未完的${modeName(profile.pending.kind)}，進度已保留。</span><button class="small-button" data-action="resume">繼續對局 →</button></div>`:'');}
 const faction = card => FACTIONS[card.faction];
 
 function cardMarkup(card, options = {}) {
-  const { selectable=false, selected:falseSelected=false, used=false, small=false, bonus=false, collection=false, picked=false, action='inspect', side='player', instanceId=null } = options;
+  const { selectable=false, selected:falseSelected=false, used=false, small=false, bonus=false, collection=false, picked=false, action='inspect', side='player', instanceId=null, printId=undefined } = options;
+  const printing=cardPresentation(card,{printId:printId===undefined&&instanceId?getInstance(profile,instanceId).printId:printId});
   const rarity = CARD_RARITIES[card.id] || 'common', rarityName = RARITIES[rarity].name;
   const tag = selectable || small || collection ? 'button' : 'div';
-  const attrs = tag === 'button' ? `type="button" data-action="${action}" data-id="${instanceId||card.id}" data-card-id="${card.id}" data-side="${side}" aria-label="${safe(card.name)}，${rarityName}，${card.stars} 星，力量 ${card.power}，傷害 ${card.damage}${used ? '，已出戰' : ''}" ${used && selectable ? 'disabled' : ''} ${selectable ? `aria-pressed="${falseSelected}"` : ''}` : '';
-  return `<${tag} class="card ${selectable?'selectable':''} ${falseSelected?'selected':''} ${used?'used':''} ${collection?'collection-card':''}" data-rarity="${rarity}" ${attrs} style="--faction:${faction(card).color}">
-    <div class="card-art" style="background-image:url(assets/${card.artSet==='classics'?'classics':'portraits'}.png);background-position:${(card.art % 4) / 3 * 100}% ${Math.floor(card.art / 4) / 2 * 100}%"></div><div class="card-shade"></div>
-    <span class="card-rarity-frame" aria-hidden="true"></span>
+  const attrs = tag === 'button' ? `type="button" data-action="${action}" data-id="${instanceId||card.id}" data-card-id="${card.id}" data-side="${side}" aria-label="${safe(card.name)}，${safe(printing.label)}，${rarityName}，${card.stars} 星，力量 ${card.power}，傷害 ${card.damage}${used ? '，已出戰' : ''}" ${used && selectable ? 'disabled' : ''} ${selectable ? `aria-pressed="${falseSelected}"` : ''}` : '';
+  return `<${tag} class="card ${selectable?'selectable':''} ${falseSelected?'selected':''} ${used?'used':''} ${collection?'collection-card':''}" data-rarity="${rarity}" data-treatment="${printing.treatment}" data-print-id="${printing.printId}" ${attrs} style="--faction:${faction(card).color}">
+    <div class="card-art" style="${printing.artStyle}"></div><div class="card-shade"></div>
+    <span class="card-rarity-frame" aria-hidden="true"></span>${printFrameMarkup(card,{printId:printing.printId})}
     <div class="card-top"><span class="card-faction-rarity"><span class="faction-label">${faction(card).icon} ${faction(card).name}</span><span class="card-rarity-badge" aria-hidden="true" title="${rarityName}">${rarityName[0]}</span></span><span class="stars" aria-label="${card.stars} 星">${'✦'.repeat(card.stars)}</span></div>
     ${tag==='div'?`<span class="sr-only">收藏稀有度：${rarityName}</span>`:''}
     ${picked?'<span class="picked-check" aria-label="已加入牌組">✓</span>':''}
@@ -185,19 +194,19 @@ function battleMarkup() {
     <div class="enemy-zone"><div class="enemy-thought">${enemyRevealed?`對手亮出「${getCard(aiMove.cardId).name}」。`:'一局山海，靜候落子。'}<small>${enemyRevealed?'對手先手出牌，仙丹仍是秘密。':'你先手出牌，對手只看見卡牌。'}<br>點擊卡牌可查看技能。</small></div><div class="enemy-hand">${match.opponent.hand.map(id=>cardMarkup(getBattleCard(match,'opponent',id),{small:true,side:'opponent',selected:enemyRevealed && aiMove.cardId===id,used:match.opponent.used.includes(id)})).join('')}</div></div>
     <div class="battle-divider"><span>${match.initiative==='player'?'你持先手 · 請落子':'你持後手 · 請應戰'}</span></div>
     <div class="combatant"><div class="identity"><div class="avatar">你</div><div><h2>執令者</h2><p>${match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入'}</p></div></div>${resourcesMarkup('player')}</div>
-    ${resonance}<div class="player-area"><div class="player-hand">${match.player.hand.map(id=>cardMarkup(getBattleCard(match,'player',id),{selectable:true,selected:selected===id,used:match.player.used.includes(id),bonus:hasFactionBonus(match,'player',id),action:'select'})).join('')}<div class="hand-caption"><span>點選戰卡，再分配仙丹。</span><button class="text-button" style="padding:0;font-size:inherit" data-action="inspect" data-id="${selected}">查看「${getCard(selected).name}」詳情 ↗</button></div></div>${movePanel()}</div>
+    ${resonance}<div class="player-area"><div class="player-hand">${match.player.hand.map(id=>cardMarkup(getBattleCard(match,'player',id),{printId:encounter?.cardPrints?.[id],selectable:true,selected:selected===id,used:match.player.used.includes(id),bonus:hasFactionBonus(match,'player',id),action:'select'})).join('')}<div class="hand-caption"><span>點選戰卡，再分配仙丹。</span><button class="text-button" style="padding:0;font-size:inherit" data-action="inspect" data-id="${selected}">查看「${getCard(selected).name}」詳情 ↗</button></div></div>${movePanel()}</div>
     <div class="arena-bottom"><span class="battle-log">${last?`上一局 · ${last.player.card.name} ${last.player.attack} : ${last.opponent.attack} ${last.opponent.card.name} · ${last.winner==='player'?'你':'對手'}勝`:'善弈者，懂得在一局之中為下一局留下餘地。'}</span><button class="text-button" style="padding:0;font-size:inherit" data-action="history">對弈紀錄 ↗</button></div></main>`;
 }
 
 function collectionMarkup() {
   const collected=CARDS.filter(c=>profile.inventory[c.id]>0).length;
-  const cards=CARDS.filter(c=>(filter==='all'||c.faction===filter)&&(collectionSet==='all'||(collectionSet==='classics'?c.artSet==='classics':c.artSet!=='classics'))&&(sourceFilter==='all'||(c.source||'山海原創')===sourceFilter)&&(!ownedOnly||profile.inventory[c.id]>0));
+  const cards=CARDS.filter(c=>(filter==='all'||c.faction===filter)&&(collectionSet==='all'||(collectionSet==='wx01'?WX01_CARD_IDS.includes(c.id):collectionSet==='classics'?CLASSIC_CARD_IDS.includes(c.id):ORIGINAL_CARD_IDS.includes(c.id)))&&(sourceFilter==='all'||(c.source||'山海原創')===sourceFilter)&&(!ownedOnly||profile.inventory[c.id]>0));
   const sources=[...new Set(CARDS.map(c=>c.source||'山海原創'))];
   return `<main class="collection screen-enter"><div class="eyebrow">THE ARCHIVE OF REALMS · ${collected} / ${CARDS.length} 已入藏</div><div class="collection-head"><div><h1>萬象圖鑑</h1><p class="collection-intro">翻閱人物的來歷與弈道。每張持有的戰卡，都在「我的戰卡」留下自己的故事。</p></div></div>
-    <div class="collection-sets" aria-label="卡牌篇章">${[['all','萬象全卷'],['original','山海初章'],['classics','千古群英']].map(([id,name])=>`<button class="${collectionSet===id?'active':''}" data-action="collection-set" data-id="${id}" aria-pressed="${collectionSet===id}">${name}<span>${id==='all'?CARDS.length:id==='classics'?CLASSIC_CARD_IDS.length:CARDS.length-CLASSIC_CARD_IDS.length}</span></button>`).join('')}</div>
+    <div class="collection-sets" aria-label="卡牌篇章">${[['all','萬象全卷'],['original','山海初章'],['classics','千古群英'],['wx01','西行萬象']].map(([id,name])=>`<button class="${collectionSet===id?'active':''}" data-action="collection-set" data-id="${id}" aria-pressed="${collectionSet===id}">${name}<span>${id==='all'?CARDS.length:id==='wx01'?WX01_CARD_IDS.length:id==='classics'?CLASSIC_CARD_IDS.length:ORIGINAL_CARD_IDS.length}</span></button>`).join('')}</div>
     <div class="collection-tools"><label>人物出處<select id="source-filter"><option value="all">所有典籍</option>${sources.map(source=>`<option value="${safe(source)}" ${source===sourceFilter?'selected':''}>${safe(source)}</option>`).join('')}</select></label><label class="owned-filter"><input id="owned-only" type="checkbox" ${ownedOnly?'checked':''}>只看已入藏</label><span>${cards.length} 位人物</span></div>
     <div class="filters" aria-label="篩選陣營"><button class="filter ${filter==='all'?'active':''}" data-action="filter" data-id="all">萬象 · 全部</button>${Object.entries(FACTIONS).map(([id,f])=>`<button class="filter ${filter===id?'active':''}" data-action="filter" data-id="${id}">${f.icon} ${f.name}</button>`).join('')}</div>
-    <div class="collection-grid">${cards.map(c=>{const owned=profile.inventory[c.id]>0;return `<div class="collection-item ${owned?'':'unowned'}" data-card-id="${c.id}"><div class="collection-source"><span>${safe(c.source||'山海原創')}</span><span class="rarity-dot" style="--rarity:${RARITIES[CARD_RARITIES[c.id]].color}" title="${RARITIES[CARD_RARITIES[c.id]].name}"></span></div>${cardMarkup(c,{collection:true})}<div class="collection-meta"><span>${owned?`持有 ${profile.inventory[c.id]} 張`:'尚未入藏'}</span></div><button class="collection-action" data-action="${owned?'bag-card':'market'}" data-id="${c.id}">${owned?'查看我的戰卡 →':'前往市集尋訪 ↗'}</button></div>`;}).join('')}</div>
+    <div class="collection-grid">${cards.map(c=>{const owned=profile.inventory[c.id]>0;return `<div class="collection-item ${owned?'':'unowned'}" data-card-id="${c.id}"><div class="collection-source"><span>${safe(c.source||'山海原創')}</span><span class="rarity-dot" style="--rarity:${RARITIES[CARD_RARITIES[c.id]].color}" title="${RARITIES[CARD_RARITIES[c.id]].name}"></span></div>${cardMarkup(c,{collection:true,printId:collectionSet==='wx01'?WX01_PRINTINGS.find(print=>print.cardId===c.id&&print.treatment==='base')?.id:undefined})}<div class="collection-meta"><span>${owned?`持有 ${profile.inventory[c.id]} 張`:'尚未入藏'}</span></div><button class="collection-action" data-action="${owned?'bag-card':'market'}" data-id="${c.id}">${owned?'查看我的戰卡 →':'前往市集尋訪 ↗'}</button></div>`;}).join('')}</div>
     ${cards.length?'':'<div class="empty-state">這一頁暫時無人入卷，試試其他篩選。</div>'}</main>`;
 }
 
@@ -228,7 +237,7 @@ function render() {
   profile=refreshDaily(profile);
   const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
-  app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'||screen==='home'?'':pendingBanner()}${cardsScreen?preparationReturnMarkup()+cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
+  app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?(profile.wx01.receipt?pendingBanner():''):pendingBanner()}${cardsScreen?preparationReturnMarkup()+cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
   const currentMap=app.querySelector('.world-map[data-world]');
   if(currentMap)currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
   refreshOverlay();
@@ -246,6 +255,7 @@ function playTone(kind='select') {
   experience.cue(kind);
 }
 function closeModal() {
+  packOpening?.destroy();packOpening=null;
   experience.finishReveal();experienceReturn=null;
   overlay.innerHTML=''; document.body.style.overflow='';app.inert=false;modalKind=null;
   // A preparation-to-battle transition stays in the same soundscape.
@@ -256,6 +266,7 @@ function closeModal() {
   lastFocus=null;modalOrigin=null;
 }
 function modal(content, className='', dismissible=true, kind=null) {
+  packOpening?.destroy();packOpening=null;
   experience.finishReveal();
   if(!overlay.firstElementChild){lastFocus=document.activeElement;modalOrigin={screen,focus:captureFocus(app),scroll:window.scrollY};}
   modalKind=kind;
@@ -300,6 +311,20 @@ function questsModal(tab=questTab) {
   syncProfile(loadProfile());
   modal(`<div class="quest-content">${dailyMarkup(profile,trainingId,questTab)}</div>`,'quest-scroll',true,'quests');
 }
+function showPackReceipt(recovered=false) {
+  syncProfile(loadProfile());
+  const receipt=profile.wx01.receipt;
+  if(!receipt){render();return toast('這份畫作已收入行囊。');}
+  modal(packReceiptMarkup(receipt,cardMarkup),'pack-modal',true,'pack-receipt');
+  packOpening=createPackOpeningController({element:overlay.querySelector('.pack-opening'),receipt,
+    reducedMotion:()=>experience.reducedMotion(),pace:()=>experience.getPreferences().pace,announce,window,document});
+  if(recovered)packOpening.finish();else packOpening.open();
+}
+function showWX01Choice({story=false,treatment='aa'}={}) {
+  syncProfile(loadProfile());
+  if(profile.wx01.receipt)return showPackReceipt(true);
+  modal(wx01RedeemMarkup(profile,cardMarkup,{story,treatment}),'',true,'wx01-choice');
+}
 function refreshOverlay() {
   if(!['quests','preparation'].includes(modalKind))return;
   const focus=captureFocus(overlay),dialog=overlay.querySelector('.modal'),scroll=dialog.scrollTop,backdropScroll=overlay.firstElementChild.scrollTop;
@@ -331,7 +356,7 @@ function preparationContent() {
   const valid=validateInstanceDeck(profile,deck?.instanceIds).valid;
   const cards=(deck?.instanceIds||[]).map(uid=>profile.instances.find(i=>i.uid===uid)).filter(Boolean);
   const mist=isMistGate(preparation);
-  return `${storyArrivalMarkup(node)||(mist?mistGateArrivalMarkup({returning:profile.cleared.includes(node.id)}):`<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2>`)}<p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`${mist||node.worldId!=='shanhai'?'':`<p>${safe(node.description)}</p>`}<p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(deck?.name||'尚未選擇牌組')}</h3><button class="text-button" data-action="prep-deck">更換／整備牌組 →</button></div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId))}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>${mist?'踏上渡口':'進入對局'} →</button></div>${mist?'<button class="text-button" data-action="experience-settings">聲息與節奏 · 設定</button>':''}`;
+  return `${storyArrivalMarkup(node)||(mist?mistGateArrivalMarkup({returning:profile.cleared.includes(node.id)}):`<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2>`)}<p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`${mist||node.worldId!=='shanhai'?'':`<p>${safe(node.description)}</p>`}<p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(deck?.name||'尚未選擇牌組')}</h3><button class="text-button" data-action="prep-deck">更換／整備牌組 →</button></div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId),{printId:i.printId})}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>${mist?'踏上渡口':'進入對局'} →</button></div>${mist?'<button class="text-button" data-action="experience-settings">聲息與節奏 · 設定</button>':''}`;
 }
 function prepareEncounter(kind='practice',nodeId=null) {
   if(economyBusy)return;
@@ -377,7 +402,7 @@ function rulesModal() {
 }
 function detailModal(id, side='player') {
   const c=screen==='battle'?getBattleCard(match,side,id):getCard(id), f=faction(c);
-  modal(`<div class="eyebrow">THE ARCHIVE · ${f.name}</div><div class="detail-layout">${cardMarkup(c)}<div><div class="eyebrow" style="font-size:8px">${c.title}</div><h2>${c.name}</h2><p class="detail-rank" style="color:var(--gold);font-size:11px;margin:5px 0">${c.stars} 星 · 力量 ${c.power} · 傷害 ${c.damage}${screen==='battle'&&match.mode==='expedition'?` · 出戰 Lv.${c.level}`:''}</p><p class="detail-source">${safe(c.source||'山海原創')} · ${RARITIES[CARD_RARITIES[c.id]].name}${screen==='battle'?'':profile.inventory[c.id]>0?` · 已入藏 ${profile.inventory[c.id]} 張`:' · 尚未入藏'}</p><p class="detail-lore">${c.lore}</p><div class="detail-ability"><b>${c.ability.label}</b><p>${c.ability.description}</p></div><div class="detail-ability"><b>${f.bonus.label}</b><p>${f.bonus.description}本局抽出兩位同族角色即可啟動。</p></div></div></div>${screen==='battle'?'':`<div class="modal-actions"><button class="secondary" data-action="${profile.inventory[c.id]>0?'upgrade':'market'}" data-id="${c.id}">${profile.inventory[c.id]>0?'修練此卡 →':'前往市集尋訪 →'}</button></div>`}`);
+  modal(`<div class="eyebrow">THE ARCHIVE · ${f.name}</div><div class="detail-layout">${cardMarkup(c,{printId:screen==='battle'?(side==='player'?encounter?.cardPrints?.[id]:undefined):screen==='collection'&&collectionSet==='wx01'?WX01_PRINTINGS.find(print=>print.cardId===id&&print.treatment==='base')?.id:undefined})}<div><div class="eyebrow" style="font-size:8px">${c.title}</div><h2>${c.name}</h2><p class="detail-rank" style="color:var(--gold);font-size:11px;margin:5px 0">${c.stars} 星 · 力量 ${c.power} · 傷害 ${c.damage}${screen==='battle'&&match.mode==='expedition'?` · 出戰 Lv.${c.level}`:''}</p><p class="detail-source">${safe(c.source||'山海原創')} · ${RARITIES[CARD_RARITIES[c.id]].name}${screen==='battle'?'':profile.inventory[c.id]>0?` · 已入藏 ${profile.inventory[c.id]} 張`:' · 尚未入藏'}</p><p class="detail-lore">${c.lore}</p><div class="detail-ability"><b>${c.ability.label}</b><p>${c.ability.description}</p></div><div class="detail-ability"><b>${f.bonus.label}</b><p>${f.bonus.description}本局抽出兩位同族角色即可啟動。</p></div></div></div>${screen==='battle'?'':`<div class="modal-actions"><button class="secondary" data-action="${profile.inventory[c.id]>0?'upgrade':'market'}" data-id="${c.id}">${profile.inventory[c.id]>0?'修練此卡 →':'前往市集尋訪 →'}</button></div>`}`);
 }
 function preferredInstance(reference){
   const exact=profile.instances.find(i=>i.uid===reference);if(exact)return exact;
@@ -396,7 +421,7 @@ function sellInstanceModal(uid){
   try{
     const item=getInstance(profile,uid), sale=getInstanceSale(profile,uid), card=getCard(item.cardId);
     if(sale.reason)return toast(sale.reason);
-    modal(`<div class="eyebrow">PASS ON A STORY</div><h2>讓這張卡，暫別行囊？</h2><p><b>${card.name}</b> · Lv.${item.level} · ${item.xp} EXP<br>卡牌編號 <span class="instance-serial">#${safe(item.uid)}</span></p><p>商旅出價 <b>${sale.sellPrice} 金幣</b>。這張卡的等級、經驗及出戰紀錄會保留；之後可付 ${sale.buybackPrice} 金幣原卡回購。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">留在行囊</button><button class="primary" data-action="confirm-instance-sell" data-id="${safe(uid)}">出售這張卡 →</button></div>`);
+    modal(`<div class="eyebrow">PASS ON A STORY</div><h2>讓這張卡，暫別行囊？</h2><p><b>${card.name}</b> · ${safe(printLabel(card,{printId:item.printId}))} · Lv.${item.level} · ${item.xp} EXP<br>卡牌編號 <span class="instance-serial">#${safe(item.uid)}</span></p><p>商旅出價 <b>${sale.sellPrice} 金幣</b>。這張卡的等級、經驗及出戰紀錄會保留；之後可付 ${sale.buybackPrice} 金幣原卡回購。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">留在行囊</button><button class="primary" data-action="confirm-instance-sell" data-id="${safe(uid)}">出售這張卡 →</button></div>`);
   }catch(error){toast(error.message);}
 }
 function cardExperienceMarkup(){
@@ -413,7 +438,7 @@ function resultCardModal(uid) {
 function opponentDeck(node) {
   if(node?.opponentDeck&&validateDeck(node.opponentDeck).valid)return [...node.opponentDeck];
   for(let n=0;n<60;n++){
-    const pool=[...CARDS];
+    const pool=[...LEGACY_CARDS];
     for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
     const ids=pool.slice(0,8).map(c=>c.id);if(validateDeck(ids).valid)return ids;
   }
@@ -520,7 +545,7 @@ function resultModal({animate=false}={}) {
   const presentation=lastRoundPresentation||createRoundPresentation(null,match);
   modal(`${mist?mistGateRevealMarkup({round:r.round}):`<div class="eyebrow">ROUND ${r.round} · THE CARDS ARE REVEALED</div>`}<h2>${won?'此局，你勝。':'此局，暫退。'}</h2>
     <p class="battle-reveal-status" data-reveal-status>雙方落子，準備揭曉。</p>
-    ${battleClashMarkup({playerCard:r.player.card,opponentCard:r.opponent.card,playerAttack:r.player.attack,opponentAttack:r.opponent.attack,playerPills:r.player.pills,opponentPills:r.opponent.pills,playerFury:r.player.fury,opponentFury:r.opponent.fury,winner:r.winner,damage:r.damage,tieReason:r.tieReason,cardMarkup})}
+    ${battleClashMarkup({playerCard:r.player.card,opponentCard:r.opponent.card,playerAttack:r.player.attack,opponentAttack:r.opponent.attack,playerPills:r.player.pills,opponentPills:r.opponent.pills,playerFury:r.player.fury,opponentFury:r.opponent.fury,winner:r.winner,damage:r.damage,tieReason:r.tieReason,cardMarkup:(card,{side}={})=>cardMarkup(card,{printId:side==='player'?encounter?.cardPrints?.[card.id]:undefined})})}
     <div class="battle-resource-results" aria-label="本回合生命與仙丹">${['player','opponent'].map(side=>battleResourcesMarkup({side,hp:match[side].hp,pills:match[side].pills,compact:true,label:side==='player'?'你':'對手'})).join('')}</div>
     <div class="resolution">${tie}${won?'對手':'你'}受到 <strong>${r.damage}</strong> 點傷害。<br>當前生命：你 <strong>${match.player.hp}</strong> · 對手 <strong>${match.opponent.hp}</strong>　｜　剩餘仙丹：你 ${match.player.pills} · 對手 ${match.opponent.pills}</div>
     <div class="result-effects"><div><h4>你的技能與共鳴</h4>${effectList('player')}</div><div><h4>對手的技能與共鳴</h4>${effectList('opponent')}</div></div>
@@ -550,6 +575,17 @@ document.addEventListener('click', event=>{
   const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
   const {action,id}=button.dataset;
   experience.unlockAudio().catch(()=>{});
+  if(action==='pack-resume')return showPackReceipt(true);
+  if(action==='pack-open')return packOpening?.open();
+  if(action==='pack-card-reveal')return packOpening?.reveal(Number(button.dataset.index));
+  if(action==='pack-skip'||action==='pack-show-all')return packOpening?.finish({focus:true});
+  if(action==='pack-ack')return economy(p=>acknowledgeWX01Receipt(p,id),'',()=>closeModal());
+  if(action==='wx01-odds')return modal(wx01OddsMarkup(loadProfile()),'',true,'wx01-odds');
+  if(action==='wx01-redeem'||action==='wx01-redeem-tab')return showWX01Choice({treatment:id||'aa'});
+  if(action==='wx01-story-choice')return showWX01Choice({story:true});
+  if(action==='redeem-print')return economy(p=>redeemWX01Print(p,id),'',()=>showPackReceipt());
+  if(action==='claim-story-print')return economy(p=>claimWX01StoryPrint(p,id),'',()=>showPackReceipt());
+  if(action==='set-leader')return economy(p=>setLeaderInstance(p,id||null),id?'領契已相伴洞府。':'已收起領契。',()=>closeModal());
   if(action==='experience-settings')return experienceSettingsModal();
   if(action==='skip-reveal')return experience.finishReveal();
   if(action==='result-card')return resultCardModal(id);
@@ -677,8 +713,9 @@ document.addEventListener('click', event=>{
   if(action==='upgrade-card'||action==='instance-upgrade')return economy(p=>upgradeCard(p,id),'此卡修練完成，另一張副本的等級不變。',()=>showInstance(id));
   if(action==='buy-card')return economy(p=>buyCard(p,id),`已購入一張${getCard(id).name}。`);
   if(action==='sell-card'){navigate('bag');bagView.query=getCard(id).name;render();return;}
-  if(action==='buy-pack'){const packSet=button.dataset.set||selectedPack;return economy(p=>buyPack(p,{set:packSet}),'',result=>{
-    modal(`<div class="eyebrow">${PACK_SETS[result.set].name} · THREE FATES</div><h2>三份緣，已入藏。</h2><p>卡牌已加入收藏。多出的卡可到商旅市集出售。</p><div class="pack-reveal">${result.cards.map(({cardId,rarity,instanceId})=>`<div class="pack-result" style="--rarity:${RARITIES[rarity].color}">${cardMarkup(getCard(cardId))}<span class="rarity-label">${RARITIES[rarity].name}</span><p>${getCard(cardId).name} · Lv.1<br><span class="instance-serial">#${safe(instanceId)}</span></p></div>`).join('')}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">收入行囊 ✓</button><button class="primary" data-action="buy-pack" data-set="${result.set}" ${profile.coins<PACK_PRICE?'disabled':''}>再開一匣 · ${PACK_PRICE} 金幣</button></div>`,'pack-modal');
+  if(action==='buy-pack'){if(loadProfile().wx01.receipt)return showPackReceipt(true);const packSet=button.dataset.set||selectedPack;return economy(p=>buyPack(p,{set:packSet}),'',result=>{
+    if(result.receipt)return showPackReceipt();
+    modal(`<div class="eyebrow">${PACK_SETS[result.set].name} · THREE FATES</div><h2>三份緣，已入藏。</h2><p>卡牌已加入收藏。多出的卡可到商旅市集出售。</p><div class="pack-reveal">${result.cards.map(({cardId,rarity,instanceId,printId})=>`<div class="pack-result" style="--rarity:${RARITIES[rarity].color}">${cardMarkup(getCard(cardId),{printId})}<span class="rarity-label">${RARITIES[rarity].name}</span><p>${getCard(cardId).name} · Lv.1<br><span class="instance-serial">#${safe(instanceId)}</span></p></div>`).join('')}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">收入行囊 ✓</button><button class="primary" data-action="buy-pack" data-set="${result.set}" ${profile.coins<PACK_PRICE?'disabled':''}>再開一匣 · ${PACK_PRICE} 金幣</button></div>`,'pack-modal');
   });}
   if(action==='export-save'){
     const blob=new Blob([JSON.stringify(loadProfile(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`萬象契旅程-${profile.daily.date}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('旅程備份已匯出。');return;
@@ -724,9 +761,17 @@ document.addEventListener('change',event=>{
   if(event.target.id==='owned-only'){ownedOnly=event.target.checked;render();}
 });
 window.addEventListener('pagehide',()=>{if(match?.status==='playing')try{persistBattle();}catch{}});
-window.addEventListener('storage',event=>{if(event.key===PROFILE_KEY){syncProfile(loadProfile());account.markLocalChanged();render();}});
-document.addEventListener('visibilitychange',()=>{document.body.dataset.pageHidden=String(document.hidden);if(!document.hidden){syncProfile(loadProfile());render();}});
-setInterval(()=>{const next=refreshDaily(profile);if(next.daily.date!==profile.daily.date||next.weekly.week!==profile.weekly.week){syncProfile(loadProfile());render();announce('任務手札與商旅貨架已更新。');}},30000);
+function reloadLocalJourney() {
+  if(!startupReady)return;
+  try {
+    syncProfile(loadProfile());
+    if(packOpening&&packOpening.getState().receiptId!==profile.wx01.receipt?.id)closeModal();
+    render();
+  } catch(error) { toast(error.message); }
+}
+window.addEventListener('storage',event=>{if(event.key===PROFILE_KEY){reloadLocalJourney();account.markLocalChanged();}});
+document.addEventListener('visibilitychange',()=>{document.body.dataset.pageHidden=String(document.hidden);if(!document.hidden)reloadLocalJourney();});
+setInterval(()=>{if(!startupReady)return;const next=refreshDaily(profile);if(next.daily.date!==profile.daily.date||next.weekly.week!==profile.weekly.week){syncProfile(loadProfile());render();announce('任務手札與商旅貨架已更新。');}},30000);
 document.addEventListener('input',event=>{
   if(event.target.id==='experience-ambience'||event.target.id==='experience-effects'){
     const name=event.target.id==='experience-ambience'?'ambience':'effects';
@@ -777,8 +822,6 @@ document.addEventListener('keydown',event=>{
     else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
   }
 });
-try{await transact(p=>p,()=>{
-  const legacy=read(LEGACY_BATTLE_KEY,null);
-  if(!localStorage.getItem(BATTLE_KEY)&&profile.pending&&legacy?.encounter?.id===profile.pending.id)localStorage.setItem(BATTLE_KEY,JSON.stringify(legacy));
-});}catch{setTimeout(()=>toast('瀏覽器儲存不可用，請啟用儲存後再開始旅程。'),300);}
+await transact(p=>p);
+startupReady=true;
 render();

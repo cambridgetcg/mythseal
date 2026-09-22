@@ -25,7 +25,22 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 Three original Wukong illustrations explore full-scene alternate art, an ink
 scroll and a lacquer/gold treasure treatment in the local `atelier.html` preview.
 See [exact prompts and assets](ART-EXPANSION.md) and the
-[WX-01 set plan](EXPANSION-WX01.md). These studies do not issue owned variants.
+[WX-01 set record](EXPANSION-WX01.md). The standalone atelier remains a fixed
+demonstration with no save writes. The local playable WX-01 implementation now
+reuses these three unchanged images for Wukong AA, INK and TR owned printings.
+
+## Playable WX-01 artwork · 2026-09-22
+
+The local expansion adds **14 files** under `assets/wx01/`: four 2×2 base
+atlases covering 15 new characters (one unused tile), five full-scene AA images,
+four cosmetic 領契 portraits and one 六耳 ink-scroll. Together with the three
+earlier Wukong images and his unchanged classic base tile, these supply the
+16-character / 29-print checklist. They were created with the built-in image
+generation tool; an underlying model identifier was not exposed and is not
+inferred here. See [ART-WX01.md](ART-WX01.md) for exact prompts, file mappings and
+provenance, and [printing-catalogue.mjs](../printing-catalogue.mjs) for runtime
+atlas coordinates. UI labels, rarity frames and effects remain code-native.
+This is local content, not a public deployment or collectible issuance service.
 
 ## Classical expansion · v0.3
 

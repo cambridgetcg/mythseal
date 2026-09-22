@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAccountController } from '../account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from '../account-ui.mjs';
+import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { createProfile, beginBattle } from '../progression.mjs';
-import { createSnapshot, fingerprintProfile } from '../cloud-save.mjs';
+import { createSnapshot, fingerprintProfile, restoreSnapshot } from '../cloud-save.mjs';
 
 const now = '2026-09-21T12:00:00.000Z';
 const user = { id: 'owner-one', email: 'player@example.com' };
@@ -25,7 +26,7 @@ function harness(responses = [], options = {}) {
       assert.equal(fingerprintProfile(profile), expectedFingerprint);
       assert.equal(isCurrent(), true);
       restores.push(snapshot);
-      profile = structuredClone(snapshot.profile);
+      profile = restoreSnapshot(snapshot, { now });
     }),
     notify: message => announcements.push(message),
     onChange: state => changes.push(state),
@@ -37,6 +38,7 @@ function harness(responses = [], options = {}) {
       assert.equal(init.cache, 'no-store');
       assert.equal(init.headers.Authorization, undefined);
       if (url.endsWith('/journey')) assert.equal(init.headers['X-Mythseal-Account'], user.id);
+      if (url === '/api/v1/journey') return reply(options.legacy ?? { backup: null, revision: 0 });
       const next = queue.shift();
       assert.notEqual(next, undefined, `Unexpected request ${init.method} ${url}`);
       if (next instanceof Error) throw next;
@@ -47,7 +49,7 @@ function harness(responses = [], options = {}) {
 }
 
 const signedIn = (cloud = saved(), later = [], options) => harness([
-  reply({ authenticated: true, user, emailEnabled: true }), reply(cloud), ...later,
+  reply({ authenticated: true, user, emailEnabled: true, journeyVersions: [1, 2] }), reply(cloud), ...later,
 ], options);
 
 test('initial account lookup only reads cloud backup and never replaces or uploads local progress', async () => {
@@ -67,7 +69,7 @@ test('email verification uses cookie requests and retains no verification code o
   const game = harness([
     reply({ authenticated: false, user: null, emailEnabled: true }), reply({ sent: true }),
     reply({ authenticated: true, access_token: 'must-not-be-stored', refresh_token: 'also-ignored' }),
-    reply({ authenticated: true, user, emailEnabled: true }), reply({ backup: null, revision: 0 }),
+    reply({ authenticated: true, user, emailEnabled: true, journeyVersions: [1, 2] }), reply({ backup: null, revision: 0 }),
   ]);
   await game.controller.init();
   assert.equal(await game.controller.requestCode(' player@example.com '), true);
@@ -353,4 +355,52 @@ test('cloud format limits never interrupt committed offline changes or prevent d
   assert.equal(game.controller.setConfirmation('delete'), true);
   assert.equal(await game.controller.deleteBackup(), true);
   assert.equal(game.profile.localOnlyNote.length, 600);
+});
+
+function legacyCloud(revision = 7) {
+  const value = saved(revision), p = value.backup.snapshot.profile;
+  value.backup.snapshot.version = 1; p.version = 3; p.collectionVersion = 1; p.collectionExpansion = 1; delete p.wx01;
+  p.instances.forEach(card => { delete card.printId; });
+  for (const key of ['inventory', 'levels']) p[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, p[key][id]]));
+  return value;
+}
+
+test('missing v2 capability permits legacy reads/restores but never uploads or deletes', async () => {
+  const legacy = legacyCloud(), game = harness([reply({ authenticated: true, user, emailEnabled: true })], { legacy });
+  await game.controller.init();
+  const original = structuredClone(game.profile);
+  assert.equal(game.controller.getState().backup.snapshot.version, 1);
+  assert.equal(await game.controller.upload(), false);
+  assert.equal(game.controller.setConfirmation('delete'), false);
+  assert.equal(await game.controller.deleteBackup(), false);
+  assert.deepEqual(game.profile, original);
+  assert.match(accountMarkup(game.controller.getState(), game.profile), /西行收藏的雲端備份尚未開放/);
+  assert.equal(game.controller.setConfirmation('restore'), true);
+  assert.equal(await game.controller.restore(), true);
+  assert.equal(game.restores.length, 1);
+  assert(game.requests.every(r => r.method === 'GET'));
+});
+
+test('empty v2 can restore v1 while a new upload uses only the independent v2 revision', async () => {
+  const game = signedIn({ backup: null, revision: 3 }, [reply(saved(4))], { legacy: legacyCloud(29) });
+  await game.controller.init();
+  assert.equal(game.controller.getState().revision, 29);
+  assert.equal(game.controller.getState().writeRevision, 3);
+  assert.equal(game.controller.getState().backupVersion, 1);
+  assert.equal(game.controller.setConfirmation('delete'), false);
+  assert.equal(await game.controller.upload(), true);
+  const put = game.requests.find(r => r.method === 'PUT');
+  assert.equal(put.url, '/api/v2/journey'); assert.equal(put.parsedBody.expectedRevision, 3);
+  assert.equal(put.parsedBody.snapshot.version, 2);
+  assert.equal(game.controller.getState().backupVersion, 2);
+});
+
+test('restore rejects equal-number revisions from a different snapshot namespace', async () => {
+  const game = signedIn({ backup: null, revision: 0 }, [reply(saved(7))], { legacy: legacyCloud(7) });
+  await game.controller.init(); game.controller.setConfirmation('restore');
+  // One read for restore observes v2; the conflict recovery read gets that same v2.
+  game.queue.push(reply(saved(7)));
+  assert.equal(await game.controller.restore(), false);
+  assert.equal(game.restores.length, 0);
+  assert.equal(game.controller.getState().conflict, true);
 });
