@@ -2,10 +2,10 @@
 
 Direction requested **2026-09-22**: enrich the experience of inhabiting the world,
 handling cards, making four-round decisions and travelling with individual card
-copies. This is an M4 design proposal and delivery plan, linked to the confirmed
-iOS/Android direction. The ideas below are not implemented features or a launch
-scope commitment. No new artwork, audio, game rules or runtime dependencies are
-introduced by this document.
+copies. This M4 design and delivery plan is linked to the confirmed iOS/Android
+direction. **The first 霧隱渡口 presentation pass is now implemented locally**;
+its scope is recorded below. The wider ideas remain proposals to playtest, not
+a committed launch feature list. Public release state belongs in [HOSTING.md](HOSTING.md).
 
 ## Creative direction
 
@@ -32,19 +32,77 @@ understand.
 - The local game lobby, deck fan, preparation, quest overlay and next/retry flows
   are implemented. The original portrait atlases and travel map already supply
   a coherent visual world.
-- The interface has basic transitions, pack-arrival effects, HP bars with CSS
-  transition styling and a global reduced-motion stylesheet. Optional sound uses simple synthesized
-  selection, commitment and outcome tones; the toggle resets on reload. There
-  is no ambient/music system, persistent mix control or native haptic layer.
+- Alongside the existing transitions and pack-arrival effects, Mist Gate now
+  has a short staged reveal and optional synthesized water-like ambience and
+  interaction cues. Device-local preferences remember sound, ambience/effect
+  levels, reduced motion and normal/fast reveals. Native haptics, recorded
+  soundscapes and a music system remain future work.
 - Round results already expose both bids, attacks, effects and damage; match
-  results expose rewards and XP. The proposal is to stage that information more
-  clearly while preserving access to the complete explanation.
+  results expose rewards and XP. Mist Gate stages that information while
+  preserving access to the complete explanation.
 - Card details already have a 同行記 with acquisition date/source, XP, level,
   appearance/win totals and lore. The save does not contain a detailed,
   timestamped account of every card's past adventures.
 
 These are source observations, not evidence of a new public release. The
 [handover](HANDOVER.md) distinguishes local development from the live baseline.
+
+## Local first pass · 2026-09-22
+
+Implemented after the owner's instruction to build the 霧隱渡口 experience with
+particular care for subtlety and transitions:
+
+- An arrival scene uses the existing map, a code-drawn lantern, slow mist and
+  short original guardian writing. A cleared visit has a different greeting.
+  Preparation still reads the actual deck; it does not start or charge a match.
+- The same cool landscape and warm lantern continue into the battle table.
+  Selection has a small lift, the offering tray distinguishes bid/Fury/reserve,
+  and a public faction strip explains bonuses from the original hand. The
+  strip remains after an ally has played; there are no new faction rules.
+- On commitment, a seal introduces the saved result. Bids appear at 100 ms,
+  impact at 390 ms, and presentation completes at 760 ms, with 160 ms visual
+  transitions and stable controls. Skip/Next are immediately available. Restored
+  or reopened results render completely without replaying the sequence.
+- Sound is off initially. The player can enable soft synthesized cues and a
+  quiet water-like texture, with separate environment/effect levels. Audio has
+  its own deterministic noise source so it cannot change combat randomness.
+  Ambience continues from preparation to battle, including the settings detour;
+  hiding the page or muting stops audio. No recordings or downloaded audio assets
+  are used. A 140 ms onset and tapered loop edges soften the texture's entry and
+  repeat. Listening and physical-device tuning remain open.
+- The guardian responds to a win, draw or loss. Played copies link from their
+  actual XP rows to a read-only 同行記 and back to the same result; nested panels
+  retain parent scroll/focus. First-clear text names the next actual location.
+- A header control opens 聲息與節奏, also reachable from preparation and results.
+  These settings use `shanhai.experience.v1`, separate from profile/battle saves.
+  Reduced motion includes older effects; native vibration remains planned.
+
+Implementation ownership: `mist-gate-ui.mjs` and `mist-gate.css` supply the scene;
+`experience.mjs` owns optional preferences/audio/reveal timing; `app.mjs` connects
+the existing battle and return paths. `backpack-ui.mjs` supplies the read-only
+passport variant. There are no engine, economy or profile-schema changes, and
+the public build includes 24 allowlisted files. Verification belongs in
+[VALIDATION.md](VALIDATION.md#mist-gate-immersion--2026-09-22).
+
+This completes a local playable slice of M4.1–M4.2. Human playtesting, measured
+physical-phone performance and the wider content pipeline remain open milestone
+evidence; screenshots and browser emulation do not complete those requirements.
+
+## Additions worth testing next
+
+| Priority | Addition | What would make it worthwhile |
+| --- | --- | --- |
+| Next polish | Listen on speakers/headphones and physical phones; tune the synthesized water texture, cue volume and transition envelopes. Try a brief ambience dip at commitment. | The cue is felt without becoming repetitive or masking concentration; mute/lifecycle remains immediate and reliable. |
+| Next polish | Give earned XP a restrained visual flow into each played copy; add one brief faction connection between the relevant cards. | Make growth and resonance easier to follow without adding another wait or hiding the numbers. Current delivery uses real XP rows and a faction strip. |
+| Phone playtest | Try a more compact portrait battle layout or a carefully placed bid tray. | Reduce scrolling between the four cards and commitment controls while keeping card details readable and touch targets clear. Current narrow layouts fit the width but still scroll vertically. |
+| Next scene | A closer original ferry/shore illustration, with independently controlled mist/water layers and a gentle arrival-to-table transition. | Establish a sense of place beyond the existing map crop, within measured phone asset/render budgets and documented art provenance. |
+| After playtests | One selected card's distinct reveal motif, then a first treatment of 青玉森庭. | Reuse the presentation seam while making the next place feel different. Prove one card/location before adding the rest. |
+| Companion follow-up | A chosen owned card in 洞府 and explicitly recorded journey milestones. | Build attachment from real copy records. Old counters cannot reconstruct a detailed past; new events need deliberate persistence/migration. |
+| Separate gameplay work | One pill-conservation puzzle or a distinct guardian strategy. | Add a meaningful decision with reproducible balance/fairness checks, independent of visual polish. |
+
+Keep full voice acting, elaborate card rigs, a large soundtrack, pack rituals and
+branching journeys as later candidates. The scene should earn each addition
+through playtesting; the existing core loop remains a complete place to start.
 
 ## Moments worth building
 

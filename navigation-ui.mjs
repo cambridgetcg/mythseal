@@ -18,12 +18,12 @@ const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 export function gameHeaderMarkup({ profile, screen, sound, accountButton }) {
   const battle = screen === 'battle';
   const brand = `<img src="assets/mark.svg" alt=""><span><span class="brand-name">萬象契</span><span class="brand-en">MYTHSEAL</span></span>`;
-  if (battle) return `<header class="game-header is-battle"><div class="game-brand">${brand}</div><div class="game-utilities"><button type="button" data-action="rules">弈道</button><button type="button" class="game-menu-button" data-action="battle-menu" aria-label="對局選單">☰ <span>對局選單</span></button></div></header>`;
+  if (battle) return `<header class="game-header is-battle"><div class="game-brand">${brand}</div><div class="game-utilities"><button type="button" data-action="rules">弈道</button><button type="button" class="game-experience" data-action="experience-settings" aria-label="聲息與節奏">☷</button><button type="button" class="game-menu-button" data-action="battle-menu" aria-label="對局選單">☰ <span>對局選單</span></button></div></header>`;
   return `<header class="game-header">
     <button type="button" class="game-brand" data-action="home" aria-label="萬象契 · 返回洞府">${brand}</button>
     <div class="game-header-resources wallet" aria-label="旅途所得"><span title="金幣"><span aria-hidden="true">◈</span> <b>${number(profile.coins)}</b><small>金幣</small></span><span title="靈砂"><span aria-hidden="true">✧</span> <b>${number(profile.dust)}</b><small>靈砂</small></span></div>
     <div class="game-player">${accountButton}<span class="game-player-level">執令者 · Lv.${getHeroLevel(profile)}</span></div>
-    <button type="button" class="icon-button game-sound" data-action="sound" aria-label="${sound ? '關閉' : '開啟'}音效" aria-pressed="${sound}">${sound ? '♫' : '♪'}</button>
+    <button type="button" class="icon-button game-sound game-experience" data-action="experience-settings" aria-label="聲息與節奏" title="聲息與節奏">☷</button>
   </header>`;
 }
 

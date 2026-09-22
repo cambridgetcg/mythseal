@@ -23,3 +23,17 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 ## Classical expansion · v0.3
 
 The new `assets/classics.png` atlas is documented separately in [ART-CLASSICS.md](ART-CLASSICS.md), including its exact built-in generation prompt, source output path and tile mapping. Original portraits and map remain unchanged.
+
+## Mist Gate presentation · 2026-09-22
+
+The local first encounter reuses the unchanged original map and portrait atlases.
+`mist-gate-ui.mjs` contains an original code-drawn SVG paper lantern; its ribs,
+flame and reflection are vector paths, with mist/light supplied by `mist-gate.css`.
+Guardian arrival/result lines are original game writing. No external image,
+recording or generated bitmap was added for this slice.
+
+`experience.mjs` synthesizes short interaction tones and a quiet filtered-noise
+water-like texture. The noise generator is independent of gameplay randomness;
+its two-second mono buffer is generated locally, with tapered loop edges and a
+short gain envelope. This is synthesized ambience, not a field recording or
+music track. See [IMMERSION.md](IMMERSION.md) for proposed art/audio follow-ups.

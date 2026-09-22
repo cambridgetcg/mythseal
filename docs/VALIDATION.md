@@ -2,6 +2,55 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Mist Gate immersion · 2026-09-22
+
+Local development on `codex/game-lobby`, following the navigation slice. This is
+browser/source evidence, not a public deployment or physical-phone test.
+
+- **206 Node tests pass**, including 12 new presentation-controller tests.
+  Coverage includes normalized/preference-only writes, blocked storage, cancelled
+  and replaced reveals, focus after skip, system/in-game reduced motion,
+  gesture-only audio setup, lifecycle cleanup and delayed resume races. Audio
+  checks establish a 140 ms onset and zero-jump loop endpoints at 44.1/48 kHz;
+  they do not establish audible quality.
+- **Eight Python tests pass.** The existing temporary HTTP 404 cleanup
+  `ResourceWarning` remains harmless. `npm run build` succeeds with **24
+  allowlisted runtime assets** plus metadata; no dependency or binary-art change.
+- All seven headless Chrome scripts pass against `127.0.0.1:4177`: smoke,
+  journey, classics, backpack, account, navigation and the new
+  `tools/immersion-smoke.mjs`. Account checks use intercepted fixtures; no real
+  email, hosted service mutation, schema change or deployment occurred.
+- The new suite compares full accepted round snapshots, final profiles and
+  gameplay RNG call counts across normal, fast, system-reduced, manual-reduced,
+  skipped and sound-enabled presentation. All six agree, including an early KO.
+  Actual played UIDs gain the correct XP/level change; unplayed copies do not.
+- Reloading an unfinished reveal retains its encounter ID, exact copies,
+  HP/pills and committed result, then reaches the same settlement. Reloading
+  after completion retains rewards/XP without another payment. A real loss
+  exposes same-node retry; Jade Forest and practice keep ordinary presentation,
+  and practice still grants no currency/card XP.
+- Opening/closing preparation or settings leaves gameplay saves unchanged.
+  Sound/mix/motion/pace persist independently. A throwing `localStorage` getter
+  leaves the lobby and muted settings usable with the existing storage warning.
+  Read-only result passports and settings restore the parent result's nonzero
+  modal scroll and logical focus; Return/Escape do not pay or replay the result.
+- Arrival, battle, complete reveals, rewards and passport returns have no
+  horizontal overflow at **360px and 390px**. Visual review also covered
+  **1440px desktop**, the arrival close button, actual loss/early-KO outcomes,
+  all reveal phases and immediate reduced-motion readability. Portrait battle
+  still scrolls vertically; a more compact layout is a recorded follow-up.
+- The normal reveal finished about **796/806 ms after the initiating test click**
+  in the recorded run, including automation overhead. Controller scheduling is
+  100/390/760 ms. These observations are local evidence, not a device performance
+  guarantee. Skipping and Next do not require waiting for an animation callback.
+
+Ignored evidence: `test-results/immersion-smoke.json`, its `.log`,
+`immersion-*.png`, `mist-visual-*.png` and `mist-node-tests.log`. Artwork decoding
+was awaited before screenshots; no page errors were observed. Every owned test
+browser was closed. Human onboarding/pacing playtests, audible sound tuning and
+physical iPhone/Android lifecycle/performance remain open; see
+[implemented scope and additions](IMMERSION.md).
+
 ## Account and private-backup evidence
 
 - **The v0.5.0 release baseline passed: 172 Node tests and six Python tests.** Account coverage includes explicit upload/restore choices, identity changes and cancellation, stale local confirmations, cloud revision conflicts, immutable snapshot handling, logout, malformed provider responses, CSRF/content-type checks, bounded request bodies, rate-limit failure, missing/invalid sessions and upstream outages. Snapshot coverage includes canonical v3 data, duplicate IDs, pending battles, byte/card bounds, PostgreSQL-compatible Unicode and storage sizing. These are deterministic local checks, not live email tests.

@@ -5,6 +5,8 @@ import { getInstance, getPreferredInstance, getActiveDeck, getDeckLevels, toggle
 import { backpackMarkup, instanceMarkup } from './backpack-ui.mjs';
 import { worldMarkup, dailyMarkup, marketMarkup, arenaMarkup, rewardText } from './adventure-ui.mjs';
 import { gameHeaderMarkup, gameDockMarkup, lobbyMarkup } from './navigation-ui.mjs';
+import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGatePillsMarkup, mistGateResonanceMarkup, mistGateResultMarkup, mistGateRevealMarkup } from './mist-gate-ui.mjs';
+import { createExperienceController } from './experience.mjs';
 import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { createSnapshot, restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
@@ -24,7 +26,10 @@ let deckDraftReady=false;
 let screen='home', filter='all', selectedNode=profile.location||NODES[0].id, trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
 let bagView={tab:'cards',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};
 let match=null, encounter=null, selected=null, pills=0, fury=false, aiMove=null, busy=false, recorded=false, revealPending=false, lastReward=null;
-let sound=false, audioContext=null, toastTimer, lastFocus=null, economyBusy=false;
+let sound=false, toastTimer, lastFocus=null, economyBusy=false;
+let experience, experienceReturn=null;
+experience=createExperienceController({storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},document,window,onPreferencesChange:applyExperiencePreferences});
+applyExperiencePreferences(experience.getPreferences());
 let recoveryDraft=null;
 // Navigation drafts never create, settle or replace a persisted encounter.
 let preparation=null, preparationReturn=null, accountReturn='home', modalKind=null, modalOrigin=null;
@@ -49,6 +54,19 @@ accountChannel?.addEventListener('message', event => {
   account.init();
 });
 const modeName=kind=>({practice:'自由切磋',expedition:'山海遊歷',arena:'問道擂台'}[kind]||'山海對弈');
+const isMistGate=(intent=encounter)=>intent?.kind==='expedition'&&intent.nodeId==='mist-gate';
+function applyExperiencePreferences(preferences) {
+  sound=preferences.sound;
+  document.body.dataset.motion=experience?.reducedMotion()?'reduce':'full';
+  document.body.dataset.pageHidden=String(document.hidden);
+  document.querySelectorAll('[data-action="sound"]').forEach(button=>{
+    button.setAttribute('aria-pressed',String(sound));button.setAttribute('aria-label',`${sound?'關閉':'開啟'}音效`);button.textContent=sound?'♫':'♪';
+  });
+}
+function syncExperienceScene() {
+  const preparing=modalKind==='preparation'||(modalKind==='experience-settings'&&experienceReturn?.kind==='preparation');
+  experience.setScene((screen==='battle'&&isMistGate())||(preparing&&isMistGate(preparation)));
+}
 function syncProfile(next){profile=next;}
 async function transact(change,onSaved){
   const apply=()=>{
@@ -126,24 +144,25 @@ function movePanel() {
   const card = getBattleCard(match,'player',selected);
   const preview = previewMove(match, 'player', { cardId:selected, pills, fury });
   const maxPills = match.player.pills - (fury ? RULES.furyCost : 0);
-  return `<aside class="move-panel" aria-label="出牌設定"><h3>${card.name} <span style="font-size:11px;color:var(--muted)">· 出戰</span></h3><p class="move-subtitle">仙丹暗置 · 勝負揭曉前不公開</p>
+  return `<aside class="move-panel" aria-label="出牌設定"><h3>${card.name} <span style="font-size:11px;color:var(--muted)">· 出戰</span></h3><p class="move-subtitle">仙丹暗置 · 勝負揭曉前不公開</p>${isMistGate()?mistGatePillsMarkup({pills,fury,remaining:match.player.pills-preview.cost}):''}
     <div class="pill-control"><button data-action="pill-minus" aria-label="減少一枚仙丹" ${pills===0?'disabled':''}>−</button><div class="pill-number"><span id="pill-amount">${pills}</span><small>投入仙丹</small></div><button data-action="pill-plus" aria-label="增加一枚仙丹" ${pills===maxPills?'disabled':''}>+</button></div>
     <input class="pill-slider" id="pill-slider" aria-label="投入仙丹" type="range" min="0" max="${maxPills}" step="1" value="${pills}">
     <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<3?'disabled':''}><span>怒擊 <span style="opacity:.65">· 另付 3 丹，傷害 +2</span></span><span class="toggle-track"></span></button>
     <div class="attack-preview"><span>預估攻擊<small>含己方技能，未計對手影響</small></span><strong id="attack-value">${preview.attack}</strong></div>
-    <button class="primary" data-action="commit" ${busy?'disabled':''}>落子 · 決勝 <span>↗</span></button>
+    <button class="primary" data-action="commit" ${busy?'disabled':''}>${isMistGate()?'封丹 · 落子':'落子 · 決勝'} <span>↗</span></button>
     <p class="skill-detail"><b>${card.ability.label}</b><br>${card.ability.description}${preview.bonusActive?`<br><span style="color:${faction(card).color}">✧ ${faction(card).bonus.label}</span>`:''}<br><span id="cost-note">共消耗 ${preview.cost} 丹，出牌後剩 ${match.player.pills-preview.cost} 丹。</span></p></aside>`;
 }
 
 function battleMarkup() {
   const enemyRevealed = match.initiative === 'opponent' && aiMove;
   const last = match.history.at(-1);
-  return `<main class="arena screen-enter"><div class="arena-heading"><div class="eyebrow">${modeName(encounter?.kind)} · 策略對弈</div><div class="round-steps">第 ${match.round} / 4 回合 ${Array.from({length:4},(_,i)=>`<span class="${i<match.round-1?'done':i===match.round-1?'current':''}"></span>`).join('')}</div></div>
+  const resonance=isMistGate()?mistGateResonanceMarkup({factions:Object.entries(FACTIONS).filter(([id])=>match.player.hand.some(cardId=>getCard(cardId).faction===id&&hasFactionBonus(match,'player',cardId))).map(([,value])=>value)}):'';
+  return `<main class="arena screen-enter">${isMistGate()?mistGateBattleMarkup({round:match.round,initiative:match.initiative}):''}<div class="arena-heading"><div class="eyebrow">${modeName(encounter?.kind)} · 策略對弈</div><div class="round-steps">第 ${match.round} / 4 回合 ${Array.from({length:4},(_,i)=>`<span class="${i<match.round-1?'done':i===match.round-1?'current':''}"></span>`).join('')}</div></div>
     <div class="combatant"><div class="identity"><div class="avatar">隱</div><div><h2>${safe(match.opponentName||'山海弈者')}</h2><p>知進退，亦善藏鋒 · AI 對手</p></div></div>${resourcesMarkup('opponent')}</div>
     <div class="enemy-zone"><div class="enemy-thought">${enemyRevealed?`對手亮出「${getCard(aiMove.cardId).name}」。`:'一局山海，靜候落子。'}<small>${enemyRevealed?'對手先手出牌，仙丹仍是秘密。':'你先手出牌，對手只看見卡牌。'}<br>點擊卡牌可查看技能。</small></div><div class="enemy-hand">${match.opponent.hand.map(id=>cardMarkup(getBattleCard(match,'opponent',id),{small:true,side:'opponent',selected:enemyRevealed && aiMove.cardId===id,used:match.opponent.used.includes(id)})).join('')}</div></div>
     <div class="battle-divider"><span>${match.initiative==='player'?'你持先手 · 請落子':'你持後手 · 請應戰'}</span></div>
     <div class="combatant"><div class="identity"><div class="avatar">你</div><div><h2>執令者</h2><p>${match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入'}</p></div></div>${resourcesMarkup('player')}</div>
-    <div class="player-area"><div class="player-hand">${match.player.hand.map(id=>cardMarkup(getBattleCard(match,'player',id),{selectable:true,selected:selected===id,used:match.player.used.includes(id),bonus:hasFactionBonus(match,'player',id),action:'select'})).join('')}<div class="hand-caption"><span>點選戰卡，再分配仙丹。</span><button class="text-button" style="padding:0;font-size:inherit" data-action="inspect" data-id="${selected}">查看「${getCard(selected).name}」詳情 ↗</button></div></div>${movePanel()}</div>
+    ${resonance}<div class="player-area"><div class="player-hand">${match.player.hand.map(id=>cardMarkup(getBattleCard(match,'player',id),{selectable:true,selected:selected===id,used:match.player.used.includes(id),bonus:hasFactionBonus(match,'player',id),action:'select'})).join('')}<div class="hand-caption"><span>點選戰卡，再分配仙丹。</span><button class="text-button" style="padding:0;font-size:inherit" data-action="inspect" data-id="${selected}">查看「${getCard(selected).name}」詳情 ↗</button></div></div>${movePanel()}</div>
     <div class="arena-bottom"><span class="battle-log">${last?`上一局 · ${last.player.card.name} ${last.player.attack} : ${last.opponent.attack} ${last.opponent.card.name} · ${last.winner==='player'?'你':'對手'}勝`:'善弈者，懂得在一局之中為下一局留下餘地。'}</span><button class="text-button" style="padding:0;font-size:inherit" data-action="history">對弈紀錄 ↗</button></div></main>`;
 }
 
@@ -184,8 +203,9 @@ function render() {
   profile=refreshDaily(profile);
   const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
-  app.innerHTML=`<div class="shell game-shell screen-${screen}">${header()}${screen==='battle'||screen==='home'?'':pendingBanner()}${cardsScreen?preparationReturnMarkup()+cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
+  app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'||screen==='home'?'':pendingBanner()}${cardsScreen?preparationReturnMarkup()+cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
   refreshOverlay();
+  syncExperienceScene();
   restoreFocus(app,focus);
 }
 function announce(message) { announcer.textContent = message; }
@@ -195,31 +215,57 @@ function toast(message) {
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.remove(),2600); announce(message);
 }
 function playTone(kind='select') {
-  if (!sound) return;
-  try {
-    audioContext ??= new AudioContext();
-    audioContext.resume().catch(()=>{});
-    const osc=audioContext.createOscillator(), gain=audioContext.createGain(), now=audioContext.currentTime;
-    const tones={select:[440,.09],commit:[220,.25],win:[660,.6],lose:[165,.45]};
-    const [frequency,duration]=tones[kind]??tones.select;
-    osc.type='sine';osc.frequency.setValueAtTime(frequency,now);osc.frequency.exponentialRampToValueAtTime(frequency*(kind==='win'?1.5:.8),now+duration);
-    gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.05,now+.01);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
-    osc.connect(gain);gain.connect(audioContext.destination);osc.start(now);osc.stop(now+duration+.03);
-  } catch {}
+  experience.cue(kind);
 }
 function closeModal() {
+  experience.finishReveal();experienceReturn=null;
   overlay.innerHTML=''; document.body.style.overflow='';app.inert=false;modalKind=null;
+  // A preparation-to-battle transition stays in the same soundscape.
+  queueMicrotask(syncExperienceScene);
   if(lastFocus?.isConnected) lastFocus.focus({preventScroll:true});
   else if(modalOrigin?.screen===screen)restoreFocus(app,modalOrigin.focus);
   if(modalOrigin?.screen===screen)window.scrollTo({top:modalOrigin.scroll,behavior:'instant'});
   lastFocus=null;modalOrigin=null;
 }
 function modal(content, className='', dismissible=true, kind=null) {
+  experience.finishReveal();
   if(!overlay.firstElementChild){lastFocus=document.activeElement;modalOrigin={screen,focus:captureFocus(app),scroll:window.scrollY};}
   modalKind=kind;
   overlay.innerHTML=`<div class="modal-backdrop" data-dismissible="${dismissible}"><section class="modal ${className}" role="dialog" aria-modal="true" aria-label="萬象契對話框">${dismissible?'<button class="modal-close" data-action="close-modal" aria-label="關閉">×</button>':''}${content}</section></div>`;
   document.body.style.overflow='hidden';app.inert=true;
-  requestAnimationFrame(()=>overlay.querySelector('button:not(:disabled)')?.focus());
+  syncExperienceScene();
+  requestAnimationFrame(()=>overlay.querySelector('button:not(:disabled):not([hidden])')?.focus({preventScroll:true}));
+}
+function dismissModal() {
+  const origin=experienceReturn;
+  if(['result-card','experience-settings'].includes(modalKind)&&origin?.kind){
+    experienceReturn=null;
+    if(origin.kind==='round-result')resultModal();
+    else if(origin.kind==='match-result')matchEndModal();
+    else if(origin.kind==='preparation'&&preparation)prepareEncounter(preparation.kind,preparation.nodeId);
+    else return closeModal();
+    if(modalKind===origin.kind)requestAnimationFrame(()=>{
+      restoreFocus(overlay,origin.focus);
+      const dialog=overlay.querySelector('.modal');if(dialog)dialog.scrollTop=origin.scroll;
+      if(overlay.firstElementChild)overlay.firstElementChild.scrollTop=origin.backdropScroll;
+    });
+    return;
+  }
+  closeModal();
+}
+function captureModalReturn() {
+  return {kind:modalKind,focus:captureFocus(overlay),scroll:overlay.querySelector('.modal')?.scrollTop||0,backdropScroll:overlay.firstElementChild?.scrollTop||0};
+}
+function experienceSettingsModal() {
+  experienceReturn=captureModalReturn();
+  const p=experience.getPreferences();
+  modal(`<div class="eyebrow">旅途隨心</div><h2>聲息與節奏</h2><p>留一點水聲，或安靜落子。依你的步調遊歷。</p>
+    <label class="experience-field"><span>開啟聲音<small>水聲與落子音效</small></span><input id="experience-sound" type="checkbox" ${p.sound?'checked':''}></label>
+    <label class="experience-field"><span>環境聲 <output id="experience-ambience-value">${Math.round(p.ambience*100)}%</output></span><input id="experience-ambience" type="range" min="0" max="1" step="0.05" value="${p.ambience}"></label>
+    <label class="experience-field"><span>落子音效 <output id="experience-effects-value">${Math.round(p.effects*100)}%</output></span><input id="experience-effects" type="range" min="0" max="1" step="0.05" value="${p.effects}"></label>
+    <label class="experience-field"><span>動態</span><select id="experience-motion"><option value="system" ${p.motion==='system'?'selected':''}>跟隨裝置設定</option><option value="reduce" ${p.motion==='reduce'?'selected':''}>減少動態</option></select></label>
+    <label class="experience-field"><span>揭曉節奏</span><select id="experience-pace"><option value="normal" ${p.pace==='normal'?'selected':''}>從容揭曉</option><option value="fast" ${p.pace==='fast'?'selected':''}>直接看結果</option></select></label>
+    <p class="panel-footnote">設定會記在此裝置。揭曉時亦可直接跳過。</p><div class="modal-actions"><button class="primary" data-action="close-modal">${screen==='battle'?'返回對局':'返回旅途'} →</button></div>`,'experience-settings',true,'experience-settings');
 }
 function questsModal() {
   modal(`<div class="quest-content">${dailyMarkup(profile,trainingId)}</div>`,'quest-scroll',true,'quests');
@@ -240,7 +286,8 @@ function preparationContent() {
   const kind=preparation.kind,node=NODES.find(n=>n.id===preparation.nodeId),deck=getActiveDeck(profile);
   const valid=validateInstanceDeck(profile,deck?.instanceIds).valid;
   const cards=(deck?.instanceIds||[]).map(uid=>profile.instances.find(i=>i.uid===uid)).filter(Boolean);
-  return `<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2><p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`<p>${safe(node.description)}</p><p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(deck?.name||'尚未選擇牌組')}</h3><button class="text-button" data-action="prep-deck">更換／整備牌組 →</button></div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId))}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>進入對局 →</button></div>`;
+  const mist=isMistGate(preparation);
+  return `${mist?mistGateArrivalMarkup({returning:profile.cleared.includes(node.id)}):`<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2>`}<p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`${mist?'':`<p>${safe(node.description)}</p>`}<p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(deck?.name||'尚未選擇牌組')}</h3><button class="text-button" data-action="prep-deck">更換／整備牌組 →</button></div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId))}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>${mist?'踏上渡口':'進入對局'} →</button></div>${mist?'<button class="text-button" data-action="experience-settings">聲息與節奏 · 設定</button>':''}`;
 }
 function prepareEncounter(kind='practice',nodeId=null) {
   if(economyBusy)return;
@@ -248,7 +295,7 @@ function prepareEncounter(kind='practice',nodeId=null) {
   if(profile.pending)return pendingModal();
   if(kind==='expedition'&&!isNodeUnlocked(profile,nodeId))return toast('先踏破上一境，方可繼續遊歷。');
   preparation={kind,nodeId};
-  modal(`<div class="prep-content">${preparationContent()}</div>`,'encounter-prep',true,'preparation');
+  modal(`<div class="prep-content">${preparationContent()}</div>`,`encounter-prep${isMistGate(preparation)?' is-mist-prep':''}`,true,'preparation');
 }
 function openPreparationDeck() {
   if(!preparation)return;
@@ -312,7 +359,12 @@ function sellInstanceModal(uid){
 function cardExperienceMarkup(){
   const changes=lastReward?.cardXP||[];
   if(!changes.length)return '';
-  return `<div class="card-xp-results"><h3>同行者的歷練</h3>${changes.map(change=>`<div><span>${getCard(change.cardId).name} <small>#${safe(change.uid)}</small></span><b>${change.afterLevel>change.beforeLevel?`Lv.${change.beforeLevel} → ${change.afterLevel} ✧`:`Lv.${change.afterLevel}`} <em>+${change.gainedXP} EXP</em></b></div>`).join('')}<p>經驗只記在今場真正出戰的那張卡。修練能力在遊歷生效。</p></div>`;
+  return `<div class="card-xp-results"><h3>同行者的歷練</h3>${changes.map(change=>`<div><span>${isMistGate()?`<button type="button" class="text-button result-card-link" data-action="result-card" data-id="${safe(change.uid)}" aria-label="查看${safe(getCard(change.cardId).name)}的同行記，編號 ${safe(change.uid)}">${getCard(change.cardId).name} <span aria-hidden="true">↗</span></button>`:getCard(change.cardId).name} <small>#${safe(change.uid)}</small></span><b>${change.afterLevel>change.beforeLevel?`Lv.${change.beforeLevel} → ${change.afterLevel} ✧`:`Lv.${change.afterLevel}`} <em>+${change.gainedXP} EXP</em></b></div>`).join('')}<p>經驗只記在今場真正出戰的那張卡。修練能力在遊歷生效。</p></div>`;
+}
+function resultCardModal(uid) {
+  if(!recorded||match?.status!=='finished'||!lastReward?.cardXP?.some(change=>change.uid===uid))return;
+  experienceReturn=captureModalReturn();
+  modal(`${instanceMarkup(profile,uid,cardMarkup,{readOnly:true})}<div class="modal-actions"><button class="primary" data-action="return-result">返回此局結果 →</button></div>`,'instance-modal',true,'result-card');
 }
 
 function opponentDeck() {
@@ -402,7 +454,7 @@ async function commitMove() {
     if(!aiMove)aiMove=chooseAIMove(match,Math.random,selected);
     match=resolveRound(match,playerMove,aiMove);revealPending=true;
     persistBattle();playTone('commit');
-    await recordFinishedMatch();resultModal();
+    await recordFinishedMatch();resultModal({animate:true});
   }catch(error){busy=false;toast(error.message);}
 }
 async function recordFinishedMatch() {
@@ -411,23 +463,25 @@ async function recordFinishedMatch() {
   const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used}),()=>clearBattleSnapshot(settledId));
   lastReward=result.reward;recorded=true;
 }
-function resultModal() {
+function resultModal({animate=false}={}) {
   const r=match.lastResult, won=r.winner==='player';
   const tie=r.tieReason==='stars'?'攻擊相同，低星卡獲勝。':r.tieReason==='initiative'?'攻擊、星數相同，先手獲勝。':'';
   const effectList=side=>r.notes[side].map(n=>`<p>· ${safe(n)}</p>`).join('');
-  modal(`<div class="eyebrow">ROUND ${r.round} · THE CARDS ARE REVEALED</div><h2>${won?'此局，你勝。':'此局，暫退。'}</h2>
+  const mist=isMistGate();
+  modal(`${mist?mistGateRevealMarkup({round:r.round}):`<div class="eyebrow">ROUND ${r.round} · THE CARDS ARE REVEALED</div>`}<h2>${won?'此局，你勝。':'此局，暫退。'}</h2>
     <div class="duel-cards"><div>${cardMarkup(r.player.card)}<div class="duel-stat ${won?'won':''}">你 · ${r.player.pills} 丹${r.player.fury?' ＋ 怒擊':''}<br>實際攻擊 <strong>${r.player.attack}</strong></div></div><div class="duel-vs">vs.</div><div>${cardMarkup(r.opponent.card)}<div class="duel-stat ${!won?'won':''}">對手 · ${r.opponent.pills} 丹${r.opponent.fury?' ＋ 怒擊':''}<br>實際攻擊 <strong>${r.opponent.attack}</strong></div></div></div>
     <div class="resolution">${tie}${won?'對手':'你'}受到 <strong>${r.damage}</strong> 點傷害。<br>當前生命：你 <strong>${match.player.hp}</strong> · 對手 <strong>${match.opponent.hp}</strong>　｜　剩餘仙丹：你 ${match.player.pills} · 對手 ${match.opponent.pills}</div>
     <div class="result-effects"><div><h4>你的技能與共鳴</h4>${effectList('player')}</div><div><h4>對手的技能與共鳴</h4>${effectList('opponent')}</div></div>
-    <div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div>`,'result-modal',false);
+    <div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div>${mist?'<div class="mist-reveal-controls"><button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div>':''}`,`result-modal${mist?' mist-reveal':''}`,false,'round-result');
+  if(mist)experience.reveal(overlay.querySelector('.mist-reveal'),{animate});
   announce(`第 ${r.round} 回合，${won?'你':'對手'}獲勝，造成 ${r.damage} 點傷害。`);
 }
-function matchEndModal() {
+function matchEndModal({celebrate=false}={}) {
   const win=match.winner==='player', draw=match.winner==='draw';
   const next=nextEncounterIntent();
   const nextLabel=encounter?.kind==='expedition'?(next.nodeId!==encounter.nodeId?'前往下一境':win?'重遊此境':'再戰此境'):'再弈一局';
-  playTone(win?'win':'lose');
-  modal(`<div class="eyebrow">THE DUEL IS COMPLETE</div><div class="match-symbol">${draw?'和':win?'勝':'悟'}</div><h2>${draw?'山海之間，不分高下。':win?'此局山海，盡入你手。':'一局有盡，弈道無窮。'}</h2><p>${draw?'棋逢對手，何妨再弈。':win?'藏鋒有時，出手有度。這一場，是你的傳說。':'記住對手的出丹節奏，下一次，換你掌握勝負。'}</p><div class="match-score"><div><span>你的生命</span><br><strong>${match.player.hp}</strong></div><span>—</span><div><span>對手生命</span><br><strong>${match.opponent.hp}</strong></div></div>${lastReward?`<div class="earned-rewards"><span>${lastReward.firstClear?'首次踏破 · ':''}${lastReward.dailyCache?'今日秘藏 · ':''}旅程已儲存</span><p>${rewardText(lastReward)}</p>${cardExperienceMarkup()}</div>`:''}${historyMarkup()}<div class="modal-actions match-next"><button class="secondary" data-action="result-deck">調整牌組</button><button class="primary" data-action="next-encounter">${nextLabel} <span>↗</span></button></div><div class="match-return"><button class="text-button" data-action="end-home">返回洞府</button><button class="text-button" data-action="${encounter?.kind==='expedition'?'world':'arena'}">${encounter?.kind==='expedition'?'查看山海圖':'返回對弈'}</button></div>`,'result-modal',false);
+  if(celebrate)playTone(draw?'draw':win?'win':'lose');
+  modal(`<div class="eyebrow">THE DUEL IS COMPLETE</div><div class="match-symbol">${draw?'和':win?'勝':'悟'}</div><h2>${draw?'山海之間，不分高下。':win?'此局山海，盡入你手。':'一局有盡，弈道無窮。'}</h2><p>${draw?'棋逢對手，何妨再弈。':win?'藏鋒有時，出手有度。這一場，是你的傳說。':'記住對手的出丹節奏，下一次，換你掌握勝負。'}</p><div class="match-score"><div><span>你的生命</span><br><strong>${match.player.hp}</strong></div><span>—</span><div><span>對手生命</span><br><strong>${match.opponent.hp}</strong></div></div>${lastReward?`<div class="earned-rewards"><span>${lastReward.firstClear?'首次踏破 · ':''}${lastReward.dailyCache?'今日秘藏 · ':''}旅程已儲存</span><p>${rewardText(lastReward)}</p>${cardExperienceMarkup()}</div>`:''}${historyMarkup()}${isMistGate()?mistGateResultMarkup({outcome:match.winner,firstClear:!!lastReward?.firstClear,nextName:NODES.find(n=>n.id===next.nodeId)?.name||''}):''}<div class="modal-actions match-next"><button class="secondary" data-action="result-deck">調整牌組</button><button class="primary" data-action="next-encounter">${nextLabel} <span>↗</span></button></div><div class="match-return"><button class="text-button" data-action="end-home">返回洞府</button><button class="text-button" data-action="${encounter?.kind==='expedition'?'world':'arena'}">${encounter?.kind==='expedition'?'查看山海圖':'返回對弈'}</button>${isMistGate()?'<button class="text-button" data-action="experience-settings">聲息與節奏</button>':''}</div>`,`result-modal${isMistGate()?' mist-complete':''}`,false,'match-result');
 }
 function historyMarkup() {
   return `<div class="round-history">${match.history.map(r=>`<div class="history-row"><span>第 ${r.round} 局</span><span>${r.player.card.name} ${r.player.attack} : ${r.opponent.attack} ${r.opponent.card.name}</span><strong>${r.winner==='player'?'你':'對手'}勝 · ${r.damage} 傷</strong></div>`).join('')}</div>`;
@@ -440,6 +494,11 @@ function roundHoldMarkup(){
 document.addEventListener('click', event=>{
   const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
   const {action,id}=button.dataset;
+  experience.unlockAudio().catch(()=>{});
+  if(action==='experience-settings')return experienceSettingsModal();
+  if(action==='skip-reveal')return experience.finishReveal();
+  if(action==='result-card')return resultCardModal(id);
+  if(action==='return-result')return dismissModal();
   if(action==='account-open')return requestNavigation('account');
   if(action==='account-back')return navigate(accountReturn);
   if(action==='quests')return questsModal();
@@ -553,12 +612,12 @@ document.addEventListener('click', event=>{
   }
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}
   if(action==='rules')return rulesModal();
-  if(action==='close-modal')return closeModal();
+  if(action==='close-modal')return dismissModal();
   if(action==='start'||action==='rules-start')return prepareEncounter();
   if(action==='end-home')return navigate('home');
   if(action==='inspect')return detailModal(id,button.dataset.side||'player');
   if(action==='show-result')return match.status==='finished'?matchEndModal():resultModal();
-  if(action==='sound'){sound=!sound;render();playTone('select');return;}
+  if(action==='sound'){experience.setPreferences({sound:!sound});experience.unlockAudio().then(()=>playTone('select'));return;}
   if(action==='select'){
     if(busy||match.player.used.includes(id))return;selected=id;playTone('select');
     app.querySelectorAll('.player-hand .card').forEach(el=>{const active=el.dataset.id===id;el.classList.toggle('selected',active);el.setAttribute('aria-pressed',String(active));});
@@ -566,18 +625,24 @@ document.addEventListener('click', event=>{
     updateMovePanel();announce(`已選擇 ${getCard(id).name}。`);return;
   }
   if(action==='pill-minus'||action==='pill-plus'){
-    const max=match.player.pills-(fury?3:0);pills=Math.max(0,Math.min(max,pills+(action==='pill-plus'?1:-1)));updateMovePanel();return;
+    const max=match.player.pills-(fury?3:0);pills=Math.max(0,Math.min(max,pills+(action==='pill-plus'?1:-1)));updateMovePanel();playTone('pill');return;
   }
   if(action==='fury'){fury=!fury;pills=Math.min(pills,match.player.pills-(fury?3:0));updateMovePanel();playTone('select');return;}
   if(action==='commit')return commitMove();
   if(action==='next-round'){
-    if(match.status==='finished')return matchEndModal();closeModal();prepareRound();render();announce(`第 ${match.round} 回合開始。`);return;
+    if(match.status==='finished')return matchEndModal({celebrate:true});closeModal();prepareRound();render();announce(`第 ${match.round} 回合開始。`);return;
   }
   if(action==='history'){modal(`<div class="eyebrow">THE STORY SO FAR</div><h2>對弈紀錄</h2>${match.history.length?historyMarkup():'<p>勝負未定，故事才剛開始。</p>'}`);return;}
   if(action==='filter'){filter=id;render();return;}
 
 });
 document.addEventListener('change',event=>{
+  if(event.target.id==='experience-sound'){
+    experience.setPreferences({sound:event.target.checked});experience.unlockAudio().then(()=>playTone('select'));return;
+  }
+  if(event.target.id==='experience-motion'||event.target.id==='experience-pace'){
+    experience.setPreferences({[event.target.id==='experience-motion'?'motion':'pace']:event.target.value});return;
+  }
   const bagField={'bag-sort':'sort','bag-filter':'filter','bag-faction':'faction'}[event.target.id];
   if(bagField){bagView[bagField]=event.target.value;render();return;}
 
@@ -587,9 +652,14 @@ document.addEventListener('change',event=>{
 });
 window.addEventListener('pagehide',()=>{if(match?.status==='playing')try{persistBattle();}catch{}});
 window.addEventListener('storage',event=>{if(event.key===PROFILE_KEY){syncProfile(loadProfile());account.markLocalChanged();render();}});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncProfile(loadProfile());render();}});
+document.addEventListener('visibilitychange',()=>{document.body.dataset.pageHidden=String(document.hidden);if(!document.hidden){syncProfile(loadProfile());render();}});
 setInterval(()=>{const next=refreshDaily(profile);if(next.daily.date!==profile.daily.date){syncProfile(loadProfile());render();announce('新一天的功課與商旅貨架已更新。');}},30000);
 document.addEventListener('input',event=>{
+  if(event.target.id==='experience-ambience'||event.target.id==='experience-effects'){
+    const name=event.target.id==='experience-ambience'?'ambience':'effects';
+    experience.setPreferences({[name]:Number(event.target.value)});
+    document.getElementById(`${event.target.id}-value`).textContent=`${Math.round(experience.getPreferences()[name]*100)}%`;return;
+  }
   if(event.target.closest('[data-account-form]')){
     account.setDraft(event.target.name,event.target.value);return;
   }
@@ -604,6 +674,11 @@ document.addEventListener('input',event=>{
   app.querySelector('#pill-amount').textContent=pills;app.querySelector('#attack-value').textContent=preview.attack;
   app.querySelector('#cost-note').textContent=`共消耗 ${preview.cost} 丹，出牌後剩 ${match.player.pills-preview.cost} 丹。`;
   app.querySelector('[data-action="pill-minus"]').disabled=pills===0;app.querySelector('[data-action="pill-plus"]').disabled=pills===max;
+  if(isMistGate()){
+    const offering=app.querySelector('.mist-offering');
+    if(offering)offering.outerHTML=mistGatePillsMarkup({pills,fury,remaining:match.player.pills-preview.cost});
+  }
+  experience.unlockAudio().then(()=>playTone('pill'));
 });
 document.addEventListener('submit',event=>{
   const kind=event.target.dataset.accountForm;if(!kind)return;
@@ -612,12 +687,12 @@ document.addEventListener('submit',event=>{
   const action=kind==='email'?account.requestCode(String(fields.get('email')||'')):account.verifyCode(String(fields.get('token')||''));
   Promise.resolve(action).then(()=>{if(kind==='verify'&&account.getState().account)accountChannel?.postMessage({type:'session-changed'});}).catch(error=>toast(error.message));
 });
-overlay.addEventListener('click',event=>{if(event.target.classList.contains('modal-backdrop')&&event.target.dataset.dismissible==='true')closeModal();});
+overlay.addEventListener('click',event=>{if(event.target.classList.contains('modal-backdrop')&&event.target.dataset.dismissible==='true')dismissModal();});
 document.addEventListener('keydown',event=>{
   const active=overlay.querySelector('.modal');if(!active)return;
-  if(event.key==='Escape'&&overlay.firstElementChild.dataset.dismissible==='true')closeModal();
+  if(event.key==='Escape'&&overlay.firstElementChild.dataset.dismissible==='true')dismissModal();
   if(event.key==='Tab'){
-    const nodes=[...active.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]')];const first=nodes[0],last=nodes.at(-1);
+    const nodes=[...active.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(el=>el.getClientRects().length&&!el.hidden&&getComputedStyle(el).visibility!=='hidden');const first=nodes[0],last=nodes.at(-1);
     if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
     else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
   }

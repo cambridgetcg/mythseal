@@ -40,11 +40,15 @@ code ownership and checks. The current source allowlist has 21 files; the
 19-file count above describes the live v0.5.1 snapshot, not this local change.
 No service, schema, account or save-key migration accompanies the UI.
 
-The 2026-09-22 [immersion plan](IMMERSION.md) adds proposed M4 feedback, a complete
-霧隱渡口 encounter treatment, realm/card identity and later encounter experiments.
-It is roadmap/design work only; new audio, reveal staging, haptics and journal
-milestones have not been implemented. Phone launch sequencing is in
-[MOBILE-RELEASE.md](MOBILE-RELEASE.md).
+The 2026-09-22 [immersion work](IMMERSION.md) now includes a local 霧隱渡口 slice:
+lantern/mist arrival and battle atmosphere, short skippable public-result reveals,
+optional synthesized ambience/cues, persistent device preferences and read-only
+exact-copy journals linked from rewards. `mist-gate-ui.mjs`, `mist-gate.css` and
+`experience.mjs` bring the source allowlist to **24 files**. Battle/economy rules
+and profile schemas are unchanged. New detailed journal milestones, native
+haptics, other realm treatments and gameplay experiments remain planned. See
+[local evidence](VALIDATION.md#mist-gate-immersion--2026-09-22) and
+[phone launch sequencing](MOBILE-RELEASE.md).
 
 ## What actually runs
 

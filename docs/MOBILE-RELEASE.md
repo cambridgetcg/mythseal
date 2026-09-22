@@ -39,8 +39,9 @@ approved layout for portrait phone play and retain the browser experience:
   before choosing any native UI rewrite. Native storage is a separate adapter;
   preserve existing card identities and explicitly plan transfer from browser saves.
 
-The planned [M4 immersion track](IMMERSION.md) supplies tactile card/pill cues,
-readable battle reveals, realm ambience and exact-copy reward presentation. Carry
+The [M4 immersion track](IMMERSION.md) now has a local first 霧隱渡口 slice with
+tactile card/pill cues, readable battle reveals, optional synthesized ambience
+and exact-copy reward presentation. Carry
 its mute, reduced-motion and fast/skip controls into phone adaptation. Trial
 optional native haptics with an off switch during M5.2, alongside audio/lifecycle
 recovery on physical devices. The beta includes a selected, verified subset;

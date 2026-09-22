@@ -91,7 +91,16 @@ unified cards/deck/codex hub, quest overlay and encounter preparation/next-match
 flow are implemented for local review. See [navigation behaviour and checks](docs/NAVIGATION.md).
 This does not change the live release or complete the broader M4 acceptance criteria.
 
-**Immersion track (planned):** follow [IMMERSION.md](docs/IMMERSION.md) for the
+**Local Mist Gate experience (2026-09-22):** a first M4.1–M4.2 slice now adds
+lantern/mist arrival and battle atmosphere, tactile card/pill feedback, a short
+skippable saved-result reveal, optional synthesized ambience/cues, persistent
+comfort controls and exact-copy XP → 同行記 → result navigation. See
+[implemented scope and next additions](docs/IMMERSION.md) and
+[local verification](docs/VALIDATION.md#mist-gate-immersion--2026-09-22).
+Human playtesting, physical-device performance and the wider art/content work
+remain open acceptance evidence. This is local development, not a deployment.
+
+**Immersion track (local first slice; remaining work planned):** follow [IMMERSION.md](docs/IMMERSION.md) for the
 player moments, first-encounter storyboard and implementation/validation seams.
 
 | Packet | Planned experience | Exit evidence |
@@ -161,7 +170,7 @@ These are bounded starting points, not instructions to start every phase at once
 | Transaction adapter spike | One least-privilege transaction path with rollback, concurrent-start and duplicate-settlement tests. | Agreed contract; local isolated fixtures first. Coordinate schema ownership with the API author. |
 | Online client adapter | One match/inventory UI using contract fixtures; clear offline versus online status and reconnect handling. | Agreed contract; can run alongside server implementation. No local-save promotion. |
 | Content/animation sample | One card's original-art manifest, derivatives and reduced-motion animation, with measured payload/render cost. | Independent M4 task; preserve the existing asset fallback. |
-| Immersion foundation and first encounter | Public-event presentation adapter, comfort controls and a complete 霧隱渡口 arrival → reveal → exact-copy XP → next/retry sequence; see [IMMERSION.md](docs/IMMERSION.md). | M4.1–M4.2; guest AI can proceed alongside backend work. Preserve hidden bids, accepted results and single settlement; coordinate `app.mjs` ownership. |
+| Mist Gate playtest and next polish | Review the local 霧隱渡口 arrival → reveal → exact-copy XP → next/retry slice; tune audio and pace, then select a small follow-up from [IMMERSION.md](docs/IMMERSION.md). | M4.1–M4.2 local slice is implemented; human/device evidence remains open. Preserve hidden bids, accepted results and single settlement; coordinate `app.mjs` ownership. |
 | Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
 | Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
 
