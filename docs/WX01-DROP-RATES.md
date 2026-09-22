@@ -322,3 +322,18 @@ near-miss, fake upgrade roll or mandatory countdown. Skip, sound-off and reduced
 motion show the same cards. `pack-opening.mjs`, `pack-ui.mjs` and `wx01.css`
 provide the local opening; audio uses the existing optional synthesized palette.
 Human pacing and physical-device review remain separate acceptance evidence.
+
+
+## Implemented box opening · 2026-09-22
+
+12 packs cost 3,600 earned coins and grant 36 copies / 12 西行印; 24 packs cost
+7,200 and grant 72 / 24 印. There is no discount or separate box hit table.
+`buyWX01Box` runs the same injected single-pack sampler in order, carrying dry
+protection across packs. Each pack retains its rare-or-epic floor. Capacity,
+funds and all counters are preflighted, then the whole box is committed once.
+A failed draw or save grants nothing and charges nothing.
+
+The accepted receipt stores ordered packs plus the exact flattened copy list.
+Animation can reveal one pack at a time or show an overview; it never draws or
+awards. Reload shows the saved whole-box result. Copies remain protected until
+acknowledgement. No additional INK/TR/Leader/god-pack guarantee is attached to a box.

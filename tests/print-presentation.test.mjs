@@ -5,7 +5,7 @@ import { PRINTINGS, WX01_PRINTINGS } from '../printing-catalogue.mjs';
 import { cardPresentation, cardArtStyle, printFrameMarkup, leaderInstance } from '../card-presentation.mjs';
 import { backpackMarkup, instanceMarkup } from '../backpack-ui.mjs';
 import { lobbyMarkup } from '../navigation-ui.mjs';
-import { createProfile } from '../progression.mjs';
+import { createProfile, buyWX01Box } from '../progression.mjs';
 import { packReceiptMarkup, wx01MarketMarkup, wx01OddsMarkup, wx01RedeemMarkup } from '../pack-ui.mjs';
 
 const cardMarkup = (card, options = {}) => `<div data-card-id="${card.id}" data-print-id="${options.printId || 'default'}" data-instance-id="${options.instanceId || ''}"></div>`;
@@ -92,4 +92,37 @@ test('accepted receipt cards remain hidden and cannot be mistaken for a new gran
   assert(markup.includes('data-action="pack-ack" data-id="wx01-1" hidden'));
   assert(markup.includes('揭曉不會再次扣款'));
   assert.deepEqual(receipt, before);
+});
+
+test('box choices disclose exact prices/cards/seals and disable only unaffordable sizes', () => {
+  const profile = fresh(); profile.coins = 3600;
+  const markup = wx01MarketMarkup(profile, cardMarkup);
+  const twelve = markup.match(/<button[^>]*data-action="buy-box"[^>]*data-packs="12"[^>]*>/)[0];
+  const twentyFour = markup.match(/<button[^>]*data-action="buy-box"[^>]*data-packs="24"[^>]*>/)[0];
+  assert(!twelve.includes(' disabled'));
+  assert(twentyFour.includes(' disabled'));
+  assert(twelve.includes('3,600 金幣'));
+  assert(twentyFour.includes('7,200 金幣'));
+  assert(markup.includes('36 張戰卡 · 12 西行印'));
+  assert(markup.includes('72 張戰卡 · 24 西行印'));
+  assert(markup.includes('與單匣同價、同機率'));
+});
+
+test('real box receipts render all exact copies grouped into saved packs with an honest hit summary', () => {
+  for (const packs of [12, 24]) {
+    const profile = fresh(); profile.coins = 10000;
+    const result = buyWX01Box(profile, { packs, rng: () => packs === 12 ? .1 : .9999, now: '2026-09-22T12:00:00Z' });
+    const before = structuredClone(result.receipt), markup = packReceiptMarkup(result.receipt, cardMarkup);
+    assert.equal((markup.match(/data-box-panel="/g) || []).length, packs);
+    assert.equal((markup.match(/data-summary-pack="/g) || []).length, packs);
+    assert.equal((markup.match(/data-summary-instance="/g) || []).length, packs * 3);
+    for (const card of result.receipt.cards) {
+      assert(markup.includes(`data-summary-instance="${card.instanceId}" data-print-id="${card.printId}"`));
+    }
+    assert(markup.includes('data-box-overview hidden'));
+    assert(markup.includes('data-action="box-next" hidden'));
+    assert(markup.includes(`data-action="pack-ack" data-id="${result.receipt.id}" hidden`));
+    assert(markup.includes(`${packs * 3} 張戰卡 · ${packs === 12 ? 1 : 72} 張特別畫作`));
+    assert.deepEqual(result.receipt, before);
+  }
 });

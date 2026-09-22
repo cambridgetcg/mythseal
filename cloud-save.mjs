@@ -97,7 +97,9 @@ function validDay(value) {
 
 function validateWX01(profile) {
   const state = profile.wx01;
-  exactKeys(state, ['version', 'dry', 'seals', 'opened', 'redeemed', 'storyClaimed', 'leaderInstanceId', 'receipt', 'serial']);
+  const hasGift = isRecord(state) && Object.hasOwn(state, 'playtestGift');
+  exactKeys(state, ['version', 'dry', 'seals', 'opened', 'redeemed', 'storyClaimed', 'leaderInstanceId', 'receipt', 'serial', ...(hasGift ? ['playtestGift'] : [])]);
+  if (hasGift && state.playtestGift !== 'wx01-box-20260922') fail();
   if (state.version !== 1 || typeof state.storyClaimed !== 'boolean') fail();
   for (const key of ['dry', 'seals', 'opened', 'redeemed', 'serial']) if (!Number.isSafeInteger(state[key]) || state[key] < 0 || state[key] > 1_000_000_000) fail();
   if (state.dry > 11 || state.dry > state.opened) fail();
@@ -107,14 +109,19 @@ function validateWX01(profile) {
   }
   const receipt = state.receipt;
   if (receipt === null) return;
-  exactKeys(receipt, ['id', 'kind', 'mode', 'cards', 'openedAt', 'cost', 'sealsEarned']);
+  const box = receipt.kind === 'box';
+  exactKeys(receipt, ['id', 'kind', 'mode', 'cards', 'openedAt', 'cost', 'sealsEarned', ...(box ? ['packs'] : [])]);
   if (receipt.id !== `wx01-${state.serial}` || state.serial < 1
-      || !['pack', 'redeem', 'story'].includes(receipt.kind) || !['ordinary', 'aa', 'leader', 'ink', 'treasure', 'god'].includes(receipt.mode)
+      || !['pack', 'box', 'redeem', 'story'].includes(receipt.kind)
+      || (box ? receipt.mode !== 'box' : !['ordinary', 'aa', 'leader', 'ink', 'treasure', 'god'].includes(receipt.mode))
       || typeof receipt.openedAt !== 'string' || !Number.isFinite(Date.parse(receipt.openedAt))
       || new Date(receipt.openedAt).toISOString() !== receipt.openedAt) fail();
   const pack = receipt.kind === 'pack';
-  if (receipt.cost !== (pack ? 300 : 0) || receipt.sealsEarned !== (pack ? 1 : 0)
-      || !Array.isArray(receipt.cards) || receipt.cards.length !== (pack ? 3 : 1)) fail();
+  if (box && (!Array.isArray(receipt.packs) || ![12, 24].includes(receipt.packs.length))) fail();
+  const packCount = box ? receipt.packs.length : pack ? 1 : 0;
+  if (receipt.cost !== packCount * 300 || receipt.sealsEarned !== packCount
+      || !Array.isArray(receipt.cards) || receipt.cards.length !== (packCount ? packCount * 3 : 1)
+      || state.opened < packCount) fail();
   const seen = new Set(), treatments = [], copies = new Map([...profile.instances, ...profile.merchantVault.map(entry => entry.instance)].map(card => [card.uid, card]));
   for (const card of receipt.cards) {
     exactKeys(card, ['cardId', 'printId', 'instanceId', 'rarity']);
@@ -124,11 +131,21 @@ function validateWX01(profile) {
     seen.add(card.instanceId);
     treatments.push(printing.treatment);
   }
-  if (pack) {
-    const expected = receipt.mode === 'god' ? ['aa', 'leader', 'ink'] : ['base', 'base', receipt.mode === 'ordinary' ? 'base' : receipt.mode];
-    if (treatments.some((value, index) => value !== expected[index]) || !receipt.cards.some(card => card.rarity !== 'common')
-        || (receipt.mode === 'god' && new Set(receipt.cards.map(card => card.cardId)).size !== 3)) fail();
-  } else if (!['aa', 'leader', 'ink', 'treasure'].includes(receipt.mode) || treatments[0] !== receipt.mode
+  const validatePack = (cards, mode, printTreatments) => {
+    if (!['ordinary', 'aa', 'leader', 'ink', 'treasure', 'god'].includes(mode)) fail();
+    const expected = mode === 'god' ? ['aa', 'leader', 'ink'] : ['base', 'base', mode === 'ordinary' ? 'base' : mode];
+    if (printTreatments.some((value, index) => value !== expected[index]) || !cards.some(card => card.rarity !== 'common')
+        || (mode === 'god' && new Set(cards.map(card => card.cardId)).size !== 3)) fail();
+  };
+  if (box) {
+    receipt.packs.forEach((entry, index) => {
+      exactKeys(entry, ['mode', 'cards']);
+      const cards = receipt.cards.slice(index * 3, index * 3 + 3);
+      if (!Array.isArray(entry.cards) || entry.cards.length !== 3 || stableJSON(entry.cards) !== stableJSON(cards)) fail();
+      validatePack(cards, entry.mode, treatments.slice(index * 3, index * 3 + 3));
+    });
+  } else if (pack) validatePack(receipt.cards, receipt.mode, treatments);
+  else if (!['aa', 'leader', 'ink', 'treasure'].includes(receipt.mode) || treatments[0] !== receipt.mode
       || (receipt.kind === 'story' && (receipt.mode !== 'aa' || !state.storyClaimed))) fail();
 }
 

@@ -147,7 +147,7 @@ npm test
 Pure engine, progression and collection suites use Node's built-in test runner. Browser checks use Playwright as a development tool; the game itself has no JavaScript dependencies:
 
 `npm ci` includes pinned Playwright. Start `npm run preview` in another terminal,
-then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for all eleven
+then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for all twelve
 flows. The scripts use installed Google Chrome on macOS; set `CHROME_PATH` for
 another executable, or install the matching browser with
 `npx --no-install playwright install chromium`. No browser download is needed
@@ -155,6 +155,9 @@ when Chrome is already installed. `PLAYWRIGHT_MODULE` remains an optional overri
 
 The [WX-01 西行 set](docs/EXPANSION-WX01.md) is playable in this local checkout:
 open **市集 → 西行秘匣** for 300 earned coins, three cards and one 西行印.
+Boxes offer 12 packs / 36 cards for 3,600 coins and 24 packs / 72 cards for
+7,200 coins. Every pack uses the same odds and running pity; each adds one seal.
+You can reveal pack by pack or skip to the saved whole-box overview.
 There are 16 characters and 29 printings, including cosmetic 領契, AA, INK and
 TR. Exact prints remain with their owned copies through deck selection and battles.
 Existing v2/v3 saves migrate into a separate v4 namespace; the original keys remain.
@@ -162,7 +165,8 @@ The public website has not received this expansion.
 
 Run `npm run test:wx01` against the loopback server for Chrome and installed
 Playwright WebKit checks, including saved reveals, redemption, battle art, recovery
-and two-tab purchase races. Use `PLAYWRIGHT_BROWSERS_PATH` for a custom runtime;
+and two-tab purchase races. The box suite also checks 12/24-pack purchases,
+resumption, quota failures and local playtest credits. Use `PLAYWRIGHT_BROWSERS_PATH` for a custom runtime;
 `test-results/webkit-runtime` is detected when present.
 
 The fixed art study remains at `http://127.0.0.1:4177/atelier.html` under

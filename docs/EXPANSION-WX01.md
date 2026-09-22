@@ -321,3 +321,19 @@ mechanics remain original adaptations.
   [第59回](https://zh.wikisource.org/wiki/西遊記/第059回),
   [第60–61回 starting at 60](https://zh.wikisource.org/wiki/西遊記/第060回):
   the paired kings, Red Boy, false Wukong, the fan and Bull Demon King.
+
+
+## Local boxes and playtest supply · 2026-09-22
+
+The market now offers 12/24-pack boxes (36/72 exact owned copies) at 3,600/7,200
+earned coins. Sequential pack odds, rarity floor, dry protection and 1 印 per
+pack match single purchases. One atomic saved receipt precedes any animation;
+manual pack progression, skip-to-overview and reload recovery use that receipt.
+The overview groups cards by original pack and counts special treatments.
+
+`playtest.html` and its two modules are local-preview-only tools, excluded from
+the public build. The owner-requested 10,000-coin playtest gift requires an
+existing journey and a deliberate click under the normal profile lock. Coins
+and the literal optional `wx01.playtestGift` marker are saved together; refreshing
+or repeated clicks cannot award it again in that journey. No automatic credits,
+real payment, hosted economy change or deployment accompanies this tool.

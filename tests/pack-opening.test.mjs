@@ -9,7 +9,7 @@ class Events {
   emit(type) { for (const callback of this.listeners.get(type) || []) callback(); }
   count() { return [...this.listeners.values()].reduce((sum, set) => sum + set.size, 0); }
 }
-function environment({ reduce = false, fast = false } = {}) {
+function environment({ reduce = false, fast = false, packs = 0 } = {}) {
   const document = Object.assign(new Events(), { hidden: false, activeElement: null });
   const media = Object.assign(new Events(), { matches: false });
   const timers = new Map(), queued = [], announcements = [];
@@ -28,9 +28,10 @@ function environment({ reduce = false, fast = false } = {}) {
     };
     nodes.add(item); return item;
   }
-  const actions = Object.fromEntries(['pack-open', 'pack-skip', 'pack-show-all', 'pack-ack'].map(action => [action, node('BUTTON')]));
-  const scene = node(), cards = node(), status = node();
-  const slots = Array.from({ length: 3 }, () => {
+  const actions = Object.fromEntries(['pack-open', 'pack-skip', 'pack-show-all', 'pack-ack', ...(packs ? ['box-next'] : [])].map(action => [action, node('BUTTON')]));
+  const scene = node(), cards = node(), status = node(), overview = node(), progress = node();
+  const panels = Array.from({ length: packs }, () => node());
+  const slots = Array.from({ length: packs ? packs * 3 : 3 }, () => {
     const slot = node(), face = node(), label = node(), back = node('BUTTON');
     slot.back = back;
     slot.querySelector = selector => selector === '[data-pack-face]' ? face : selector === '[data-pack-label]' ? label : back;
@@ -38,13 +39,19 @@ function environment({ reduce = false, fast = false } = {}) {
   });
   const element = Object.assign(node(), { isConnected: true, dataset: { receiptId: 'wx01-1' }, contains: item => nodes.has(item) });
   element.querySelector = selector => selector === '[data-pack-scene]' ? scene : selector === '[data-pack-cards]' ? cards : selector === '[data-pack-status]' ? status
+    : selector === '[data-box-overview]' ? overview : selector === '[data-box-progress]' ? progress
+    : selector.startsWith('[data-box-panel=') ? panels[Number(selector.match(/"(\d+)"/)[1])]
     : selector.startsWith('[data-pack-slot=') ? slots[Number(selector.match(/"(\d+)"/)[1])] : actions[selector.match(/"([^\"]+)"/)[1]];
   element.querySelectorAll = selector => selector === '[data-pack-slot]' ? slots : slots.map(slot => slot.back);
-  const receipt = Object.freeze({ id: 'wx01-1', kind: 'pack', mode: 'god', cost: 300, cards: Object.freeze([
+  const sample = [
     Object.freeze({ cardId: 'tangsanzang', printId: 'wx01-001-aa1', instanceId: 'card-000100' }),
     Object.freeze({ cardId: 'niumowang', printId: 'wx01-015-laa1', instanceId: 'card-000101' }),
     Object.freeze({ cardId: 'wukong', printId: 'wx01-005-ink1', instanceId: 'card-000102' }),
-  ]) });
+  ];
+  const entries = Object.freeze(packs ? Array.from({ length: packs * 3 }, (_, index) => Object.freeze({ ...sample[index % 3], instanceId: `card-${String(100 + index).padStart(6, '0')}` })) : sample);
+  const receipt = Object.freeze({ id: 'wx01-1', kind: packs ? 'box' : 'pack', mode: packs ? 'box' : 'god', cost: (packs || 1) * 300, cards: entries,
+    ...(packs ? { packs: Object.freeze(Array.from({ length: packs }, (_, index) => Object.freeze({ mode: 'god', cards: Object.freeze(entries.slice(index * 3, index * 3 + 3)) }))) } : {}),
+  });
   const preferences = { reduce, fast };
   const controller = createPackOpeningController({ element, receipt, document, window, reducedMotion: () => preferences.reduce, pace: () => preferences.fast ? 'fast' : 'normal', announce: value => announcements.push(value) });
   function advance(ms) {
@@ -56,7 +63,7 @@ function environment({ reduce = false, fast = false } = {}) {
     }
     time = until;
   }
-  return { controller, element, receipt, document, window, media, preferences, timers, queued, announcements, actions, slots, scene, cards, status, advance };
+  return { controller, element, receipt, document, window, media, preferences, timers, queued, announcements, actions, slots, scene, cards, status, overview, progress, panels, advance };
 }
 
 test('accepted receipt opens briefly, then requires deliberate reveals and keeps focus on available controls', () => {
@@ -128,4 +135,71 @@ test('destroy removes lifecycle listeners and prevents stale timers painting a r
   queued.forEach(callback => callback());
   env.controller.finish(); env.controller.open(); env.controller.reveal(0);
   assert.equal(env.element.dataset.phase, phase);
+});
+
+test('twelve-pack box reveals only the active saved pack and acknowledges only its final overview', () => {
+  const env = environment({ packs: 12 }), ui = env.controller, before = JSON.stringify(env.receipt);
+  ui.nextPack(); assert.equal(ui.getState().packIndex, 0);
+  ui.open(); env.advance(300);
+  for (let pack = 0; pack < 12; pack++) {
+    assert.equal(ui.getState().packIndex, pack);
+    assert.equal(env.panels.filter(panel => !panel.hidden).length, 1);
+    assert.equal(env.actions['pack-ack'].hidden, true);
+    ui.reveal((pack + 1) * 3); // A hidden later pack cannot be revealed out of order.
+    for (let slot = 0; slot < 3; slot++) ui.reveal(pack * 3 + slot);
+    assert.equal(ui.getState().phase, 'pack-complete');
+    assert.equal(env.document.activeElement, env.actions['box-next']);
+    assert.equal(env.actions['pack-ack'].hidden, true);
+    ui.nextPack();
+    if (pack < 11) env.advance(300);
+  }
+  assert.equal(ui.getState().phase, 'complete');
+  assert.equal(ui.getState().revealed.length, 36);
+  assert.equal(env.overview.hidden, false);
+  assert.equal(env.cards.hidden, true);
+  assert.equal(env.actions['box-next'].hidden, true);
+  assert.equal(env.document.activeElement, env.actions['pack-ack']);
+  assert.equal(env.announcements.length, 36);
+  assert.match(env.announcements[35], /^第 12 匣第 3 張：/);
+  assert.equal(JSON.stringify(env.receipt), before);
+  ui.destroy();
+});
+
+test('skip from sealed, opening, partially revealed or pack-complete box reaches the same 72-card overview', () => {
+  for (const stage of ['sealed', 'opening', 'ready', 'pack-complete']) {
+    const env = environment({ packs: 24 }), ui = env.controller;
+    if (stage !== 'sealed') ui.open();
+    if (['ready', 'pack-complete'].includes(stage)) { env.advance(300); ui.reveal(0); }
+    if (stage === 'pack-complete') { ui.reveal(1); ui.reveal(2); }
+    ui.finish({ focus: true });
+    assert.equal(ui.getState().phase, 'complete');
+    assert.equal(ui.getState().revealed.length, 72);
+    assert.equal(env.overview.hidden, false);
+    assert.equal(env.timers.size, 0);
+    assert(env.slots.every(slot => slot.back.hidden && slot.back.disabled));
+    ui.nextPack(); env.advance(2000);
+    assert.equal(ui.getState().phase, 'complete');
+    ui.destroy();
+  }
+});
+
+test('box reduced motion, fast pace, pagehide and preference change all show final overview without resampling', () => {
+  for (const option of [{ reduce: true }, { fast: true }, { hidden: true }, { preference: true }]) {
+    const env = environment({ packs: 24, ...option }), before = JSON.stringify(env.receipt);
+    env.controller.open();
+    if (option.hidden) env.window.emit('pagehide');
+    if (option.preference) { env.advance(300); env.preferences.reduce = true; env.controller.syncPreferences(); }
+    assert.equal(env.controller.getState().phase, 'complete');
+    assert.equal(env.overview.hidden, false);
+    assert.equal(JSON.stringify(env.receipt), before);
+    assert.equal(env.timers.size, 0);
+    env.controller.destroy();
+  }
+});
+
+test('box presentation rejects flattened/grouped receipt disagreement', () => {
+  const env = environment({ packs: 12 }); env.controller.destroy();
+  const receipt = structuredClone(env.receipt);
+  receipt.packs[3].cards[1] = { ...receipt.packs[3].cards[1], instanceId: 'card-999999' };
+  assert.throws(() => createPackOpeningController({ element: env.element, receipt }), /相符收據/);
 });

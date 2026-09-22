@@ -1,5 +1,8 @@
 [
   "atelier.html",
   "atelier.css",
-  "atelier.mjs"
+  "atelier.mjs",
+  "playtest.html",
+  "playtest-supply.mjs",
+  "playtest-supply-ui.mjs"
 ]

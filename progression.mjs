@@ -349,15 +349,48 @@ export function buyPack(profile, { set = 'all', rng = Math.random, now = new Dat
   return { profile: next, cards, cost: PACK_PRICE, set };
 }
 
+/** One saved transaction; each pack keeps the single-pack sampler and dry history. */
+export function buyWX01Box(profile, { packs = 12, rng = Math.random, now = new Date() } = {}) {
+  if (![12, 24].includes(packs)) throw new RangeError('西行盒裝只可選擇 12 或 24 匣。');
+  let next = refreshDaily(profile, now);
+  assertNoWX01Receipt(next);
+  assertCollectionCapacity(next, packs * 3);
+  assertWX01Counters(next.wx01, ['opened', 'seals'], packs);
+  assertWX01Counters(next.wx01, ['serial']);
+  assertWX01Counters(next.daily, ['packs'], packs);
+  const cost = packs * WX01_PRICE;
+  if (!Number.isSafeInteger(next.coins) || next.coins < 0 || next.coins > LIMIT) throw new RangeError('金幣記錄無效，未有更改收藏。');
+  spend(next, { coins: cost });
+  const cards = [], contents = [];
+  for (let index = 0; index < packs; index++) {
+    const draw = drawWX01Pack({ dry: next.wx01.dry, rng });
+    const packCards = [];
+    for (const card of draw.cards) {
+      const minted = grantCard(next, card.cardId, { source: 'pack:wx01', now, printId: card.printId });
+      next = minted.profile;
+      packCards.push({ ...card, instanceId: minted.instance.uid });
+    }
+    cards.push(...packCards);
+    contents.push({ mode: draw.mode, cards: packCards });
+    next.wx01.dry = draw.dry;
+  }
+  increment(next.wx01, 'opened', packs);
+  increment(next.wx01, 'seals', packs);
+  increment(next.daily, 'packs', packs);
+  saveWX01Receipt(next, { kind: 'box', mode: 'box', cards, packs: contents, now, cost, sealsEarned: packs });
+  return { profile: next, cards: copy(cards), receipt: copy(next.wx01.receipt), cost, set: 'wx01' };
+}
+
 function assertNoWX01Receipt(profile) {
   if (profile.wx01.receipt) throw new RangeError('請先確認上次西行開匣結果，再領取新卡。');
 }
-function assertWX01Counters(state, keys) {
-  if (keys.some(key => state[key] >= LIMIT)) throw new RangeError('西行收藏記錄已達上限，未有扣除資源。');
+function assertWX01Counters(state, keys, amount = 1) {
+  if (keys.some(key => !Number.isSafeInteger(state[key]) || state[key] < 0 || state[key] > LIMIT - amount)) throw new RangeError('西行收藏記錄已達上限，未有扣除資源。');
 }
-function saveWX01Receipt(profile, { kind, mode, cards, now, cost = 0, sealsEarned = 0 }) {
+function saveWX01Receipt(profile, { kind, mode, cards, packs, now, cost = 0, sealsEarned = 0 }) {
   increment(profile.wx01, 'serial');
   profile.wx01.receipt = { id: `wx01-${profile.wx01.serial}`, kind, mode, cards: copy(cards), openedAt: new Date(now).toISOString(), cost, sealsEarned };
+  if (packs !== undefined) profile.wx01.receipt.packs = copy(packs);
 }
 export function acknowledgeWX01Receipt(profile, id) {
   const next = syncCollection(profile);

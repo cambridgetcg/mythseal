@@ -18,7 +18,7 @@ import { cardPresentation, printFrameMarkup, printLabel } from './card-presentat
 import { WX01_CARD_IDS, WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
 import { createPackOpeningController } from './pack-opening.mjs';
-import { acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
+import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -577,9 +577,15 @@ document.addEventListener('click', event=>{
   experience.unlockAudio().catch(()=>{});
   if(action==='pack-resume')return showPackReceipt(true);
   if(action==='pack-open')return packOpening?.open();
+  if(action==='box-next')return packOpening?.nextPack();
   if(action==='pack-card-reveal')return packOpening?.reveal(Number(button.dataset.index));
   if(action==='pack-skip'||action==='pack-show-all')return packOpening?.finish({focus:true});
   if(action==='pack-ack')return economy(p=>acknowledgeWX01Receipt(p,id),'',()=>closeModal());
+  if(action==='buy-box'){
+    if(loadProfile().wx01.receipt)return showPackReceipt(true);
+    const packs=Number(button.dataset.packs);
+    return economy(p=>buyWX01Box(p,{packs}),'',()=>showPackReceipt());
+  }
   if(action==='wx01-odds')return modal(wx01OddsMarkup(loadProfile()),'',true,'wx01-odds');
   if(action==='wx01-redeem'||action==='wx01-redeem-tab')return showWX01Choice({treatment:id||'aa'});
   if(action==='wx01-story-choice')return showWX01Choice({story:true});

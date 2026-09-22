@@ -252,3 +252,11 @@ The server records append-only XP against a stable card identity. A collectible 
 | Name, artwork and source licensing | 萬象契 / Mythseal selected; original art with provenance; no open-source license selected. | Public licensing/commercial release; domain ownership does not establish trademark clearance. |
 
 Web, API/rules, native binaries, artwork and contracts have separate releases. Use the [content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md) for compatibility and rollback design; rolling back a website cannot undo an economy settlement, published NFT or transferred ownership.
+
+
+### WX-01 box follow-up · local, 2026-09-22
+
+- [x] 12/24-pack boxes with unchanged per-pack price/odds, carried pity, 36/72 exact copies and 12/24 seals.
+- [x] Atomic saved box receipts, sequential reveal, full grouped overview, skip and reload recovery.
+- [x] Preview-only, once-per-journey 10,000-coin owner playtest supply; deliberate claim, excluded from public assets.
+- [ ] Existing hosted rollout gates still apply; these changes are not deployed.

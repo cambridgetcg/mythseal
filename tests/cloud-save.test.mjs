@@ -227,3 +227,97 @@ test('v2 print bindings and WX01 receipts reject loss or repair before restore',
     p => { p.wx01.leaderInstanceId = p.instances[0].uid; },
   ]) { const invalid = copy(snapshot); corrupt(invalid.profile); assert.throws(() => validateSnapshot(invalid)); }
 });
+
+// Literal collations keep acceptance expectations independent of the box sampler.
+function boxedProfile(count, { commonFirst = false, repeatedGodRole = false, base = fresh() } = {}) {
+  let profile = base;
+  const printed = {
+    tang: ['tangsanzang', 'wx01-001-base', 'common'], baigu: ['baigu', 'wx01-009-base', 'rare'], wukong: ['wukong', 'wx01-005-base', 'epic'],
+    bailong: ['bailong', 'wx01-002-base', 'common'], puti: ['puti', 'wx01-004-base', 'common'],
+    aa: ['tangsanzang', 'wx01-001-aa1', 'common'], leader: ['tangsanzang', 'wx01-001-laa1', 'common'],
+    godLeader: ['baigu', 'wx01-009-laa1', 'rare'], ink: ['wukong', 'wx01-005-ink1', 'epic'], treasure: ['wukong', 'wx01-005-tr1', 'epic'],
+  };
+  const modes = ['ordinary', 'aa', 'leader', 'treasure', 'ink', 'god'], packs = [];
+  for (let index = 0; index < count; index++) {
+    const mode = modes[index % modes.length];
+    const prints = commonFirst && index === 0 ? ['tang', 'bailong', 'puti']
+      : mode === 'god' ? ['aa', repeatedGodRole ? 'leader' : 'godLeader', 'ink']
+        : ['tang', 'baigu', mode === 'ordinary' ? 'wukong' : mode];
+    const cards = [];
+    for (const key of prints) {
+      const [cardId, printId, rarity] = printed[key];
+      const minted = mintInstance(profile, cardId, { printId, now, source: 'pack:wx01' });
+      profile = minted.profile; cards.push({ cardId, printId, rarity, instanceId: minted.instance.uid });
+    }
+    packs.push({ mode, cards });
+  }
+  profile.coins = 10000 - count * 300; profile.daily.packs = count;
+  profile.wx01 = { ...profile.wx01, opened: count, seals: count, serial: 1,
+    receipt: { id: 'wx01-1', kind: 'box', mode: 'box', packs, cards: packs.flatMap(pack => pack.cards), openedAt: now, cost: count * 300, sealsEarned: count } };
+  return profile;
+}
+
+test('12/24-pack boxed receipts round trip every grouped and flat exact copy, including XP and custody', () => {
+  for (const count of [12, 24]) {
+    let profile = boxedProfile(count, { base: travelledProfile() });
+    const uid = profile.wx01.receipt.cards[0].instanceId;
+    profile = setInstanceXP(profile, uid, 430);
+    const before = copy(profile), snapshot = createSnapshot(profile);
+    assert.equal(snapshot.version, 2); assert.equal(snapshot.profile.version, 4);
+    assert.deepEqual(restoreSnapshot(snapshot, { now }), before);
+    assert.deepEqual(profile, before, 'export and restore never mutate the original profile');
+    const receipt = snapshot.profile.wx01.receipt;
+    assert.equal(receipt.packs.length, count); assert.equal(receipt.cards.length, count * 3);
+    assert.equal(new Set(receipt.cards.map(card => card.instanceId)).size, count * 3);
+    assert.deepEqual(receipt.packs.flatMap(pack => pack.cards), receipt.cards);
+    assert.deepEqual([...new Set(receipt.packs.map(pack => pack.mode))], ['ordinary', 'aa', 'leader', 'treasure', 'ink', 'god']);
+    assert.equal(snapshot.profile.instances.find(card => card.uid === uid).xp, 430);
+    assert.equal(snapshot.profile.instances.find(card => card.uid === uid).printId, 'wx01-001-base');
+    assert.equal(snapshot.profile.merchantVault[0].instance.xp, 430);
+    assert.equal(snapshot.profile.merchantVault[0].instance.printId, 'legacy/qingxiao');
+  }
+});
+
+test('box receipts reject changed quantities, costs, seals, grouping, modes and exact identities', () => {
+  const valid = createSnapshot(boxedProfile(12));
+  for (const corrupt of [
+    p => { p.wx01.receipt.packs.pop(); },
+    p => { delete p.wx01.receipt.packs; },
+    p => { p.wx01.receipt.cards.pop(); },
+    p => { p.wx01.receipt.cost = 3599; },
+    p => { p.wx01.receipt.sealsEarned = 11; },
+    p => { p.wx01.opened = 11; },
+    p => { p.wx01.receipt.mode = 'ordinary'; },
+    p => { p.wx01.receipt.kind = 'pack'; },
+    p => { p.wx01.receipt.packs[0].mode = 'box'; },
+    p => { p.wx01.receipt.packs[0].mode = 'god'; },
+    p => { p.wx01.receipt.packs[0].extra = true; },
+    p => { p.wx01.receipt.packs[0].cards.reverse(); },
+    p => { p.wx01.receipt.cards.reverse(); },
+    p => { p.wx01.receipt.packs[0].cards[0].extra = true; },
+    p => { p.wx01.receipt.cards[0].printId = 'wx01-001-aa1'; p.wx01.receipt.packs[0].cards[0].printId = 'wx01-001-aa1'; },
+    p => { p.wx01.receipt.cards[0].instanceId = 'card-999999'; p.wx01.receipt.packs[0].cards[0].instanceId = 'card-999999'; },
+    p => { p.wx01.receipt.cards[3] = copy(p.wx01.receipt.cards[0]); p.wx01.receipt.packs[1].cards[0] = copy(p.wx01.receipt.cards[0]); },
+  ]) {
+    const invalid = copy(valid); corrupt(invalid.profile);
+    const before = copy(invalid);
+    assert.throws(() => restoreSnapshot(invalid, { now }));
+    assert.deepEqual(invalid, before, 'invalid backups must be rejected, never repaired in place');
+  }
+  assert.throws(() => createSnapshot(boxedProfile(12, { commonFirst: true })), 'each pack must meet its own rarity floor');
+  assert.throws(() => createSnapshot(boxedProfile(12, { repeatedGodRole: true })), 'each god pack requires three different characters');
+});
+
+test('playtest gift marker is optional, exact and preserved without being synthesized or re-granted', () => {
+  const old = createSnapshot(fresh());
+  assert.equal(Object.hasOwn(restoreSnapshot(old, { now }).wx01, 'playtestGift'), false);
+  const profile = boxedProfile(12); profile.wx01.playtestGift = 'wx01-box-20260922';
+  const snapshot = createSnapshot(profile), restored = restoreSnapshot(snapshot, { now });
+  assert.equal(restored.wx01.playtestGift, 'wx01-box-20260922');
+  assert.equal(restored.coins, profile.coins);
+  assert.deepEqual(restoreSnapshot(createSnapshot(restored), { now }), restored);
+  for (const value of [true, false, null, '', 'wx01-box-20260923', { amount: 10000 }]) {
+    const invalid = copy(snapshot); invalid.profile.wx01.playtestGift = value;
+    assert.throws(() => validateSnapshot(invalid));
+  }
+});

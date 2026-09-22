@@ -118,8 +118,8 @@ Use [WX01 rules](../tests/wx01-cards.test.mjs),
 [grant/migration/receipt](../tests/wx01-progression.test.mjs),
 [profile-store](../tests/profile-store.test.mjs) and
 [cloud snapshot](../tests/cloud-save.test.mjs) tests for relevant local checks.
-Full integration/browser checks are still in progress; do not infer final counts
-or hosted behavior from these source test links.
+Completed local checks are recorded at the end of this document; they do not
+establish hosted behavior.
 
 ## What actually runs
 
@@ -393,3 +393,34 @@ evidence when rechecked, and keep player data and credentials out of Git.
 - Visual inspection included market, AA/LAA/INK receipt, Leader chooser, lobby, preparation, clash and recovery. Browser evidence is local generated output in ignored `test-results/`; it is not native iOS/Android or real Safari profile verification.
 - Built-in art outputs/prompts are recorded in [ART-WX01](ART-WX01.md). New full-resolution PNGs total about 40 MiB; transfer-size optimization remains before a mobile/hosted rollout.
 - No deployment, live SQL migration or user-save editing occurred. The account capability and coherent-module release gates above remain open.
+
+
+### WX-01 boxes and local supply · 2026-09-22
+
+`buyWX01Box` offers 12/24 sequential packs for 3,600/7,200 coins, with 36/72 copies
+and 12/24 seals. `kind: box` receipts retain the existing fields and add ordered
+`packs: [{mode,cards}]`; `cards` is the exact flattened list and `mode` is `box`.
+Both local and cloud validators check every group, matching UID/order, amount,
+rarity floor and special-mode contents. Existing single and choice receipts
+remain valid. Profile4/cloud2 stay unchanged; hosted rollout gates stay open.
+
+`pack-opening` advances saved packs and finishes with a grouped whole-box overview.
+A reload resumes the overview. Acknowledgement remains separate from the grant.
+The local supply page `playtest.html` plus `playtest-supply.mjs` and
+`playtest-supply-ui.mjs` are in the preview allowlist only. They require a loopback
+origin, an existing save and native Web Locks; a click commits +10,000 coins and
+optional literal `wx01.playtestGift: wx01-box-20260922` in one profile write.
+The flag is absent on ordinary journeys. Nothing is granted automatically.
+
+Relevant tests: `tests/wx01-box.test.mjs`, `tests/playtest-supply.test.mjs`,
+cloud/pack controller regressions, and `tools/wx01-box-smoke.mjs` (Chrome/WebKit).
+
+
+Box follow-up verification: `npm test` passed **336 tests**; Python passed **9**.
+The new box suite and existing single-pack presentation suite passed in both
+isolated Chrome and WebKit. The box suite covers both quantities at 360/390/1440,
+last-row/footer visibility, sequential reveals, quota/capacity failures, native
+Web Lock races and synthetic supply claims. Native Safari confirmed the requested
+supply in the existing journey and displayed both market options. No box was
+purchased in the owner's journey during verification. The build still contains
+60 public files; all three supply files stay preview-only. No deployment occurred.
