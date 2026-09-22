@@ -83,7 +83,7 @@ browser-side Supabase SDK/session storage to duplicate this adapter.
 
 ## Start a fresh checkout
 
-Use **Node 22**, npm, Python **3.9+**, Git and an authorized GitHub account.
+Use **Node 22+** (CI uses 22; the new Mac was checked on 24), npm, Python **3.9+**, Git and an authorized GitHub account.
 `npm ci` installs pinned development tooling, including optional platform
 binaries; do not omit development or optional dependencies. It does not install
 Foundry, Docker, Playwright browsers, Xcode or Android toolchains.
@@ -125,60 +125,49 @@ local receipts.
 
 ## Local account Worker preview
 
-For real account integration, build the public assets and use an **isolated local
-config**, rather than changing production origins or weakening production cookies.
-Create ignored `.runtime/dev/wrangler.jsonc` with this configuration; paths are
-relative to that file:
-
-```json
-{
-  "name": "mythseal-local-preview",
-  "main": "../../server/account-api.mjs",
-  "compatibility_date": "2026-06-16",
-  "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": false,
-  "preview_urls": false,
-  "assets": {
-    "directory": "../../dist",
-    "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
-    "html_handling": "auto-trailing-slash",
-    "not_found_handling": "none"
-  },
-  "vars": {
-    "APP_ORIGIN": "http://127.0.0.1:8791",
-    "ALLOW_INSECURE_LOCAL_AUTH": "true",
-    "OTP_ENABLED": "false",
-    "SUPABASE_URL": "https://puiuevggytoxyyearkcq.supabase.co"
-  },
-  "ratelimits": [
-    { "name": "AUTH_RATE_LIMIT", "namespace_id": "26092101", "simple": { "limit": 5, "period": 60 } },
-    { "name": "BACKUP_RATE_LIMIT", "namespace_id": "26092102", "simple": { "limit": 10, "period": 60 } }
-  ]
-}
-```
-
-Place only the selected project's `SUPABASE_PUBLISHABLE_KEY` in the adjacent
-`.runtime/dev/.dev.vars`, mode `0600`, through a local editor/secure setup. Do not
-copy the whole `.env.local`; it also contains unrelated administration secrets.
-Then, from the repository root:
+A fresh clone now has a tracked preview configuration and launcher:
 
 ```sh
-npm run build
-npx --no-install wrangler dev --config .runtime/dev/wrangler.jsonc --local \
-  --ip 127.0.0.1 --port 8791 --local-protocol http \
-  --persist-to .runtime/dev/state --show-interactive-dev-session false
+npm ci
+npm run preview -- --dry-run
+npm run preview
+# Open http://127.0.0.1:8791
 ```
 
-This runs the Worker locally but still connects to **hosted** Supabase. Keep OTP
-off for ordinary UI work. For an authorized real-mail test, enable it only in
-this local config and have the owner request a code using their own address.
-Use exactly `http://127.0.0.1:8791`; other origins fail the origin guard. Local
-storage is separate from the live website. The local cookie exception applies
-only to loopback. Mocked browser smoke is the credential-free alternative.
+`tools/preview.mjs` builds the allowlisted assets and runs project-local Wrangler
+4.136.1 using `hosting/wrangler.preview.jsonc`. It has no production routes or
+account ID, binds only loopback, and defaults `OTP_ENABLED=false`. Guest play and
+fixture-based account UI tests need no credentials. Static asset changes need a
+rebuild/restart; Worker source uses Wrangler's watcher. State is under ignored
+`.runtime/preview/state`. Stop with Ctrl+C.
 
-The exact JSON example passed the pinned Wrangler's dry run during this handover
-with no credentials. That checks its paths/bundling, not hosted account access.
+For separately authorized real-account integration, put **only** the selected
+project's `SUPABASE_PUBLISHABLE_KEY` in ignored `hosting/.dev.vars`, mode `0600`.
+Use one unquoted line `SUPABASE_PUBLISHABLE_KEY=sb_publishable_…` (replace the
+placeholder privately); comments and blank lines are allowed. The helper rejects
+other assignments, duplicate keys, alternate dotenv syntax, symlinks and
+non-private files. It passes only that file to Wrangler, clears inherited
+credentials/hooks and prevents automatic loading of root `.env.local`. Do not
+copy database, SMTP or management credentials into preview bindings.
+
+This configuration still names **hosted** Supabase, whose `mythseal-dev` project
+serves real accounts. A local Worker is not an isolated database. Keep OTP off for
+ordinary UI work. A real-mail test needs a separately reviewed local configuration
+and the owner's own address; this launcher does not offer an OTP-enabling flag.
+Use exactly `http://127.0.0.1:8791`; other origins fail the origin guard. Local saves
+remain separate from the live website, and insecure-cookie handling is limited
+to loopback.
+
+In a second terminal, run the existing browser suite with pinned Playwright:
+
+```sh
+GAME_URL=http://127.0.0.1:8791 npm run test:browser
+```
+
+The macOS scripts use installed Google Chrome. Elsewhere set `CHROME_PATH` or run
+`npx --no-install playwright install chromium`. Account tests intercept fixture
+APIs, so they do not verify hosted login or send real email. The older manual
+`.runtime/dev/wrangler.jsonc` recipe is no longer required by a fresh clone.
 
 ## Checks matched to the change
 
@@ -190,7 +179,7 @@ with no credentials. That checks its paths/bundling, not hosted account access.
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |
 | Database migration | `bash tools/test-backup-sql.sh` against a **fresh disposable loopback** PostgreSQL database named `mythseal_test`; needs `psql`, role-creation privileges and privately supplied `TEST_DATABASE_URL` |
 | Contract toolkit | `npm run test:contracts`, with separately installed Foundry 1.7.1; local EVM only |
-| Browser flows | Existing smoke scripts listed in [README checks](../README.md#checks), with separately available Playwright/browser and a running local server; set `GAME_URL` explicitly |
+| Browser flows | Existing smoke scripts listed in [README checks](../README.md#checks), with pinned Playwright, an installed browser and a running local server; set `GAME_URL` explicitly |
 
 The SQL harness refuses remote databases and an existing Auth schema. Recreate
 only its disposable local database between full harness runs; never aim its
@@ -214,10 +203,11 @@ exist in a fresh clone and must not be dependencies of a new agent's workflow.
 ## Release and recovery
 
 Follow [HOSTING.md](HOSTING.md), including preservation of the existing
-publishable-key binding. The current generic `npm run deploy` helper predates
-authenticated hosting and does not explicitly preserve/inject that binding;
-use the documented explicit authenticated-release commands until that helper is
-updated. Never deploy the repository root or introduce administration credentials
+publishable-key binding. `npm run deploy -- --dry-run` checks both bundles
+without hosted identity or binding calls. A real `npm run deploy` requires a
+clean checkout, verifies the intended Cloudflare account and existing binding
+metadata, then uses explicit `--keep-vars` on the apex Worker. Hosted retention
+and account readiness still need verification after the next authorized release. Never deploy the repository root or introduce administration credentials
 to solve a missing runtime binding.
 
 Commit reviewed source, check exact-source CI, build from that clean commit,

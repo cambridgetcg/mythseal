@@ -12,6 +12,9 @@ Gameplay still runs from editable browser-local saves; an account backup is not 
 
 **Joining development?** Start with the [agent handover](docs/HANDOVER.md) for the live architecture, infrastructure/access map, fresh-checkout setup, checks and release procedure. The [roadmap](ROADMAP.md) breaks future work into bounded tasks with dependencies and acceptance criteria. Read [AGENTS.md](AGENTS.md) before editing.
 
+The [fresh-clone toolkit check](docs/TOOLKIT.md) records the latest local setup,
+access verification, test evidence and remaining prerequisites.
+
 ## Run locally
 
 Clone the private repository with an authorized GitHub account:
@@ -38,6 +41,14 @@ Default address: **http://127.0.0.1:4177**. If occupied, the launcher selects an
 
 ## Build and hosting
 
+For a local preview that also runs the account Worker, use `npm ci` then
+`npm run preview` and open **http://127.0.0.1:8791**. It builds the allowlisted
+assets and starts pinned local Wrangler with email sending disabled. No cloud
+login or key is needed for guest play and fixture-based account UI tests.
+Rerun it after changing static assets. `npm run preview -- --dry-run` checks the
+bundle without starting a server. See [local account preview](docs/HANDOVER.md#local-account-worker-preview)
+for the optional, narrowly scoped publishable-key binding.
+
 Developer service access and pinned backend/NFT/mobile toolkits are tracked in [CONNECTIONS.md](docs/CONNECTIONS.md). Use `npm run connect` for owner login and `npm run connections:check -- --live` for a credential-safe status report. Developer credentials and player email sessions are separate; the account implementation is documented in [ACCOUNTS.md](docs/ACCOUNTS.md).
 
 The publishing workflow uses Node to produce 19 explicitly allowlisted game files in `dist`, then deploys those assets and the separately bundled server Worker with locally authenticated Wrangler:
@@ -48,7 +59,7 @@ npm run build
 npx --no-install wrangler deploy --dry-run
 ```
 
-`npm ci` restores pinned development tooling, including **Wrangler 4.136.1** and the Supabase SDK. The SDK is bundled only into the server Worker; the browser still uses native ES modules and same-origin `fetch`. `/api/*` runs through the Worker while static assets use the allowlisted bundle. The separate redirect Worker canonicalizes HTTP and `www` URLs. The commands above build/check without deploying. Use the [authenticated release procedure](docs/HOSTING.md#build-and-deploy), which preserves the existing publishable-key binding; the older generic `npm run deploy` helper does not explicitly preserve it.
+`npm ci` restores pinned development tooling, including **Wrangler 4.136.1** and the Supabase SDK. The SDK is bundled only into the server Worker; the browser still uses native ES modules and same-origin `fetch`. `/api/*` runs through the Worker while static assets use the allowlisted bundle. The separate redirect Worker canonicalizes HTTP and `www` URLs. The commands above build/check without deploying. `npm run deploy -- --dry-run` checks both release bundles without hosted calls. The [authenticated release procedure](docs/HOSTING.md#build-and-deploy) and deploy helper verify the intended account and existing publishable-key binding, then preserve bindings explicitly. Actual release and post-release account verification remain separate from a dry run.
 
 Do not publish the repository root: server source, design documents, tests, credentials and local saves are excluded from website assets. Deployment is a manual maintainer operation; GitHub CI checks the build, API, SQL and other tests without deploying production. The Free London Supabase development project has been provisioned. Local checks, hosted migration evidence and public deployment evidence remain distinct in [VALIDATION.md](docs/VALIDATION.md), [CONNECTIONS.md](docs/CONNECTIONS.md) and [HOSTING.md](docs/HOSTING.md).
 
@@ -124,6 +135,13 @@ npm test
 ```
 
 Pure engine, progression and collection suites use Node's built-in test runner. Browser checks use Playwright as a development tool; the game itself has no JavaScript dependencies:
+
+`npm ci` includes pinned Playwright. Start `npm run preview` in another terminal,
+then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for all five existing
+flows. The scripts use installed Google Chrome on macOS; set `CHROME_PATH` for
+another executable, or install the matching browser with
+`npx --no-install playwright install chromium`. No browser download is needed
+when Chrome is already installed. `PLAYWRIGHT_MODULE` remains an optional override.
 
 ```sh
 # Start the local server in another terminal first.

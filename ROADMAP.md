@@ -33,8 +33,13 @@ Each phase ends with reviewable behavior and recorded evidence. Split work by ar
 
 **Dependencies:** deployed v0.5.1. Account evidence, deployment tooling and online design can progress independently.
 
+**Local toolkit progress (2026-09-21):** tracked loopback preview, pinned browser
+tests and the binding-preserving deployment helper now pass local checks; see
+[TOOLKIT.md](docs/TOOLKIT.md). Hosted retention after the next release, real
+cross-device evidence and the online contract remain open M1 acceptance items.
+
 - Complete an owner-initiated public-browser email login, explicit upload on one device and explicit restore on another. Check the recovery copy, a stale-revision conflict, logout and guest-save preservation without overwriting the owner's only save.
-- Make connected local preview and deployment reproducible from a fresh clone without ignored helper scripts. The tracked deployment helper needs explicit publishable-binding preservation: review Wrangler's actual inheritance behavior, the documented `--keep-vars` path and safe owner-supplied bindings. Never copy credentials into source, public assets or logs.
+- Verify the tracked local preview and deployment workflow from a fresh clone. Local regression/dry-run checks now cover the publishable-binding metadata guard and explicit `--keep-vars`; verify actual binding retention and account availability after the next authorized release. Never copy credentials into source, public assets or logs.
 - Define account recovery, session revocation, deletion and retention behavior. Separate deleting a backup from deleting an identity; document how future owned cards or active matches change deletion semantics.
 - Specify the first authoritative API commands, a separate online inventory/read model and the UI boundary between offline practice and online progression. Decide the server-issued starter grant without importing local balances or XP.
 - Record the operating budget, backup/restore procedure and measured service limits needed for an online alpha. Existing free infrastructure is the baseline; any paid expansion is a separate decision.

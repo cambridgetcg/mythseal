@@ -84,3 +84,12 @@ Local prototype checks only. No public deployment or multiplayer server.
 Storage is local to the browser origin. Web Locks serialize profile transactions where supported; reward settlement consumes a pending encounter ID. This does not provide server-authoritative anti-cheat or a synchronized multiplayer battle. Keep active battles in one tab. Clearing browser data or switching ports/browsers changes available saves.
 
 Not claimed: optimal/balanced AI, extensive economy tuning, exact historical fidelity, extensive cross-browser coverage, live hosting, online player trading or full accessibility certification.
+# Toolkit portability follow-up · 2026-09-21
+
+[TOOLKIT.md](TOOLKIT.md#local-verification) records 194 passing Node tests, eight
+Python tests, all five browser suites against local Wrangler, isolated PostgreSQL
+backup checks, the local contract fixture and bundle dry runs. These are local
+results on the toolkit branch, separate from the historical CI/hosted results
+above. The September 22 follow-up adds a preview-binding regression for lone CR
+and Unicode line separators and portable browser screenshot paths. No real email,
+hosted data changes or deployment occurred in this pass.

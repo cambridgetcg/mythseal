@@ -1,5 +1,15 @@
 # Mythseal developer connections and toolkits
 
+**Fresh-machine follow-up:** [TOOLKIT.md](TOOLKIT.md) records the new clone's
+verified GitHub/Cloudflare/Supabase access, completed Resend Keychain OAuth,
+pinned Playwright, portable preview/release commands and local checks. The
+historical original-Mac tool availability below is not this machine's inventory.
+On **2026-09-22**, saved GitHub (`cambridgetcg`), expected Cloudflare account,
+selected Supabase project and Resend `mythseal` domain-read access all passed
+read-only rechecks. No login, provisioning or hosted configuration change was
+needed. The new clone's ignored `.runtime/development-access-check.json` records
+the provider results without credentials.
+
 Initial toolkit setup and live audit: **2026-09-21 19:10:56 UTC**. This record separates installed tooling, verified account access and resources that actually exist. The owner authorized authentication/connections for the selected stack, a new **free Pinata account** path, and subsequently a new Mythseal Supabase project in **London**. The free development project below is now provisioned. No paid upgrade, bucket, contract deployment or store enrollment was performed.
 
 Supabase owner login was verified at **2026-09-21 19:26:31 UTC**. The new hosted development project was verified separately at **2026-09-21 19:39:48 UTC**; Supabase project selection and Pinata access were rechecked at **19:42:27 UTC**. Other service evidence retains the initial audit timestamp above.

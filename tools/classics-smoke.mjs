@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { CARDS, CLASSIC_CARD_IDS, ORIGINAL_CARD_IDS, defaultDeckIds, getCard, validateDeck } from '../engine.mjs';
 import { createProfile, WELCOME_CARD_IDS, PACK_PRICE, RARITIES, CARD_RARITIES } from '../progression.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
-const output = new URL('../test-results/', import.meta.url).pathname;
+const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 assert(existsSync(new URL('../assets/classics.png', import.meta.url)), 'Generate assets/classics.png before running this visual smoke.');
 await mkdir(output, { recursive: true });
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -19,10 +20,14 @@ const go = (page, screen) => page.locator(`nav [data-action="${screen}"]`).click
 const cardItem = (page, id) => page.locator(`.collection-item[data-card-id="${id}"]`);
 const countOwned = p => Object.values(p.inventory).filter(count => count > 0).length;
 const totalCopies = p => Object.values(p.inventory).reduce((sum, count) => sum + count, 0);
-const waitProfile = (page, predicate, argument) => page.waitForFunction(({ key, expression, argument }) => {
-  const p = JSON.parse(localStorage.getItem(key));
-  return new Function('p', 'argument', `return (${expression})`)(p, argument);
-}, { key: profileKey, expression: predicate, argument });
+const waitProfile = async (page, predicate, argument) => {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    if (predicate(await read(page), argument)) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error('Timed out waiting for the expected profile change.');
+};
 const noOverflow = async page => assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Horizontal overflow');
 async function shot(page, label) {
   await noOverflow(page);
@@ -159,7 +164,7 @@ try {
   assert.equal((await read(page)).inventory[target], 0);
   const beforeBuy = await read(page);
   await page.locator(`[data-action="buy-card"][data-id="${target}"]`).click();
-  await waitProfile(page, 'p.inventory[argument] === 1', target);
+  await waitProfile(page, (p, argument) => p.inventory[argument] === 1, target);
   assert.equal((await read(page)).coins, beforeBuy.coins - RARITIES[CARD_RARITIES[target]].buyPrice);
   await go(page, 'collection');
   const acquired = cardItem(page, target);
@@ -169,7 +174,7 @@ try {
   const targetUID = beforeUpgrade.instances.find(instance => instance.cardId === target).uid;
   assert.equal(await page.locator('.bag-passport-id dd').textContent(), targetUID);
   await page.locator(`.modal [data-action="instance-upgrade"][data-id="${targetUID}"]`).click();
-  await waitProfile(page, 'p.instances.some(instance => instance.uid === argument && instance.level === 2 && instance.xp === 80)', targetUID);
+  await waitProfile(page, (p, argument) => p.instances.some(instance => instance.uid === argument && instance.level === 2 && instance.xp === 80), targetUID);
   assert.equal((await read(page)).coins, beforeUpgrade.coins - 120);
   assert.equal((await read(page)).dust, beforeUpgrade.dust - 6);
   await page.locator('.modal-close').click();

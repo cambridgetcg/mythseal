@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { createProfile, PROFILE_KEY } from '../progression.mjs';
 import { createSnapshot } from '../cloud-save.mjs';
 
@@ -10,7 +11,7 @@ const base = process.env.GAME_URL || 'http://127.0.0.1:4185';
 const origin = new URL(base).origin;
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw Error('Account mock smoke requires a loopback game server.');
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const output = new URL('../test-results/', import.meta.url).pathname;
+const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 const fixedNow = '2026-09-21T12:00:00Z';
 const recoveryKey = 'shanhai.profile.recovery.v3';
 const battleKey = 'shanhai.battle.v3';
