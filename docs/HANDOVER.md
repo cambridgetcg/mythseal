@@ -140,7 +140,12 @@ python3 tools/serve.py --open
 ```
 
 The last command serves guest play on loopback, normally port **4177**. It does
-not implement `/api/*`. Offline work and mocked account UI work need no cloud
+not implement `/api/*`. Development responses use `Cache-Control: no-store`
+and send current file bytes instead of modification-time 304 responses, so
+unversioned modules stay fresh across edits. If a tab cached files from an older
+server, use a hard reload once; do not clear site data or local journey saves.
+Restart the server when changing its Python code or the public asset allowlist.
+Offline work and mocked account UI work need no cloud
 credentials. On the existing Mac, first resolve the workspace path and inspect
 the branch/diff; do not overwrite another agent's uncommitted work.
 
