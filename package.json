@@ -9,6 +9,7 @@
     "preview": "node tools/preview.mjs",
     "test:browser": "node tools/smoke.mjs && node tools/journey-smoke.mjs && node tools/classics-smoke.mjs && node tools/backpack-smoke.mjs && node tools/account-smoke.mjs && node tools/navigation-smoke.mjs && node tools/immersion-smoke.mjs && node tools/battle-presentation-smoke.mjs && node tools/stories-smoke.mjs",
     "test:atelier": "node tools/atelier-smoke.mjs",
+    "analyze:wx01": "node tools/analyze-wx01-drops.mjs",
     "build": "node tools/build.mjs",
     "deploy": "node tools/deploy.mjs",
     "verify:hosting": "node tools/verify-hosting.mjs",

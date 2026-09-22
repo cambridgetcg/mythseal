@@ -61,9 +61,9 @@ and [checks](VALIDATION.md#life-pills-and-battle-transitions--2026-09-22).
 ## 西行 booster planning and rarity frames
 
 The owner chose 西遊記 first, then other series. [WX-01](EXPANSION-WX01.md)
-contains the 16-character/25-print proposal, episode art briefs, three existing
-rarities, AA/INK/TR treatments and the delivery sequence. `atelier.html` is a
-standalone local visual preview with four Wukong treatments and a fixed pack
+contains the updated 16-character/29-print proposal, episode art briefs, three
+existing rarities, AA/LAA/INK/TR treatments and the delivery sequence.
+`atelier.html` is a standalone local visual preview with four Wukong treatments and a fixed pack
 opening; it never reads or writes player saves, consumes coins or grants cards.
 `hosting/preview-assets.json` explicitly allows its six files on the Python
 loopback server; production builds exclude them. The public allowlist is now 33
@@ -72,9 +72,15 @@ Three new original art studies and exact prompts are in [ART-EXPANSION.md](ART-E
 
 Existing game cards now derive their bronze/silver-jade/gold frame and rarity
 mark from `CARD_RARITIES` via `card-frames.css`. There are still 24 playable
-characters and the same two playable packs. New-card stats and special-print
-odds are not finalized. Owned printing metadata requires a separate compatible
-collection/cloud/old-reader rollout; current hydration would drop an unknown
+characters and the same two playable packs. New-card stats are not finalized.
+The [drop-rate design](WX01-DROP-RATES.md) specifies calculated draft odds,
+twelve-pack dry protection, 神契匣 and earned choices. The owner chose cosmetic
+Leader Art first; four new LAA artworks and all distribution remain planned.
+`tools/wx01-drop-model.mjs` is isolated analytical code, not an imported runtime
+sampler. Current snapshot limits (2,000 copies including vault / 512 KiB) require
+capacity planning before promising sustained collection growth.
+Owned printing metadata requires a separate compatible collection/cloud/old-reader
+rollout; current hydration would drop an unknown
 field. Do not casually add it or bump the profile version under the same key.
 This remains local development, with verification recorded in [VALIDATION.md](VALIDATION.md).
 

@@ -160,6 +160,12 @@ from production builds. Run `npm run test:atelier` against that Python server;
 set `BROWSER=webkit` to check an installed Playwright WebKit runtime as well.
 Use `PLAYWRIGHT_BROWSERS_PATH` if that runtime is in a project-local cache.
 
+The [WX-01 probability draft](docs/WX01-DROP-RATES.md) has an isolated analytical
+model: `npm run analyze:wx01` enumerates outcomes and checks a seeded simulation;
+`npm run analyze:wx01 -- --json` emits the full per-print report. This does not
+open game packs, read saves or change live probabilities. Cosmetic 領契, new
+pack distribution and compatible collection storage remain implementation work.
+
 ```sh
 # Start the local server in another terminal first.
 PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tools/smoke.mjs

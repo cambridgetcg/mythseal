@@ -2,6 +2,43 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## 西行 drop-rate design · 2026-09-22
+
+The owner selected cosmetic 領契 before battle Leader mechanics. The proposal
+now has 29 printings of 16 identities: four planned LAA portraits supplement the
+previous 25-print art study. [WX01-DROP-RATES.md](WX01-DROP-RATES.md) records the
+official-source scope, natural rates, twelve-pack dry protection, god-pack
+composition, per-print frequencies, earned choice route and capacity gates.
+
+- **246 Node tests pass**, including nine new analytical-model tests. The nine
+  targeted cases also pass after final BASE-label and input-validation edits.
+  Exact outcome enumeration verifies probability mass, three-card contents,
+  the rarity floor, all 29 reachable prints and unique god-pack characters.
+  Tests independently check counter transitions, rare-result preservation,
+  Markov stationary equations, known god-pack marginals and quantile boundaries.
+- A **1,000,000-pack simulation**, seed `20260922`, passes 38 comparisons with
+  the analytical model. It records 492 god packs; that observation is consistent
+  with the proposed 0.05%, not a claim that every million openings contain 500.
+  Monte Carlo tolerances explicitly allow dependence from the dry counter;
+  they are conservative smoke checks, not exact confidence intervals. Exact
+  enumeration/renewal calculations supply the reported probabilities.
+- An independent read-only review agrees on protected rates, per-print god
+  biases, character-distribution changes and rare-event waits. The live economy
+  was inspected through source and pure synthetic calls: no player save or
+  account was read or changed. The draft records the daily 80-coin rebate and
+  the 2,000-copy/512-KiB backup limits, including vault copies.
+- All analytical data remain under `tools/` and `tests/`; no game imports,
+  existing pack rules, production allowlist, atelier behavior, save fields,
+  service settings or schema changed. No new artwork or public deployment.
+  Browser/Python reruns were unnecessary for this documentation/offline-tool pass.
+
+Evidence: ignored `test-results/wx01-node-tests.log` and
+`test-results/wx01-drop-analysis.json`; reproduce with `npm run analyze:wx01 -- --json`.
+The model uses checklist IDs, not production engine IDs. New character balance,
+LAA artwork, runtime grants, compatible counters/印/storage, portrait selection
+and resumable issuance remain unimplemented. The existing atelier still shows
+fixed demonstration cards and no real probabilities or player grants.
+
 ## 西行 collectible frames and art study · 2026-09-22
 
 Local development on `codex/game-lobby`; the owner selected 西遊記 as the first

@@ -3,7 +3,9 @@
 Status: **set proposal + local visual prototype**, 2026-09-22.
 The owner chose **西遊記 first, then other series**. This document fixes a useful
 working direction; proposed new cards, their stats, acquisition rates and owned
-special printings have not been implemented or released.
+special printings have not been implemented or released. The same-day
+[drop-rate design](WX01-DROP-RATES.md) adds four cosmetic 領契 printings and
+calculated draft probabilities; the owner chose battle Leader rules later.
 
 ## The promise
 
@@ -13,8 +15,9 @@ Spectacular cloud battles sit beside a quiet departure, a horse reflected as a
 dragon, and a traveller resting beside the luggage.
 
 Scope: **16 base identities = 15 new characters + the existing Wukong**.
-**6 alternate arts + 2 ink-scroll prints + 1 treasure = 9 special printings**.
-Thus the set checklist has **25 printings of 16 gameplay identities**. The game
+**6 alternate arts + 4 Leader Art portraits + 2 ink-scroll prints + 1 treasure
+= 13 special printings**. Thus the updated set checklist has **29 printings of
+16 gameplay identities**, up from the first visual draft's 25. The game
 would grow from 24 to 39 characters. Special printings do not increase that count.
 
 Today's work includes live frames for the existing three rarities, three original
@@ -54,6 +57,7 @@ a long new rarity ladder merely to fit every surface treatment.
 | 神品 | Antique gold, nested/extended corners, 神 mark | Existing epic collection rarity |
 | 本畫 · BASE | Framed character portrait | Standard printing |
 | 異畫 · AA | Full scene, open edges, character-specific composition | A different illustration of the same rules card |
+| 領契 · LAA | Character portrait and faction crest, composed for lobby/deck identity | Cosmetic Leader Art; no Leader battle mechanic |
 | 墨卷 · INK | Warm paper, black brush/woodcut marks, small vermilion accents; sequential vignettes | Our original illustrated-scroll answer to manga treatments |
 | 天工 · TR | Deep lacquer, gold leaf, bronze relief and jade inlay | A treasure treatment, not a new combat rarity |
 
@@ -123,6 +127,10 @@ These names describe illustrations, not additional gameplay identities.
 | WX01-013-AA1 | 豬八戒 · 行囊旁的月亮 | Rake and luggage at rest; the weary traveller gets a gentle moment | Original interlude, art brief |
 | WX01-003-AA1 | 觀音 · 甘露回春 | Willow, falling drops and a vast tree returning to life | Art brief |
 | WX01-010-AA1 | 鐵扇公主 · 翠雲一扇 | Fan opens across the frame; wind, green mountain, distant heat | Art brief |
+| WX01-001-LAA1 | 唐三藏 · 一願西行 | Composed frontal portrait, robe and a narrow dawn road | New Leader Art brief |
+| WX01-005-LAA1 | 孫悟空 · 我自齊天 | Defiant close gaze, upright staff and cloud engraving | New Leader Art brief |
+| WX01-009-LAA1 | 白骨精 · 千面一念 | Face, veil and a reflected silhouette | New Leader Art brief |
+| WX01-015-LAA1 | 牛魔王 · 萬妖共主 | Broad horns and mountain banners | New Leader Art brief |
 | WX01-005-INK1 | 孫悟空 · 大鬧天宮 | Hero with original cave, sea-palace and heavenly-conflict vignettes | Original art study in atelier |
 | WX01-012-INK1 | 六耳獼猴 · 二心三界 | Paired silhouettes through heaven, the underworld and 雷音 | Art brief |
 | WX01-005-TR1 | 孫悟空 · 定海神珍 | The upright staff in a dark sea palace; lacquer, carved gold and jade | Original art study in atelier |
@@ -133,8 +141,8 @@ should not require choosing a high-star combat role. The quiet 八戒 scene is a
 invented interlude, not a claimed quotation or specific documented chapter scene.
 
 Base Wukong can reuse the existing atlas. Full set production then needs
-**15 new base illustrations + 9 special illustrations = 24 new card artworks**.
-Three studies exist; **21 remain**, subject to review. Packaging/key art is a
+**15 new base illustrations + 13 special illustrations = 28 new card artworks**.
+Three studies exist; **25 remain**, subject to review. Packaging/key art is a
 separate deliverable. The current pack mockup reuses the AA illustration.
 
 ## Booster and collection experience
@@ -142,29 +150,27 @@ separate deliverable. The current pack mockup reuses the AA illustration.
 Proposed product: **西行秘匣**, set `wx01`, earned coins, **300 coins / 3 cards**.
 This is a planned product, not a new button in the current market.
 
-Start balancing from the current base pack rule: roll 60/30/10 for common/rare/
-epic; if the first two cards are common, the third rolls 75/25 rare/epic. With
-that guarantee the long-run slot average is **52.8/35.4/11.8**, not 60/30/10.
-WX-01 has nonempty pools for all three rarities. Choose uniformly within each
-base-rarity pool unless a later documented design explicitly changes that rule.
+The [rate specification](WX01-DROP-RATES.md) supersedes the earlier
+character-first treatment proposal. It chooses one natural whole-pack outcome:
+83.70% standard, 12.50% AA, 2.50% cosmetic LAA, 1.00% TR, 0.25% INK and 0.05%
+神契匣 (AA + LAA + INK, three distinct characters). A twelve-pack dry-streak cap
+promotes an otherwise ordinary result to AA; special outcomes keep their identity.
+These are draft Mythseal rates, not live odds or Bandai manufacturer rates.
 
-After choosing a character, an explicit set printing table can select only
-printings registered for that character. A selected special **replaces the
-standard printing of that same copy**; it neither adds a fourth card nor rerolls
-the gameplay identity. Standard candidates must remain accessible.
+Ordinary packs retain the 60/30/10 base rule and third-slot guarantee. Single-
+special packs preserve their chosen illustration and upgrade the second standard
+slot if needed to retain at least one 靈品/神品. This intentionally changes the
+future WX-01 character distribution; the original two packs are unaffected.
+The original **52.8/35.4/11.8** slot average describes only ordinary packs, not
+the full proposed WX-01 mix. Exact per-print, rarity and protected frequencies
+are calculated by the offline model linked in the rate specification.
 
-**Special-print odds are deliberately not set yet.** A meaningful odds table
-must include which characters have eligible prints, third-slot guarantees,
-whole-pack versus per-card probabilities, and any guarantee counter. Wukong-only
-TR eligibility makes a simple “1% TR” banner misleading unless its denominator
-is specified. Calculate the exact marginal odds, simulate distribution and
-model earned-currency pace before choosing rates. Do not invent a “one per box”
-guarantee for a game without a box system.
+Acquisition design to implement after compatibility work:
 
-Recommended acquisition design for the next decision:
-- A clearly visible, finite earned route to at least one chosen AA. Explore a
-  first-volume reward and repeatable weekly illustration tokens; do not silently
-  consume duplicate owned cards.
+- First Westward-volume completion offers one non-expiring AA choice. Each pack
+  grants one 西行印; the existing ten-match weekly claim grants five. Redeem an
+  exact AA/LAA/TR/INK for 20/40/100/200 印 respectively; 印 are consumed, cards
+  are not. Previously cleared profiles need once-only entitlement handling.
 - A pack reward is a new UID at Lv.1/0 XP. A variant is not a new skin silently
   applied to a trained existing copy, and it does not inherit that copy's XP.
 - Duplicates remain distinct cards. Let the player inspect/lock/keep/sell; no
@@ -236,8 +242,8 @@ previews are not trusted online ownership; authority remains the separate M2/M3 
 | A · Visual language | Existing rarity frames + four Wukong treatments + fixed opening study | Safari/WebKit and Chrome; 360/390/1440px; legible stats, keyboard, reduced motion; no save writes |
 | B · Four-card pilot | 白龍馬 / 紅孩兒 / 白骨精 / 沙悟淨 base art and candidate rules | One per faction, legal starter/mixed decks, injectable-RNG engine cases and four-round matchup review |
 | C · Copy compatibility | Print catalogue, one art resolver, guarded migration and backup support | Legacy/new snapshots round-trip; exact UID/XP/vault retained; old readers cannot erase prints; pending match stable |
-| D · WX-01 content | Remaining roster, all 25 printing entries, art/edition checks | All faction pair decks legal; no empty rarity pools; no incorrect identity/print links; source/art review |
-| E · Earned booster | Approved published probabilities, access path and resumable opening | Exact probability enumeration + simulation; one cost/result under retries/reload; deterministic result independent of animation |
+| D · WX-01 content | Remaining roster, all 29 printing entries including four LAA, art/edition checks | All faction pair decks legal; no empty rarity pools; no incorrect identity/print links; source/art review |
+| E · Earned booster | Playtested version of the draft rates, choice route and resumable opening | Exact probability enumeration + simulation; compatible storage capacity; one cost/result/counter/印 under retries/reload; result independent of animation |
 | F · Narrative release | Relevant opponents use their own cast; journal shows collection goals | Existing story unlocks/rewards preserved; clear new-player path; physical iPhone/Android performance |
 
 Existing 西遊 maps can receive the new cast after cards pass slice B/D. New

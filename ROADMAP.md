@@ -28,11 +28,15 @@ The detailed [technical plan](docs/TECHNICAL-PLAN.md), [backend design](docs/BAC
 
 **Booster direction confirmed · 2026-09-22:** start with **西遊記**, then develop
 other series. [WX-01 · 西行・萬象初章](docs/EXPANSION-WX01.md) proposes 16 base
-identities (existing Wukong + 15 new characters) and nine cosmetic special
-printings: six AA, two ink-scroll and one treasure. Keep 凡品/靈品/神品 distinct
+identities (existing Wukong + 15 new characters) and thirteen cosmetic special
+printings: six AA, four 領契 LAA, two ink-scroll and one treasure. Keep
+凡品/靈品/神品 distinct
 from printing treatments and battle strength. The first local slice adds rarity
 frames and an `atelier.html` art/opening preview; new owned prints, the playable
-booster, character balance and special-print probabilities remain planned.
+booster and character balance remain planned. The owner chose cosmetic 領契
+first, with Leader battle effects later. The [drop-rate draft](docs/WX01-DROP-RATES.md)
+now specifies natural/protected probabilities, 神契匣 contents, earned choices
+and economic/capacity limits; it is verified offline and is not enabled in game.
 
 ## Shipped baseline and its limits
 
@@ -142,10 +146,11 @@ player moments, first-encounter storyboard and implementation/validation seams.
 [set bible and delivery slices](docs/EXPANSION-WX01.md#delivery-slices-and-acceptance).
 Next content step: a four-character pilot, one per faction. In parallel, design
 the print catalogue and supported-reader/save/backup migration before issuing
-owned variants. Then complete the 16-character/25-print checklist and implement
+owned variants. Then complete the 16-character/29-print checklist and implement
 the earned-coin booster only after exact odds, a finite art-acquisition route,
-once-only opening receipts and old-save retention pass. The current two packs
-keep their rules. Later series: 封神 → a smaller 白蛇 collection, with 三國、水滸、
+once-only opening receipts, dry counters, collection currency, storage capacity
+and old-save retention pass. The current two packs keep their rules.
+Later series: 封神 → a smaller 白蛇 collection, with 三國、水滸、
 聊齋、紅樓 and original 山海 companions in the editorial backlog. No dates set.
 
 - Improve onboarding, explain four-round decisions and exact-card growth, and organize Traditional Chinese/English text without changing save identities. Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
