@@ -35,7 +35,7 @@ const complete = (profile, { kind = 'expedition', nodeId = NODES[0].id, winner =
 test('new profile and v1 migration preserve the playable roster, deck and stats', () => {
   const deck = [...defaultDeckIds].reverse();
   const profile = createProfile({ now, legacyDeck: deck, legacyStats: { played: 9, won: 4 } });
-  assert.equal(profile.version, 4);
+  assert.equal(profile.version, 5);
   assert.equal(profile.coins, 1200);
   assert.equal(profile.dust, 20);
   assert.equal(profile.xp, 0);
@@ -59,7 +59,7 @@ test('invalid migration input falls back without inventing historic wins', () =>
   const profile = hydrateProfile(null, { now, legacyDeck: ['bad'], legacyStats: { played: -4, won: 80 } });
   assert.deepEqual(profile.deck, defaultDeckIds);
   assert.deepEqual(profile.stats, { played: 0, won: 0 });
-  assert.equal(hydrateProfile({ version: 1 }, { now }).version, 4);
+  assert.equal(hydrateProfile({ version: 1 }, { now }).version, 5);
 });
 
 test('v2 collection expansion keeps progress and grants only missing welcome cards once', () => {
@@ -529,15 +529,15 @@ test('hero and arena labels are stable at progression boundaries', () => {
   assert.equal(getArenaRank(profile).next, null);
 });
 
-test('v2 shared ranks migrate to every distinct copy once, while v3 has a separate backup key', () => {
+test('v2 shared ranks migrate to every distinct copy once, with a separate v5 key from prior v4', () => {
   const old = legacy();
   old.inventory.qingxiao = 3;
   old.levels.qingxiao = 4;
   old.coins = 777; old.stats = { played: 11, won: 6 };
   const migrated = hydrateProfile(freeze(old), { now });
-  assert.equal(PROFILE_KEY, 'shanhai.profile.v4');
-  assert.equal(LEGACY_PROFILE_KEY, 'shanhai.profile.v3');
-  assert.equal(migrated.version, 4);
+  assert.equal(PROFILE_KEY, 'shanhai.profile.v5');
+  assert.equal(LEGACY_PROFILE_KEY, 'shanhai.profile.v4');
+  assert.equal(migrated.version, 5);
   assert.equal(getInstances(migrated, 'qingxiao').length, 3);
   assert(getInstances(migrated, 'qingxiao').every(card => card.level === 4 && card.xp === 400));
   assert.equal(new Set(migrated.instances.map(card => card.uid)).size, migrated.instances.length);

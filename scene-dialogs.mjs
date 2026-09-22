@@ -185,7 +185,7 @@ function fallback(anchor) {
 }
 
 export function prepareDialog(dialog, { kind = null } = {}) {
-  if (!dialog || kind === 'pack-receipt' || kind === 'quests' || dialog.querySelector('.pack-opening,.quest-content')) return;
+  if (!dialog || kind === 'pack-receipt' || kind === 'quests' || dialog.querySelector('.pack-opening,.quest-content,.expansion-surface')) return;
   const anchor = dialog.querySelector('.inheritance-panel,.inheritance-confirm,.inheritance-result,.prep-content,.wx01-odds,.wx01-redemption') || dialog;
   if (anchor.dataset.dialogPrepared === 'true' && children(anchor).some(node => node.hasAttribute('data-viewport-module'))) return;
   dialog.classList.add('viewport-dialog', 'scene-dialog'); anchor.classList.add('scene-dialog-surface');

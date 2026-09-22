@@ -39,16 +39,16 @@ twelve-pack protection, 神契匣, 西行印 redemption and a first-volume AA ch
 Candidate card balance and phone experience still need playtesting. Production
 v0.5.1 is unchanged; no release or hosted migration accompanies this work.
 
-**Longer story and activity direction · 2026-09-22:** after clearing the existing
-18 encounters repeatedly, the owner requested a longer main story and meaningful
-repeat-play rewards, and selected **火焰山三連戰** as the first activity. The
-[campaign/activity design](docs/CAMPAIGN-AND-EVENTS.md) proposes six eight-battle
-volumes (48 new stages), guaranteed companion BASE copies, targeted boss loot,
-pack tickets and lasting mastery rewards. First implementation order: compatible
-run/reward state → the three-boss activity with supplies and owned/loaner decks
-→ eight-stage story volume one. Counts, recovery rules and reward rates are
-playtest proposals; none of these additions are playable yet. Existing levels,
-clears, pack rates and special-printing protection remain the compatibility baseline.
+**Local campaign and activity · 2026-09-22:** the approved
+[西行續卷 and 火焰山三連戰](docs/CAMPAIGN-AND-EVENTS.md) are implemented locally.
+Six eight-battle volumes add **48 encounters to the original 18 (66 total)**,
+eight fixed BASE copies, six WX-01 tickets, a separate AA choice and cumulative
+resource mastery. The standard three-boss activity freezes owned/loaner rosters,
+carries resources through supplies, banks targeted loot and awards first/weekly
+milestones and a five-clear title. Existing clears, old AA entitlement and pack
+rates remain intact. Profile v5/cloud snapshot v3 compatibility is in source;
+browser acceptance and human balance review are still in progress. Public
+v0.5.1 and hosted schemas are unchanged.
 
 ## Shipped baseline and its limits
 
@@ -68,7 +68,7 @@ daily/weekly journal and a clearer mode hub are implemented locally. AI arena
 and practice remain available. See [story/mode scope and online sequence](docs/STORIES-AND-MODES.md).
 These additions are not yet in the public release described below.
 
-| Area | Implemented | Still absent or unverified |
+| Public v0.5.1 area | Implemented in that release | Still absent or unverified |
 | --- | --- | --- |
 | Game loop | 24 characters; local AI battles/arena; six travel locations; daily tasks/training; earned-coin packs; NPC sale and buyback. | Server-validated rewards, competitive ladder, matchmaking and player-to-player trading. |
 | Backpack | Per-copy UID, XP, level, battle history and protection; three exact-card decks; legacy save migration and pending-battle recovery. NPC buyback keeps the same copy and XP. | Server-issued card identities and transferable ownership. Local UIDs confer no future mint entitlement. |
@@ -167,22 +167,35 @@ player moments, first-encounter storyboard and implementation/validation seams.
 [set bible and delivery slices](docs/EXPANSION-WX01.md#delivery-slices-and-acceptance).
 The local implementation now includes all 15 new rules cards, the Wukong reprint,
 29 printings, 14 new art files and the three earlier Wukong illustrations.
-Profile v4 uses a separate save key, preserves legacy exact copies and pending
-battles, and records printing IDs, protected pack receipts, dry counters and
+The original WX-01 profile-v4 slice used a separate save key, preserving exact
+copies and pending battles while recording printing IDs, pack receipts, dry counters and
 西行印. Weekly ten-match claims add five 印; previously cleared Westward volumes
 qualify for the once-only AA choice. The original two packs retain their card
 pools/order, prices and six-call draw sequence.
 
-Next: finish integrated browser/accessibility review and balance playtests, then
-physical-phone review with M5. Before any separate authorized public release,
-apply and verify the additive journey-v2 SQL migration, verify old/new backup
+The campaign slice below now advances local saves to v5. Next: finish integrated
+browser/accessibility review and balance playtests, then physical-phone review
+with M5. Before any separate authorized public release,
+apply and verify the additive journey-v2/v3 SQL migrations, verify old/new backup
 retention and account bindings, and ship a coherent hashed/versioned client
-module graph. `JOURNEY_V2_ENABLED` stays false or absent until hosted schema
-compatibility is verified. Local v2 snapshots allow 10,000 owned/vault copies
-and 4 MiB; deployed v0.5.1 still has its v1 limits. Passing local tests is not
+module graph. `JOURNEY_V2_ENABLED` and `JOURNEY_V3_ENABLED` stay false or absent until
+their hosted schema compatibility is verified. Local v2/v3 snapshots allow
+10,000 owned/vault copies and 4 MiB; deployed v0.5.1 still has its v1 limits. Passing local tests is not
 evidence that the hosted migration or rollout has happened.
 Later series: 封神 → a smaller 白蛇 collection, with 三國、水滸、
 聊齋、紅樓 and original 山海 companions in the editorial backlog. No dates set.
+
+**M4.6 · Campaign and repeatable activities:** all 48 continuation stages and
+standard 火焰山 are implemented locally; see the
+[rules, budget and validation boundary](docs/CAMPAIGN-AND-EVENTS.md). New v5
+state records seeds, supplies, exact-copy protections, pending reward grants,
+tickets, weekly activity milestones and mastery without introducing a new
+currency. The old 18 stages and four-stage Westward AA grant remain unchanged.
+An initial 200-run mirrored-public-AI loaner probe cleared **16/200** runs;
+this is reproducible tuning evidence, not a forecast of human success. Finish
+browser acceptance and human standard-mode playtests before selecting changes.
+Advanced difficulty, event-specific art and seasonal rules remain planned;
+real PvP/ranked stays on the M2/M3 authority track.
 
 - Improve onboarding, explain four-round decisions and exact-card growth, and organize Traditional Chinese/English text without changing save identities. Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
 - Add new classical characters through explicit rules/content versions. Build per-card artwork manifests/derivatives with provenance; trial one card's CSS/Web Animations effects with reduced-motion, skip and background/resume support before scaling the art pipeline.
@@ -245,6 +258,7 @@ These are bounded starting points, not instructions to start every phase at once
 | Online client adapter | One match/inventory UI using contract fixtures; clear offline versus online status and reconnect handling. | Agreed contract; can run alongside server implementation. No local-save promotion. |
 | Content/animation sample | One card's original-art manifest, derivatives and reduced-motion animation, with measured payload/render cost. | Independent M4 task; preserve the existing asset fallback. |
 | Mist Gate playtest and next polish | Review the local 霧隱渡口 arrival → reveal → exact-copy XP → next/retry slice; tune audio and pace, then select a small follow-up from [IMMERSION.md](docs/IMMERSION.md). | M4.1–M4.2 local slice is implemented; human/device evidence remains open. Preserve hidden bids, accepted results and single settlement; coordinate `app.mjs` ownership. |
+| Campaign/activity playtest | Finish viewport/browser acceptance, play all six volumes and compare owned/loaner 火焰山 difficulty, supply choices and reward pace. | M4.6 local implementation; record human evidence separately from the 16/200 mirrored-AI probe. Preserve saved seeds, old grants and once-only settlement. |
 | Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
 | Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
 

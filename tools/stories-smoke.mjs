@@ -12,13 +12,13 @@ const base = process.env.GAME_URL || 'http://127.0.0.1:4177', origin = new URL(b
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw Error('Stories smoke requires a loopback game server.');
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
-const fixedNow = '2026-09-22T12:00:00Z', battleKey = 'shanhai.battle.v4', recoveryKey = 'shanhai.profile.recovery.v4';
+const fixedNow = '2026-09-22T12:00:00Z', battleKey = 'shanhai.battle.v5', recoveryKey = 'shanhai.profile.recovery.v5';
 const checks = [], screenshots = [], errors = [], blockedExternal = new Set(), contexts = new Set();
 const action = (page, name, id, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${id ? `[data-id="${id}"]` : ''}`);
 const go = (page, destination) => action(page, destination, null, '.game-dock ').click();
 const read = (page, key = PROFILE_KEY) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
 const passed = label => { checks.push(label); console.log(`PASS ${label}`); };
-const snapshot = profile => ({ format: 'mythseal.offline-journey', version: profile.version===3?1:2, profile: structuredClone(profile) });
+const snapshot = profile => ({ format: 'mythseal.offline-journey', version: profile.version===3?1:profile.version===4?2:3, profile: structuredClone(profile) });
 const idleAccount = page => page.locator('.account-shell[aria-busy="false"]').waitFor();
 // Deliberately literal acceptance data: tests must notice accidental chapter
 // removal, cross-world unlocking, deck mixing or reward formula changes.
@@ -61,9 +61,9 @@ async function openPage(seed, { width = 1440, authenticated = false, backup = nu
     let body = null; try { body = request.postDataJSON(); } catch {}
     api.calls.push({ method, path, body: structuredClone(body) });
     const reply = (value, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
-    if (path === '/api/v1/account' && method === 'GET') return reply({ authenticated, user: authenticated ? { id: 'stories-fixture', email: 'stories@example.test' } : null, emailEnabled: false, journeyVersions:[1,2] });
-    if (['/api/v1/journey','/api/v2/journey'].includes(path) && authenticated) {
-      if (method === 'GET') return reply(api.backup?.snapshot.version===(path.includes('/v2/')?2:1)?{backup:api.backup,revision:api.revision}:{backup:null,revision:0});
+    if (path === '/api/v1/account' && method === 'GET') return reply({ authenticated, user: authenticated ? { id: 'stories-fixture', email: 'stories@example.test' } : null, emailEnabled: false, journeyVersions:[1,3] });
+    if (['/api/v1/journey','/api/v3/journey'].includes(path) && authenticated) {
+      if (method === 'GET') return reply(api.backup?.snapshot.version===(path.includes('/v3/')?3:1)?{backup:api.backup,revision:api.revision}:{backup:null,revision:0});
       if (method === 'PUT') {
         assert.equal(body.expectedRevision, api.revision);
         api.revision++;
@@ -161,7 +161,7 @@ try {
   const fresh = createProfile({ now: fixedNow });
   const { page: locked } = await openPage(fresh);
   await go(locked, 'world');
-  assert.deepEqual(await locked.locator('.story-world-switcher [data-action="world-select"]').evaluateAll(elements => elements.map(element => element.dataset.id)), worlds.map(world => world.id));
+  assert.deepEqual(await locked.locator('.story-world-switcher [data-action="world-select"]').evaluateAll(elements => elements.map(element => element.dataset.id).filter(id => ['shanhai', 'westward', 'investiture', 'white-snake'].includes(id))), worlds.map(world => world.id));
   for (const world of worlds) {
     await selectWorld(locked, world);
     for (const nodeId of world.nodes) {
@@ -173,7 +173,7 @@ try {
   await release(locked);
   passed('Four literal maps expose 6/4/4/4 stages; a new journey can start only Mist Gate, and browsing locked chapters never changes its save');
 
-  const legacy = seasoned(); delete legacy.weekly; delete legacy.wx01;legacy.version=3;legacy.collectionVersion=1;legacy.collectionExpansion=1;
+  const legacy = seasoned(); delete legacy.weekly; delete legacy.wx01; delete legacy.expansion;legacy.version=3;legacy.collectionVersion=1;legacy.collectionExpansion=1;
   for(const instance of legacy.instances)delete instance.printId;
   legacy.inventory=Object.fromEntries(Object.entries(legacy.inventory).filter(([id])=>!['tangsanzang','bailong','guanyin','puti','honghaier','huangfeng','jinjiao','baigu','tieshan','yinjiao','liuer','bajie','wujing','niumowang','zhenyuan'].includes(id)));
   legacy.levels=Object.fromEntries(Object.entries(legacy.levels).filter(([id])=>id in legacy.inventory));

@@ -225,7 +225,7 @@ export function syncCollection(profile) {
 }
 
 /** Canonical data wins over compatibility counts, including an intentionally empty backpack. */
-export function hydrateCollection(profile = {}, { now = new Date(), allowLegacyPrints = profile.version !== 4 } = {}) {
+export function hydrateCollection(profile = {}, { now = new Date(), allowLegacyPrints = !(profile.version >= 4) } = {}) {
   const next = copy(profile), acquiredAt = nowISO(now);
   const canonical = Object.hasOwn(profile, 'instances') || [1, COLLECTION_VERSION].includes(profile.collectionVersion);
   const serial = maximumSerial(profile);
@@ -293,14 +293,15 @@ export function mintInstance(profile, cardId, { source = 'unknown', now = new Da
   return { profile: syncCollection(next), instance: frozenCopy(instance) };
 }
 
-function inPendingBattle(profile, uid) {
-  return Array.isArray(profile.pending?.instanceIds) && profile.pending.instanceIds.includes(uid);
+export function isInstanceInJourney(profile, uid) {
+  return (Array.isArray(profile.pending?.instanceIds) && profile.pending.instanceIds.includes(uid))
+    || (Array.isArray(profile.expansion?.fireMountain?.run?.instanceIds) && profile.expansion.fireMountain.run.instanceIds.includes(uid));
 }
 
 /** Sale protection. A saved-deck or locked card may still train outside a pending battle. */
 export function getInstanceProtection(profile, uid) {
   const instance = ownedInstance(profile, uid);
-  if (inPendingBattle(profile, uid)) return '此卡正在未完對局中，完成或放棄對局後再操作。';
+  if (isInstanceInJourney(profile, uid)) return '此卡正在未完對局或活動旅程中，完成或放棄旅程後再操作。';
   if (profile.wx01?.receipt?.cards.some(card => card.instanceId === uid)) return '請先確認西行開匣結果，再操作這張卡牌。';
   if (profile.wx01?.leaderInstanceId === uid) return '此卡正在主頁展示，取消展示後才可出售。';
   if (instance.locked) return '此卡已鎖定，解鎖後才可出售。';
@@ -312,7 +313,7 @@ export function getInstanceProtection(profile, uid) {
 export function setInstanceXP(profile, uid, xp) {
   getInstanceLevel(xp);
   const instance = ownedInstance(profile, uid);
-  if (inPendingBattle(profile, uid)) throw new RangeError('此卡正在未完對局中，完成或放棄對局後才可修練。');
+  if (isInstanceInJourney(profile, uid)) throw new RangeError('此卡正在未完對局或活動旅程中，完成或放棄旅程後才可修練。');
   const target = Math.min(MAX_CARD_XP, xp);
   if (target < instance.xp) throw new RangeError('不能降低已獲得的卡牌經驗。');
   const next = copy(profile), selected = ownedInstance(next, uid);

@@ -10,7 +10,8 @@ state and permissions can change; dated evidence below is not a permanent health
 神魔令's four-round bluffing/resource mechanics. Public v0.5.1 has 24 characters, travel,
 daily progression, earned-coin packs, an NPC market and a backpack with exact-copy
 XP/history and three decks. Current local source adds 15 西遊 characters,
-29 WX-01 printings, a third pack, expanded stories and weekly quests. It is not
+29 WX-01 printings, a third pack, weekly quests, **66 story encounters** and
+the standard **火焰山三連戰** activity. It is not
 a recovered copy of the old game.
 
 The browser game runs locally, against AI opponents. **旅程閣** adds email-code
@@ -42,15 +43,16 @@ collections, decks, accounts, battles and saved pack receipts;
 `scene-dialogs.mjs` restructures existing dialog content. Presentation modules
 own lobby/world/market/quest markup. Their CSS loads after the earlier styles.
 See [NAVIGATION.md](NAVIGATION.md) for integration and verification boundaries.
-The public allowlist now contains **73 files**, excluding generated metadata.
-This work has no deployment, migration or profile schema change.
+That viewport checkpoint's allowlist contained **73 files**, excluding generated
+metadata. It had no profile schema change; the later campaign migration below
+is separate. Use the current build manifest for the expanded asset count.
 
 The 2026-09-22 navigation slice adds a five-destination game lobby, unified
 cards/decks/codex hub, quest overlay and explicit encounter preparation with
 return-to-deck and next/retry flows. See [NAVIGATION.md](NAVIGATION.md) for behavior,
 code ownership and checks. That slice brought the source allowlist to 21 files; the
 19-file count above describes the live v0.5.1 snapshot, not this local change.
-No service, schema, account or save-key migration accompanies the UI.
+That initial UI slice did not migrate services, schemas, accounts or save keys.
 
 The 2026-09-22 [immersion work](IMMERSION.md) now includes a local 霧隱渡口 slice:
 lantern/mist arrival and battle atmosphere, short skippable public-result reveals,
@@ -103,22 +105,26 @@ receipt blocks new pack/choice grants and is resumed after reload. Reveals do
 not draw, pay or grant. Legacy packs keep their frozen card pools/order and six
 RNG calls; the NPC market and existing opponent deck generation stay legacy-only.
 
-Profile **v4**, collection **v2**, uses **`shanhai.profile.v4`**, battle v4 and
-recovery v4 keys. `profile-store.mjs` preserves v3/v2 source keys, validates old
+Profile **v5**, collection **v2**, uses **`shanhai.profile.v5`**, battle v5 and
+recovery v5 keys. `profile-store.mjs` preserves v4/v3/v2 source keys, validates old
 canonical copies and current records, and rejects damaged/unsupported data
 without replacing it with a starter. Exact UIDs, XP, decks and vault history
 survive. Pending `cardPrints` preserve the participating copies' saved artwork.
 The existing profile lock name stays shared for stale-tab coordination.
 
-The cloud source accepts **v1/profile-v3** unchanged on validation and upgrades
-only on explicit restore; **v2/profile-v4** adds print/WX01 state and raises the
-local bounded format to 10,000 owned/vault copies and 4 MiB. Browser writes can
+The cloud source accepts **v1/profile-v3** and **v2/profile-v4** unchanged on
+validation and upgrades only on explicit restore. **v3/profile-v5** adds
+campaign/activity state; v2/v3 retain the 10,000 owned/vault-copy and 4 MiB bounds.
+An active activity run blocks cloud upload/replacement, including its supply
+phase without a pending battle. Browser writes can
 still fail from quota. Core grants preflight count; the store checks final bytes
 and persistence before an opening is treated as accepted.
 
-**No release or hosted migration occurred.** `JOURNEY_V2_ENABLED` remains false
-or absent until [the additive SQL migration](../supabase/migrations/20260922210000_wx01_journey_v2.sql)
-is separately applied and verified. A future release needs a coherent hashed/
+**No release or hosted migration occurred.** `JOURNEY_V2_ENABLED` and
+`JOURNEY_V3_ENABLED` remain false/absent until the respective additive
+[v2](../supabase/migrations/20260922210000_wx01_journey_v2.sql) and
+[v3](../supabase/migrations/20260923000000_campaign_journey_v3.sql) migrations
+are separately applied and verified. A future release needs a coherent hashed/
 versioned client module graph, compatible Worker/client rollout and hosted
 old/new backup and binding-retention evidence. The public site's existing v1
 limits (2,000 copies / 512 KiB) remain the deployed baseline.
@@ -131,22 +137,43 @@ Use [WX01 rules](../tests/wx01-cards.test.mjs),
 Completed local checks are recorded at the end of this document; they do not
 establish hosted behavior.
 
-## Next local content direction
+## Playable local campaign and activity
 
-The owner requested a longer story and repeatable activity rewards after clearing
-all 18 encounters, and selected **火焰山三連戰** first. Read
-[CAMPAIGN-AND-EVENTS.md](CAMPAIGN-AND-EVENTS.md) before implementing: it proposes
-three bosses with saved supplies/owned and loaner routes, a six-volume/48-stage
-continuation delivered one eight-stage volume at a time, fixed BASE companions,
-targeted drops and WX-01 tickets. Reward values and recovery amounts are tuning
-proposals, not changed runtime rules. Versioned run/reward/ticket compatibility
-comes before the activity UI; preserve the existing four-stage 西遊 AA claim.
-This planning pass changes documentation only and has no deployment or save changes.
+The approved [campaign/activity expansion](CAMPAIGN-AND-EVENTS.md) adds six
+eight-stage continuation volumes after `west-spirit-mountain`: **48 new + 18 old
+= 66 encounters**. First clears bank eight BASE companions, six WX-01 tickets,
+a separate final AA choice and the title 聽見萬聲. Per-node mastery accumulates
+win / finish with 6 life / finish with 2 pills across wins. Original stages,
+rewards and the four-stage Westward AA entitlement stay unchanged.
+
+火焰山 unlocks after Mist Gate and offers owned or supplied legal decks at base
+combat levels. Three saved seeds determine hands and three saved loot seeds
+determine accepted outcomes. Wins carry resources into recovery (+2 life,
+pills at least 8), then one +4 life/pill supply; both full allows no-op continue.
+Only actually played owned UIDs get XP (12 win, 8 loss/draw); loaners mint and
+train nothing. Frozen UIDs remain protected between stages. First clear banks
+牛魔王 BASE; weekly clears 1/3 each bank a ticket; five lifetime clears award
+借得東風. A run spanning Monday settles its start-week prizes before rollover.
+
+`campaign-content.mjs`, `activity-content.mjs`, `expansion-state.mjs` and
+`progression.mjs` separate authored content, strict saved state and transactions.
+The 256-entry pending grant ledger keeps earned BASE/AA deliveries until claimed.
+`kind: reward` receipts cost zero and do not alter pack counters; `kind: ticket`
+uses the unchanged WX pool/dry counter, costs zero coins and earns one seal/task.
+Existing paid, box and choice receipts remain valid. Core count/counter guards
+and store byte/quota checks precede accepted UI results.
+
+Focused domain/persistence checks cover full budget, fixed seeds, pity,
+duplicate claims, exact XP, capacity, reload and Monday rollover. A 200-run
+mirrored-public-AI loaner probe cleared **16/200** (stage wins 122/200, 56/122,
+16/56); it is tuning evidence, not a human clear-rate forecast. Browser acceptance
+is still in progress; append its final evidence separately. Advanced difficulty,
+new event art, seasonal rules and real PvP/ranked remain future work.
 
 ## What actually runs
 
 The 2026-09-22 [story/mode expansion](STORIES-AND-MODES.md) adds three original
-illustrated maps, twelve encounters and weekly quests. The atlas now has four
+illustrated maps, twelve encounters and weekly quests. That checkpoint had four
 volumes/18 encounters, with independent chapter branches after Mist Gate. Daily
 and weekly activities share a journal; AI arena/practice are playable, real PvP
 and ranked remain explicitly deferred. `stories.mjs`, `stories.css` and three
@@ -154,7 +181,8 @@ maps bring the source allowlist to **32 files**.
 
 That slice added an optional weekly object to profile v3; old local saves and old v1 backups
 remain supported without retroactive quest progress. It made no database migration or
-service change. WX-01 now upgrades local profiles to v4 as described above.
+service change. WX-01 introduced v4; the campaign now upgrades local profiles
+to v5 as described above.
 A future release must update the client and account
 Worker validator together: live v0.5.1 rejects the new fields/story IDs. Recheck
 hosted old/new backup acceptance and binding retention; local fixture tests are
@@ -197,6 +225,7 @@ source configuration and current connection/release records for operational stat
 | --- | --- | --- |
 | Battle rules and card catalogue | [engine.mjs](../engine.mjs), [DESIGN.md](DESIGN.md) | Pure rules, injectable randomness, no AI access to hidden player moves |
 | Local economy and travel | [progression.mjs](../progression.mjs), [PROGRESSION.md](PROGRESSION.md) | Daily rollover, single settlement, migration compatibility |
+| Campaign and activity | [campaign-content.mjs](../campaign-content.mjs), [activity-content.mjs](../activity-content.mjs), [expansion-state.mjs](../expansion-state.mjs), [scope](CAMPAIGN-AND-EVENTS.md) | Old 18 clears/rewards, fixed seeds, start-week accounting, frozen UIDs and pending grants |
 | Exact card copies and decks | [collection.mjs](../collection.mjs), [BACKPACK.md](BACKPACK.md) | UID, XP/history, locks, saved-deck references and sale/buyback continuity |
 | Screens and interaction | [app.mjs](../app.mjs), `adventure-ui.mjs`, `backpack-ui.mjs`, `account-ui.mjs` | Dependency-free browser runtime and current guest saves |
 | Cloud journeys | [account-client.mjs](../account-client.mjs), [cloud-save.mjs](../cloud-save.mjs), [ACCOUNTS.md](ACCOUNTS.md) | Explicit choices, stale-account/profile protection and local recovery copy |
@@ -313,6 +342,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | --- | --- |
 | Rules / local saves / card copies | `node --test tests/engine.test.mjs tests/progression.test.mjs tests/collection.test.mjs tests/profile-store.test.mjs` |
 | WX-01 rules / collation / grants | `node --test tests/wx01-cards.test.mjs tests/wx01-pack.test.mjs tests/wx01-progression.test.mjs`; analytical checks in `tests/wx01-drop-model.test.mjs` |
+| Campaign / activity / rewards | `node --test tests/campaign-content.test.mjs tests/activity-engine.test.mjs tests/expansion-progression.test.mjs tests/profile-store.test.mjs` |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |
@@ -323,8 +353,8 @@ APIs, so they do not verify hosted login or send real email. The older manual
 The SQL harness refuses remote databases and an existing Auth schema. Recreate
 only its disposable local database between full harness runs; never aim its
 bootstrap/reset at `mythseal-dev`. The two release migrations are already applied:
-`20260921210000` and `20260921210100`. The new `20260922210000` journey-v2 file
-has not been applied to hosted services in this turn.
+`20260921210000` and `20260921210100`. The `20260922210000` journey-v2 and
+`20260923000000` journey-v3 files have not been applied to hosted services in this turn.
 
 The last release CI passed; the preceding connection-update CI recorded **177
 Node tests and eight Python tests**. CI also covers PostgreSQL races, Forge,

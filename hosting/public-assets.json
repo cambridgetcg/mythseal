@@ -71,5 +71,10 @@
   "scene-navigation.css",
   "scene-content.css",
   "scene-dialogs.mjs",
-  "scene-dialogs.css"
+  "scene-dialogs.css",
+  "campaign-content.mjs",
+  "activity-content.mjs",
+  "expansion-state.mjs",
+  "expansion-ui.mjs",
+  "expansion.css"
 ]

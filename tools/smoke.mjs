@@ -35,7 +35,7 @@ try {
   await page.locator('[data-action="bag-card"][data-id="chiling"]').click();
   assert.equal(await page.locator('.bag-item').count(), 1);
   await page.locator('.cards-hub-tabs [data-id="decks"]').click();
-  const copies = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v4')).instances);
+  const copies = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v5')).instances);
   const oldUID = copies.find(copy => copy.cardId === 'chiling').uid;
   const newUID = copies.find(copy => copy.cardId === 'yunya').uid;
   await page.locator('#bag-search').fill('');
@@ -44,9 +44,9 @@ try {
   assert.equal(await page.locator('[data-action="bag-save-deck"]').isDisabled(), true);
   await page.locator(`.bag-grid [data-action="bag-pick-instance"][data-id="${newUID}"]`).click();
   await page.locator('[data-action="bag-save-deck"]').click();
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem('shanhai.profile.v4')).deck.includes('yunya'));
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('shanhai.profile.v5')).deck.includes('yunya'));
   await page.reload();
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v4')).deck);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v5')).deck);
   assert.ok(saved.includes('yunya') && !saved.includes('chiling'));
   await page.locator('.game-dock [data-action="arena"]').click();
   await page.locator('[data-action="start"]').click();
@@ -90,7 +90,7 @@ try {
   }
   await page.locator('.match-score').waitFor();
   assert.equal(await page.locator('.history-row').count(), rounds);
-  const stats = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v4')).stats);
+  const stats = await page.evaluate(() => JSON.parse(localStorage.getItem('shanhai.profile.v5')).stats);
   assert.equal(stats.played, 1);
   await page.locator('[data-action="end-home"]').click();
   await page.locator('.game-lobby').waitFor();

@@ -76,7 +76,7 @@ async function seededPage(seed, { legacy = false, mobile = false, legacyBattle =
 
 try {
   const old = createProfile({ now: fixedNow });
-  for (const key of ['instances', 'deckSlots', 'activeDeckId', 'merchantVault', 'instanceSerial', 'collectionVersion', 'wx01']) delete old[key];
+  for (const key of ['instances', 'deckSlots', 'activeDeckId', 'merchantVault', 'instanceSerial', 'collectionVersion', 'wx01', 'expansion']) delete old[key];
   old.version = 2; old.collectionExpansion = 1;
   for (const key of ['inventory', 'levels']) old[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, old[key][id]]));
   old.inventory.qingxiao = 2;
@@ -86,7 +86,7 @@ try {
   old.deck.reverse();
   const migration = await seededPage(old, { legacy: true });
   const migrated = await read(migration);
-  assert.equal(migrated.version, 4);
+  assert.equal(migrated.version, 5);
   assert.equal(migrated.instances.length, Object.values(old.inventory).reduce((sum, count) => sum + count, 0));
   assert.equal(new Set(migrated.instances.map(instance => instance.uid)).size, migrated.instances.length);
   assert.deepEqual(migrated.instances.filter(instance => instance.cardId === 'qingxiao').map(instance => instance.level), [3, 3]);
@@ -95,7 +95,7 @@ try {
   await migration.reload(); await migration.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(migration), migrated);
   assert.equal(await migration.evaluate(key => localStorage.getItem(key), legacyProfileKey), JSON.stringify(old));
-  passed('v2 migration retains copy counts, levels, deck and resources; original raw key and migrated v4 IDs survive reload');
+  passed('v2 migration retains copy counts, levels, deck and resources; original raw key and migrated v5 IDs survive reload');
 
   const pendingOld = structuredClone(old);
   const oldMatch = createMatch({ deckIds: pendingOld.deck, mode: 'arena', playerLevels: pendingOld.levels, rng: () => 0.23 });
@@ -111,13 +111,13 @@ try {
   assert(oldMatch.player.hand.every(id => migratedBattle.pending.cardInstances[id]));
   const playedUID = migratedBattle.pending.cardInstances[removedRole];
   const beforePlayed = migratedBattle.instances.find(instance => instance.uid === playedUID);
-  assert.deepEqual(await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v4'))), oldBattle);
+  assert.deepEqual(await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v5'))), oldBattle);
   await resumed.reload(); await resumed.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(resumed)).pending, migratedBattle.pending);
   await action(resumed, 'resume').click();
   await resumed.locator('.player-hand').waitFor();
   for (let round = 0; round < 4; round++) {
-    const saved = await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v4')));
+    const saved = await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v5')));
     const role = round === 0 ? removedRole : saved.match.player.hand.find(id => !saved.match.player.used.includes(id));
     await action(resumed, 'select', role, '.player-hand ').click();
     await action(resumed, 'commit').click();

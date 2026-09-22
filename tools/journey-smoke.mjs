@@ -14,7 +14,7 @@ await mkdir(output, { recursive: true });
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const failures = [], checked = [], screenshots = [];
-const profileKey = 'shanhai.profile.v4', battleKey = 'shanhai.battle.v4';
+const profileKey = 'shanhai.profile.v5', battleKey = 'shanhai.battle.v5';
 const profile = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), profileKey);
 const snapshot = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), battleKey);
 const watch = page => {

@@ -2,6 +2,58 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Campaign and Fire Mountain · 2026-09-22
+
+Implemented locally on `codex/game-lobby`: six sequel volumes /48 new encounters
+(66 total), standard 火焰山三連戰, saved supplies/loaner runs, mastery, exact
+character grants, pack tickets and a separate final AA choice. No hosted release,
+live database migration or real player-save access accompanied this work.
+
+- **430 Node tests and nine Python tests pass.** Coverage includes all48 authored
+  legal decks/chain links, full campaign reward totals, once-only grants,
+  deterministic activity draws/loot/pity, Monday rollover, exact-copy protection
+  through supplies, loaner XP isolation and quota failures. The Python run keeps
+  the pre-existing HTTP404 cleanup `ResourceWarning`.
+- Local profile **v5** and cloud snapshot **v3** preserve v4/v3/v2 sources,
+  exact copies, receipts and pending encounters. Old server capabilities block
+  unsupported v5 uploads. The additive SQL migration/fixtures are source-only;
+  their PostgreSQL runner and hosted retention checks were not executed.
+- All **14 existing Chromium scenario suites pass**. WebKit additionally passes
+  six profile-recovery groups, including interrupted migration and two-tab
+  purchase serialization. API/account scenarios remain isolated intercepted
+  fixtures. One old account assertion was updated for the activity warning.
+- Both browsers pass the existing viewport matrix at **1440×900, 1280×720,
+  390×844, 360×740, 360×640 and844×390**:23 groups and2,093 geometry checks per
+  engine, with no active overflow, covered controls or browser errors. Existing
+  72-copy box receipts and simultaneous saved battle/receipt states remain
+  reachable through real module/page controls.
+- The new `npm run test:expansion` matrix passes the same six sizes in Chromium
+  and WebKit:16 groups per engine,815/804 geometry checks. It traverses all six
+  new volumes, preparation routes, supplies, exact grants, tickets,48 mastery
+  rows, titles and AA choices. Browsing keeps profile bytes unchanged.
+- Both engines complete three real loaner battles through the UI, choose
+  supplies, bank the first-clear BASE and weekly ticket, open a zero-coin
+  three-card pack and claim the exact final AA without touching the old four-
+  stage AA entitlement. A saved campaign loaner reconstructs a missing battle
+  snapshot from its seed without changing owned copies. The scripted test pilot
+  reads its own synthetic AI moves; this is functional coverage, not a human
+  difficulty study or a change to production AI information access.
+- Review found and fixed a loaner retry that reset the preparation route and an
+  empty landscape AA sidebar. Both engines pass the subsequent focused landscape
+  run, including an actual loaner defeat/retry (six groups/191 geometry checks).
+  Desktop, phone and landscape screenshots were inspected for readable text and
+  reachable controls. Build passes with **78 allowlisted public files**.
+
+Final local evidence is ignored under `test-results/`: `expansion-unit-final.log`,
+`expansion-python.log`, `expansion-existing-browser-summary.json`,
+`expansion-profile-recovery-webkit.log`, `viewport-{chromium,webkit}.json`,
+`expansion-{chromium,webkit}-full.json` and the later focused
+`expansion-{chromium,webkit}.json` reports/screenshots. Early harness failures
+remain in their logs; the successful final reports supersede them.
+Physical mobile devices, long-term human balance and a coordinated hosted
+Worker/schema/static release remain separate work. See
+[the implemented design and tuning probe](CAMPAIGN-AND-EVENTS.md).
+
 ## Viewport game navigation · 2026-09-22
 
 Local development on `codex/game-lobby`. Destinations and dialogs now use named

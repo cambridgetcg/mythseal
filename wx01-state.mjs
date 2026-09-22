@@ -42,17 +42,20 @@ export function validateWX01State(raw, profile) {
   if (raw.receipt !== null) {
     const receipt = raw.receipt;
     const box = receipt?.kind === 'box';
+    const expanded = profile.version === 5;
+    const ticket = expanded && receipt?.kind === 'ticket';
+    const reward = expanded && receipt?.kind === 'reward';
     exact(receipt, ['id', 'kind', 'mode', 'cards', 'openedAt', 'cost', 'sealsEarned', ...(box ? ['packs'] : [])]);
-    if (!raw.serial || receipt.id !== `wx01-${raw.serial}` || !['pack', 'box', 'redeem', 'story'].includes(receipt.kind)
-      || !(box ? receipt.mode === 'box' : modes.includes(receipt.mode)) || !Array.isArray(receipt.cards)
+    if (!raw.serial || receipt.id !== `wx01-${raw.serial}` || !['pack', 'box', 'redeem', 'story', ...(expanded ? ['ticket', 'reward'] : [])].includes(receipt.kind)
+      || !(box ? receipt.mode === 'box' : reward ? ['base', 'aa'].includes(receipt.mode) : modes.includes(receipt.mode)) || !Array.isArray(receipt.cards)
       || typeof receipt.openedAt !== 'string') fail();
     const date = new Date(receipt.openedAt);
     if (!Number.isFinite(date.getTime()) || date.toISOString() !== receipt.openedAt) fail();
-    const pack = receipt.kind === 'pack';
+    const pack = receipt.kind === 'pack' || ticket;
     if (box && (!Array.isArray(receipt.packs) || ![12, 24].includes(receipt.packs.length))) fail();
     const packCount = box ? receipt.packs.length : pack ? 1 : 0;
-    if (receipt.cards.length !== (packCount ? packCount * 3 : 1) || receipt.cost !== packCount * 300 || receipt.sealsEarned !== packCount) fail();
-    if (packCount ? raw.opened < packCount : receipt.kind === 'redeem' ? raw.redeemed < 1 : !raw.storyClaimed) fail();
+    if (receipt.cards.length !== (packCount ? packCount * 3 : 1) || receipt.cost !== (ticket ? 0 : packCount * 300) || receipt.sealsEarned !== packCount) fail();
+    if (packCount ? raw.opened < packCount : receipt.kind === 'redeem' ? raw.redeemed < 1 : receipt.kind === 'story' && !raw.storyClaimed) fail();
     const seen = new Set(), treatments = [];
     for (const item of receipt.cards) {
       exact(item, cardKeys);

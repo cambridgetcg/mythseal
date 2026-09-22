@@ -13,7 +13,7 @@ const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw Error('Navigation smoke requires a loopback game server.');
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
-const fixedNow = '2026-09-21T12:00:00Z', battleKey = 'shanhai.battle.v4';
+const fixedNow = '2026-09-21T12:00:00Z', battleKey = 'shanhai.battle.v5';
 const checks = [], screenshots = [], errors = [], contexts = [];
 const action = (page, name, id, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${id ? `[data-id="${id}"]` : ''}`);
 const go = (page, destination) => action(page, destination, null, '.game-dock ').click();

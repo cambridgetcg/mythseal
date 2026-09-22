@@ -3,7 +3,7 @@ import { validateSnapshot as validateJourneySnapshot, MAX_SNAPSHOT_BYTES } from 
 
 const AUTH_BODY_LIMIT = 4096;
 const BACKUP_BODY_LIMIT = 530 * 1024;
-const BACKUP_V2_BODY_LIMIT = MAX_SNAPSHOT_BYTES + 16 * 1024;
+const BACKUP_CURRENT_BODY_LIMIT = MAX_SNAPSHOT_BYTES + 16 * 1024;
 const SESSION_SECONDS = 30 * 24 * 60 * 60;
 const ROUTES = new Map([
   ['/api/v1/account', ['GET']],
@@ -12,6 +12,7 @@ const ROUTES = new Map([
   ['/api/v1/auth/logout', ['POST']],
   ['/api/v1/journey', ['GET', 'PUT', 'DELETE']],
   ['/api/v2/journey', ['GET', 'PUT', 'DELETE']],
+  ['/api/v3/journey', ['GET', 'PUT', 'DELETE']],
 ]);
 
 class ApiError extends Error {
@@ -119,9 +120,9 @@ export function createAccountHandler({ createClient = createSupabaseClient, vali
       if (!methods) failure(404, 'not_found', 'This account endpoint does not exist.');
       if (!methods.includes(request.method)) failure(405, 'method_not_allowed', 'This request method is not supported.');
       const config = configuration(request, env);
-      const journeyVersion = path === '/api/v2/journey' ? 2 : 1;
-      const journeyVersions = env.JOURNEY_V2_ENABLED === 'true' ? [1, 2] : [1];
-      if (journeyVersion === 2 && !journeyVersions.includes(2)) failure(426, 'journey_version_unsupported', 'This journey version is not available for cloud backup yet.');
+      const journeyVersion = path === '/api/v3/journey' ? 3 : path === '/api/v2/journey' ? 2 : 1;
+      const journeyVersions = [1, ...(env.JOURNEY_V2_ENABLED === 'true' ? [2] : []), ...(env.JOURNEY_V3_ENABLED === 'true' ? [3] : [])];
+      if (journeyVersion > 1 && !journeyVersions.includes(journeyVersion)) failure(426, 'journey_version_unsupported', 'This journey version is not available for cloud backup yet.');
       const emailEnabled = env.OTP_ENABLED === 'true' && typeof env.AUTH_RATE_LIMIT?.limit === 'function' && Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY);
       const client = () => {
         if (!env.SUPABASE_URL || !env.SUPABASE_PUBLISHABLE_KEY) failure(503, 'account_unavailable', 'Account service is not configured.');
@@ -221,7 +222,7 @@ export function createAccountHandler({ createClient = createSupabaseClient, vali
 
       let body;
       if (request.method !== 'GET') {
-        body = await jsonBody(request, request.method === 'PUT' ? (journeyVersion === 2 ? BACKUP_V2_BODY_LIMIT : BACKUP_BODY_LIMIT) : AUTH_BODY_LIMIT, config);
+        body = await jsonBody(request, request.method === 'PUT' ? (journeyVersion > 1 ? BACKUP_CURRENT_BODY_LIMIT : BACKUP_BODY_LIMIT) : AUTH_BODY_LIMIT, config);
         if (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 0 || body.expectedRevision >= Number.MAX_SAFE_INTEGER) failure(400, 'invalid_revision', 'A valid cloud revision is required.');
       }
       const account = await authenticate();
@@ -236,7 +237,7 @@ export function createAccountHandler({ createClient = createSupabaseClient, vali
       }
       const operation = { GET: 'read', PUT: 'write', DELETE: 'delete' }[request.method];
       const parameters = request.method === 'PUT' ? { p_expected_revision: body.expectedRevision, p_snapshot: body.snapshot } : request.method === 'DELETE' ? { p_expected_revision: body.expectedRevision } : {};
-      const result = await account.supabase.rpc(`mythseal_backup_${journeyVersion === 2 ? 'v2_' : ''}${operation}`, parameters);
+      const result = await account.supabase.rpc(`mythseal_backup_${journeyVersion > 1 ? `v${journeyVersion}_` : ''}${operation}`, parameters);
       if (result.error) {
         if (result.error.code === 'PT409' || result.error.code === '40001') failure(409, 'revision_conflict', 'Your cloud journey changed. Load its current version before saving again.');
         if (result.error.code === '22023') failure(400, 'invalid_snapshot', 'The journey snapshot is invalid or too large.');

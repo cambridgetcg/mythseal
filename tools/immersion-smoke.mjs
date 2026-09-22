@@ -13,7 +13,7 @@ if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 const fixedNow = '2026-09-22T12:00:00Z';
-const battleKey = 'shanhai.battle.v4', preferenceKey = 'shanhai.experience.v1';
+const battleKey = 'shanhai.battle.v5', preferenceKey = 'shanhai.experience.v1';
 const checks = [], screenshots = [], errors = [], timings = [], contexts = new Set();
 const action = (page, name, id, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${id ? `[data-id="${id}"]` : ''}`);
 const read = (page, key = PROFILE_KEY) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);

@@ -1,4 +1,5 @@
 /** Original playable journeys inspired by traditional stories. No save or battle logic. */
+import { CAMPAIGN_WORLDS, CAMPAIGN_NODES } from './campaign-content.mjs';
 const freeze = value => {
   if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); }
   return value;
@@ -9,6 +10,7 @@ export const WORLDS = freeze([
   { id: 'westward', name: '西遊 · 雲路取經', source: '西遊記啟發', subtitle: '路有千重，心有一向。', description: '一頁無字經落入花果山。循山風、流沙與不熄的火，護送這頁空白抵達靈山；你留下的每次取捨，便是經文。', map: 'assets/maps/westward.png', inscription: '西行雲路圖', seal: '行', nodeIds: ['west-flower-mountain', 'west-yellow-wind', 'west-flaming-mountain', 'west-spirit-mountain'] },
   { id: 'investiture', name: '封神 · 蓮火問天', source: '封神演義啟發', subtitle: '一點蓮火，照見自己的選擇。', description: '一朵不肯熄滅的蓮火，映出尚未寫定的封神卷。從陳塘海口到牧野長風，你要守住的，是名冊之外的人間。', map: 'assets/maps/investiture.png', inscription: '蓮火封神圖', seal: '蓮', nodeIds: ['gods-chentang', 'gods-kunlun', 'gods-western-qi', 'gods-muye'] },
   { id: 'white-snake', name: '白蛇 · 煙雨人間', source: '白蛇傳啟發', subtitle: '一把傘，容得下兩種天地。', description: '西湖雨中，一把遺落的紙傘繫着未完的約定。循藥香與潮聲尋去，在塔影之前，為相逢留下一條歸路。', map: 'assets/maps/white-snake.png', inscription: '煙雨西湖圖', seal: '雨', nodeIds: ['snake-broken-bridge', 'snake-herbal-lane', 'snake-golden-mountain', 'snake-thunder-pagoda'] },
+  ...CAMPAIGN_WORLDS,
 ]);
 
 const decks = {
@@ -52,7 +54,12 @@ export const STORY_NODES = freeze(chapters.flatMap(([worldId, rows]) => {
 
 export const getWorld = id => WORLDS.find(world => world.id === id) || WORLDS[0];
 export const getWorldForNode = id => WORLDS.find(world => world.nodeIds.includes(id)) || WORLDS[0];
+export const getStoryNode = id => STORY_NODES.find(node => node.id === id) || CAMPAIGN_NODES.find(node => node.id === id) || null;
 export const nextNodeInWorld = id => {
   const world = getWorldForNode(id), index = world.nodeIds.indexOf(id);
-  return index >= 0 ? world.nodeIds[index + 1] || null : null;
+  if (index < 0) return null;
+  if (world.nodeIds[index + 1]) return world.nodeIds[index + 1];
+  if (id === 'west-spirit-mountain') return CAMPAIGN_NODES[0].id;
+  if (world.campaign) return CAMPAIGN_WORLDS[CAMPAIGN_WORLDS.findIndex(item => item.id === world.id) + 1]?.nodeIds[0] || null;
+  return null;
 };

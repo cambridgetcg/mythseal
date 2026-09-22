@@ -34,9 +34,9 @@ function asV3(profile) {
   return old;
 }
 
-test('fresh v4 only grants the legacy starter/welcome collection and initializes honest WX01 counters', () => {
+test('fresh v5 only grants the legacy starter/welcome collection and initializes honest WX01 counters', () => {
   const profile = fresh();
-  assert.equal(profile.version, 4);
+  assert.equal(profile.version, 5);
   assert.equal(profile.collectionVersion, 2);
   assert.equal(profile.collectionExpansion, 2);
   assert.deepEqual(profile.wx01, createWX01State());

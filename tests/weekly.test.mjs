@@ -15,7 +15,7 @@ function freeze(value) { if (value && typeof value === 'object') { Object.values
 function legacyV3(profile) {
   const old = structuredClone(profile);
   old.version = 3; old.collectionVersion = 1; old.collectionExpansion = 1;
-  delete old.wx01;
+  delete old.wx01; delete old.expansion;
   for (const instance of [...old.instances, ...old.merchantVault.map(entry => entry.instance)]) delete instance.printId;
   for (const field of ['inventory', 'levels']) old[field] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, old[field][id]]));
   return old;
@@ -33,7 +33,7 @@ test('London weeks start on Monday across summer/winter DST and year boundaries'
     ['2027-01-01T12:00:00Z', '2026-12-28'], ['2027-01-04T00:00:00Z', '2027-01-04'],
   ]) assert.equal(weekKey(instant), expected, instant);
   assert.throws(() => weekKey('invalid'), /日期無效/);
-  assert.equal(PROFILE_VERSION, 4); assert.equal(PROFILE_KEY, 'shanhai.profile.v4');
+  assert.equal(PROFILE_VERSION, 5); assert.equal(PROFILE_KEY, 'shanhai.profile.v5');
   assert.deepEqual(fresh().weekly, empty('2026-09-21'));
 });
 
@@ -158,7 +158,7 @@ test('old v3 cloud payloads validate unchanged, and restoration alone adds zero 
   const legacyRestored = legacyV3(restored); delete legacyRestored.weekly;
   assert.deepEqual(legacyRestored, original.profile);
   assert.deepEqual(snapshot, original);
-  assert.equal(createSnapshot(restored).version, 2);
+  assert.equal(createSnapshot(restored).version, 3);
 });
 
 test('weekly cloud round trips preserve claims and fingerprints, with rollover only on restore', () => {
@@ -172,7 +172,7 @@ test('weekly cloud round trips preserve claims and fingerprints, with rollover o
   assert.deepEqual(validateSnapshot(snapshot).profile.weekly, profile.weekly);
   const altered = structuredClone(profile); altered.weekly.matches++;
   assert.notEqual(fingerprintProfile(altered), fingerprint);
-  assert.equal(snapshot.version, 2); assert.equal(snapshot.profile.version, 4);
+  assert.equal(snapshot.version, 3); assert.equal(snapshot.profile.version, 5);
 });
 
 test('cloud validation rejects malformed or repaired weekly state without changing its payload', () => {

@@ -29,7 +29,7 @@ const browser = await engines[browserName].launch({ headless: true, ...(browserN
 
 function legacy(profile) {
   const value = structuredClone(profile);
-  value.version = 3; value.collectionVersion = 1; value.collectionExpansion = 1; delete value.wx01;
+  value.version = 3; value.collectionVersion = 1; value.collectionExpansion = 1; delete value.wx01; delete value.expansion;
   for (const card of [...value.instances, ...value.merchantVault.map(entry => entry.instance)]) delete card.printId;
   for (const key of ['inventory', 'levels']) value[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, value[key][id]]));
   if (value.pending) delete value.pending.cardPrints;
@@ -111,17 +111,18 @@ async function releaseProfileLock(page) {
 
 try {
   const malformed = {
-    [PROFILE_KEY]: '{"version":4,"instances": [BROKEN',
+    [PROFILE_KEY]: '{"version":5,"instances": [BROKEN',
     [BATTLE_KEY]: '{"original":"battle bytes"}',
     'shanhai.profile.v3': JSON.stringify(legacy(createProfile({ now }))),
+    'shanhai.profile.recovery.v5': '{"original":"current recovery bytes"}',
     'shanhai.profile.recovery.v4': '{"original":"previous recovery bytes"}',
   };
   const damaged = await pageIn(await newContext(malformed, { width: 360 }));
   await damaged.locator('.startup-recovery').waitFor();
   await stillRecovery(damaged, malformed);
   assert.deepEqual(await exportOriginals(damaged), malformed);
-  await shot(damaged, 'malformed-v4-360');
-  passed('Malformed v4 remains intact and exports raw v4, legacy and recovery bytes without falling back to a new journey');
+  await shot(damaged, 'malformed-v5-360');
+  passed('Malformed v5 remains intact and exports raw v5, legacy and recovery bytes without falling back to a new journey');
 
   const v1 = { 'shanhai.deck.v1': '{broken original deck', 'shanhai.stats.v1': '{"played":19,"won":11}', 'shanhai.profile.recovery.v3': '{"original":"old recovery"}', 'shanhai.profile.recovery.v2': '{broken original recovery' };
   const ancient = await pageIn(await newContext(v1));
@@ -147,7 +148,7 @@ try {
   const exported = await exportOriginals(quotaPage);
   for (const [key, value] of Object.entries(originals)) assert.equal(exported[key], value);
   await shot(quotaPage, 'quota-390');
-  passed('Quota failure after copying the old battle leaves no v4 completion marker; visibility and storage events keep recovery visible and old bytes unchanged');
+  passed('Quota failure after copying the old battle leaves no v5 completion marker; visibility and storage events keep recovery visible and old bytes unchanged');
 
   await quotaPage.evaluate(() => sessionStorage.setItem('recovery-smoke.quota-available', 'yes'));
   await quotaPage.getByRole('button', { name: '重新載入', exact: true }).click();
@@ -162,6 +163,19 @@ try {
   await quotaPage.reload(); await quotaPage.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(quotaPage), migrated);
   passed('Reload after quota is available completes migration once, preserving balances, exact XP, pending copy/print mappings and both original keys');
+
+  const v4 = structuredClone(original); v4.version = 4; delete v4.expansion;
+  const v4Battle = { ...battle, encounter: v4.pending };
+  const v4Originals = { 'shanhai.profile.v4': JSON.stringify(v4), 'shanhai.battle.v4': JSON.stringify(v4Battle) };
+  const prior = await pageIn(await newContext(v4Originals));
+  await prior.locator('.game-lobby').waitFor();
+  assert.deepEqual(await read(prior), hydrateProfile(v4, { now }));
+  assert.deepEqual(await raw(prior, Object.keys(v4Originals)), v4Originals);
+  assert.equal(await prior.evaluate(key => localStorage.getItem(key), BATTLE_KEY), v4Originals['shanhai.battle.v4']);
+  await prior.reload(); await prior.locator('.game-lobby').waitFor();
+  assert.deepEqual((await read(prior)).pending, v4.pending);
+  assert.deepEqual(await raw(prior, Object.keys(v4Originals)), v4Originals);
+  passed('v4 migrates to its independent v5 key without changing exact pending printings or either original profile/battle byte string');
 
   const seed = createProfile({ now }), shared = await newContext({ [PROFILE_KEY]: JSON.stringify(seed) }, { width: 1440 });
   const first = await pageIn(shared), second = await pageIn(shared), pages = [first, second];

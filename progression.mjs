@@ -1,10 +1,13 @@
 /** Local, original progression rules. Pure functions; the UI owns persistence. */
 import { CARDS, LEGACY_CARD_IDS, ORIGINAL_CARD_IDS, CLASSIC_CARD_IDS, defaultDeckIds, validateDeck } from './engine.mjs';
-import { hydrateCollection, syncCollection, getInstance, getInstances, getPreferredInstance, getActiveDeck, mintInstance, setInstanceXP, awardInstanceXP, getXPThreshold, getInstanceProtection, saveInstanceDeck, validateInstanceDeck, assertCollectionCapacity } from './collection.mjs';
+import { hydrateCollection, syncCollection, getInstance, getInstances, getPreferredInstance, getActiveDeck, mintInstance, setInstanceXP, awardInstanceXP, getXPThreshold, getInstanceProtection, saveInstanceDeck, validateInstanceDeck, assertCollectionCapacity, isInstanceInJourney } from './collection.mjs';
 import { STORY_NODES } from './stories.mjs';
-import { WX01_CARD_IDS, WX01_RARITIES, getPrinting, getPrintForCard } from './printing-catalogue.mjs';
+import { WX01_CARD_IDS, WX01_RARITIES, getPrinting, getPrintForCard, defaultPrintId } from './printing-catalogue.mjs';
 import { drawWX01Pack, WX01_PRICE, WX01_SEAL_COSTS } from './wx01-pack.mjs';
 import { createWX01State, validateWX01State } from './wx01-state.mjs';
+import { CAMPAIGN_NODES } from './campaign-content.mjs';
+import { FIRE_MOUNTAIN } from './activity-content.mjs';
+import { createExpansionState, validateExpansionState, validateExpansionPending, rollExpansionWeek, seededBattleRNG, basePrintFor, MAX_EXPANSION_GRANTS, CAMPAIGN_TITLE, ACTIVITY_TITLE } from './expansion-state.mjs';
 
 const freeze = value => {
   if (value && typeof value === 'object') {
@@ -16,9 +19,9 @@ const freeze = value => {
 const CARD_IDS = CARDS.map(card => card.id);
 const LIMIT = 1_000_000_000;
 const MAX_COPIES = 99_999;
-export const PROFILE_VERSION = 4;
-export const PROFILE_KEY = 'shanhai.profile.v4';
-export const LEGACY_PROFILE_KEY = 'shanhai.profile.v3';
+export const PROFILE_VERSION = 5;
+export const PROFILE_KEY = 'shanhai.profile.v5';
+export const LEGACY_PROFILE_KEY = 'shanhai.profile.v4';
 export const PACK_PRICE = 300;
 export const MAX_CARD_LEVEL = 5;
 export const COLLECTION_EXPANSION = 2;
@@ -65,7 +68,7 @@ export const NODES = freeze([...nodeData.map(([id, name, subtitle, description, 
   winReward: { coins: 80 + index * 20, dust: 2 + Math.floor(index / 2), xp: 30 + index * 10 },
   firstClearReward: { coins: 140 + index * 40, dust: 8 + index * 2, xp: 50 + index * 10 },
   dailyReward: { coins: 80 + index * 15, dust: 4 + index, xp: 20 },
-})), ...STORY_NODES]);
+})), ...STORY_NODES, ...CAMPAIGN_NODES]);
 export const LOGIN_REWARD = freeze({ coins: 160, dust: 8, xp: 20 });
 export const ARENA_CHEST_REWARD = freeze({ coins: 240, dust: 16, xp: 60 });
 const TASKS = freeze([
@@ -78,7 +81,7 @@ export const WEEKLY_TASKS = freeze([
   { id: 'expedition', title: '踏遍山海', description: '本週贏得 5 場遊歷對局', field: 'expeditionWins', target: 5, reward: { coins: 350, dust: 25, xp: 100 } },
   { id: 'arena', title: '問道五弈', description: '本週完成 5 場擂台對局', field: 'arenaMatches', target: 5, reward: { coins: 250, dust: 15, xp: 70 } },
 ]);
-const KINDS = ['practice', 'expedition', 'arena'];
+const KINDS = ['practice', 'expedition', 'arena', 'activity'];
 const copy = value => structuredClone(value);
 const integer = (value, fallback = 0, minimum = 0, maximum = LIMIT) => Number.isSafeInteger(value) ? Math.min(maximum, Math.max(minimum, value)) : fallback;
 const uniqueKnown = (value, known) => Array.isArray(value) ? [...new Set(value.filter(id => known.includes(id)))] : [];
@@ -136,7 +139,7 @@ function createBaseProfile({ now = new Date(), legacyDeck, legacyStats } = {}) {
     deck: validateDeck(legacyDeck).valid && legacyDeck.every(id => inventory[id] > 0) ? [...legacyDeck] : [...defaultDeckIds],
     stats: { played, won: Math.min(played, integer(legacyStats?.won)) },
     cleared: [], location: NODES[0].id, daily: freshDaily(dayKey(now)), weekly: freshWeekly(weekKey(now)),
-    arena: { points: 0, played: 0, won: 0 }, pending: null, serial: 0, wx01: createWX01State(),
+    arena: { points: 0, played: 0, won: 0 }, pending: null, serial: 0, wx01: createWX01State(), expansion: createExpansionState(now),
   };
 }
 
@@ -166,7 +169,7 @@ function legacyPendingInstances(profile, snapshot) {
 /** Repair untrusted local JSON with a whitelist; v1 deck and stats remain useful. */
 export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats, legacyBattle } = {}) {
   const base = createBaseProfile({ now, legacyDeck, legacyStats });
-  if (!raw || typeof raw !== 'object' || ![2, 3, PROFILE_VERSION].includes(raw.version)) return createProfile({ now, legacyDeck, legacyStats });
+  if (!raw || typeof raw !== 'object' || ![2, 3, 4, PROFILE_VERSION].includes(raw.version)) return createProfile({ now, legacyDeck, legacyStats });
   const profile = { ...base };
   for (const field of ['coins', 'dust', 'xp', 'serial']) profile[field] = integer(raw[field], base[field]);
   if (raw.version >= 3) {
@@ -218,7 +221,9 @@ export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats,
     }
   }
   const hydrated = hydrateCollection(profile, { now, allowLegacyPrints: raw.version < 4 });
-  if (hydrated.pending) {
+  const expansionPending = raw.version >= 5 && hydrated.pending && (hydrated.pending.kind === 'activity' || CAMPAIGN_NODES.some(node => node.id === hydrated.pending.nodeId));
+  if (expansionPending) hydrated.pending = validateExpansionPending(raw.pending, hydrated);
+  else if (hydrated.pending) {
     const ids = raw.version === 2 ? legacyPendingInstances(hydrated, legacyBattle) : raw.pending?.instanceIds;
     const validation = validateInstanceDeck(hydrated, ids);
     if (!validation.valid) hydrated.pending = null;
@@ -236,7 +241,9 @@ export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats,
       }
     }
   }
-  hydrated.wx01 = raw.version === 4 ? validateWX01State(raw.wx01, hydrated) : createWX01State();
+  hydrated.wx01 = raw.version >= 4 ? validateWX01State(raw.wx01, { ...hydrated, version: raw.version }) : createWX01State();
+  hydrated.expansion = raw.version >= 5 ? validateExpansionState(raw.expansion, hydrated) : createExpansionState(`${hydrated.daily.date}T12:00:00Z`);
+  hydrated.expansion = rollExpansionWeek(hydrated.expansion, `${hydrated.daily.date}T12:00:00Z`);
   return hydrated;
 }
 
@@ -244,10 +251,12 @@ export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats,
 export function refreshDaily(profile, now = new Date()) {
   const next = syncCollection(profile);
   next.wx01 = validateWX01State(next.wx01, next);
+  next.expansion = validateExpansionState(next.expansion, next);
   const date = dayKey(now);
   if (date > next.daily.date) next.daily = freshDaily(date);
   // The retained daily date also guards upgrades of old saves without weekly data.
   next.weekly = hydrateWeekly(next.weekly, next.daily.date);
+  next.expansion = rollExpansionWeek(next.expansion, `${next.daily.date}T12:00:00Z`);
   return next;
 }
 const addReward = (profile, reward) => {
@@ -521,7 +530,7 @@ export function getUpgradeCost(profile, id) {
   const instance = resolveInstance(profile, id);
   const level = instance.level;
   const maxed = level >= MAX_CARD_LEVEL;
-  const blockedReason = profile.pending?.instanceIds?.includes(instance.uid) ? '這張卡牌正在出戰，完成對局後才可修練。' : null;
+  const blockedReason = isInstanceInJourney(profile, instance.uid) ? '這張卡牌正在出戰，完成旅程後才可修練。' : null;
   return { coins: maxed ? 0 : 120 * level, dust: maxed ? 0 : 6 * level, nextLevel: Math.min(MAX_CARD_LEVEL, level + 1), maxed, instanceId: instance.uid, cardId: instance.cardId, level, blockedReason };
 }
 export function getTrainingCost(profile, id, now = new Date()) {
@@ -562,35 +571,57 @@ function hasClearedPrerequisites(cleared, nodeId, visiting = new Set()) {
 export function isNodeUnlocked(profile, nodeId) {
   return hasClearedPrerequisites(profile.cleared, nodeId);
 }
-export function beginBattle(profile, { kind = 'practice', nodeId = null, now = new Date() } = {}) {
-  if (!KINDS.includes(kind)) throw new RangeError('對局模式無效。');
+function frozenRoster(profile, route, loanerDeck) {
+  if (!['owned', 'loaner'].includes(route)) throw new RangeError('出戰牌組路線無效。');
+  if (route === 'loaner') {
+    if (!validateDeck(loanerDeck).valid) throw new RangeError('這一境沒有可借用的同行牌組。');
+    return { route, deck: [...loanerDeck], instanceIds: [], cardInstances: {}, cardPrints: Object.fromEntries(loanerDeck.map(id => [id, defaultPrintId(id)])) };
+  }
+  const slot = getActiveDeck(profile), validation = validateInstanceDeck(profile, slot?.instanceIds);
+  if (!validation.valid) throw new RangeError('請先儲存八張已擁有、總星數不超過 25 的出戰牌組。');
+  const instanceIds = [...slot.instanceIds], instances = instanceIds.map(uid => getInstance(profile, uid));
+  return { route, deck: instances.map(item => item.cardId), instanceIds, cardInstances: Object.fromEntries(instances.map(item => [item.cardId, item.uid])), cardPrints: Object.fromEntries(instances.map(item => [item.cardId, item.printId])) };
+}
+function assertExpansionBattleRoom(profile, { activity = false } = {}) {
+  if (profile.expansion.grants.length > MAX_EXPANSION_GRANTS - (activity ? 2 : 1)) throw new RangeError('先領取待領旅途獎勵，再開始下一戰。');
+  assertWX01Counters(profile, ['serial']);
+  assertWX01Counters(profile.stats, ['played', 'won']);
+  assertWX01Counters(profile.daily, ['matches', ...(activity ? [] : ['expeditionWins'])]);
+  assertWX01Counters(profile.weekly, ['matches', ...(activity ? [] : ['expeditionWins'])]);
+  assertWX01Counters(profile.expansion, ['tickets'], activity ? 2 : 1);
+  for (const [field, amount] of Object.entries({ coins: activity ? 90 : 150, dust: activity ? 5 : 8, xp: activity ? 30 : 70 })) assertWX01Counters(profile, [field], amount);
+  if (activity) { assertWX01Counters(profile.expansion.fireMountain, ['clears']); assertWX01Counters(profile.expansion.fireMountain.weekly, ['clears']); }
+}
+export function beginBattle(profile, { kind = 'practice', nodeId = null, route = 'owned', rng = Math.random, now = new Date() } = {}) {
+  if (!KINDS.includes(kind) || kind === 'activity') throw new RangeError('對局模式無效，活動須從活動入口開始。');
   const next = refreshDaily(profile, now);
-  if (next.pending) throw new RangeError('請先完成或離開目前對局。');
+  if (next.pending || next.expansion.fireMountain.run) throw new RangeError('請先完成或離開目前對局／旅程。');
   if (kind === 'expedition' && !isNodeUnlocked(next, nodeId)) throw new RangeError('先通過前一處地點，方可繼續遊歷。');
   if (next.serial >= LIMIT) throw new RangeError('本機對局記錄已達上限。');
-  const slot = getActiveDeck(next);
-  const validation = validateInstanceDeck(next, slot?.instanceIds);
-  if (!validation.valid) throw new RangeError('請先儲存八張已擁有、總星數不超過 25 的出戰牌組。');
+  const node = kind === 'expedition' ? nodeFor(nodeId) : null;
+  if (route !== 'owned' && !node?.campaign) throw new RangeError('這個模式不提供借用牌組。');
+  const roster = frozenRoster(next, route, node?.loanerDeck);
+  if (node?.campaign) assertExpansionBattleRoom(next);
   increment(next, 'serial');
-  const instanceIds = [...slot.instanceIds];
-  const cardInstances = Object.fromEntries(instanceIds.map(uid => [getInstance(next, uid).cardId, uid]));
-  const cardPrints = Object.fromEntries(instanceIds.map(uid => { const instance = getInstance(next, uid); return [instance.cardId, instance.printId]; }));
-  const encounter = { id: `battle-${next.serial}`, kind, nodeId: kind === 'expedition' ? nodeId : null, instanceIds, cardInstances, cardPrints };
+  const encounter = { id: `battle-${next.serial}`, kind, nodeId: kind === 'expedition' ? nodeId : null, instanceIds: roster.instanceIds, cardInstances: roster.cardInstances, cardPrints: roster.cardPrints };
+  if (node?.campaign) Object.assign(encounter, { route, battleSeed: Math.floor(randomUnit(rng) * 0x100000000), playerDeck: roster.deck, opponentDeck: [...node.opponentDeck] });
   if (kind === 'expedition') next.location = nodeId;
   next.pending = copy(encounter);
-  return { profile: next, encounter };
+  return { profile: next, encounter, ...(node?.campaign ? { battleOptions: getPendingBattleOptions(next) } : {}) };
 }
 export function abandonBattle(profile) {
+  if (profile.pending?.kind === 'activity') return abandonActivity(profile, { expectedRunId: profile.pending.activityRunId });
   const next = syncCollection(profile);
   next.pending = null;
   return next;
 }
-export function finishBattle(profile, { encounterId, winner, playedCardIds = [], now = new Date() } = {}) {
+export function finishBattle(profile, { encounterId, winner, playedCardIds = [], finalResources, now = new Date() } = {}) {
   if (!['player', 'opponent', 'draw'].includes(winner)) throw new RangeError('對局結果無效。');
   if (!profile.pending || profile.pending.id !== encounterId) throw new RangeError('對局已結算或找不到對局，不能重複領取獎勵。');
+  const loaner = profile.pending.route === 'loaner';
   if (!Array.isArray(playedCardIds) || playedCardIds.length > 4 || new Set(playedCardIds).size !== playedCardIds.length
-    || playedCardIds.some(id => !Object.hasOwn(profile.pending.cardInstances ?? {}, id))) throw new RangeError('出戰卡牌紀錄無效，必須是本局牌組中最多四位不同角色。');
-  const playedUIDs = playedCardIds.map(id => profile.pending.cardInstances[id]);
+    || playedCardIds.some(id => loaner ? !profile.pending.playerDeck?.includes(id) : !Object.hasOwn(profile.pending.cardInstances ?? {}, id))) throw new RangeError('出戰卡牌紀錄無效，必須是本局牌組中最多四位不同角色。');
+  const playedUIDs = loaner ? [] : playedCardIds.map(id => profile.pending.cardInstances[id]);
   for (const [index, uid] of playedUIDs.entries()) {
     if (!Array.isArray(profile.pending.instanceIds) || !profile.pending.instanceIds.includes(uid)
       || getInstance(profile, uid).cardId !== playedCardIds[index]) throw new RangeError('出戰卡牌與本局紀錄不符。');
@@ -598,6 +629,8 @@ export function finishBattle(profile, { encounterId, winner, playedCardIds = [],
   let next = refreshDaily(profile, now);
   const encounter = next.pending;
   const win = winner === 'player';
+  const expanded = encounter.kind === 'activity' || CAMPAIGN_NODES.some(node => node.id === encounter.nodeId);
+  if (expanded && (!finalResources || Object.keys(finalResources).length !== 2 || !['hp', 'pills'].every(key => Number.isInteger(finalResources[key]) && finalResources[key] >= 0 && finalResources[key] <= 12) || win && finalResources.hp < 1)) throw new RangeError('缺少有效的對局結束生命與仙丹記錄。');
   const reward = { coins: 0, dust: 0, xp: 0, points: 0, firstClear: false, dailyCache: false, cardXP: [] };
   const include = part => { for (const field of ['coins', 'dust', 'xp']) reward[field] += part[field] ?? 0; };
   increment(next.stats, 'played');
@@ -615,12 +648,19 @@ export function finishBattle(profile, { encounterId, winner, playedCardIds = [],
         include(node.firstClearReward);
         reward.firstClear = true;
       }
-      if (!next.daily.expeditionCaches.includes(node.id)) {
+      if (node.campaign) {
+        const previous = next.expansion.mastery[node.id] || { win: false, life: false, pills: false };
+        next.expansion.mastery[node.id] = { win: true, life: previous.life || finalResources.hp >= 6, pills: previous.pills || finalResources.pills >= 2 };
+        if (reward.firstClear) bankCampaignMilestones(next, node);
+      }
+      if (!node.campaign && !next.daily.expeditionCaches.includes(node.id)) {
         next.daily.expeditionCaches.push(node.id);
         include(node.dailyReward);
         reward.dailyCache = true;
       }
     }
+  } else if (encounter.kind === 'activity') {
+    settleActivity(next, { encounter, winner, finalResources, reward });
   } else if (encounter.kind === 'arena') {
     reward.points = win ? 30 : winner === 'draw' ? 10 : 5;
     include(win ? { coins: 90, dust: 3, xp: 35 } : { coins: winner === 'draw' ? 45 : 25, dust: 1, xp: 15 });
@@ -631,14 +671,159 @@ export function finishBattle(profile, { encounterId, winner, playedCardIds = [],
     increment(next.weekly, 'arenaMatches');
   }
   next.pending = null;
+  // Bank the run's start-period milestones first, then close that period. The
+  // returned record must already equal its hydrated form before storage accepts it.
+  if (encounter.kind === 'activity' && !next.expansion.fireMountain.run) next.expansion = rollExpansionWeek(next.expansion, `${next.daily.date}T12:00:00Z`);
+  if (expanded) for (const field of ['coins', 'dust', 'xp']) assertWX01Counters(next, [field], reward[field]);
   addReward(next, reward);
-  const amount = encounter.kind === 'expedition' ? (win ? 20 : 12) : encounter.kind === 'arena' ? (win ? 12 : 8) : 0;
+  const amount = encounter.kind === 'expedition' ? (win ? 20 : 12) : ['arena', 'activity'].includes(encounter.kind) ? (win ? 12 : 8) : 0;
   if (playedUIDs.length) {
     const awarded = awardInstanceXP(next, playedUIDs, amount, { win });
     next = awarded.profile;
     reward.cardXP = awarded.changes;
   }
   return { profile: next, reward };
+}
+
+function bankGrant(profile, grant) {
+  if (profile.expansion.grants.some(item => item.id === grant.id)) throw new RangeError('這份旅途獎勵已入賬。');
+  if (profile.expansion.grants.length >= MAX_EXPANSION_GRANTS) throw new RangeError('待領獎勵已滿，未有結算對局。');
+  profile.expansion.grants.push(grant);
+}
+function bankCampaignMilestones(profile, node) {
+  if (node.rewardCharacter) bankGrant(profile, { id: `campaign:${node.id}:base`, kind: 'base', printId: basePrintFor(node.rewardCharacter), source: node.id });
+  if (node.volumeFinal) { assertWX01Counters(profile.expansion, ['tickets']); profile.expansion.tickets++; }
+  if (CAMPAIGN_NODES.every(item => profile.cleared.includes(item.id)) && !profile.expansion.titles.includes(CAMPAIGN_TITLE)) {
+    profile.expansion.titles.push(CAMPAIGN_TITLE);
+    bankGrant(profile, { id: 'campaign:westward-echo:aa', kind: 'aa', printId: null, source: 'westward-echo' });
+  }
+}
+function activityEncounter(profile) {
+  const run = profile.expansion.fireMountain.run;
+  if (!run || run.phase !== 'battle') throw new RangeError('目前沒有待續的活動對局。');
+  return { id: `battle-${profile.serial}`, kind: 'activity', nodeId: null, instanceIds: [...run.instanceIds], cardInstances: copy(run.cardInstances), cardPrints: copy(run.cardPrints),
+    route: run.route, battleSeed: run.seeds[run.stage].battle, playerDeck: [...run.deck], opponentDeck: [...FIRE_MOUNTAIN.stages[run.stage].opponentDeck],
+    activityRunId: run.id, activityStage: run.stage, initialResources: { hp: run.hp, pills: run.pills } };
+}
+/** Fresh RNG function from a saved seed: rebuilding a lost battle never redraws. */
+export function getPendingBattleOptions(profile) {
+  const encounter = profile.pending;
+  if (!encounter || encounter.battleSeed === undefined) throw new RangeError('這場對局沒有續卷種子記錄。');
+  validateExpansionPending(encounter, profile);
+  const activity = encounter.kind === 'activity', node = !activity ? nodeFor(encounter.nodeId) : null;
+  const levels = encounter.route === 'loaner' ? {} : Object.fromEntries(encounter.instanceIds.map(uid => { const instance = getInstance(profile, uid); return [instance.cardId, instance.level]; }));
+  return { deckIds: [...encounter.playerDeck], opponentDeckIds: [...encounter.opponentDeck], rng: seededBattleRNG(encounter.battleSeed), mode: activity ? 'activity' : 'expedition',
+    playerLevels: activity ? {} : levels, opponentLevels: {}, opponentName: activity ? FIRE_MOUNTAIN.stages[encounter.activityStage].name || FIRE_MOUNTAIN.stages[encounter.activityStage].bossId : node.enemyName,
+    ...(activity ? { initialResources: { player: copy(encounter.initialResources) } } : {}) };
+}
+export function getActivityBattleOptions(profile) {
+  if (profile.pending?.kind !== 'activity') throw new RangeError('目前沒有活動對局。');
+  validateExpansionState(profile.expansion, profile);
+  return getPendingBattleOptions(profile);
+}
+export function startActivity(profile, { route = 'owned', rng = Math.random, now = new Date() } = {}) {
+  const next = refreshDaily(profile, now);
+  if (next.pending || next.expansion.fireMountain.run) throw new RangeError('請先完成或離開目前旅程。');
+  if (!next.cleared.includes(FIRE_MOUNTAIN.unlockNode)) throw new RangeError('先完成活動入口所需的遊歷地點。');
+  const roster = frozenRoster(next, route, FIRE_MOUNTAIN.loanerDeck);
+  assertExpansionBattleRoom(next, { activity: true });
+  assertWX01Counters(next.expansion, ['serial']);
+  const startedAt = new Date(now).toISOString();
+  const seeds = Array.from({ length: 3 }, () => ({ battle: Math.floor(randomUnit(rng) * 0x100000000), loot: Math.floor(randomUnit(rng) * 0x100000000) }));
+  next.expansion.serial++;
+  const run = { id: `activity-${next.expansion.serial}`, activityId: FIRE_MOUNTAIN.id, version: FIRE_MOUNTAIN.version, ...roster,
+    startWeek: next.expansion.fireMountain.weekly.week, startedAt, stage: 0, phase: 'battle', seeds, hp: 12, pills: 12, settled: [], supplies: [], banked: { coins: 0, dust: 0, xp: 0 } };
+  next.expansion.fireMountain.run = run; next.serial++;
+  next.pending = activityEncounter(next);
+  return { profile: next, encounter: copy(next.pending), battleOptions: getActivityBattleOptions(next) };
+}
+export function advanceActivity(profile, { supply, expectedRunId, expectedStage, now = new Date() } = {}) {
+  const next = refreshDaily(profile, now), run = next.expansion.fireMountain.run;
+  if (!run || run.id !== expectedRunId || run.stage !== expectedStage || run.phase !== 'supply' || next.pending) throw new RangeError('活動進度已改變，請重新查看目前旅程。');
+  if (!['life', 'pills', 'none'].includes(supply)) throw new RangeError('請選擇一項補給。');
+  if (supply === 'life' && run.hp >= 12 || supply === 'pills' && run.pills >= 12 || supply === 'none' && (run.hp !== 12 || run.pills !== 12)) throw new RangeError('這項補給不會改變資源；請選擇仍有需要的一項。');
+  assertExpansionBattleRoom(next, { activity: true });
+  if (supply === 'life') run.hp = Math.min(12, run.hp + 4);
+  if (supply === 'pills') run.pills = Math.min(12, run.pills + 4);
+  run.supplies.push(supply); run.stage++; run.phase = 'battle'; next.serial++;
+  next.pending = activityEncounter(next);
+  return { profile: next, encounter: copy(next.pending), battleOptions: getActivityBattleOptions(next) };
+}
+export function abandonActivity(profile, { expectedRunId, now = new Date() } = {}) {
+  const next = refreshDaily(profile, now), run = next.expansion.fireMountain.run;
+  if (!run || run.id !== expectedRunId) throw new RangeError('活動進度已改變，請重新查看目前旅程。');
+  if (next.pending && (next.pending.kind !== 'activity' || next.pending.activityRunId !== run.id)) throw new RangeError('待續對局與活動不符。');
+  next.pending = null; next.expansion.fireMountain.run = null;
+  next.expansion = rollExpansionWeek(next.expansion, `${next.daily.date}T12:00:00Z`);
+  return next;
+}
+function settleActivity(profile, { encounter, winner, finalResources, reward }) {
+  const family = profile.expansion.fireMountain, run = family.run;
+  if (!run || run.id !== encounter.activityRunId || run.stage !== encounter.activityStage || run.phase !== 'battle' || run.settled.includes(run.stage)) throw new RangeError('這場活動已結算或記錄不符。');
+  let loot = null;
+  if (winner === 'player') {
+    Object.assign(reward, { coins: 60, dust: 3, xp: 30 });
+    const forced = family.dry === 19, roll = run.seeds[run.stage].loot;
+    const kind = forced || roll >= Math.floor(.95 * 0x100000000) ? 'base' : roll >= Math.floor(.8 * 0x100000000) ? 'coins' : 'dust';
+    const printId = kind === 'base' ? FIRE_MOUNTAIN.stages[run.stage].dropPrintId : null;
+    loot = { kind, printId, forced };
+    if (kind === 'base') { family.dry = 0; bankGrant(profile, { id: `${run.id}:stage-${run.stage}:loot`, kind: 'base', printId, source: 'fire-mountain' }); }
+    else { family.dry++; if (kind === 'dust') reward.dust += 2; else reward.coins += 30; }
+    for (const field of ['coins', 'dust', 'xp']) run.banked[field] += reward[field];
+    run.settled.push(run.stage);
+    if (run.stage === 2) {
+      assertWX01Counters(family, ['clears']); assertWX01Counters(family.weekly, ['clears']);
+      family.clears++; family.weekly.clears++;
+      if (!family.firstClear) {
+        family.firstClear = true; reward.firstClear = true;
+        bankGrant(profile, { id: 'fire-mountain:first-clear', kind: 'base', printId: basePrintFor('niumowang'), source: 'fire-mountain' });
+      }
+      for (const target of [1, 3]) if (family.weekly.clears >= target && !family.weekly.claimed.includes(target)) {
+        assertWX01Counters(profile.expansion, ['tickets']); profile.expansion.tickets++; family.weekly.claimed.push(target);
+      }
+      if (family.clears >= 5 && !profile.expansion.titles.includes(ACTIVITY_TITLE)) profile.expansion.titles.push(ACTIVITY_TITLE);
+      family.run = null;
+    } else {
+      run.hp = Math.min(12, finalResources.hp + 2); run.pills = Math.max(8, finalResources.pills); run.phase = 'supply';
+    }
+  } else family.run = null;
+  family.lastResult = { runId: run.id, stage: run.stage, winner, loot, hp: finalResources.hp, pills: finalResources.pills };
+  reward.activity = { ...copy(family.lastResult), banked: copy(run.banked), complete: winner === 'player' && run.stage === 2 };
+}
+export function claimExpansionGrant(profile, { id, printId, now = new Date() } = {}) {
+  let next = refreshDaily(profile, now);
+  const index = next.expansion.grants.findIndex(grant => grant.id === id);
+  if (index < 0) throw new RangeError('找不到這份待領獎勵，或已領取。');
+  const grant = next.expansion.grants[index];
+  const chosen = getPrinting(grant.kind === 'base' ? grant.printId : printId);
+  if (!chosen || chosen.setId !== 'wx01' || chosen.treatment !== grant.kind || grant.kind === 'base' && printId !== undefined && printId !== grant.printId) throw new RangeError('請選擇這份獎勵允許的畫作。');
+  assertNoWX01Receipt(next); assertCollectionCapacity(next, 1); assertWX01Counters(next.wx01, ['serial']);
+  const minted = grantCard(next, chosen.cardId, { source: `reward:${grant.id}`, now, printId: chosen.id }); next = minted.profile;
+  const cards = [{ cardId: chosen.cardId, printId: chosen.id, instanceId: minted.instance.uid, rarity: WX01_RARITIES[chosen.cardId] }];
+  next.expansion.grants.splice(index, 1);
+  saveWX01Receipt(next, { kind: 'reward', mode: chosen.treatment, cards, now });
+  return { profile: next, cards: copy(cards), receipt: copy(next.wx01.receipt), cost: 0, set: 'wx01' };
+}
+export function openWX01Ticket(profile, { rng = Math.random, now = new Date() } = {}) {
+  let next = refreshDaily(profile, now);
+  if (next.expansion.tickets < 1) throw new RangeError('尚未取得西行秘匣券。');
+  assertNoWX01Receipt(next); assertCollectionCapacity(next, 3);
+  assertWX01Counters(next.wx01, ['opened', 'seals', 'serial']); assertWX01Counters(next.daily, ['packs']);
+  const draw = drawWX01Pack({ dry: next.wx01.dry, rng }), cards = [];
+  for (const card of draw.cards) {
+    const minted = grantCard(next, card.cardId, { source: 'ticket:wx01', now, printId: card.printId }); next = minted.profile;
+    cards.push({ ...card, instanceId: minted.instance.uid });
+  }
+  next.expansion.tickets--; next.wx01.dry = draw.dry; next.wx01.opened++; next.wx01.seals++; next.daily.packs++;
+  saveWX01Receipt(next, { kind: 'ticket', mode: draw.mode, cards, now, sealsEarned: 1 });
+  return { profile: next, cards: copy(cards), receipt: copy(next.wx01.receipt), cost: 0, set: 'wx01', mode: draw.mode, forced: draw.forced };
+}
+export function getExpansionSummary(profile, now = new Date()) {
+  const current = refreshDaily(profile, now), expansion = current.expansion, family = expansion.fireMountain;
+  const cleared = CAMPAIGN_NODES.filter(node => current.cleared.includes(node.id)).length;
+  return copy({ tickets: expansion.tickets, grants: expansion.grants, mastery: expansion.mastery, titles: expansion.titles,
+    campaign: { cleared, total: CAMPAIGN_NODES.length, completed: cleared === CAMPAIGN_NODES.length },
+    activity: { id: FIRE_MOUNTAIN.id, unlocked: current.cleared.includes(FIRE_MOUNTAIN.unlockNode), clears: family.clears, dry: family.dry, guaranteeIn: 20 - family.dry, weekly: family.weekly, run: family.run, lastResult: family.lastResult } });
 }
 export function saveDeck(profile, ids) {
   const validation = validateDeck(ids);

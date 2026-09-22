@@ -1,12 +1,13 @@
 /** Version-separated local persistence. Call save under shanhai-profile-v3 lock. */
 import { PROFILE_KEY, PROFILE_VERSION, createProfile, hydrateProfile } from './progression.mjs';
-import { fingerprintProfile, SNAPSHOT_FORMAT, SNAPSHOT_VERSION, MAX_SNAPSHOT_CARDS } from './cloud-save.mjs';
+import { fingerprintProfile, assertLegacyExpansionBoundary, SNAPSHOT_FORMAT, SNAPSHOT_VERSION, MAX_SNAPSHOT_CARDS } from './cloud-save.mjs';
 import { LEGACY_CARD_IDS } from './engine.mjs';
 
-export const BATTLE_KEY = 'shanhai.battle.v4';
-export const RECOVERY_KEY = 'shanhai.profile.recovery.v4';
+export const BATTLE_KEY = 'shanhai.battle.v5';
+export const RECOVERY_KEY = 'shanhai.profile.recovery.v5';
 export const PROFILE_LOCK = 'shanhai-profile-v3';
 const sources = [
+  { profile: 'shanhai.profile.v4', battle: 'shanhai.battle.v4', version: 4 },
   { profile: 'shanhai.profile.v3', battle: 'shanhai.battle.v3', version: 3 },
   { profile: 'shanhai.profile.v2', battle: 'shanhai.battle.v2', version: 2 },
 ];
@@ -22,13 +23,18 @@ function sameCopies(before, after) {
 }
 function assertLegacyCopies(raw) {
   if (!Object.hasOwn(raw, 'pending') || typeof raw.daily?.date !== 'string') throw Error('舊旅程記錄不完整；原件仍保留。');
+  assertLegacyExpansionBoundary(raw);
   const original = { ...raw, pending: null };
   const canonical = hydrateProfile(original, { now: `${raw.daily.date}T12:00:00.000Z` });
-  canonical.version = 3; canonical.collectionVersion = 1; canonical.collectionExpansion = 1;
-  delete canonical.wx01;
-  for (const card of [...canonical.instances, ...canonical.merchantVault.map(entry => entry.instance)]) delete card.printId;
-  for (const key of ['inventory', 'levels']) canonical[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, canonical[key][id]]));
-  if (!Object.hasOwn(raw, 'weekly')) delete canonical.weekly;
+  canonical.version = raw.version;
+  delete canonical.expansion;
+  if (raw.version === 3) {
+    canonical.collectionVersion = 1; canonical.collectionExpansion = 1;
+    delete canonical.wx01;
+    for (const card of [...canonical.instances, ...canonical.merchantVault.map(entry => entry.instance)]) delete card.printId;
+    for (const key of ['inventory', 'levels']) canonical[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, canonical[key][id]]));
+  }
+  if (raw.version === 3 && !Object.hasOwn(raw, 'weekly')) delete canonical.weekly;
   if (fingerprintProfile(original) !== fingerprintProfile(canonical)) throw Error('舊旅程記錄不完整；原件仍保留。');
 }
 export function assertLocalProfile(profile) {
@@ -61,15 +67,15 @@ export function createProfileStore({ storage, now = () => new Date() }) {
       return createProfile({ now: now(), legacyDeck: legacyDeck === null ? undefined : parse(legacyDeck, '舊牌組'), legacyStats: legacyStats === null ? undefined : parse(legacyStats, '舊旅程') });
     }
     if (old.raw?.version !== old.version) throw Error('舊旅程版本暫未支援；原件仍保留，未有重設進度。');
-    // v3 already owns exact copies. Validate before the forgiving legacy
+    // v3/v4 already own exact copies. Validate before the forgiving legacy
     // hydrator can repair a damaged collection into a new starter journey.
-    if (old.version === 3) assertLegacyCopies(old.raw);
+    if (old.version >= 3) assertLegacyCopies(old.raw);
     const battleText = read(old.battle);
     const next = hydrateProfile(old.raw, { now: now(), legacyBattle: battleText === null ? undefined : parse(battleText, '未完對局') });
     sameCopies(old.raw, next);
-    if (old.version === 3 && old.raw.pending !== null) {
+    if (old.version >= 3 && old.raw.pending !== null) {
       const migrated = next.pending && { ...next.pending };
-      if (migrated) delete migrated.cardPrints;
+      if (migrated && old.version === 3) delete migrated.cardPrints;
       if (fingerprintProfile(old.raw.pending) !== fingerprintProfile(migrated)) throw Error('未完對局未能完整轉入；原件仍保留。');
     }
     return next;

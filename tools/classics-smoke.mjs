@@ -14,7 +14,7 @@ await mkdir(output, { recursive: true });
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const fixedNow = '2026-09-21T12:00:00Z';
-const profileKey = 'shanhai.profile.v4', legacyProfileKey = 'shanhai.profile.v2', battleKey = 'shanhai.battle.v4';
+const profileKey = 'shanhai.profile.v5', legacyProfileKey = 'shanhai.profile.v2', battleKey = 'shanhai.battle.v5';
 const failures = [], checked = [], screenshots = [];
 const read = (page, key = profileKey) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
 const go = async (page, screen) => {
@@ -64,7 +64,7 @@ async function seededContext(seed, mobile = false) {
 try {
   const old = createProfile({ now: fixedNow });
   old.version = 2;
-  for (const key of ['instances', 'instanceSerial', 'collectionVersion', 'deckSlots', 'activeDeckId', 'merchantVault']) delete old[key];
+  for (const key of ['instances', 'instanceSerial', 'collectionVersion', 'deckSlots', 'activeDeckId', 'merchantVault', 'wx01', 'expansion']) delete old[key];
   delete old.collectionExpansion;
   old.inventory = Object.fromEntries(ORIGINAL_CARD_IDS.map(id => [id, 1]));
   old.levels = Object.fromEntries(ORIGINAL_CARD_IDS.map(id => [id, id === 'qingxiao' ? 3 : 1]));
@@ -76,7 +76,7 @@ try {
   old.daily.loginClaimed = true;
   const { context, page } = await seededContext(old);
   const migrated = await read(page);
-  assert.equal(migrated.version, 4);
+  assert.equal(migrated.version, 5);
   assert.deepEqual(await read(page, legacyProfileKey), old, 'v2 backup remains unchanged');
   assert.equal(migrated.collectionExpansion, 2);
   for (const key of ['coins', 'dust', 'xp', 'stats', 'arena', 'cleared', 'location', 'deck', 'daily']) assert.deepEqual(migrated[key], old[key]);

@@ -1,4 +1,5 @@
 import { createProfileStore, PROFILE_LOCK } from './profile-store.mjs';
+import { PROFILE_KEY } from './progression.mjs';
 import { claimPlaytestSupply, PLAYTEST_GIFT, PLAYTEST_COINS, isLoopback } from './playtest-supply.mjs';
 
 const status = document.querySelector('#supply-status');
@@ -9,7 +10,7 @@ function ready() {
   if (!isLoopback(location.hostname)) throw Error('試玩補給只供本機開發旅程。');
   if (!navigator.locks) throw Error('請在支援安全儲存的新版瀏覽器領取。');
   // A supply page must never create a fresh journey to replace the player's save.
-  if (!['shanhai.profile.v4', 'shanhai.profile.v3', 'shanhai.profile.v2'].some(key => localStorage.getItem(key) !== null)) throw Error('請先在此瀏覽器開啟原本的遊戲旅程，再回來領取。');
+  if (![PROFILE_KEY, 'shanhai.profile.v4', 'shanhai.profile.v3', 'shanhai.profile.v2'].some(key => localStorage.getItem(key) !== null)) throw Error('請先在此瀏覽器開啟原本的遊戲旅程，再回來領取。');
   return createProfileStore({ storage: localStorage });
 }
 function render(profile) {

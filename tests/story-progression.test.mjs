@@ -8,7 +8,7 @@ import { createSnapshot, restoreSnapshot, validateSnapshot } from '../cloud-save
 const now = '2026-09-21T12:00:00Z';
 const fresh = () => createProfile({ now });
 const legacyIds = ['mist-gate', 'jade-forest', 'ember-pass', 'moon-lake', 'sky-palace', 'sea-throne'];
-const worlds = WORLDS.filter(world => world.id !== 'shanhai');
+const worlds = WORLDS.filter(world => world.id !== 'shanhai' && !world.campaign);
 function complete(profile, nodeId, winner = 'player') {
   const started = beginBattle(profile, { kind: 'expedition', nodeId, now });
   return finishBattle(started.profile, { encounterId: started.encounter.id, winner, playedCardIds: ['qingxiao'], now });
@@ -31,8 +31,8 @@ test('the original six nodes keep IDs, fields, levels and rewards; three indepen
     assert.deepEqual(node.firstClearReward, { coins: 140 + index * 40, dust: 8 + index * 2, xp: 50 + index * 10 });
     assert.deepEqual(node.dailyReward, { coins: 80 + index * 15, dust: 4 + index, xp: 20 });
   });
-  assert.equal(NODES.length, 18); assert.equal(STORY_NODES.length, 12); assert.equal(worlds.length, 3);
-  assert.equal(new Set(NODES.map(node => node.id)).size, 18);
+  assert.equal(NODES.length, 66); assert.equal(NODES.filter(node => !node.campaign).length, 18); assert.equal(STORY_NODES.length, 12); assert.equal(worlds.length, 3);
+  assert.equal(new Set(NODES.map(node => node.id)).size, 66);
   for (const world of worlds) {
     assert.equal(world.nodeIds.length, 4);
     world.nodeIds.forEach((id, index) => {
@@ -40,7 +40,7 @@ test('the original six nodes keep IDs, fields, levels and rewards; three indepen
       assert.equal(node.worldId, world.id); assert.equal(node.order, index);
       assert.equal(node.requiresNode, index ? world.nodeIds[index - 1] : 'mist-gate');
       assert.equal(validateDeck(node.opponentDeck).valid, true);
-      assert.equal(nextNodeInWorld(id), world.nodeIds[index + 1] || null);
+      assert.equal(nextNodeInWorld(id), world.nodeIds[index + 1] || (id === 'west-spirit-mountain' ? 'echo-1-1' : null));
     });
   }
 });

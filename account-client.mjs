@@ -1,4 +1,4 @@
-import { createSnapshot, validateSnapshot, fingerprintProfile } from './cloud-save.mjs';
+import { createSnapshot, validateSnapshot, fingerprintProfile, SNAPSHOT_VERSION } from './cloud-save.mjs';
 
 const messages = {
   unauthorized: '登入已失效，請重新登入。此裝置的旅程仍然保留。',
@@ -21,7 +21,7 @@ const messages = {
   invalid_snapshot: '這份旅程未能備份。請先完成對局，再重新讀取及比較旅程。',
   request_too_large: '這份旅程暫時超出備份容量，請保留此裝置的進度。',
   account_changed: '登入帳戶已在另一頁改變，請重新登入並確認旅程。此裝置的進度仍然保留。',
-  journey_version_unsupported: '西行收藏的雲端備份尚未開放。你仍可下載本機備份，或讀取及恢復舊版雲端旅程。',
+  journey_version_unsupported: '新版旅程的雲端備份尚未開放。你仍可下載本機備份，或讀取及恢復舊版雲端旅程。',
 };
 
 function failure(code, status = 0) {
@@ -30,6 +30,9 @@ function failure(code, status = 0) {
   error.status = status;
   return error;
 }
+
+const supportedVersions = value => [1, 2, 3].filter(version => version === 1 || Array.isArray(value.journeyVersions) && value.journeyVersions.includes(version));
+const capability = value => { const journeyVersions = supportedVersions(value); return { journeyVersions, journeyVersion: journeyVersions.at(-1) }; };
 
 function cloudResponse(value, version) {
   if (!value || !Number.isSafeInteger(value.revision) || value.revision < 0) throw failure('invalid_response');
@@ -59,7 +62,7 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
     busy: null, error: '', status: '', emailDraft: '', tokenDraft: '', codeSent: false,
     backup: null, revision: 0, cloudLoaded: false, conflict: false,
     confirmation: null, localChanged: false,
-    journeyVersion: 1, backupVersion: 1, writeRevision: 0,
+    journeyVersion: 1, journeyVersions: [1], backupVersion: 1, writeRevision: 0,
   };
 
   const getState = () => structuredClone(state);
@@ -112,12 +115,14 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
   async function readCloud(scope) {
     const value = await request(scope, 'journey');
     if (!current(scope)) return null;
-    // A separate empty v2 namespace must not hide an existing v1 journey.
-    // Its revision is for restoration only; uploads always use the v2 revision.
-    if (state.journeyVersion === 2 && cloudResponse(value, 2).backup === null) {
-      const legacy = await request(scope, 'journey', { version: 1 });
-      if (!current(scope)) return null;
-      if (cloudResponse(legacy, 1).backup) return acceptCloud(legacy, 1, value.revision);
+    // Preserve old namespaces for restoration, while retaining the newest
+    // namespace's independent CAS revision for future writes.
+    if (cloudResponse(value, state.journeyVersion).backup === null) {
+      for (const version of state.journeyVersions.filter(version => version < state.journeyVersion).reverse()) {
+        const legacy = await request(scope, 'journey', { version });
+        if (!current(scope)) return null;
+        if (cloudResponse(legacy, version).backup) return acceptCloud(legacy, version, value.revision);
+      }
     }
     return acceptCloud(value);
   }
@@ -126,7 +131,7 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
     generation += 1;
     activeController?.abort();
     activeController = null;
-    publish({ account: null, initialized: false, busy: null, backup: null, revision: 0, writeRevision: 0, journeyVersion: 1, backupVersion: 1, cloudLoaded: false, conflict: false, confirmation: null, codeSent: false, emailDraft: '', tokenDraft: '', error: message, status: '', localChanged: false });
+    publish({ account: null, initialized: false, busy: null, backup: null, revision: 0, writeRevision: 0, journeyVersion: 1, journeyVersions: [1], backupVersion: 1, cloudLoaded: false, conflict: false, confirmation: null, codeSent: false, emailDraft: '', tokenDraft: '', error: message, status: '', localChanged: false });
   }
 
   async function run(name, action, { authenticated = false } = {}) {
@@ -173,7 +178,7 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
             || (value.authenticated && (!value.user || typeof value.user.id !== 'string' || !value.user.id || typeof value.user.email !== 'string'))) throw failure('invalid_response');
         const account = value.authenticated ? { id: value.user.id, email: value.user.email } : null;
         scope.accountId = account?.id ?? null;
-        publish({ account, initialized: true, backendAvailable: true, emailEnabled: value.emailEnabled, journeyVersion: Array.isArray(value.journeyVersions) && value.journeyVersions.includes(2) ? 2 : 1 });
+        publish({ account, initialized: true, backendAvailable: true, emailEnabled: value.emailEnabled, ...capability(value) });
         if (account) await readCloud(scope);
       });
     },
@@ -199,7 +204,7 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
         if (!current(scope)) return false;
         if (!value.authenticated || !value.user?.id || typeof value.user.email !== 'string') throw failure('invalid_response');
         scope.accountId = value.user.id;
-        publish({ account: { id: value.user.id, email: value.user.email }, codeSent: false, emailDraft: '', initialized: true, backendAvailable: true, journeyVersion: Array.isArray(value.journeyVersions) && value.journeyVersions.includes(2) ? 2 : 1 });
+        publish({ account: { id: value.user.id, email: value.user.email }, codeSent: false, emailDraft: '', initialized: true, backendAvailable: true, ...capability(value) });
         await readCloud(scope);
         if (current(scope)) announce('已登入。兩份旅程會保持原樣，請自行選擇備份或恢復。');
       });
@@ -213,11 +218,11 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
       }, { authenticated: true });
     },
     async upload() {
-      if (state.journeyVersion !== 2) { publish({ error: messages.journey_version_unsupported }); return false; }
+      if (state.journeyVersion !== SNAPSHOT_VERSION) { publish({ error: messages.journey_version_unsupported }); return false; }
       if (needsReview()) return false;
       return run('upload', async scope => {
         const snapshot = createSnapshot(getLocalProfile());
-        if (snapshot.version !== 2) throw failure('journey_version_unsupported');
+        if (snapshot.version !== SNAPSHOT_VERSION) throw failure('journey_version_unsupported');
         const expectedRevision = state.writeRevision;
         const value = await request(scope, 'journey', { method: 'PUT', body: { expectedRevision, snapshot } });
         if (!current(scope)) return false;
@@ -228,7 +233,7 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
     },
     setConfirmation(action) {
       if (state.busy || !state.account || !state.backup || needsReview() || !['restore', 'delete'].includes(action)) return false;
-      if (action === 'delete' && (state.journeyVersion !== 2 || state.backupVersion !== 2)) { publish({ error: messages.journey_version_unsupported }); return false; }
+      if (action === 'delete' && (state.journeyVersion !== SNAPSHOT_VERSION || state.backupVersion !== SNAPSHOT_VERSION)) { publish({ error: messages.journey_version_unsupported }); return false; }
       try {
         if (action === 'restore') createSnapshot(getLocalProfile());
         publish({ confirmation: { action, revision: state.revision, snapshotVersion: state.backupVersion, localFingerprint: action === 'restore' ? fingerprintProfile(getLocalProfile()) : null }, error: '', status: '' });
@@ -254,7 +259,7 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
       }, { authenticated: true });
     },
     async deleteBackup() {
-      if (state.journeyVersion !== 2 || state.backupVersion !== 2) { publish({ error: messages.journey_version_unsupported }); return false; }
+      if (state.journeyVersion !== SNAPSHOT_VERSION || state.backupVersion !== SNAPSHOT_VERSION) { publish({ error: messages.journey_version_unsupported }); return false; }
       const confirmation = state.confirmation;
       if (confirmation?.action !== 'delete') { publish({ error: '請先確認要刪除的雲端備份。' }); return false; }
       return run('delete', async scope => {

@@ -50,7 +50,8 @@ def require_success(result, stage):
 for path in [root / 'supabase/tests/bootstrap.sql',
              *sorted((root / 'supabase/migrations').glob('*.sql')),
              root / 'supabase/tests/private_journey_backups.sql',
-             root / 'supabase/tests/wx01_journey_v2.sql']:
+             root / 'supabase/tests/wx01_journey_v2.sql',
+             root / 'supabase/tests/campaign_journey_v3.sql']:
     require_success(sql(path.read_text()), path.name)
 
 # Two genuinely independent database connections race their first insert and
@@ -60,7 +61,8 @@ saved = '{"format":"mythseal.offline-journey","version":1,"profile":{"version":3
 require_success(sql(f"insert into auth.users(id) values ('{actor}');"), 'concurrency fixture')
 try:
     v2 = '{"format":"mythseal.offline-journey","version":2,"profile":{"version":4,"collectionVersion":2,"collectionExpansion":2,"wx01":{},"pending":null}}'
-    for rpc, snapshot in [('mythseal_backup_write', saved), ('mythseal_backup_v2_write', v2)]:
+    v3 = '{"format":"mythseal.offline-journey","version":3,"profile":{"version":5,"collectionVersion":2,"collectionExpansion":2,"wx01":{},"expansion":{"version":1,"fireMountain":{"run":null}},"pending":null}}'
+    for rpc, snapshot in [('mythseal_backup_write', saved), ('mythseal_backup_v2_write', v2), ('mythseal_backup_v3_write', v3)]:
         for revision in (0, 1):
             start = threading.Barrier(2)
             def race():
@@ -79,5 +81,5 @@ try:
                 sys.exit(f'{rpc} concurrent revision {revision} did not produce one success and one CAS conflict.')
 finally:
     require_success(sql(f"delete from auth.users where id = '{actor}';"), 'concurrency fixture cleanup')
-print('Backup SQL v1/v2 passed: private grants, account and namespace isolation, size bounds, CAS, tombstones, and parallel first-write/update races.')
+print('Backup SQL v1/v2/v3 passed: private grants, account and namespace isolation, size bounds, CAS, tombstones, and parallel first-write/update races.')
 PY

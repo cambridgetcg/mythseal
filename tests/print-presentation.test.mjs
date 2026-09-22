@@ -126,3 +126,20 @@ test('real box receipts render all exact copies grouped into saved packs with an
     assert.deepEqual(result.receipt, before);
   }
 });
+
+
+test('ticket receipts identify free funding and final campaign AA choice remains separate from the old four stages', () => {
+  const profile=fresh(), grant={id:'campaign:westward-echo:aa',kind:'aa',printId:null,source:'westward-echo'};
+  profile.expansion.grants.push(grant);
+  const choice=wx01RedeemMarkup(profile,cardMarkup,{grant});
+  assert.equal((choice.match(/data-action="expansion-claim-print"/g)||[]).length,6);
+  assert.equal((choice.match(/data-grant="campaign:westward-echo:aa"/g)||[]).length,6);
+  assert(!choice.includes(' disabled'));
+  assert(!choice.includes('claim-story-print'));
+  assert.equal(profile.wx01.storyClaimed,false);
+  const receipt={id:'wx01-1',kind:'ticket',mode:'ordinary',sealsEarned:1,cards:[{cardId:'wukong',printId:'wx01-005-base',instanceId:'card-000050',rarity:'epic'}]};
+  const markup=packReceiptMarkup(receipt,cardMarkup);
+  assert(markup.includes('旅途贈券'));
+  assert(markup.includes('使用秘匣券 1 張，未扣金幣'));
+  assert(markup.includes('西行印 +1'));
+});

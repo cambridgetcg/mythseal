@@ -20,7 +20,8 @@
     "test:wx01": "node tools/wx01-presentation-smoke.mjs && node tools/profile-recovery-smoke.mjs && BROWSER=webkit node tools/wx01-presentation-smoke.mjs && BROWSER=webkit node tools/profile-recovery-smoke.mjs && node tools/wx01-box-smoke.mjs && BROWSER=webkit node tools/wx01-box-smoke.mjs",
     "test:inheritance": "node tools/inheritance-smoke.mjs && BROWSER=webkit node tools/inheritance-smoke.mjs",
     "test:collection-display": "node tools/collection-display-smoke.mjs && BROWSER=webkit node tools/collection-display-smoke.mjs",
-    "test:viewport": "node tools/viewport-smoke.mjs && BROWSER=webkit node tools/viewport-smoke.mjs"
+    "test:viewport": "node tools/viewport-smoke.mjs && BROWSER=webkit node tools/viewport-smoke.mjs",
+    "test:expansion": "node tools/expansion-smoke.mjs && BROWSER=webkit node tools/expansion-smoke.mjs"
   },
   "overrides": {
     "xcode": {

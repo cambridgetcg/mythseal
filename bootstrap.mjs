@@ -13,7 +13,7 @@ try {
     const backup = document.createElement('button'); backup.className = 'secondary'; backup.textContent = '匯出保留的存檔';
     backup.onclick = () => {
       try {
-        const keys = ['shanhai.profile.v4', 'shanhai.battle.v4', 'shanhai.profile.v3', 'shanhai.battle.v3', 'shanhai.profile.v2', 'shanhai.battle.v2', 'shanhai.deck.v1', 'shanhai.stats.v1', 'shanhai.profile.recovery.v4', 'shanhai.profile.recovery.v3', 'shanhai.profile.recovery.v2'];
+        const keys = ['shanhai.profile.v5', 'shanhai.battle.v5', 'shanhai.profile.recovery.v5', 'shanhai.profile.v4', 'shanhai.battle.v4', 'shanhai.profile.v3', 'shanhai.battle.v3', 'shanhai.profile.v2', 'shanhai.battle.v2', 'shanhai.deck.v1', 'shanhai.stats.v1', 'shanhai.profile.recovery.v4', 'shanhai.profile.recovery.v3', 'shanhai.profile.recovery.v2'];
         const data = Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)]).filter(([, text]) => text !== null));
         const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
         const a = document.createElement('a'); a.href = url; a.download = 'mythseal-recovery-originals.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);

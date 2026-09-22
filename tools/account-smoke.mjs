@@ -15,8 +15,8 @@ if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 const fixedNow = '2026-09-21T12:00:00Z';
-const recoveryKey = 'shanhai.profile.recovery.v4';
-const battleKey = 'shanhai.battle.v4';
+const recoveryKey = 'shanhai.profile.recovery.v5';
+const battleKey = 'shanhai.battle.v5';
 const checks = [], screenshots = [], errors = [], blockedExternal = new Set(), contexts = [];
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
@@ -37,7 +37,7 @@ async function shot(page, name) {
   screenshots.push(name);
 }
 
-async function fixturePage(profile, { mobile = false, authenticated = false, emailEnabled = true, journeyVersions = [1, 2] } = {}) {
+async function fixturePage(profile, { mobile = false, authenticated = false, emailEnabled = true, journeyVersions = [1, 3] } = {}) {
   const fixture = { authenticated, emailEnabled, journeyVersions, legacyBackup: null, legacyRevision: 0, email: 'traveller@example.test', revision: 0, backup: null, calls: [] };
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, reducedMotion: 'reduce', ...(mobile ? { isMobile: true, hasTouch: true, deviceScaleFactor: 1 } : {}) });
   contexts.push(context);
@@ -79,7 +79,7 @@ async function fixturePage(profile, { mobile = false, authenticated = false, ema
     }
     if (path === '/api/v1/auth/logout' && method === 'POST') { fixture.authenticated = false; return reply({ authenticated: false }); }
     if (path === '/api/v1/journey' && method === 'GET') return reply({ backup: fixture.legacyBackup, revision: fixture.legacyRevision });
-    if (path === '/api/v2/journey') {
+    if (path === '/api/v3/journey') {
       if (!fixture.authenticated) return reply({ error: { code: 'sign_in_required' } }, 401);
       if (method === 'GET') return reply({ backup: fixture.backup, revision: fixture.revision });
       if (['PUT', 'DELETE'].includes(method)) {
@@ -227,7 +227,7 @@ try {
   assert(pending.pending);
   assert(await action(page, 'account-upload').isDisabled());
   assert(await action(page, 'account-confirm-restore').isDisabled());
-  assert.match(await page.locator('.account-panel.local').innerText(), /對局尚未結束/);
+  assert.match(await page.locator('.account-panel.local').innerText(), /對局或活動旅程尚未結束/);
   await action(page, 'account-logout').click(); await idle(page);
   assert.deepEqual(await readProfile(page), pending);
   assert.equal(await page.evaluate(key => localStorage.getItem(key), battleKey), savedBattle);
@@ -254,7 +254,7 @@ try {
   const oldServer = await fixturePage(seed, { mobile: true, authenticated: true, journeyVersions: undefined });
   // Deliberately omit capabilities to model an already deployed pre-v2 server.
   oldServer.journeyVersions = undefined;
-  const legacy = structuredClone(seed); legacy.version = 3; legacy.collectionVersion = 1; legacy.collectionExpansion = 1; delete legacy.wx01;
+  const legacy = structuredClone(seed); legacy.version = 3; legacy.collectionVersion = 1; legacy.collectionExpansion = 1; delete legacy.wx01; delete legacy.expansion;
   legacy.coins = 987;
   legacy.instances.forEach(card => { delete card.printId; });
   for (const key of ['inventory', 'levels']) legacy[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, legacy[key][id]]));
@@ -263,7 +263,7 @@ try {
   await action(oldServer.page, 'account-open').click(); await idle(oldServer.page);
   assert(await action(oldServer.page, 'account-upload').isDisabled());
   assert(await action(oldServer.page, 'account-confirm-delete').isDisabled());
-  assert.match(await oldServer.page.locator('.account-panel.cloud').innerText(), /西行收藏的雲端備份尚未開放/);
+  assert.match(await oldServer.page.locator('.account-panel.cloud').innerText(), /新版旅程的雲端備份尚未開放/);
   await action(oldServer.page, 'account-confirm-restore').click();
   assert(await oldServer.page.locator('.account-confirmation').isVisible(), 'Confirmation must appear immediately without navigating to another module');
   await action(oldServer.page, 'account-restore').click(); await idle(oldServer.page);
@@ -271,7 +271,7 @@ try {
   assert.deepEqual((await readRecovery(oldServer.page)).snapshot, createSnapshot(seed));
   assert.equal(mutations(oldServer).length, 0);
   await shot(oldServer.page, 'account-mobile-legacy-restore.png');
-  complete('Old-server capability absence blocks v4 upload/delete while explicit v1 restore migrates copies and preserves v4 recovery');
+  complete('Old-server capability absence blocks v5 upload/delete while explicit v1 restore migrates copies and preserves v5 recovery');
 
   assert.deepEqual(errors, [], 'Unexpected browser errors or failed static resources');
   console.log(JSON.stringify({ ok: true, evidence: 'Isolated browser UI with intercepted mock APIs; no live authentication or email delivery tested.', checks, screenshots, browserErrors: errors, externalOriginsBlocked: blockedExternal.size }, null, 2));

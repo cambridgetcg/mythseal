@@ -1,6 +1,8 @@
 import { CARDS, LEGACY_CARDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, previewMove, resolveRound, hasFactionBonus, getBattleCard } from './engine.mjs';
 
 import { PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, refreshDaily, claimLogin, claimTask, claimWeeklyTask, buyPack, buyCard, sellInstance, buybackInstance, getInstanceSale, upgradeCard, trainCard, beginBattle, finishBattle, abandonBattle, claimArenaChest, isNodeUnlocked } from './progression.mjs';
+import { activityMarkup, activitySupplyMarkup, expansionRewardsMarkup } from './expansion-ui.mjs';
+import { startActivity, advanceActivity, abandonActivity, getPendingBattleOptions, claimExpansionGrant, openWX01Ticket } from './progression.mjs';
 import { WORLDS, getWorldForNode, nextNodeInWorld } from './stories.mjs';
 import { getInstance, getPreferredInstance, getActiveDeck, getDeckLevels, toggleInstanceLock, saveInstanceDeck, activateDeck, deleteDeck, validateInstanceDeck } from './collection.mjs';
 import { backpackMarkup, instanceMarkup } from './backpack-ui.mjs';
@@ -40,7 +42,7 @@ let collectionSet='all', sourceFilter='all', codexStatus='all', selectedPack='wx
 const classicsDeck=['kongzi','qingxiao','wukong','guanyu','lindaiyu','shuangli','cangjiao','cuixian'];
 let deckDraftReady=false;
 let screen='home', filter='all', selectedNode=profile.location||NODES[0].id, trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
-let questTab='daily';
+let questTab='daily', activityRoute='owned';
 const worldSelections=new Map(), worldScrollPositions=new Map();
 let bagView={tab:'cards',layout:'groups',expandedCardId:null,printId:'all',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''},bagGroupReturn=null;
 let match=null, encounter=null, selected=null, pills=0, fury=false, aiMove=null, busy=false, recorded=false, revealPending=false, lastReward=null;
@@ -73,7 +75,7 @@ accountChannel?.addEventListener('message', event => {
   account.invalidateSession();
   account.init();
 });
-const modeName=kind=>({practice:'自由切磋',expedition:'主線遊歷',arena:'問道擂台'}[kind]||'山海對弈');
+const modeName=kind=>({practice:'自由切磋',expedition:'主線遊歷',arena:'問道擂台',activity:'火焰山三連戰'}[kind]||'山海對弈');
 const isMistGate=(intent=encounter)=>intent?.kind==='expedition'&&intent.nodeId==='mist-gate';
 function applyExperiencePreferences(preferences) {
   sound=preferences.sound;
@@ -103,7 +105,7 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
   return navigator.locks.request(PROFILE_LOCK, () => {
     const current = loadProfile();
     if (!isCurrent()) throw Error('登入狀態已改變，未有恢復旅程。');
-    if (economyBusy || current.pending) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');
+    if (economyBusy || current.pending || current.expansion.fireMountain.run) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');
     if (current.wx01.receipt) throw Error('請先查看並確認已入藏的西行畫作，再恢復旅程。');
     if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
     // Preserve a complete, validated local recovery copy before replacing anything.
@@ -137,8 +139,9 @@ function persistBattle(){
 }
 function clearBattleSnapshot(id){if(read(BATTLE_KEY,null)?.encounter?.id===id)localStorage.removeItem(BATTLE_KEY);}
 function pendingBanner(){
-  if(!profile.wx01.receipt&&!profile.pending)return '';
-  return `<div class="resume-banner scene-resume-strip"><span>旅程已保存</span><div>${profile.wx01.receipt?'<button class="small-button" data-action="pack-resume" aria-label="西行畫作已入藏，查看這份相逢">揭曉藏畫 →</button>':''}${profile.pending?`<button class="small-button" data-action="resume" aria-label="繼續未完的${modeName(profile.pending.kind)}，進度已保留">繼續對局 →</button>`:''}</div></div>`;
+  const run=profile.expansion.fireMountain.run;
+  if(!profile.wx01.receipt&&!profile.pending&&!run)return '';
+  return `<div class="resume-banner scene-resume-strip"><span>旅程已保存</span><div>${profile.wx01.receipt?'<button class="small-button" data-action="pack-resume" aria-label="西行畫作已入藏，查看這份相逢">揭曉藏畫 →</button>':''}${profile.pending?`<button class="small-button" data-action="resume" aria-label="繼續未完的${modeName(profile.pending.kind)}，進度已保留">繼續對局 →</button>`:run?'<button class="small-button" data-action="activity-resume">返回山間補給 →</button>':''}</div></div>`;
 }
 const faction = card => FACTIONS[card.faction];
 
@@ -238,7 +241,7 @@ function render() {
   profile=refreshDaily(profile);
   const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
-  app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?(profile.wx01.receipt?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
+  app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?((profile.wx01.receipt||profile.expansion.fireMountain.run)?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
   prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});
   const currentMap=app.querySelector('.world-map[data-world]');
   if(currentMap)currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
@@ -299,7 +302,7 @@ function dismissModal() {
     experienceReturn=null;
     if(origin.kind==='round-result')resultModal();
     else if(origin.kind==='match-result')matchEndModal();
-    else if(origin.kind==='preparation'&&preparation)prepareEncounter(preparation.kind,preparation.nodeId);
+    else if(origin.kind==='preparation'&&preparation)prepareEncounter(preparation.kind,preparation.nodeId,preparation.route);
     else return closeModal();
     if(modalKind===origin.kind)requestAnimationFrame(()=>{
       restoreFocus(overlay,origin.focus);
@@ -351,6 +354,8 @@ function refreshOverlay() {
     detailModal(codexDetailId);
     requestAnimationFrame(()=>{restoreFocus(overlay,focus);const dialog=overlay.querySelector('.codex-detail');if(dialog){dialog.scrollTop=scroll;overlay.firstElementChild.scrollTop=backdropScroll;}});return;
   }
+  if(['activity','activity-supply'].includes(modalKind))return openActivity();
+  if(modalKind==='expansion-rewards')return openExpansionRewards();
   if(!['quests','preparation'].includes(modalKind))return;
   const focus=captureFocus(overlay),dialog=overlay.querySelector('.modal'),scroll=dialog.scrollTop,backdropScroll=overlay.firstElementChild.scrollTop;
   if(modalKind==='quests')overlay.querySelector('.quest-content').innerHTML=dailyMarkup(profile,trainingId,questTab);
@@ -377,19 +382,55 @@ function storyResultMarkup() {
   const complete=won&&world.nodeIds.every(id=>profile.cleared.includes(id));
   return `<section class="story-result" data-world="${world.id}"><div class="eyebrow">${safe(world.name)} · ${complete?'全卷已成':won?'此章已成':'故事未完'}</div><h3>${safe(node.subtitle)}</h3><p>${safe(won?node.victory:node.defeat)}</p>${complete?'<button class="text-button" data-action="world">展開輿圖 · 尋訪另一卷 →</button>':''}</section>`;
 }
+function openActivity(preparing=false) {
+  syncProfile(loadProfile());
+  const run=profile.expansion.fireMountain.run;
+  if(run?.phase==='supply')return modal(activitySupplyMarkup(profile),'expansion-modal',true,'activity-supply');
+  modal(activityMarkup(profile,{route:activityRoute,cardMarkup,preparation:preparing}),'expansion-modal',true,'activity');
+}
+function openExpansionRewards() {
+  syncProfile(loadProfile());
+  modal(expansionRewardsMarkup(profile,cardMarkup),'expansion-modal',true,'expansion-rewards');
+}
+function claimJourneyGrant(id) {
+  syncProfile(loadProfile());
+  if(profile.wx01.receipt)return showPackReceipt(true);
+  const grant=profile.expansion.grants.find(item=>item.id===id);
+  if(!grant)return toast('這份獎勵已領取，請重新查看獎勵架。');
+  if(grant.kind==='aa')return modal(wx01RedeemMarkup(profile,cardMarkup,{grant}),'',true,'wx01-choice');
+  return economy(p=>claimExpansionGrant(p,{id}),'',()=>showPackReceipt());
+}
+async function launchActivity({route, supply, expectedRunId, expectedStage}={}) {
+  if(economyBusy)return;
+  economyBusy=true;
+  try{
+    const result=await transact(p=>{
+      const started=supply===undefined?startActivity(p,{route}):advanceActivity(p,{supply,expectedRunId,expectedStage});
+      return {...started,nextMatch:createMatch(started.battleOptions)};
+    });
+    enterStartedBattle(result);
+  }catch(error){toast(error.message);}
+  finally{economyBusy=false;}
+}
+function enterStartedBattle(result) {
+  encounter=result.encounter;match=result.nextMatch;recorded=false;lastReward=null;
+  closeModal();preparation=null;preparationReturn=null;screen='battle';prepareRound();battleEntering=true;render();window.scrollTo({top:0,behavior:'instant'});announce('對局開始。選一張戰卡，再分配仙丹。');playTone('select');
+}
 function preparationContent() {
   const kind=preparation.kind,node=NODES.find(n=>n.id===preparation.nodeId),deck=getActiveDeck(profile);
-  const valid=validateInstanceDeck(profile,deck?.instanceIds).valid;
-  const cards=(deck?.instanceIds||[]).map(uid=>profile.instances.find(i=>i.uid===uid)).filter(Boolean);
+  const loaner=preparation.route==='loaner'&&node?.loanerDeck;
+  const valid=loaner?validateDeck(loaner).valid:validateInstanceDeck(profile,deck?.instanceIds).valid;
+  const cards=loaner?loaner.map(cardId=>({cardId,level:1,printId:undefined})):(deck?.instanceIds||[]).map(uid=>profile.instances.find(i=>i.uid===uid)).filter(Boolean);
   const mist=isMistGate(preparation);
-  return `${storyArrivalMarkup(node)||(mist?mistGateArrivalMarkup({returning:profile.cleared.includes(node.id)}):`<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2>`)}<p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`${mist||node.worldId!=='shanhai'?'':`<p>${safe(node.description)}</p>`}<p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(deck?.name||'尚未選擇牌組')}</h3><button class="text-button" data-action="prep-deck">更換／整備牌組 →</button></div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId),{printId:i.printId})}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>${mist?'踏上渡口':'進入對局'} →</button></div>${mist?'<button class="text-button" data-action="experience-settings">聲息與節奏 · 設定</button>':''}`;
+  return `${storyArrivalMarkup(node)||(mist?mistGateArrivalMarkup({returning:profile.cleared.includes(node.id)}):`<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2>`)}<p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`${mist||node.worldId!=='shanhai'?'':`<p>${safe(node.description)}</p>`}<p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(loaner?'借用同行牌組':deck?.name||'尚未選擇牌組')}</h3>${loaner?`<button class="text-button" data-action="travel" data-id="${node.id}">改用自家牌組 →</button>`:'<button class="text-button" data-action="prep-deck">更換／整備牌組 →</button>'}</div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId),{printId:i.printId})}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${loaner?'借牌固定 Lv.1；戰卡不入藏，亦不獲卡牌 EXP。':kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>${mist?'踏上渡口':'進入對局'} →</button></div>${mist?'<button class="text-button" data-action="experience-settings">聲息與節奏 · 設定</button>':''}`;
 }
-function prepareEncounter(kind='practice',nodeId=null) {
+function prepareEncounter(kind='practice',nodeId=null,route='owned') {
   if(economyBusy)return;
   syncProfile(loadProfile());
   if(profile.pending)return pendingModal();
+  if(profile.expansion.fireMountain.run)return openActivity();
   if(kind==='expedition'&&!isNodeUnlocked(profile,nodeId))return toast('先踏破上一境，方可繼續遊歷。');
-  preparation={kind,nodeId};
+  preparation={kind,nodeId,route};
   modal(`<div class="prep-content">${preparationContent()}</div>`,`encounter-prep${isMistGate(preparation)?' is-mist-prep':''}`,true,'preparation');
 }
 function openPreparationDeck() {
@@ -402,7 +443,7 @@ function returnToPreparation() {
   if(!preparationReturn||!preparation)return;
   const origin=preparationReturn;
   closeModal();screen=origin.screen;preparationReturn=null;render();window.scrollTo({top:origin.scroll,behavior:'instant'});restoreFocus(app,origin.focus);
-  prepareEncounter(preparation.kind,preparation.nodeId);
+  prepareEncounter(preparation.kind,preparation.nodeId,preparation.route);
 }
 function nextEncounterIntent() {
   const kind=encounter?.kind||'practice';
@@ -412,9 +453,11 @@ function nextEncounterIntent() {
 }
 function prepareNextEncounter({editDeck=false}={}) {
   const intent=nextEncounterIntent();
+  if(intent.kind==='activity')return openActivity();
+  const route=!editDeck&&intent.nodeId===encounter?.nodeId?(encounter?.route||'owned'):'owned';
   if(intent.kind==='expedition')selectedNode=intent.nodeId;
   navigate(intent.kind==='expedition'?'world':'arena');
-  prepareEncounter(intent.kind,intent.nodeId);
+  prepareEncounter(intent.kind,intent.nodeId,route);
   if(editDeck&&modalKind==='preparation')openPreparationDeck();
 }
 function rulesModal() {
@@ -585,30 +628,35 @@ function prepareRound() {
   aiMove=match.initiative==='opponent'?chooseAIMove(match):null;
   persistBattle();
 }
-async function startMatch(kind='practice',nodeId=null) {
+async function startMatch(kind='practice',nodeId=null,route='owned') {
   if(economyBusy)return;
   if(loadProfile().pending)return pendingModal();
+  if(loadProfile().expansion.fireMountain.run)return openActivity();
   economyBusy=true;
   try{
     const node=NODES.find(n=>n.id===nodeId);
     const result=await transact(p=>{
-      const started=beginBattle(p,{kind,nodeId});
-      const nextMatch=createMatch({deckIds:p.deck,opponentDeckIds:opponentDeck(node),mode:kind,playerLevels:getDeckLevels(p),opponentLevels:Object.fromEntries(CARDS.map(c=>[c.id,kind==='expedition'?Math.min(3,node.level):1])),opponentName:node?.enemyName||'山海弈者'});
+      const started=beginBattle(p,{kind,nodeId,route});
+      const nextMatch=createMatch(started.battleOptions||{deckIds:p.deck,opponentDeckIds:opponentDeck(node),mode:kind,playerLevels:getDeckLevels(p),opponentLevels:Object.fromEntries(CARDS.map(c=>[c.id,kind==='expedition'?Math.min(3,node.level):1])),opponentName:node?.enemyName||'山海弈者'});
       return {...started,nextMatch};
     });
-    encounter=result.encounter;match=result.nextMatch;recorded=false;lastReward=null;
-    closeModal();preparation=null;preparationReturn=null;screen='battle';prepareRound();battleEntering=true;render();window.scrollTo({top:0,behavior:'instant'});announce('對局開始。選一張戰卡，再分配仙丹。');playTone('select');
+    enterStartedBattle(result);
   }catch(error){toast(error.message);}
   finally{economyBusy=false;}
 }
 function pendingModal(){
-  const expected=loadProfile().pending?.id||'';
+  const current=loadProfile();
+  if(current.expansion.fireMountain.run&&!current.pending)return openActivity();
+  const expected=current.pending?.id||'';
   modal(`<div class="eyebrow">A DUEL AWAITS</div><h2>還有一局，等你落子。</h2><p>已保留上次對局。繼續旅程，或放棄這局再出發；放棄不會獲得對局獎勵。</p><div class="modal-actions"><button class="secondary" data-action="discard-pending" data-encounter="${expected}">放棄未完對局</button><button class="primary" data-action="resume">繼續對局 →</button></div>`);
 }
 async function resumeBattle(){
   const p=loadProfile(), saved=read(BATTLE_KEY,null);
-  if(!p.pending){syncProfile(p);closeModal();render();return toast('這局已結束，旅程已更新。');}
+  if(!p.pending){syncProfile(p);if(p.expansion.fireMountain.run)return openActivity();closeModal();render();return toast('這局已結束，旅程已更新。');}
   try{
+    if(saved?.encounter?.id!==p.pending.id&&p.pending.battleSeed!==undefined){
+      syncProfile(p);enterStartedBattle({encounter:p.pending,nextMatch:createMatch(getPendingBattleOptions(p))});return;
+    }
     if(saved?.encounter?.id!==p.pending.id||!saved.match?.player?.hand||!Array.isArray(saved.match.history))throw Error('對局記錄不完整，請放棄這局後重新出發。');
     for(const side of ['player','opponent']){
       const who=saved.match[side];
@@ -668,7 +716,7 @@ async function commitMove() {
 async function recordFinishedMatch() {
   if(match.status!=='finished'||recorded)return;
   const settledId=encounter.id;
-  const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used}),()=>clearBattleSnapshot(settledId));
+  const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used,finalResources:{hp:match.player.hp,pills:match.player.pills}}),()=>clearBattleSnapshot(settledId));
   lastReward=result.reward;recorded=true;
 }
 function resultModal({animate=false}={}) {
@@ -693,9 +741,17 @@ function resultModal({animate=false}={}) {
 function matchEndModal({celebrate=false}={}) {
   const win=match.winner==='player', draw=match.winner==='draw';
   const next=nextEncounterIntent();
-  const nextLabel=encounter?.kind==='expedition'?(next.nodeId!==encounter.nodeId?'前往下一境':win?'重遊此境':'再戰此境'):'再弈一局';
+  const activity=encounter?.kind==='activity', run=profile.expansion.fireMountain.run;
+  const nextLabel=activity?(run?.phase==='supply'?'前往山間補給':'再入火焰山'):encounter?.kind==='expedition'?(next.nodeId!==encounter.nodeId?'前往下一境':win?'重遊此境':'再戰此境'):'再弈一局';
   if(celebrate)playTone(draw?'draw':win?'win':'lose');
-  modal(`<div class="eyebrow">THE DUEL IS COMPLETE</div><div class="match-symbol">${draw?'和':win?'勝':'悟'}</div><h2>${draw?'山海之間，不分高下。':win?'此局山海，盡入你手。':'一局有盡，弈道無窮。'}</h2><p>${draw?'棋逢對手，何妨再弈。':win?'藏鋒有時，出手有度。這一場，是你的傳說。':'記住對手的出丹節奏，下一次，換你掌握勝負。'}</p><div class="match-score"><div><span>你的生命</span><br><strong>${match.player.hp}</strong></div><span>—</span><div><span>對手生命</span><br><strong>${match.opponent.hp}</strong></div></div>${lastReward?`<div class="earned-rewards"><span>${lastReward.firstClear?'首次踏破 · ':''}${lastReward.dailyCache?'今日秘藏 · ':''}旅程已儲存</span><p>${rewardText(lastReward)}</p>${cardExperienceMarkup()}</div>`:''}${historyMarkup()}${storyResultMarkup()}${isMistGate()?mistGateResultMarkup({outcome:match.winner,firstClear:!!lastReward?.firstClear,nextName:NODES.find(n=>n.id===next.nodeId)?.name||''}):''}<div class="modal-actions match-next"><button class="secondary" data-action="result-deck">調整牌組</button><button class="primary" data-action="next-encounter">${nextLabel} <span>↗</span></button></div><div class="match-return"><button class="text-button" data-action="end-home">返回洞府</button><button class="text-button" data-action="${encounter?.kind==='expedition'?'world':'arena'}">${encounter?.kind==='expedition'?'查看山海圖':'返回對弈'}</button>${isMistGate()?'<button class="text-button" data-action="experience-settings">聲息與節奏</button>':''}</div>`,`result-modal${isMistGate()?' mist-complete':''}`,false,'match-result');
+  modal(`<div class="eyebrow">THE DUEL IS COMPLETE</div><div class="match-symbol">${draw?'和':win?'勝':'悟'}</div><h2>${draw?'山海之間，不分高下。':win?'此局山海，盡入你手。':'一局有盡，弈道無窮。'}</h2><p>${draw?'棋逢對手，何妨再弈。':win?'藏鋒有時，出手有度。這一場，是你的傳說。':'記住對手的出丹節奏，下一次，換你掌握勝負。'}</p><div class="match-score"><div><span>你的生命</span><br><strong>${match.player.hp}</strong></div><span>—</span><div><span>對手生命</span><br><strong>${match.opponent.hp}</strong></div></div>${lastReward?`<div class="earned-rewards"><span>${lastReward.firstClear?'首次踏破 · ':''}${lastReward.dailyCache?'今日秘藏 · ':''}旅程已儲存</span><p>${rewardText(lastReward)}</p>${cardExperienceMarkup()}</div>`:''}${historyMarkup()}${activity?activityResultMarkup():storyResultMarkup()}${isMistGate()?mistGateResultMarkup({outcome:match.winner,firstClear:!!lastReward?.firstClear,nextName:NODES.find(n=>n.id===next.nodeId)?.name||''}):''}<div class="modal-actions match-next">${activity?'':'<button class="secondary" data-action="result-deck">調整牌組</button>'}<button class="primary" data-action="next-encounter">${nextLabel} <span>↗</span></button></div><div class="match-return"><button class="text-button" data-action="end-home">返回洞府</button><button class="text-button" data-action="${encounter?.kind==='expedition'?'world':'arena'}">${encounter?.kind==='expedition'?'查看山海圖':'返回對弈'}</button>${profile.expansion.grants.length||profile.expansion.tickets?'<button class="text-button" data-action="expansion-rewards">旅途獎勵架 →</button>':''}${isMistGate()?'<button class="text-button" data-action="experience-settings">聲息與節奏</button>':''}</div>`,`result-modal${isMistGate()?' mist-complete':''}`,false,'match-result');
+}
+function activityResultMarkup() {
+  const result=lastReward?.activity,run=profile.expansion.fireMountain.run;
+  if(!result)return '';
+  const loot=result.loot, print=loot?.printId?WX01_PRINTINGS.find(item=>item.id===loot.printId):null;
+  const extra=print?`${safe(getCard(print.cardId).name)}本畫已送到獎勵架${loot.forced?' · 二十勝之約':''}`:loot?.kind==='dust'?'額外靈砂 +2':loot?.kind==='coins'?'額外金幣 +30':'';
+  return `<section class="story-result activity-result"><div class="eyebrow">火焰山 · 第 ${result.stage+1} 戰</div><h3>${result.complete?'三重火盡，借得一陣風。':run?'先歇一息，再接下一戰。':'山路仍在，稍後再來。'}</h3><p>${extra||'已贏得的獎勵會保留。'}${run?`<br>歇息後：生命 ${run.hp} · 仙丹 ${run.pills}，下一步選一項補給。`:''}${result.complete?'<br>首通牛魔王本畫與每週秘匣券，可到獎勵架查看。':''}</p></section>`;
 }
 function historyMarkup() {
   return `<div class="round-history">${match.history.map(r=>`<div class="history-row"><span>第 ${r.round} 局</span><span>${r.player.card.name} ${r.player.attack} : ${r.opponent.attack} ${r.opponent.card.name}</span><strong>${r.winner==='player'?'你':'對手'}勝 · ${r.damage} 傷</strong></div>`).join('')}</div>`;
@@ -709,6 +765,23 @@ document.addEventListener('click', event=>{
   const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
   const {action,id}=button.dataset;
   experience.unlockAudio().catch(()=>{});
+  if(action==='activity-open'||action==='activity-route'){if(action==='activity-route')activityRoute=id==='loaner'?'loaner':'owned';return openActivity(action==='activity-route');}
+  if(action==='activity-start')return launchActivity({route:id});
+  if(action==='activity-resume')return loadProfile().pending?resumeBattle():openActivity();
+  if(action==='activity-supply')return launchActivity({supply:id,expectedRunId:button.dataset.run,expectedStage:Number(button.dataset.stage)});
+  if(action==='activity-save-exit')return navigate('arena');
+  if(action==='activity-abandon'){
+    const run=loadProfile().expansion.fireMountain.run;if(!run)return openActivity();
+    return modal(`<div class="eyebrow">火焰山 · 暫別山路</div><h2>結束這次三連戰？</h2><p>已贏得的獎勵會保留。這段未完成的山路會結束，下次由第一戰重新出發。</p><div class="modal-actions"><button class="secondary" data-action="activity-resume">繼續旅程</button><button class="primary" data-action="activity-abandon-confirm" data-id="${safe(run.id)}" data-encounter="${safe(loadProfile().pending?.id||'')}">結束這次旅程</button></div>`,'',true,'activity-abandon');
+  }
+  if(action==='activity-abandon-confirm')return economy(p=>abandonActivity(p,{expectedRunId:id}),'已放下此程，所得獎勵已保留。',()=>{match=null;encounter=null;navigate('arena');},()=>clearBattleSnapshot(button.dataset.encounter));
+  if(action==='expansion-rewards')return openExpansionRewards();
+  if(action==='expansion-claim')return claimJourneyGrant(id);
+  if(action==='expansion-claim-print')return economy(p=>claimExpansionGrant(p,{id:button.dataset.grant,printId:id}),'',()=>showPackReceipt());
+  if(action==='ticket-open'){
+    if(loadProfile().wx01.receipt)return showPackReceipt(true);
+    return economy(p=>openWX01Ticket(p),'',()=>showPackReceipt());
+  }
   if(action==='pack-resume')return showPackReceipt(true);
   if(action==='pack-open')return packOpening?.open();
   if(action==='box-next')return packOpening?.nextPack();
@@ -753,7 +826,7 @@ document.addEventListener('click', event=>{
   }
   if(action==='prep-deck')return openPreparationDeck();
   if(action==='return-prep')return returnToPreparation();
-  if(action==='confirm-start'){if(preparation)return startMatch(preparation.kind,preparation.nodeId);return;}
+  if(action==='confirm-start'){if(preparation)return startMatch(preparation.kind,preparation.nodeId,preparation.route);return;}
   if(action==='next-encounter')return prepareNextEncounter();
   if(action==='result-deck')return prepareNextEncounter({editDeck:true});
   if(action==='battle-menu')return requestNavigation('home');
@@ -858,6 +931,7 @@ document.addEventListener('click', event=>{
     render();viewport.selectModule({key:viewKey(),moduleId:'map',focus:false});return;
   }
   if(action==='map-select'||action==='story-stage'){if(!NODES.some(n=>n.id===id))return;selectedNode=id;render();viewport.selectModule({key:viewKey(),moduleId:'chapter'});return;}
+  if(action==='travel-loaner')return prepareEncounter('expedition',id,'loaner');
   if(action==='travel')return prepareEncounter('expedition',id);
   if(action==='ranked')return prepareEncounter('arena');
   if(action==='resume')return resumeBattle();

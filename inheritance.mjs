@@ -1,5 +1,5 @@
 /** Explicit same-character inheritance. No storage, currency, RNG or new save fields. */
-import { getInstance, getInstanceLevel, MAX_CARD_XP, syncCollection } from './collection.mjs';
+import { getInstance, getInstanceLevel, MAX_CARD_XP, syncCollection, isInstanceInJourney } from './collection.mjs';
 import { getPrintForCard } from './printing-catalogue.mjs';
 
 export const MAX_INHERITANCE_MATERIALS = 9;
@@ -10,7 +10,7 @@ const frozenCopy = value => {
   return freeze(copy(value));
 };
 const quoteKeys = ['targetUid', 'materialUids', 'beforeXP', 'afterXP', 'beforeLevel', 'afterLevel', 'offeredXP', 'gainedXP', 'overflowXP', 'fingerprint'];
-const inBattle = (profile, uid) => Array.isArray(profile.pending?.instanceIds) && profile.pending.instanceIds.includes(uid);
+const inBattle = isInstanceInJourney;
 const inReceipt = (profile, uid) => profile.wx01?.receipt?.cards?.some(card => card.instanceId === uid) === true;
 
 // Full selected records, with stable object-key order. This is a local stale

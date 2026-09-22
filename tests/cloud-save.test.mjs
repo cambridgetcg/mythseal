@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createProfile, claimLogin, buyPack, sellInstance, beginBattle } from '../progression.mjs';
+import { createProfile, claimLogin, buyPack, sellInstance, beginBattle, NODES } from '../progression.mjs';
+import { CAMPAIGN_NODES } from '../campaign-content.mjs';
 import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { getActiveDeck, mintInstance, setInstanceXP, saveInstanceDeck, syncCollection } from '../collection.mjs';
 import {
@@ -14,7 +15,7 @@ const fresh = () => createProfile({ now });
 const copy = value => structuredClone(value);
 
 function legacySnapshot(profile = fresh()) {
-  const p = copy(profile); p.version = 3; p.collectionVersion = 1; p.collectionExpansion = 1; delete p.wx01;
+  const p = copy(profile); p.version = 3; p.collectionVersion = 1; p.collectionExpansion = 1; delete p.wx01; delete p.expansion;
   for (const card of [...p.instances, ...p.merchantVault.map(e => e.instance)]) delete card.printId;
   for (const key of ['inventory', 'levels']) p[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, p[key][id]]));
   return { format: 'mythseal.offline-journey', version: 1, profile: p };
@@ -35,7 +36,7 @@ test('cloud journey round trip keeps exact copies, XP, decks and NPC custody wit
   const profile = travelledProfile(), original = copy(profile);
   const snapshot = createSnapshot(profile);
   assert.equal(snapshot.format, 'mythseal.offline-journey');
-  assert.equal(snapshot.version, 2);
+  assert.equal(snapshot.version, 3);
   assert.deepEqual(restoreSnapshot(snapshot, { now }), original);
   assert.deepEqual(profile, original);
   assert.equal(snapshot.profile.merchantVault[0].instance.xp, 430);
@@ -59,17 +60,17 @@ test('restore rolls London daily state forward while preserving collection and d
 test('unfinished battles cannot be uploaded or restored and original pending remains untouched', () => {
   const profile = beginBattle(fresh(), { kind: 'arena', now }).profile, original = copy(profile);
   assert.throws(() => createSnapshot(profile), /未完對局/);
-  assert.throws(() => restoreSnapshot({ format: 'mythseal.offline-journey', version: 2, profile }, { now }), /未完對局/);
+  assert.throws(() => restoreSnapshot({ format: 'mythseal.offline-journey', version: 3, profile }, { now }), /未完對局/);
   assert.deepEqual(profile, original);
   assert.equal(typeof fingerprintProfile(profile), 'string', 'local change checks can include pending state');
 });
 
 test('invalid envelopes, old/future schemas and incomplete canonical data never produce a starter save', () => {
   const snapshot = createSnapshot(fresh());
-  for (const value of [null, [], {}, snapshot.profile, { ...snapshot, version: 3 }, { ...snapshot, format: 'nft' }]) {
+  for (const value of [null, [], {}, snapshot.profile, { ...snapshot, version: 4 }, { ...snapshot, format: 'nft' }]) {
     assert.throws(() => restoreSnapshot(value, { now }));
   }
-  for (const version of [1, 2, 3, 5]) {
+  for (const version of [1, 2, 3, 4, 6]) {
     const invalid = copy(snapshot); invalid.profile.version = version;
     assert.throws(() => validateSnapshot(invalid), /版本/);
   }
@@ -187,11 +188,11 @@ test('fingerprint ignores object key order but detects gameplay and exact-copy c
   assert.notEqual(fingerprintProfile(pack), fingerprint);
 });
 
-test('legacy snapshots retain their exact payload and restore into v4 without replacing old copies', () => {
+test('legacy snapshots retain their exact payload and restore into v5 without replacing old copies', () => {
   const legacy = legacySnapshot(travelledProfile()), original = copy(legacy);
   assert.deepEqual(validateSnapshot(legacy, { version: 1 }), original);
   const restored = restoreSnapshot(legacy, { now });
-  assert.equal(restored.version, 4); assert.equal(restored.collectionVersion, 2);
+  assert.equal(restored.version, 5); assert.equal(restored.collectionVersion, 2);
   assert.equal(restored.coins, legacy.profile.coins);
   assert.deepEqual(restored.deckSlots, legacy.profile.deckSlots);
   for (const card of [...restored.instances, ...restored.merchantVault.map(e => e.instance)]) assert.equal(card.printId, `legacy/${card.cardId}`);
@@ -205,7 +206,7 @@ test('legacy snapshots retain their exact payload and restore into v4 without re
   assert.throws(() => validateSnapshot(createSnapshot(fresh()), { version: 1 }));
 });
 
-test('v2 print bindings and WX01 receipts reject loss or repair before restore', () => {
+test('print bindings and WX01 receipts reject loss or repair before restore', () => {
   let profile = fresh();
   const cards = [];
   for (const [cardId, printId] of [['tangsanzang', 'wx01-001-base'], ['baigu', 'wx01-009-base'], ['wukong', 'wx01-005-aa1']]) {
@@ -263,7 +264,7 @@ test('12/24-pack boxed receipts round trip every grouped and flat exact copy, in
     const uid = profile.wx01.receipt.cards[0].instanceId;
     profile = setInstanceXP(profile, uid, 430);
     const before = copy(profile), snapshot = createSnapshot(profile);
-    assert.equal(snapshot.version, 2); assert.equal(snapshot.profile.version, 4);
+    assert.equal(snapshot.version, 3); assert.equal(snapshot.profile.version, 5);
     assert.deepEqual(restoreSnapshot(snapshot, { now }), before);
     assert.deepEqual(profile, before, 'export and restore never mutate the original profile');
     const receipt = snapshot.profile.wx01.receipt;
@@ -319,5 +320,66 @@ test('playtest gift marker is optional, exact and preserved without being synthe
   for (const value of [true, false, null, '', 'wx01-box-20260923', { amount: 10000 }]) {
     const invalid = copy(snapshot); invalid.profile.wx01.playtestGift = value;
     assert.throws(() => validateSnapshot(invalid));
+  }
+});
+
+test('snapshot v2 preserves its original profile v4 and paid box receipt before upgrading on restore', () => {
+  const p = boxedProfile(12); p.version = 4; delete p.expansion;
+  const snapshot = { format: 'mythseal.offline-journey', version: 2, profile: p }, before = copy(snapshot);
+  assert.deepEqual(createSnapshot(p), before);
+  assert.deepEqual(validateSnapshot(snapshot, { version: 2 }), before);
+  const next = restoreSnapshot(snapshot, { now });
+  assert.equal(next.version, 5); assert.deepEqual(next.expansion, fresh().expansion);
+  assert.deepEqual(next.instances, p.instances); assert.deepEqual(next.wx01, p.wx01);
+  assert.equal(next.coins, p.coins); assert.deepEqual(snapshot, before);
+  const extra = copy(snapshot); extra.profile.expansion = fresh().expansion;
+  assert.throws(() => validateSnapshot(extra), 'unknown old-schema fields cannot be projected away');
+  assert.throws(() => validateSnapshot(snapshot, { version: 3 }));
+  const continuation = copy(snapshot);
+  continuation.profile.cleared = [...NODES.filter(node => !CAMPAIGN_NODES.some(added => added.id === node.id)).map(node => node.id), CAMPAIGN_NODES[0].id];
+  continuation.profile.location = CAMPAIGN_NODES[0].id;
+  assert.throws(() => validateSnapshot(continuation), 'old namespaces cannot carry otherwise valid new campaign progress');
+});
+
+test('ticket receipts use the same exact three-card pack validation but require profile v5 and zero coins', () => {
+  const p = buyPack(fresh(), { set: 'wx01', now, rng: () => 0.9 }).profile;
+  p.wx01.receipt.kind = 'ticket'; p.wx01.receipt.cost = 0;
+  const snapshot = createSnapshot(p);
+  assert.deepEqual(restoreSnapshot(snapshot, { now }), p);
+  for (const corrupt of [
+    p => { p.wx01.receipt.cost = 300; }, p => { p.wx01.receipt.sealsEarned = 0; },
+    p => { p.wx01.opened = 0; }, p => { p.wx01.receipt.cards.pop(); },
+    p => { p.wx01.receipt.mode = 'base'; }, p => { p.wx01.receipt.cards[1].instanceId = p.wx01.receipt.cards[0].instanceId; },
+  ]) { const bad = copy(snapshot); corrupt(bad.profile); assert.throws(() => validateSnapshot(bad)); }
+  const legacy = copy(snapshot); legacy.version = 2; legacy.profile.version = 4; delete legacy.profile.expansion;
+  assert.throws(() => validateSnapshot(legacy), 'v4 never acquires the ticket contract');
+});
+
+test('BASE/AA reward receipts keep exact copies without advancing pack or redemption counters', () => {
+  for (const [cardId, printId, rarity, mode] of [['honghaier', 'wx01-006-base', 'rare', 'base'], ['wukong', 'wx01-005-aa1', 'epic', 'aa']]) {
+    const minted = mintInstance(fresh(), cardId, { printId, now, source: 'campaign' });
+    const p = minted.profile;
+    p.wx01.serial = 1;
+    p.wx01.receipt = { id: 'wx01-1', kind: 'reward', mode, cards: [{ cardId, printId, rarity, instanceId: minted.instance.uid }], openedAt: now, cost: 0, sealsEarned: 0 };
+    const snapshot = createSnapshot(p);
+    assert.deepEqual(restoreSnapshot(snapshot, { now }), p);
+    for (const key of ['opened', 'redeemed', 'seals', 'dry']) assert.equal(p.wx01[key], 0);
+    assert.equal(p.wx01.storyClaimed, false, 'new reward does not spend the old four-stage AA entitlement');
+    for (const corrupt of [
+      p => { p.wx01.receipt.cost = 300; }, p => { p.wx01.receipt.sealsEarned = 1; },
+      p => { p.wx01.receipt.mode = 'treasure'; }, p => { p.wx01.receipt.cards.push(copy(p.wx01.receipt.cards[0])); },
+    ]) { const bad = copy(snapshot); corrupt(bad.profile); assert.throws(() => validateSnapshot(bad)); }
+    const legacy = copy(snapshot); legacy.version = 2; legacy.profile.version = 4; delete legacy.profile.expansion;
+    assert.throws(() => validateSnapshot(legacy));
+  }
+});
+
+test('an active activity blocks cloud export and restore even between battles with pending null', () => {
+  for (const phase of ['battle', 'supply']) {
+    const p = fresh(); p.expansion.fireMountain.run = { phase };
+    const before = copy(p);
+    assert.throws(() => createSnapshot(p), /活動旅程/);
+    assert.throws(() => restoreSnapshot({ format: 'mythseal.offline-journey', version: 3, profile: p }), /活動旅程/);
+    assert.deepEqual(p, before);
   }
 });

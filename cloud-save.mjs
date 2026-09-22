@@ -1,10 +1,12 @@
 /** Account-private backups of editable offline play; never a trusted card ledger. */
-import { hydrateProfile, refreshDaily, CARD_RARITIES } from './progression.mjs';
+import { hydrateProfile, refreshDaily } from './progression.mjs';
 import { LEGACY_CARD_IDS } from './engine.mjs';
 import { getPrintForCard } from './printing-catalogue.mjs';
+import { validateWX01State } from './wx01-state.mjs';
+import { CAMPAIGN_NODES } from './campaign-content.mjs';
 
 export const SNAPSHOT_FORMAT = 'mythseal.offline-journey';
-export const SNAPSHOT_VERSION = 2;
+export const SNAPSHOT_VERSION = 3;
 export const MAX_SNAPSHOT_BYTES = 4 * 1024 * 1024;
 export const MAX_SNAPSHOT_CARDS = 10_000;
 export const LEGACY_MAX_SNAPSHOT_BYTES = 512 * 1024;
@@ -22,6 +24,15 @@ const profileKeys = [
 const instanceKeys = ['uid', 'cardId', 'level', 'xp', 'locked', 'battles', 'wins', 'acquiredAt', 'origin'];
 const fail = (message = '旅程備份格式不完整，未有更改本機進度。') => { throw new Error(message); };
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const campaignIds = new Set(CAMPAIGN_NODES.map(node => node.id));
+
+/** Legacy namespaces cannot carry data introduced only by the v5 contract. */
+export function assertLegacyExpansionBoundary(profile) {
+  if (Object.hasOwn(profile, 'expansion') || profile.pending?.kind === 'activity'
+      || campaignIds.has(profile.pending?.nodeId) || campaignIds.has(profile.location)
+      || (profile.cleared ?? []).some(id => campaignIds.has(id))
+      || (profile.daily?.expeditionCaches ?? []).some(id => campaignIds.has(id))) fail();
+}
 
 function exactKeys(value, expected) {
   if (!isRecord(value)) fail();
@@ -95,68 +106,16 @@ function validDay(value) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-function validateWX01(profile) {
-  const state = profile.wx01;
-  const hasGift = isRecord(state) && Object.hasOwn(state, 'playtestGift');
-  exactKeys(state, ['version', 'dry', 'seals', 'opened', 'redeemed', 'storyClaimed', 'leaderInstanceId', 'receipt', 'serial', ...(hasGift ? ['playtestGift'] : [])]);
-  if (hasGift && state.playtestGift !== 'wx01-box-20260922') fail();
-  if (state.version !== 1 || typeof state.storyClaimed !== 'boolean') fail();
-  for (const key of ['dry', 'seals', 'opened', 'redeemed', 'serial']) if (!Number.isSafeInteger(state[key]) || state[key] < 0 || state[key] > 1_000_000_000) fail();
-  if (state.dry > 11 || state.dry > state.opened) fail();
-  if (state.leaderInstanceId !== null) {
-    const leader = profile.instances.find(card => card.uid === state.leaderInstanceId);
-    if (!leader || getPrintForCard(leader.cardId, leader.printId).treatment !== 'leader') fail();
-  }
-  const receipt = state.receipt;
-  if (receipt === null) return;
-  const box = receipt.kind === 'box';
-  exactKeys(receipt, ['id', 'kind', 'mode', 'cards', 'openedAt', 'cost', 'sealsEarned', ...(box ? ['packs'] : [])]);
-  if (receipt.id !== `wx01-${state.serial}` || state.serial < 1
-      || !['pack', 'box', 'redeem', 'story'].includes(receipt.kind)
-      || (box ? receipt.mode !== 'box' : !['ordinary', 'aa', 'leader', 'ink', 'treasure', 'god'].includes(receipt.mode))
-      || typeof receipt.openedAt !== 'string' || !Number.isFinite(Date.parse(receipt.openedAt))
-      || new Date(receipt.openedAt).toISOString() !== receipt.openedAt) fail();
-  const pack = receipt.kind === 'pack';
-  if (box && (!Array.isArray(receipt.packs) || ![12, 24].includes(receipt.packs.length))) fail();
-  const packCount = box ? receipt.packs.length : pack ? 1 : 0;
-  if (receipt.cost !== packCount * 300 || receipt.sealsEarned !== packCount
-      || !Array.isArray(receipt.cards) || receipt.cards.length !== (packCount ? packCount * 3 : 1)
-      || state.opened < packCount) fail();
-  const seen = new Set(), treatments = [], copies = new Map([...profile.instances, ...profile.merchantVault.map(entry => entry.instance)].map(card => [card.uid, card]));
-  for (const card of receipt.cards) {
-    exactKeys(card, ['cardId', 'printId', 'instanceId', 'rarity']);
-    const owned = copies.get(card.instanceId), printing = getPrintForCard(card.cardId, card.printId);
-    if (!owned || seen.has(card.instanceId) || owned.cardId !== card.cardId || owned.printId !== card.printId
-        || printing.setId !== 'wx01' || card.rarity !== CARD_RARITIES[card.cardId]) fail();
-    seen.add(card.instanceId);
-    treatments.push(printing.treatment);
-  }
-  const validatePack = (cards, mode, printTreatments) => {
-    if (!['ordinary', 'aa', 'leader', 'ink', 'treasure', 'god'].includes(mode)) fail();
-    const expected = mode === 'god' ? ['aa', 'leader', 'ink'] : ['base', 'base', mode === 'ordinary' ? 'base' : mode];
-    if (printTreatments.some((value, index) => value !== expected[index]) || !cards.some(card => card.rarity !== 'common')
-        || (mode === 'god' && new Set(cards.map(card => card.cardId)).size !== 3)) fail();
-  };
-  if (box) {
-    receipt.packs.forEach((entry, index) => {
-      exactKeys(entry, ['mode', 'cards']);
-      const cards = receipt.cards.slice(index * 3, index * 3 + 3);
-      if (!Array.isArray(entry.cards) || entry.cards.length !== 3 || stableJSON(entry.cards) !== stableJSON(cards)) fail();
-      validatePack(cards, entry.mode, treatments.slice(index * 3, index * 3 + 3));
-    });
-  } else if (pack) validatePack(receipt.cards, receipt.mode, treatments);
-  else if (!['aa', 'leader', 'ink', 'treasure'].includes(receipt.mode) || treatments[0] !== receipt.mode
-      || (receipt.kind === 'story' && (receipt.mode !== 'aa' || !state.storyClaimed))) fail();
-}
 
 function validateProfile(profile, version) {
-  const legacy = version === 1;
+  const legacy = version === 1, expanded = version === 3;
   const hasWeekly = isRecord(profile) && Object.hasOwn(profile, 'weekly');
-  exactKeys(profile, [...profileKeys, ...(hasWeekly ? ['weekly'] : []), ...(legacy ? [] : ['wx01'])]);
-  if (profile.version !== (legacy ? 3 : 4) || profile.collectionVersion !== (legacy ? 1 : 2) || profile.collectionExpansion !== (legacy ? 1 : 2) || (!legacy && !hasWeekly)) {
+  exactKeys(profile, [...profileKeys, ...(hasWeekly ? ['weekly'] : []), ...(legacy ? [] : ['wx01']), ...(expanded ? ['expansion'] : [])]);
+  if (profile.version !== (legacy ? 3 : expanded ? 5 : 4) || profile.collectionVersion !== (legacy ? 1 : 2) || profile.collectionExpansion !== (legacy ? 1 : 2) || (!legacy && !hasWeekly)) {
     fail('呢個旅程備份版本暫未支援，未有更改本機進度。');
   }
-  if (profile.pending !== null) fail('請先完成或放棄未完對局，再儲存雲端旅程。');
+  if (!expanded) assertLegacyExpansionBoundary(profile);
+  if (profile.pending !== null || expanded && profile.expansion?.fireMountain?.run !== null) fail('請先完成或放棄未完對局或活動旅程，再儲存雲端旅程。');
   if (!Array.isArray(profile.instances) || !Array.isArray(profile.merchantVault)
     || !Array.isArray(profile.deckSlots) || profile.deckSlots.length > 3) fail();
   if (profile.instances.length + profile.merchantVault.length > (legacy ? LEGACY_MAX_SNAPSHOT_CARDS : MAX_SNAPSHOT_CARDS)) {
@@ -191,7 +150,7 @@ function validateProfile(profile, version) {
   if (legacy) {
     exactKeys(profile.inventory, LEGACY_CARD_IDS); exactKeys(profile.levels, LEGACY_CARD_IDS);
     if (Object.keys(profile.daily.marketPurchases).some(id => !LEGACY_CARD_IDS.includes(id))) fail();
-  } else validateWX01(profile);
+  } else validateWX01State(profile.wx01, profile);
 
   // Compare at the saved day, so this checks canonical data without a day rollover.
   // Any repair (missing cards, bad decks, counters, XP, dates or unknown fields)
@@ -199,6 +158,7 @@ function validateProfile(profile, version) {
   let canonical;
   try { canonical = hydrateProfile(profile, { now: `${profile.daily.date}T12:00:00.000Z` }); }
   catch { fail(); }
+  if (!expanded) { canonical.version = legacy ? 3 : 4; delete canonical.expansion; }
   if (legacy) {
     // Project only documented migration additions. Raw v1 keys/identities were
     // checked above, so this cannot hide unknown fields or discarded copies.
@@ -214,14 +174,14 @@ function validateProfile(profile, version) {
 }
 
 export function createSnapshot(profile) {
-  return validateSnapshot({ format: SNAPSHOT_FORMAT, version: profile?.version === 3 ? 1 : SNAPSHOT_VERSION, profile });
+  return validateSnapshot({ format: SNAPSHOT_FORMAT, version: profile?.version === 3 ? 1 : profile?.version === 4 ? 2 : SNAPSHOT_VERSION, profile });
 }
 
 /** Return detached validated data. Unknown formats/versions never start a new game. */
 export function validateSnapshot(snapshot, { version } = {}) {
   let json = boundedJSON(snapshot);
   exactKeys(snapshot, ['format', 'version', 'profile']);
-  if (snapshot.format !== SNAPSHOT_FORMAT || ![1, SNAPSHOT_VERSION].includes(snapshot.version) || (version !== undefined && snapshot.version !== version)) {
+  if (snapshot.format !== SNAPSHOT_FORMAT || ![1, 2, SNAPSHOT_VERSION].includes(snapshot.version) || (version !== undefined && snapshot.version !== version)) {
     fail('呢個旅程備份版本暫未支援，未有更改本機進度。');
   }
   if (snapshot.version === 1) json = boundedJSON(snapshot, LEGACY_MAX_SNAPSHOT_BYTES);

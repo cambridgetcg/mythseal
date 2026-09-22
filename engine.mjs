@@ -154,8 +154,21 @@ function drawHand(ids, rng) {
 export function createMatch({
   deckIds = defaultDeckIds, opponentDeckIds = defaultDeckIds, rng = Math.random,
   mode = 'practice', playerLevels = {}, opponentLevels = {}, opponentName = null,
+  initialResources,
 } = {}) {
-  if (!['arena', 'expedition', 'practice'].includes(mode)) throw new RangeError('Unknown match mode.');
+  if (!['arena', 'expedition', 'practice', 'activity'].includes(mode)) throw new RangeError('Unknown match mode.');
+  let playerResources = { hp: RULES.life, pills: RULES.pills };
+  if (initialResources !== undefined) {
+    const player = initialResources?.player;
+    if (mode !== 'activity' || !initialResources || typeof initialResources !== 'object' || Array.isArray(initialResources)
+      || Object.keys(initialResources).join(',') !== 'player' || !player || typeof player !== 'object' || Array.isArray(player)
+      || Object.keys(player).length !== 2 || !Object.hasOwn(player, 'hp') || !Object.hasOwn(player, 'pills')
+      || !Number.isInteger(player.hp) || player.hp < 1 || player.hp > RULES.life
+      || !Number.isInteger(player.pills) || player.pills < 0 || player.pills > RULES.pills) {
+      throw new RangeError('Activity starting resources must be 1–12 life and 0–12 pills.');
+    }
+    playerResources = { hp: player.hp, pills: player.pills };
+  }
   const normalizedPlayerLevels = normalizeLevels(playerLevels);
   const normalizedOpponentLevels = normalizeLevels(opponentLevels);
   if (opponentName !== null && typeof opponentName !== 'string') throw new TypeError('Opponent name must be a string.');
@@ -166,7 +179,7 @@ export function createMatch({
   const initiative = difference === 0 ? (randomUnit(rng) < 0.5 ? 'player' : 'opponent') : (difference > 0 ? 'player' : 'opponent');
   return {
     mode, playerLevels: normalizedPlayerLevels, opponentLevels: normalizedOpponentLevels, opponentName,
-    player: { hp: RULES.life, pills: RULES.pills, hand: playerHand, used: [] },
+    player: { ...playerResources, hand: playerHand, used: [] },
     opponent: { hp: RULES.life, pills: RULES.pills, hand: opponentHand, used: [] },
     round: 1, initiative, history: [], status: 'playing', winner: null, lastResult: null,
   };

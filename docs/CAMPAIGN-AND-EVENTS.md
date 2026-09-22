@@ -1,43 +1,40 @@
-# 西行續卷與活動對戰 · design proposal · 2026-09-22
+# 西行續卷與活動對戰 · local implementation · 2026-09-22
 
-The owner wants a longer main story and repeatable activities after repeatedly
-clearing the current 18 encounters. They selected **火焰山三連戰** as the first
-activity, including between-battle supplies and owned/loaner decks. This document
-plans that expansion; it does not describe playable additions or adopted drop
-rates. No runtime, player save, pack sampler or hosted service changes accompany
-this design. Values below are initial playtest proposals.
+The approved expansion is implemented in local source: **48 new campaign battles
+plus the original 18**, and **火焰山三連戰** with saved supplies and owned/loaner
+decks. This supersedes the proposal at `b854b0b`. Rewards and recovery values below
+are the initial implemented tuning. Browser acceptance has passed in isolated Chromium and WebKit contexts;
+local implementation does not establish human balance or hosted readiness.
+Public **v0.5.1 is unchanged**. No deployment or live SQL application accompanies
+this work.
 
 ## What makes the next journey different
 
-The current four volumes contain 18 battles. Their story opponents still use
-the original 24-card catalogue, although the local collection now has 39 rules
-cards. `stories.mjs` supplies one deck per literary volume; `engine.mjs` uses a
-shared AI policy. More nodes alone would repeat the same experience.
+The four original volumes retain their 18 battles and rewards. Six new volumes
+use the local 39-card catalogue and 48 distinct legal opponent compositions.
+`engine.mjs` retains its public-information AI and four-round hidden bids.
 
-The next expansion should connect three reasons to play:
+The expansion connects three reasons to play:
 
 | Route | Player motivation | Character of the rewards |
 | --- | --- | --- |
 | 主線 · 西行續卷 | Follow companions through a complete story and build a useful roster | Guaranteed BASE characters, chapter pack tickets, lasting story milestones |
 | 活動 · 火焰山三連戰 | Plan across three battles, choose supplies, try another deck | Clear prizes, targeted BASE drops and two weekly pack-ticket milestones |
-| 異聞 · optional mastery | Revisit a scene with a different solution | Titles, journal entries and later event artwork; ordinary story progression needs only a win |
+| 異聞 · optional mastery | Revisit a scene while preserving resources | Three cumulative marks; ordinary story progression needs only a win. New journal rewards/event artwork remain future work. |
 
-Keep the five main destinations. **遊歷** gets 主線 / 異聞 modules;
-**對弈** gets 活動 / 擂台 / 切磋. A featured activity entry may also appear in
-洞府. Existing viewport tabs/pages carry chapter lists and reward previews;
-no new scrolling feed or sixth dock destination.
+The five main destinations stay. Campaign, mastery, activity and reward views
+use the shared viewport modules/pages; there is no sixth dock destination.
 
 ## Main story: six volumes, eight battles each
 
-Working title: **西行續卷 · 無字經的回聲**. The four existing 西遊 encounters
+**西行續卷 · 無字經的回聲**. The four existing 西遊 encounters
 remain the completed first journey, with their original clears and AA choice.
 After returning, voices begin disappearing from the written scripture. The
 party retraces the memories of people left along the road. These are original
 game episodes inspired by the traditional setting, not a literal chapter order
 or a rewrite of the existing ending.
 
-Proposed scope: **48 new battles**, bringing the planned total to 66. Ship the
-first eight as a complete volume before producing the other forty. Entry opens
+All **48 new battles** are implemented, bringing the local total to **66**. Entry opens
 after the existing `west-spirit-mountain` clear; previously cleared saves
 qualify without replaying or reclaiming their old rewards.
 
@@ -51,7 +48,7 @@ qualify without replaying or reclaiming their old rewards.
 | 六 · 無字真經 | 雷音回響與歸途; companions decide what deserves to remain | Campaign title and one WX-01 AA choice |
 
 Every volume also has one WX-01 pack ticket at its eighth clear. The full
-campaign therefore proposes **eight fixed BASE copies, six tickets and one
+campaign awards **eight fixed BASE copies, six tickets and one
 AA choice**, alongside ordinary currencies. The final AA has its own claim ID;
 it does not reset or replace the existing four-stage first-volume AA entitlement.
 Owning a milestone character already grants a fresh exact BASE copy, which can
@@ -60,13 +57,12 @@ an existing special printing.
 Fixed character/AA claims do not advance pack opening totals, 西行印 or the
 WX-01 dry counter; opening a ticket follows the pack rules below.
 
-Each volume has five ordinary encounters, two distinct tactical encounters and
-one finale. Short arrival/aftermath passages use dedicated scene modules and
-can be reread. At least one late encounter must change a meaningful decision:
-different legal opponent composition, an announced public condition, or a
-companion challenge. Increasing enemy stats alone is insufficient.
+Each volume has five ordinary encounters, two tactical encounters and a finale,
+with arrival/aftermath writing and a distinct opponent composition. Current
+tactics use existing effects and public roster information; special hazards,
+new combat rules and boss-specific AI policies are not implemented.
 
-### First volume to build
+### First volume
 
 | Stage | Scene and playable purpose | Once-only character milestone |
 | --- | --- | --- |
@@ -79,18 +75,16 @@ companion challenge. Increasing enemy stats alone is insufficient.
 | 7 · 四人一願 | Optional supplied party deck lets everyone try the assembled companions | — |
 | 8 · 燈外有聲 | Finale combines two earlier tactical ideas and opens the next volume | One WX-01 ticket |
 
-All opponent and loaner decks must be legal eight-character, at-most-25-star
+All opponent and loaner decks are legal eight-character, at-most-25-star
 decks. Loaner access is temporary and never mints those cards. Chapter 7 must
 remain completable if the player has sold or inherited a previously earned
-companion. Keep ordinary story cultivation and the current Lv.5 cap; advanced
-activities provide further challenge without immediately adding another XP tier.
+companion. Ordinary story cultivation and the Lv.5 cap remain unchanged.
 
-Optional mastery marks are accumulated across attempts: win; satisfy one
-clearly stated resource condition; complete a scene-specific challenge. They
-do not all have to occur in one match. Do not attach a required reward to drawing
-one particular card from a random hand; use a supplied/fixed scenario for such
-challenges. Story branches may change dialogue, without hiding unique combat
-cards behind irreversible choices.
+Optional mastery accumulates across wins: **win**, **finish with at least 6 life**,
+and **finish with at least 2 pills**. The two reserve marks need not occur in the
+same attempt. No mark or required grant depends on drawing a particular character.
+Finishing all 48 stages awards the title **聽見萬聲**; mastery is not an extra gate
+for the BASE copies, tickets or AA choice.
 
 ## First activity: 火焰山三連戰
 
@@ -113,11 +107,11 @@ and specialized AI policies are later experiments with separate rule versions.
 - No entry fee, energy timer or entry-count limit. A loss/draw ends this attempt;
   previous stage rewards remain. An abandoned stage earns no reward. Retry starts
   a fresh run; continuing a saved run retains its opponents, hands and supplies.
-- Between battles, 保存離開 returns to the lobby. Only one pending journey/run
+- Between battles, 保存離開 returns to 對弈. Only one pending journey/run
   may own the active battle. Finish or explicitly abandon it before another mode.
 - Owned-card XP goes only to the exact copies actually played. A loaner never
-  gains persistent card XP or credits an unrelated owned copy. Initial proposal:
-  owned played copies earn 12 XP for a stage win, 8 for a loss/draw; no award on
+  gains persistent card XP or credits an unrelated owned copy. Played owned copies
+  earn 12 XP for a stage win, 8 for a loss/draw; no award on
   abandonment. Normalization means that XP cannot improve the next stage's stats.
 
 The battle sequence is 組牌 → 第一戰 → 補給 → 第二戰 → 補給 → 決戰 → 戰利品.
@@ -125,7 +119,7 @@ Keep life, pills and run stage visible; give the reward preview its own module.
 After every stage, show what has already been banked and what still requires
 the final boss. Do not imply that partial rewards will be lost by leaving.
 
-Begin with one standard difficulty. Add **劫境** only after the loaner can
+One standard difficulty is implemented. Add **劫境** only after the loaner can
 reasonably clear standard: stricter recovery or an explicitly displayed public
 rule, with cosmetic mastery rewards. There is no human leaderboard or ranked
 rating in this local activity. Weekly spotlight rules/prizes may rotate later;
@@ -139,9 +133,9 @@ rates and redemption prices remain their own system; ordinary boss loot is BASE
 only. Event artwork, when produced, needs a distinct printing ID and the same
 special-printing material protection as the current collection.
 
-### Starting reward budget — proposal, not current rates
+### Implemented initial reward budget
 
-| Source | Proposed reward | Frequency |
+| Source | Reward | Frequency |
 | --- | --- | --- |
 | New main-story battle win | 60 coins + 3 dust + 30 hero XP; 20 XP per actually played owned copy | Every win |
 | New main-story first clear | Additional 90 coins + 5 dust + 40 hero XP | Once per new stage |
@@ -149,7 +143,7 @@ special-printing material protection as the current collection.
 | Entire new campaign | One selected WX-01 AA and a title | Once |
 | Activity stage win | 60 coins + 3 dust + 30 hero XP, plus one bonus-loot outcome | Every accepted stage win |
 | Activity loss/draw | No currency/loot roll; retain prior stage earnings and the specified owned-copy XP | Per completed lost/drawn stage |
-| First full 火焰山 clear | 牛魔王 BASE and a permanent clear emblem | Once per activity family |
+| First full 火焰山 clear | 牛魔王 BASE and a persistent first-clear record | Once per activity family |
 | Weekly activity milestones | One WX-01 ticket at 1 full clear, another at 3 full clears | At most two tickets/week, across deck routes/difficulties |
 | Five lifetime full clears | Cosmetic title「借得東風」; event alternate art is a later authored milestone | Once per activity family |
 
@@ -159,15 +153,13 @@ current 300-coin pack price, that is 24 coin-funded packs plus six tickets:
 **30 pack-equivalents**, plus eight BASE milestones and one AA choice. This is
 a budget comparison; coins can instead be spent on cultivation or other items.
 
-Do not copy the current per-node daily-cache bonus onto all 48 new stages.
-Current 18-node immediate replays already yield 2,340 coins/60 dust; one later-day
-first win at every node yields 4,395/177, before login/tasks. Preserve those
-existing rewards. New chapter/weekly milestones should reward meaningful
-completion without creating another daily tour of dozens of identical claims.
+The new 48 stages have **no daily-cache bonus**. The original 18 retain their
+existing rewards and cache rules. Campaign wins still count toward ordinary
+expedition tasks; activity stages count toward generic matches only.
 
 ### Targeted activity loot
 
-After a stage win, propose one extra outcome, independent of the guaranteed
+After a stage win, one extra outcome is selected independently of the guaranteed
 reward above:
 
 | Outcome | Natural probability | Contents |
@@ -201,68 +193,81 @@ opening it consumes exactly one ticket, charges zero coins, and stores the exact
 grant before any reveal. Tickets do not expire. They are opened explicitly in
 市集, so an activity prize never replaces an already pending pack receipt.
 
-First implementation needs a proper ticket funding/receipt contract. The current
-WX-01 validators require a pack receipt's cost to be exactly 300 coins; simply
-passing zero into today's purchase function is invalid. Extending the receipt,
-profile and cloud formats coherently is required before ticket grants ship.
+Ticket receipts use `kind: ticket`, cost 0 and one earned seal. Fixed character
+or AA deliveries use `kind: reward`, cost 0 and no seal. Both are explicit v5
+receipt kinds; existing paid/box/redeem/story receipts retain their contracts.
+Earning tickets does not replace an existing receipt or require a free card slot.
 
-## Implementation contract and release slices
+## Save and settlement contract
 
 Preserve the old 18 node IDs, prerequisite chains, clears, original rewards and
 four-stage 西遊 AA claim. In particular, the existing claim checks exactly four
 `westward` story nodes: put the continuation in a separate volume/campaign ID
 and explicit entitlement list rather than silently appending to that array.
 
-Separate content definitions from settlement. Proposed modules are
-`campaign-content.mjs` (chapters/objectives), `activity-content.mjs` (versioned
-boss/loaner definitions) and a pure activity/reward state module. Their names are
-design placeholders. `progression.mjs` continues to own atomic profile changes;
-`engine.mjs` needs explicit supported starting resources for carry-over, rather
-than UI-only resource edits. Keep AI blind to the player's hidden bid/Fury.
+`campaign-content.mjs` owns 48 nodes and six worlds; `activity-content.mjs` owns
+the versioned three-boss/loaner definition. `expansion-state.mjs` strictly
+validates run/reward state, while `progression.mjs` owns atomic changes.
+`engine.mjs` accepts `mode: activity` and explicit player starting resources;
+other modes retain their starting-resource behavior. The AI remains blind to
+the opponent's hidden bid/Fury.
 
-Persist a run ID, activity/rule version, frozen roster/owned UID mapping or a
+The saved run includes its ID, activity/rule version, frozen roster/owned UID mapping or a
 separate loaner identity, current stage, resource totals, committed supply choice,
-saved battle and settled-stage IDs. Persist new milestone claims, tickets,
-family loot counters and weekly activity clears. A run spanning Monday belongs
+saved battle seeds and settled-stage IDs. The profile retains milestone grants,
+tickets, family loot counters and weekly activity clears. A run spanning Monday belongs
 to its start-week for weekly prizes; retain its claim period until resolved so
 reload or rollover cannot duplicate or erase it. Existing generic match tasks
 still count each settled battle; activity does not count as story or AI arena.
 
-Each reward uses a unique source/claim key. Bank an earned character entitlement
-when collection capacity or an existing reveal prevents immediate delivery;
-claims mint once after capacity/byte checks. Bound this pending-grant ledger
-and preflight its capacity before starting another eligible stage. A completed
-reward must never be discarded to make space. Persist a stage's reward seed at
-start and derive the loot once at accepted settlement, storing the outcome and
-next pity state. A reload displays the saved outcome; a failed write/retry cannot
+Each character reward uses a unique source/claim key and enters a pending ledger;
+explicit claims mint once after capacity/byte checks. The ledger holds at most
+256 grants and is preflighted before starting another eligible stage. A completed
+reward is never discarded to make space. All three battle and loot seeds are
+saved at run entry; settlement derives and records the outcome and next pity
+state. A reload displays the saved outcome; a failed write/retry cannot
 reroll it. A write/quota failure cannot consume the pending battle, reset pity
 or show an accepted reward. Old receipts, locked cards, displayed Leaders,
 AA/TR material protection and exact-copy histories survive.
 
-New state cannot be ignored by today's strict `profile-store.mjs`,
-`wx01-state.mjs` or `cloud-save.mjs`. Specify a versioned migration and backup
-compatibility fixtures before implementation, retain original source saves,
-reject malformed newer records without creating a starter, and keep hosted
-schema/client rollout separate. Local play remains offline progression.
+Profile **v5** uses `shanhai.profile.v5`, battle v5 and recovery v5 keys;
+collection v2 and WX state v1 remain unchanged. Migration retains v4/v3/v2
+sources, exact copies, old receipts and pending battles. Strict new records
+fail closed instead of becoming a starter. Frozen owned activity copies remain
+protected from sale, training and inheritance during supply as well as battle.
 
-| Slice | Concrete deliverable | Acceptance evidence |
+Cloud snapshot **v3/profile-v5** is additive to v1/profile-v3 and v2/profile-v4.
+An active activity run blocks cloud replacement/upload even between battles.
+The source includes the additive [journey-v3 migration](../supabase/migrations/20260923000000_campaign_journey_v3.sql);
+`JOURNEY_V3_ENABLED` stays false/absent until separate hosted application and
+verification. The preceding journey-v2 gate remains applicable too. No live SQL
+was applied here. A future release still needs a coherent versioned client
+module graph, compatible Worker rollout and hosted preservation evidence.
+
+## Verification and remaining work
+
+| Local component | Implemented scope | Verification boundary |
 | --- | --- | --- |
 | A · Reward/run foundation | Versioned activity state, exact grants, BASE claim/ticket receipts, compatible save upgrade | Legacy v3/v4 copies/decks/receipts preserved; capacity/quota failures; duplicate settlement/claims; fixed RNG and pity boundaries; backup round trips |
 | B · 火焰山 standard | Three real boss battles, supplies, owned/loaner routes, resume, reward preview and first/weekly prizes | Full win/loss/draw/abandon; both supply choices; no loaner mint/XP; mid-run reload/rollover; hidden-bid boundary; legal decks; six-size Chrome/WebKit navigation |
-| C · 主線第一卷 | Eight authored encounters, four companion grants, volume ticket and rereadable scenes | Old completion/AA entitlements untouched; correct unlocks; sold companion loaner path; once-only milestones; complete first-volume playthrough |
-| D · Remaining five volumes | Forty more encounters, optional mastery and authored event cosmetics | Each volume has a distinct decision; tested prize totals; readable chapter paging; character/printing provenance; human balance review |
+| C · Full campaign | All six volumes/48 stages, eight BASE grants, six tickets, separate AA choice and mastery | Unit settlement proves the complete budget; browser chapter/reward navigation and human playtesting remain separate evidence |
 
-Implementation order starts with the chosen activity, alongside the first
-volume's writing. Later candidates: daily fixed-deck puzzles, a second themed
-activity, boss-specific public hazards and advanced difficulty. Online PvP/ranked
-remain on their existing authoritative-server track.
+Relevant checks: [domain and reward invariants](../tests/expansion-progression.test.mjs),
+[authored content](../campaign-content.mjs), [engine carry-over](../tests/activity-engine.test.mjs),
+[saved lifecycle/quota](../tests/profile-store.test.mjs) and [snapshot compatibility](../tests/cloud-save.test.mjs).
+The six-size browser matrix and real three-battle/claim flows pass in Chromium
+and WebKit. See the [final integration evidence](VALIDATION.md#campaign-and-fire-mountain--2026-09-22)
+for the test counts, subsequent retry/layout fixes and remaining hosted/device boundaries.
 
-## Evidence for this design pass
+A bounded simulation completed **200 seeded loaner runs**, using the existing
+AI mirrored for the player, with only public card reveals and no hidden-bid access.
+Supplies chose life below 8 HP, otherwise pills, and continued without supply
+only when both resources were full. Full clears: **16/200 (8%)**. Stage wins:
+**122/200**, **56/122**, **16/56**. This shows the initial standard can be won and
+that the final boss filters many surviving runs. It is not a human clear-rate
+forecast or proof of satisfactory balance; no tuning followed this probe.
 
-Read-only review of `stories.mjs`, `progression.mjs`, `engine.mjs`,
-`wx01-cards.mjs`, `wx01-state.mjs`, `profile-store.mjs` and `cloud-save.mjs`
-established the baseline and compatibility limits. Budget arithmetic was checked
-against pure content data; no personal browser profile or service was accessed.
-This document and roadmap updates do not require a game build or browser rerun.
-The proposal is not evidence of encounter balance, new artwork, implemented
-loot, a playable activity or a release.
+Advanced difficulty, new event artwork, seasonal rules/prizes, fixed-deck
+puzzles and boss-specific public hazards remain future work. Real PvP/ranked
+still depends on the authoritative-server track. No new event art, paid
+currency, server authority or native release was added.
