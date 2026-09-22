@@ -1,6 +1,7 @@
 /** Local, original progression rules. Pure functions; the UI owns persistence. */
 import { CARDS, ORIGINAL_CARD_IDS, CLASSIC_CARD_IDS, defaultDeckIds, validateDeck } from './engine.mjs';
 import { hydrateCollection, syncCollection, getInstance, getInstances, getPreferredInstance, getActiveDeck, mintInstance, setInstanceXP, awardInstanceXP, getXPThreshold, getInstanceProtection, saveInstanceDeck, validateInstanceDeck } from './collection.mjs';
+import { STORY_NODES } from './stories.mjs';
 
 const freeze = value => {
   if (value && typeof value === 'object') {
@@ -54,18 +55,23 @@ const nodeData = [
   ['sky-palace', '雲闕天階', '拾級問天', '踏上雲端長階，丹師以星軌驗證你的取捨。', 83, 15, '雲闕司星'],
   ['sea-throne', '歸墟王座', '萬象歸一', '山海盡頭的王座空着，最後一局留給你自己。', 86, 49, '歸墟守望者'],
 ];
-export const NODES = freeze(nodeData.map(([id, name, subtitle, description, x, y, enemyName], index) => ({
-  id, name, subtitle, description, x, y, enemyName, level: Math.min(5, index + 1),
+export const NODES = freeze([...nodeData.map(([id, name, subtitle, description, x, y, enemyName], index) => ({
+  id, name, subtitle, description, x, y, enemyName, worldId: 'shanhai', order: index, level: Math.min(5, index + 1),
   winReward: { coins: 80 + index * 20, dust: 2 + Math.floor(index / 2), xp: 30 + index * 10 },
   firstClearReward: { coins: 140 + index * 40, dust: 8 + index * 2, xp: 50 + index * 10 },
   dailyReward: { coins: 80 + index * 15, dust: 4 + index, xp: 20 },
-})));
+})), ...STORY_NODES]);
 export const LOGIN_REWARD = freeze({ coins: 160, dust: 8, xp: 20 });
 export const ARENA_CHEST_REWARD = freeze({ coins: 240, dust: 16, xp: 60 });
 const TASKS = freeze([
   { id: 'matches', title: '今日落子', description: '完成 2 場對局', field: 'matches', target: 2, reward: { coins: 100, dust: 6, xp: 30 } },
   { id: 'expedition', title: '山海行旅', description: '贏得 1 場遊歷對局', field: 'expeditionWins', target: 1, reward: { coins: 120, dust: 8, xp: 40 } },
   { id: 'pack', title: '星匣初啟', description: '開啟 1 包卡牌', field: 'packs', target: 1, reward: { coins: 80, dust: 5, xp: 20 } },
+]);
+export const WEEKLY_TASKS = freeze([
+  { id: 'matches', title: '七日弈緣', description: '本週完成 10 場對局', field: 'matches', target: 10, reward: { coins: 300, dust: 20, xp: 80 } },
+  { id: 'expedition', title: '踏遍山海', description: '本週贏得 5 場遊歷對局', field: 'expeditionWins', target: 5, reward: { coins: 350, dust: 25, xp: 100 } },
+  { id: 'arena', title: '問道五弈', description: '本週完成 5 場擂台對局', field: 'arenaMatches', target: 5, reward: { coins: 250, dust: 15, xp: 70 } },
 ]);
 const KINDS = ['practice', 'expedition', 'arena'];
 const copy = value => structuredClone(value);
@@ -88,6 +94,12 @@ export function dayKey(now = new Date()) {
   }).formatToParts(date).map(part => [part.type, part.value]));
   return `${fields.year}-${fields.month}-${fields.day}`;
 }
+/** Monday of the London calendar week, independent of the device timezone/DST. */
+export function weekKey(now = new Date()) {
+  const date = new Date(`${dayKey(now)}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7);
+  return date.toISOString().slice(0, 10);
+}
 function validDay(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(`${value}T12:00:00Z`);
@@ -98,6 +110,16 @@ const freshDaily = date => ({
   claimedTasks: [], arenaChestClaimed: false, trainingUsed: false,
   marketPurchases: {}, expeditionCaches: [],
 });
+const freshWeekly = week => ({ week, matches: 0, expeditionWins: 0, arenaMatches: 0, claimedTasks: [] });
+function hydrateWeekly(saved, date) {
+  const currentWeek = weekKey(`${date}T12:00:00Z`);
+  if (!saved || !validDay(saved.week) || new Date(`${saved.week}T12:00:00Z`).getUTCDay() !== 1 || saved.week < currentWeek) return freshWeekly(currentWeek);
+  const weekly = freshWeekly(saved.week);
+  weekly.matches = integer(saved.matches);
+  for (const field of ['expeditionWins', 'arenaMatches']) weekly[field] = Math.min(weekly.matches, integer(saved[field]));
+  weekly.claimedTasks = uniqueKnown(saved.claimedTasks, WEEKLY_TASKS.map(task => task.id));
+  return weekly;
+}
 
 function createBaseProfile({ now = new Date(), legacyDeck, legacyStats } = {}) {
   const played = integer(legacyStats?.played);
@@ -108,7 +130,7 @@ function createBaseProfile({ now = new Date(), legacyDeck, legacyStats } = {}) {
     levels: Object.fromEntries(CARD_IDS.map(id => [id, 1])),
     deck: validateDeck(legacyDeck).valid && legacyDeck.every(id => inventory[id] > 0) ? [...legacyDeck] : [...defaultDeckIds],
     stats: { played, won: Math.min(played, integer(legacyStats?.won)) },
-    cleared: [], location: NODES[0].id, daily: freshDaily(dayKey(now)),
+    cleared: [], location: NODES[0].id, daily: freshDaily(dayKey(now)), weekly: freshWeekly(weekKey(now)),
     arena: { points: 0, played: 0, won: 0 }, pending: null, serial: 0,
   };
 }
@@ -165,10 +187,9 @@ export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats,
   profile.stats.played = integer(raw.stats?.played, base.stats.played);
   profile.stats.won = Math.min(profile.stats.played, integer(raw.stats?.won, base.stats.won));
   const cleared = uniqueKnown(raw.cleared, NODES.map(node => node.id));
-  for (const node of NODES) {
-    if (!cleared.includes(node.id)) break;
-    profile.cleared.push(node.id);
-  }
+  // Branches may be cleared in any order. Retain that chronology, but a clear
+  // remains valid only when its entire prerequisite chain was also cleared.
+  profile.cleared = cleared.filter(id => hasClearedPrerequisites(cleared, id));
   if (NODES.some(node => node.id === raw.location) && isNodeUnlocked(profile, raw.location)) profile.location = raw.location;
   for (const field of ['points', 'played', 'won']) profile.arena[field] = integer(raw.arena?.[field]);
   profile.arena.won = Math.min(profile.arena.played, profile.arena.won);
@@ -184,6 +205,7 @@ export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats,
       if (count) profile.daily.marketPurchases[id] = count;
     }
   }
+  profile.weekly = hydrateWeekly(raw.weekly, profile.daily.date);
   const pending = raw.pending;
   if (pending && pending.id === `battle-${profile.serial}` && profile.serial > 0 && KINDS.includes(pending.kind)) {
     if (pending.kind !== 'expedition' || (NODES.some(node => node.id === pending.nodeId) && isNodeUnlocked(profile, pending.nodeId))) {
@@ -208,6 +230,8 @@ export function refreshDaily(profile, now = new Date()) {
   const next = syncCollection(profile);
   const date = dayKey(now);
   if (date > next.daily.date) next.daily = freshDaily(date);
+  // The retained daily date also guards upgrades of old saves without weekly data.
+  next.weekly = hydrateWeekly(next.weekly, next.daily.date);
   return next;
 }
 const addReward = (profile, reward) => {
@@ -243,6 +267,18 @@ export function claimTask(profile, id, now = new Date()) {
   if (next.daily.claimedTasks.includes(id)) throw new RangeError('這項任務獎勵已領取。');
   if (next.daily[task.field] < task.target) throw new RangeError('任務尚未完成。');
   next.daily.claimedTasks.push(id);
+  return addReward(next, task.reward);
+}
+export function getWeeklyTasks(profile, now = new Date()) {
+  const current = refreshDaily(profile, now);
+  return WEEKLY_TASKS.map(task => ({ ...copy(task), progress: Math.min(task.target, current.weekly[task.field]), claimed: current.weekly.claimedTasks.includes(task.id) }));
+}
+export function claimWeeklyTask(profile, id, now = new Date()) {
+  const next = refreshDaily(profile, now), task = WEEKLY_TASKS.find(item => item.id === id);
+  if (!task) throw new RangeError('找不到這項每週任務。');
+  if (next.weekly.claimedTasks.includes(id)) throw new RangeError('這項每週任務獎勵已領取。');
+  if (next.weekly[task.field] < task.target) throw new RangeError('每週任務尚未完成。');
+  next.weekly.claimedTasks.push(id);
   return addReward(next, task.reward);
 }
 export function claimArenaChest(profile, now = new Date()) {
@@ -386,10 +422,17 @@ export function trainCard(profile, id, now = new Date()) {
 export function upgradeInstance(profile, uid) { getInstance(profile, uid); return upgradeCard(profile, uid); }
 export function trainInstance(profile, uid, now = new Date()) { getInstance(profile, uid); return trainCard(profile, uid, now); }
 
+function hasClearedPrerequisites(cleared, nodeId, visiting = new Set()) {
+  if (visiting.has(nodeId)) return false;
+  const node = nodeFor(nodeId), index = NODES.indexOf(node);
+  const prerequisite = Object.hasOwn(node, 'requiresNode') ? node.requiresNode : NODES[index - 1]?.id;
+  if (!prerequisite) return true;
+  if (!cleared.includes(prerequisite) || !NODES.some(item => item.id === prerequisite)) return false;
+  visiting.add(nodeId);
+  return hasClearedPrerequisites(cleared, prerequisite, visiting);
+}
 export function isNodeUnlocked(profile, nodeId) {
-  nodeFor(nodeId);
-  const index = NODES.findIndex(node => node.id === nodeId);
-  return index === 0 || profile.cleared.includes(NODES[index - 1].id);
+  return hasClearedPrerequisites(profile.cleared, nodeId);
 }
 export function beginBattle(profile, { kind = 'practice', nodeId = null, now = new Date() } = {}) {
   if (!KINDS.includes(kind)) throw new RangeError('對局模式無效。');
@@ -431,11 +474,13 @@ export function finishBattle(profile, { encounterId, winner, playedCardIds = [],
   increment(next.stats, 'played');
   if (win) increment(next.stats, 'won');
   increment(next.daily, 'matches');
+  increment(next.weekly, 'matches');
   if (encounter.kind === 'expedition') {
     const node = nodeFor(encounter.nodeId);
     include(win ? node.winReward : { coins: winner === 'draw' ? 35 : 20, dust: 0, xp: 10 });
     if (win) {
       increment(next.daily, 'expeditionWins');
+      increment(next.weekly, 'expeditionWins');
       if (!next.cleared.includes(node.id)) {
         next.cleared.push(node.id);
         include(node.firstClearReward);
@@ -454,6 +499,7 @@ export function finishBattle(profile, { encounterId, winner, playedCardIds = [],
     increment(next.arena, 'played');
     if (win) increment(next.arena, 'won');
     increment(next.daily, 'arenaMatches');
+    increment(next.weekly, 'arenaMatches');
   }
   next.pending = null;
   addReward(next, reward);

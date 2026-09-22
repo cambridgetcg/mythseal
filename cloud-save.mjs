@@ -92,7 +92,8 @@ function validDay(value) {
 }
 
 function validateProfile(profile) {
-  exactKeys(profile, profileKeys);
+  const hasWeekly = isRecord(profile) && Object.hasOwn(profile, 'weekly');
+  exactKeys(profile, hasWeekly ? [...profileKeys, 'weekly'] : profileKeys);
   if (profile.version !== PROFILE_VERSION || profile.collectionVersion !== 1 || profile.collectionExpansion !== 1) {
     fail('呢個旅程備份版本暫未支援，未有更改本機進度。');
   }
@@ -122,6 +123,10 @@ function validateProfile(profile) {
     'claimedTasks', 'arenaChestClaimed', 'trainingUsed', 'marketPurchases', 'expeditionCaches',
   ]);
   if (!validDay(profile.daily.date)) fail('旅程備份日期無效。');
+  if (hasWeekly) {
+    exactKeys(profile.weekly, ['week', 'matches', 'expeditionWins', 'arenaMatches', 'claimedTasks']);
+    if (!validDay(profile.weekly.week) || new Date(`${profile.weekly.week}T12:00:00Z`).getUTCDay() !== 1) fail('旅程備份日期無效。');
+  }
 
   // Compare at the saved day, so this checks canonical data without a day rollover.
   // Any repair (missing cards, bad decks, counters, XP, dates or unknown fields)
@@ -129,6 +134,9 @@ function validateProfile(profile) {
   let canonical;
   try { canonical = hydrateProfile(profile, { now: `${profile.daily.date}T12:00:00.000Z` }); }
   catch { fail(); }
+  // Old v3 backups remain byte-for-byte payload compatible on validation.
+  // Only restoration upgrades their missing weekly counters, starting at zero.
+  if (!hasWeekly) delete canonical.weekly;
   if (stableJSON(canonical) !== stableJSON(profile)) fail('旅程備份資料不一致，未有更改本機進度。');
 }
 

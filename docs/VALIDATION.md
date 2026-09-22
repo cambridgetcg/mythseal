@@ -2,7 +2,51 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Story volumes and quests · 2026-09-22
+
+Local development on `codex/game-lobby`, following the resource/clash pass.
+The owner chose maps/quests now and deferred online PvP/ranked. No deployment,
+real account mutation, email or database migration occurred.
+
+- **237 Node tests and eight Python tests pass.** Eleven new weekly tests cover
+  London Monday/DST/year boundaries, backward clocks, zero-initialization of old
+  saves, once-only counters/claims, pending cards and old/new cloud snapshots.
+  Six story tests cover unchanged original nodes/rewards, legal themed decks,
+  branch prerequisites, interleaved clears, independent first-clear/cache rewards,
+  exact-copy progression and backup round trips.
+- All **nine Chrome suites** pass on loopback: the eight existing suites plus
+  `tools/stories-smoke.mjs`. Its eight groups include real wins in each new map,
+  same-volume next/retry/final-chapter boundaries, repeated first clear, accepted
+  result reload, daily and all three weekly claims, and explicit fixture-backed
+  old/new backup restore/upload. No external requests or browser errors were
+  reported; test browsers were closed.
+- A same-tab regression preserves a Westward battle, browses White Snake,
+  resumes and finishes the battle, then verifies result-map returns to Westward.
+  The fix restores the encounter's selected node on expedition resume.
+- **360px, 390px and 1440px** screenshots cover all volumes, quest tabs, mode hub,
+  lobby and preparation without horizontal overflow. Actual preparation close
+  buttons are at least 44px and clickable above the artwork. Quest tabs support
+  ArrowLeft/Right and Home/End with roving focus. The new suite records 22 images;
+  an independent visual pass records 27 layouts plus the locked-story lobby.
+- Fresh players can inspect every map; a locked-volume lobby opens Mist Gate
+  preparation without charging or starting a match. Browse/tab/preparation
+  cancellation preserves gameplay state. AI arena/practice are playable; PvP
+  and ranked remain noninteractive and explicitly unopened.
+- `npm run build` succeeds with **32 allowlisted assets**. The release test now
+  enumerates actual files in nested asset directories, retaining exact allowlist
+  and byte-hash assertions. Three generated maps are 1536×1024 PNGs, about
+  10.1 MiB total, with prompts/provenance in [ART-STORIES.md](ART-STORIES.md).
+
+Evidence: ignored `test-results/stories-smoke.json`, `stories-*.png` and
+`stories-visual-*.png`. Full narrative playtesting, economy tuning, physical
+iPhone/Android behaviour and compressed-art loading measurements remain open.
+Updated client/Worker validation must ship together in a future authorized
+release; these local tests do not establish hosted acceptance of new snapshots.
+See [implementation and planned online modes](STORIES-AND-MODES.md).
+
 ## Life, pills and battle transitions · 2026-09-22
+
+The newer story/quest expansion above supersedes this pass's test/asset counts.
 
 Local follow-up on `codex/game-lobby`; not a deployment or a physical-device test.
 

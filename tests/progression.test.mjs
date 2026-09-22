@@ -399,7 +399,7 @@ test('six map locations unlock sequentially on wins and move the traveller on en
   assert(!isNodeUnlocked(profile, NODES[1].id));
   assert.throws(() => beginBattle(profile, { kind: 'expedition', nodeId: NODES[1].id, now }), /前一處/);
   assert.throws(() => beginBattle(profile, { kind: 'expedition', nodeId: 'unknown', now }), /找不到/);
-  for (const node of NODES) {
+  for (const node of NODES.slice(0, 6)) {
     assert(isNodeUnlocked(profile, node.id));
     const started = beginBattle(profile, { kind: 'expedition', nodeId: node.id, now });
     assert.equal(started.profile.location, node.id);
@@ -407,7 +407,7 @@ test('six map locations unlock sequentially on wins and move the traveller on en
     assert(result.reward.firstClear);
     profile = result.profile;
   }
-  assert.deepEqual(profile.cleared, NODES.map(node => node.id));
+  assert.deepEqual(profile.cleared, NODES.slice(0, 6).map(node => node.id));
   assert.equal(hydrateProfile(profile, { now }).location, NODES[5].id);
 });
 

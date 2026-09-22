@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, lstat, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -21,7 +21,9 @@ test('public build excludes private files and stale output; manifest matches byt
   await mkdir(join(root, 'dist'));
   await writeFile(join(root, 'dist', 'private-save.json'), 'old save');
   const release = await build(root);
-  const output = (await readdir(join(root, 'dist'), { recursive: true })).filter(path => path !== 'assets').sort();
+  const entries = await readdir(join(root, 'dist'), { recursive: true });
+  const files = await Promise.all(entries.map(async path => (await lstat(join(root, 'dist', path))).isFile() ? path : null));
+  const output = files.filter(Boolean).sort();
   assert.deepEqual(output, [...PUBLIC_FILES, '_headers', 'release.json'].sort());
   for (const file of release.assets) {
     const bytes = await readFile(join(root, 'dist', file.path));

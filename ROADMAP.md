@@ -28,6 +28,13 @@ The detailed [technical plan](docs/TECHNICAL-PLAN.md), [backend design](docs/BAC
 
 ## Shipped baseline and its limits
 
+**Local stories and quests (2026-09-22):** the owner chose playable maps/quests
+first and deferred real online PvP/ranked. Three new four-chapter volumes inspired
+by 西遊記, 封神演義 and 白蛇傳 join the original six realms; weekly quests, a shared
+daily/weekly journal and a clearer mode hub are implemented locally. AI arena
+and practice remain available. See [story/mode scope and online sequence](docs/STORIES-AND-MODES.md).
+These additions are not yet in the public release described below.
+
 | Area | Implemented | Still absent or unverified |
 | --- | --- | --- |
 | Game loop | 24 characters; local AI battles/arena; six travel locations; daily tasks/training; earned-coin packs; NPC sale and buyback. | Server-validated rewards, competitive ladder, matchmaking and player-to-player trading. |
@@ -72,6 +79,11 @@ cross-device evidence and the online contract remain open M1 acceptance items.
 **Acceptance:** two devices can resume the same server match and read the same resulting cards; each played copy receives the correct XP exactly once; local edits grant nothing online. Tests cover transaction rollback and duplicate commands, followed by a deployed integration check with disposable fixtures and verified cleanup.
 
 ### M3 · Move the daily economy online, then add player trading
+
+The requested PvP track follows the M2 battle authority: private friend rooms →
+unranked matching → ranked seasons. See [mode acceptance details](docs/STORIES-AND-MODES.md#online-mode-roadmap).
+It can progress independently of player trading once its match/identity contract
+is proven. Do not promote local AI-arena points into a human competitive rating.
 
 **Dependencies:** M2 server identity, transactions and reward ledger. Move one command family at a time; do not maintain two competing authorities for an online balance.
 

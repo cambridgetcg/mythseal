@@ -60,6 +60,20 @@ and [checks](VALIDATION.md#life-pills-and-battle-transitions--2026-09-22).
 
 ## What actually runs
 
+The 2026-09-22 [story/mode expansion](STORIES-AND-MODES.md) adds three original
+illustrated maps, twelve encounters and weekly quests. The atlas now has four
+volumes/18 encounters, with independent chapter branches after Mist Gate. Daily
+and weekly activities share a journal; AI arena/practice are playable, real PvP
+and ranked remain explicitly deferred. `stories.mjs`, `stories.css` and three
+maps bring the source allowlist to **32 files**.
+
+Profile v3 has an additive weekly object; old local saves and old v1 backups
+remain supported without retroactive quest progress. No database migration or
+service change occurred. A future release must update the client and account
+Worker validator together: live v0.5.1 rejects the new fields/story IDs. Recheck
+hosted old/new backup acceptance and binding retention; local fixture tests are
+not hosted evidence. All historical release information below remains unchanged.
+
 ```mermaid
 flowchart LR
   Player[Browser player] --> Assets[Cloudflare static game assets]

@@ -42,3 +42,10 @@ The same day's shared battle pass adds CSS jade life rings, pill capsules and
 an original inline SVG ink-crossing/ripple in `battle-ui.mjs` / `battle.css`.
 The optional recovery cue is another synthesized tone. No external asset or
 new bitmap/audio download accompanies the resource and clash presentation.
+
+## Traditional-story maps · 2026-09-22
+
+Three new original map illustrations for 西遊, 封神 and 白蛇 are in `assets/maps/`.
+See [ART-STORIES.md](ART-STORIES.md) for the built-in image-generation prompts,
+selected output paths and provenance. Existing atlases and the 山海 map remain
+unchanged; labels and pins are drawn by the application.
