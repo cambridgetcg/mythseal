@@ -97,7 +97,7 @@ async function fixturePage(profile, { mobile = false, authenticated = false, ema
     if (url.origin === origin && !url.pathname.startsWith('/api/') && response.status() >= 400) errors.push(`${response.status()} ${url.pathname}`);
   });
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.locator('.hero h1').waitFor();
+  await page.locator('.game-lobby').waitFor();
   fixture.page = page;
   fixture.context = context;
   return fixture;
@@ -204,11 +204,14 @@ try {
   assert.equal(desktop.revision, 6);
   complete('Cloud deletion requires confirmation, preserves local progress and retains the revision when recreating a backup');
 
-  await page.locator('.brand[data-action="home"]').click();
-  await action(page, 'start').first().click();
+  await page.locator('.game-brand[data-action="home"]').click();
+  await page.locator('.game-dock [data-action="arena"]').click();
+  await action(page, 'start').click();
+  await action(page, 'confirm-start').click();
   await page.locator('.player-hand').waitFor();
-  await action(page, 'account-open').click();
+  await action(page, 'battle-menu').click();
   await action(page, 'navigate-confirm').click();
+  await action(page, 'account-open').click();
   await page.locator('.account-shell').waitFor(); await idle(page);
   const pending = await readProfile(page);
   const savedBattle = await page.evaluate(key => localStorage.getItem(key), battleKey);

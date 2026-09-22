@@ -15,7 +15,7 @@ const errors = [], checks = [], screenshots = [], contexts = [];
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const read = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROFILE_KEY);
-const go = (page, destination) => page.locator(`nav.nav [data-action="${destination}"]`).click();
+const go = (page, destination) => page.locator(`.game-dock [data-action="${destination}"]`).click();
 const action = (page, name, uid, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${uid ? `[data-id="${uid}"]` : ''}`);
 const waitInstance = (page, uid, fields) => page.waitForFunction(({ key, uid, fields }) => {
   const instance = JSON.parse(localStorage.getItem(key))?.instances.find(item => item.uid === uid);
@@ -65,7 +65,7 @@ async function seededPage(seed, { legacy = false, mobile = false, legacyBattle =
     if (response.status() >= 400 && response.url().startsWith(base)) errors.push(`${response.status()} ${response.url()}`);
   });
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.locator('.hero h1').waitFor();
+  await page.locator('.game-lobby').waitFor();
   return page;
 }
 
@@ -86,7 +86,7 @@ try {
   assert.deepEqual(migrated.instances.filter(instance => instance.cardId === 'qingxiao').map(instance => instance.level), [3, 3]);
   for (const field of ['coins', 'dust', 'xp', 'stats', 'deck']) assert.deepEqual(migrated[field], old[field]);
   assert.equal(await migration.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(old));
-  await migration.reload(); await migration.locator('.hero h1').waitFor();
+  await migration.reload(); await migration.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(migration), migrated);
   assert.equal(await migration.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(old));
   passed('v2 migration retains copy counts, levels, deck and resources; original raw key and v3 IDs survive reload');
@@ -106,7 +106,7 @@ try {
   const playedUID = migratedBattle.pending.cardInstances[removedRole];
   const beforePlayed = migratedBattle.instances.find(instance => instance.uid === playedUID);
   assert.deepEqual(await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v3'))), oldBattle);
-  await resumed.reload(); await resumed.locator('.hero h1').waitFor();
+  await resumed.reload(); await resumed.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(resumed)).pending, migratedBattle.pending);
   await action(resumed, 'resume').click();
   await resumed.locator('.player-hand').waitFor();
@@ -129,7 +129,7 @@ try {
   assert.deepEqual(settled.deck, pendingOld.deck);
   assert.equal(await resumed.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(pendingOld));
   assert.equal(await resumed.evaluate(() => localStorage.getItem('shanhai.battle.v2')), JSON.stringify(oldBattle));
-  await resumed.reload(); await resumed.locator('.hero h1').waitFor();
+  await resumed.reload(); await resumed.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(resumed), settled);
   passed('a pending v2 match resumes after a saved-deck edit, completes via UI, awards its original card once and preserves both old keys');
 
@@ -165,7 +165,7 @@ try {
   assert.equal(await action(page, 'instance-upgrade', copyUID, '.modal ').isDisabled(), false);
   await shot(page, 'backpack-passport.png');
   await page.locator('.modal-close').click();
-  await page.reload(); await page.locator('.hero h1').waitFor();
+  await page.reload(); await page.locator('.game-lobby').waitFor();
   await go(page, 'bag');
   await page.locator('#bag-filter').selectOption('locked');
   assert.equal(await page.locator('.bag-item').count(), 1);
@@ -192,7 +192,7 @@ try {
   assert.deepEqual(vaultEntry.instance, soldCard);
   assert(!sold.instances.some(instance => instance.uid === copyUID));
   assert.equal(sold.coins, beforeSale.coins + vaultEntry.sellPrice);
-  await page.reload(); await page.locator('.hero h1').waitFor();
+  await page.reload(); await page.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(page)).merchantVault.find(entry => entry.instance.uid === copyUID), vaultEntry);
   await go(page, 'market');
   await action(page, 'buyback-instance', copyUID).click();
@@ -204,7 +204,7 @@ try {
   passed('sale requires confirmation; cancel is inert; merchant buyback returns the exact UID with XP and battle history');
 
   await go(page, 'bag');
-  await action(page, 'bag-tab', 'decks').click();
+  await action(page, 'cards-tab', 'decks').click();
   const startingIDs = (await read(page)).deckSlots.find(slot => slot.id === 'deck-1').instanceIds;
   for (const [slotID, name, firstUID] of [['deck-2', '青霄再行', copyUID], ['deck-3', '第三陣 <山海>', originalUID]]) {
     await action(page, 'bag-new-deck').click();
@@ -233,7 +233,7 @@ try {
   assert.equal(await action(page, 'bag-delete-deck', 'deck-3').count(), 0);
   await shot(page, 'backpack-decks.png');
   const deckSnapshot = await read(page);
-  await page.reload(); await page.locator('.hero h1').waitFor();
+  await page.reload(); await page.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(page)).deckSlots, deckSnapshot.deckSlots);
   assert.equal((await read(page)).activeDeckId, 'deck-3');
   passed('deck slots 2 and 3 save and activate; same-role copy replaces draft selection; names and exact slots persist');
@@ -248,7 +248,7 @@ try {
   await noOverflow(mobile, '390px passport');
   assert.match(await mobile.locator('.bag-passport-id').innerText(), new RegExp(copyUID));
   await mobile.locator('.modal-close').click();
-  await action(mobile, 'bag-tab', 'decks').click();
+  await action(mobile, 'cards-tab', 'decks').click();
   await noOverflow(mobile, '390px decks');
   passed('390px mobile cards use two columns; card list, passport and three-deck editor have no horizontal overflow');
 

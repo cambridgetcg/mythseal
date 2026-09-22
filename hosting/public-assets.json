@@ -1,6 +1,6 @@
 [
   "index.html", "app.mjs", "engine.mjs", "collection.mjs", "progression.mjs",
-  "adventure-ui.mjs", "backpack-ui.mjs", "cloud-save.mjs", "account-client.mjs", "account-ui.mjs",
-  "styles.css", "adventure.css", "classics.css", "backpack.css", "account.css",
+  "adventure-ui.mjs", "backpack-ui.mjs", "cloud-save.mjs", "account-client.mjs", "account-ui.mjs", "navigation-ui.mjs",
+  "styles.css", "adventure.css", "classics.css", "backpack.css", "account.css", "navigation.css",
   "assets/mark.svg", "assets/portraits.png", "assets/classics.png", "assets/world-map.png"
 ]

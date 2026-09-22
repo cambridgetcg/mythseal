@@ -31,6 +31,15 @@ Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
 
+## Local development after the release snapshot
+
+The 2026-09-22 navigation slice adds a five-destination game lobby, unified
+cards/decks/codex hub, quest overlay and explicit encounter preparation with
+return-to-deck and next/retry flows. See [NAVIGATION.md](NAVIGATION.md) for behavior,
+code ownership and checks. The current source allowlist has 21 files; the
+19-file count above describes the live v0.5.1 snapshot, not this local change.
+No service, schema, account or save-key migration accompanies the UI.
+
 ## What actually runs
 
 ```mermaid

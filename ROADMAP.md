@@ -72,6 +72,11 @@ cross-device evidence and the online contract remain open M1 acceptance items.
 
 **Dependencies:** content/onboarding work can start now. Server competitive play depends on M2; valuable trading/rewards depend on M3.
 
+**Local presentation slice (2026-09-22):** the five-destination game lobby,
+unified cards/deck/codex hub, quest overlay and encounter preparation/next-match
+flow are implemented for local review. See [navigation behaviour and checks](docs/NAVIGATION.md).
+This does not change the live release or complete the broader M4 acceptance criteria.
+
 - Improve onboarding, explain four-round decisions and exact-card growth, and organize Traditional Chinese/English text without changing save identities. Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
 - Add new classical characters through explicit rules/content versions. Build per-card artwork manifests/derivatives with provenance; trial one card's CSS/Web Animations effects with reduced-motion, skip and background/resume support before scaling the art pipeline.
 - If PvP is selected, add matchmaking and a server-owned arena ladder as a separate slice. Specify simultaneous hidden moves, timeout/abandonment, reconnection and match outcomes before ranking or seasonal rewards.

@@ -93,3 +93,41 @@ results on the toolkit branch, separate from the historical CI/hosted results
 above. The September 22 follow-up adds a preview-binding regression for lone CR
 and Unicode line separators and portable browser screenshot paths. No real email,
 hosted data changes or deployment occurred in this pass.
+
+## Game lobby and navigation · 2026-09-22
+
+Local development evidence on `codex/game-lobby`; not a hosted release.
+
+- **194 Node tests and eight Python tests passed.** The Python run retained the
+  existing harmless temporary HTTP 404 cleanup `ResourceWarning` while passing.
+  Public build succeeded with **21 allowlisted runtime assets** plus metadata.
+- All six headless Chrome scripts passed against the current-source loopback
+  server at `127.0.0.1:4177`: smoke, journey, classics, backpack, account and the
+  new navigation suite. Account APIs were intercepted fixtures; no real email,
+  hosted account mutation, schema change or deployment was performed.
+- Preparation/cancel preserves profile and battle snapshot bytes. Editing an
+  exact duplicate copy and returning preserves the chosen location, and only
+  explicit Start freezes the active deck's UIDs into a pending encounter.
+- Leaving, editing the future active deck, resuming and reloading preserves the
+  original encounter ID, captured copies and pending battle snapshot. Existing
+  chosen-card/bid/Fury, reveal recovery and stale-tab abandon checks still pass.
+- Real UI wins lead to the next unlocked node; losses return through deck
+  preparation to the same node. Winning at the final node offers a revisit.
+  Preparation, deck detours and reload do not settle or award a completed match
+  twice. Draws use the same retry branch as losses; no new browser draw fixture
+  was added.
+- Filtered owned-card and codex details restore nonzero scroll and keyboard
+  focus. An empty unsaved deck draft survives tab/codex detours and the active
+  cards dock button. Claiming a daily reward keeps focus in the quest panel;
+  subsequent Tab navigation remains contained there.
+- At 360px and 390px, all five labelled dock controls remain visible with at
+  least 44px tap targets. All destinations, deck editor, catalogue, quest and
+  preparation panels fit without horizontal overflow or browser errors.
+- Root visually inspected original-art lobby, preparation and quests on phone
+  and desktop. The UI reviewer additionally inspected cards and 768px layout;
+  toast messages clear the dock. Screenshots are ignored local artifacts under
+  `test-results/navigation-ui-*`. Test-owned browser processes were closed.
+
+Behavior and scope are recorded in [NAVIGATION.md](NAVIGATION.md). Physical-device
+testing, native/browser-history integration and hosted release checks remain
+separate from this local UI slice.

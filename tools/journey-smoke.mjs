@@ -28,7 +28,18 @@ const screenshot = async (page, label) => {
   await page.screenshot({ path: output + filename, fullPage: true });
   screenshots.push(filename);
 };
-const go = (page, screen) => page.locator(`nav [data-action="${screen}"]`).click();
+const go = async (page, screen) => {
+  if (await page.locator('.modal-close').count()) await page.locator('.modal-close').click();
+  if (screen === 'daily') {
+    await page.locator('.game-dock [data-action="home"]').click();
+    return page.locator('.game-lobby [data-action="quests"]').click();
+  }
+  return page.locator(`.game-dock [data-action="${screen}"]`).click();
+};
+const practice = async page => {
+  await go(page, 'arena');
+  await page.locator('[data-action="start"]').click();
+};
 const waitProfile = async (page, predicate, argument) => {
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
@@ -48,7 +59,7 @@ async function contextWithSeed(seed, mobile = false) {
   }, { seed, key: profileKey });
   const page = await context.newPage(); watch(page);
   await page.goto(base);
-  await page.locator('.hero h1').waitFor();
+  await page.locator('.game-lobby').waitFor();
   return { context, page };
 }
 
@@ -128,7 +139,7 @@ try {
   assert(await page.locator('[data-action="daily-train"]').isDisabled());
   const afterTraining = await profile(page);
   await screenshot(page, 'daily-desktop');
-  await page.reload(); await page.locator('.hero h1').waitFor(); await go(page, 'daily');
+  await page.reload(); await page.locator('.game-lobby').waitFor(); await go(page, 'daily');
   assert.deepEqual(await profile(page), afterTraining);
   assert(await page.locator('[data-action="claim-login"]').isDisabled());
   assert(await page.locator('[data-action="daily-train"]').isDisabled());
@@ -196,6 +207,7 @@ try {
   const duel = await contextWithSeed({ profile: seasoned });
   const battle = duel.page;
   await go(battle, 'world'); await battle.locator('[data-action="travel"]').click();
+  await battle.locator('[data-action="confirm-start"]').click();
   await battle.locator('.player-hand').waitFor();
   const original = await snapshot(battle);
   assert.equal(original.match.mode, 'expedition');
@@ -219,7 +231,7 @@ try {
   assert.equal(await snapshot(battle), null);
   await screenshot(battle, 'expedition-result-desktop');
   const completed = p;
-  await battle.reload(); await battle.locator('.hero h1').waitFor();
+  await battle.reload(); await battle.locator('.game-lobby').waitFor();
   assert.deepEqual(await profile(battle), completed);
   assert.equal(await battle.locator('[data-action="resume"]').count(), 0);
   await go(battle, 'world');
@@ -227,6 +239,7 @@ try {
   checked.push(`real expedition win (${remainingRounds + 1} rounds), round-reveal resume, first-clear/daily payout, next-node unlock, reload without duplicate payout`);
 
   await go(battle, 'arena'); await battle.locator('[data-action="ranked"]').click();
+  await battle.locator('[data-action="confirm-start"]').click();
   await battle.locator('.player-hand').waitFor();
   const ranked = await snapshot(battle);
   assert.equal(ranked.match.mode, 'arena');
@@ -241,16 +254,17 @@ try {
   assert([5, 10, 30].includes(afterArena.arena.points));
   assert.equal(afterArena.daily.arenaMatches, 1);
   await battle.locator('[data-action="end-home"]').click();
-  await battle.locator('.hero [data-action="start"]').click();
+  await practice(battle);
+  await battle.locator('[data-action="confirm-start"]').click();
   await battle.locator('.player-hand').waitFor();
   assert.equal((await snapshot(battle)).match.mode, 'practice');
   const chosen = await battle.locator('.player-hand [data-action="select"]').nth(1).getAttribute('data-id');
   await battle.locator(`.player-hand [data-action="select"][data-id="${chosen}"]`).click();
   await battle.locator('#pill-slider').fill('2');
   await battle.locator('[data-action="fury"]').click();
-  await battle.locator('.brand').click();
+  await battle.locator('[data-action="battle-menu"]').click();
   await battle.locator('[data-action="navigate-confirm"]').click();
-  await battle.locator('.hero h1').waitFor();
+  await battle.locator('.game-lobby').waitFor();
   const held = await snapshot(battle);
   assert.equal(held.selected, chosen);
   assert.equal(held.pills, 2);
@@ -272,15 +286,16 @@ try {
   // Tab A holds a confirmation for battle 1 while tab B starts battle 2.
   // Confirming A's old dialog must not cancel or erase B's newer snapshot.
   const abandonedId = (await profile(battle)).pending.id;
-  await battle.locator('.brand').click();
+  await battle.locator('[data-action="battle-menu"]').click();
   assert.equal(await battle.locator('[data-action="abandon-navigate"]').getAttribute('data-encounter'), abandonedId);
   const secondTab = await duel.context.newPage(); watch(secondTab);
-  await secondTab.goto(base); await secondTab.locator('.hero h1').waitFor();
-  await secondTab.locator('.hero [data-action="start"]').click();
+  await secondTab.goto(base); await secondTab.locator('.game-lobby').waitFor();
+  await practice(secondTab);
   await secondTab.locator('[data-action="discard-pending"]').click();
   await waitProfile(secondTab, p => p.pending === null);
   assert.equal(await snapshot(secondTab), null);
-  await secondTab.locator('.hero [data-action="start"]').click();
+  await practice(secondTab);
+  await secondTab.locator('[data-action="confirm-start"]').click();
   await secondTab.locator('.player-hand').waitFor();
   const newerProfile = await profile(secondTab), newerBattle = await snapshot(secondTab);
   assert.notEqual(newerProfile.pending.id, abandonedId);
@@ -289,7 +304,7 @@ try {
   await battle.locator('.toast').filter({ hasText: '這局已在另一頁改變' }).waitFor();
   assert.deepEqual(await profile(battle), newerProfile);
   assert.deepEqual(await snapshot(battle), newerBattle);
-  await secondTab.locator('.brand').click();
+  await secondTab.locator('[data-action="battle-menu"]').click();
   await secondTab.locator('[data-action="abandon-navigate"]').click();
   await waitProfile(secondTab, p => p.pending === null);
   assert.equal((await profile(battle)).coins, afterArena.coins);
