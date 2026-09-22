@@ -131,6 +131,18 @@ Use [WX01 rules](../tests/wx01-cards.test.mjs),
 Completed local checks are recorded at the end of this document; they do not
 establish hosted behavior.
 
+## Next local content direction
+
+The owner requested a longer story and repeatable activity rewards after clearing
+all 18 encounters, and selected **火焰山三連戰** first. Read
+[CAMPAIGN-AND-EVENTS.md](CAMPAIGN-AND-EVENTS.md) before implementing: it proposes
+three bosses with saved supplies/owned and loaner routes, a six-volume/48-stage
+continuation delivered one eight-stage volume at a time, fixed BASE companions,
+targeted drops and WX-01 tickets. Reward values and recovery amounts are tuning
+proposals, not changed runtime rules. Versioned run/reward/ticket compatibility
+comes before the activity UI; preserve the existing four-stage 西遊 AA claim.
+This planning pass changes documentation only and has no deployment or save changes.
+
 ## What actually runs
 
 The 2026-09-22 [story/mode expansion](STORIES-AND-MODES.md) adds three original

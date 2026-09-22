@@ -39,6 +39,17 @@ twelve-pack protection, 神契匣, 西行印 redemption and a first-volume AA ch
 Candidate card balance and phone experience still need playtesting. Production
 v0.5.1 is unchanged; no release or hosted migration accompanies this work.
 
+**Longer story and activity direction · 2026-09-22:** after clearing the existing
+18 encounters repeatedly, the owner requested a longer main story and meaningful
+repeat-play rewards, and selected **火焰山三連戰** as the first activity. The
+[campaign/activity design](docs/CAMPAIGN-AND-EVENTS.md) proposes six eight-battle
+volumes (48 new stages), guaranteed companion BASE copies, targeted boss loot,
+pack tickets and lasting mastery rewards. First implementation order: compatible
+run/reward state → the three-boss activity with supplies and owned/loaner decks
+→ eight-stage story volume one. Counts, recovery rules and reward rates are
+playtest proposals; none of these additions are playable yet. Existing levels,
+clears, pack rates and special-printing protection remain the compatibility baseline.
+
 ## Shipped baseline and its limits
 
 **Local viewport scenes (2026-09-22):** the five destinations now use bounded
@@ -91,7 +102,7 @@ cross-device evidence and the online contract remain open M1 acceptance items.
 
 ### M2 · One authoritative battle with exact-card XP
 
-**Dependencies:** M1 online contract and starter-grant decision. This is the next gameplay implementation priority; the entire future economy is not a prerequisite.
+**Dependencies:** M1 online contract and starter-grant decision. This is the next online gameplay implementation priority; local campaign/activity work can proceed independently. The entire future economy is not a prerequisite.
 
 - Add an isolated authoritative schema with server-issued card UIDs, versioned rules, matches and append-only XP/reward events. Select one transactional adapter using the [backend design](docs/BACKEND-STACK.md); Hyperdrive/pg remains proposed, not deployed.
 - Implement sign-in → read starter inventory → start AI match → submit four rounds → settle once. Reuse pure rules, inject controlled randomness in tests, freeze the participating UIDs/rules version and keep hidden choices private.

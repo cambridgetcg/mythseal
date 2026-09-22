@@ -5,6 +5,13 @@ weekly, main-story, PvP, arena and ranked modes. They chose **maps and quests
 first, with real online PvP/ranked on the roadmap**. This is local implementation,
 not a deployment.
 
+This records the original 18-encounter slice. Subsequent WX-01 work upgrades the
+local save to v4, adds five 西行印 to the weekly ten-match claim and adds a
+first-volume AA choice; [HANDOVER.md](HANDOVER.md) records that current baseline.
+The requested longer campaign and selected **火焰山三連戰** are now planned in
+[CAMPAIGN-AND-EVENTS.md](CAMPAIGN-AND-EVENTS.md), with fixed-character, loot and
+pack-ticket proposals. Those additions are not implemented by this document.
+
 ## Four playable volumes
 
 萬象行卷 now contains four maps and 18 encounters. The original six 山海
