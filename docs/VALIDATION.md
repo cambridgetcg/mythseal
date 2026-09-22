@@ -2,10 +2,58 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Life, pills and battle transitions · 2026-09-22
+
+Local follow-up on `codex/game-lobby`; not a deployment or a physical-device test.
+
+- **220 Node tests and eight Python tests pass.** Nine resource-presentation
+  tests use accepted engine results to cover costs including Fury, zero bids,
+  overkill, capped/suppressed healing and refunds, invalid data and static reload.
+  The controller suite now has 17 tests, including phase callbacks and immediate
+  completion/cancellation without stale paints or cues. The existing Python
+  temporary-404 cleanup warning remains harmless.
+- `npm run build` succeeds with **27 allowlisted runtime assets** plus metadata.
+  No dependency, binary art, rule, account or schema change accompanies this work.
+- All **eight Chrome browser suites** pass against `127.0.0.1:4177`: smoke,
+  journey, classics, backpack, account, navigation, immersion and the new
+  `tools/battle-presentation-smoke.mjs`. Account tests intercept fixture APIs;
+  no real email, account mutation or public deployment is involved.
+- The new suite checks own bid/Fury capsule previews against unchanged public
+  reserves. Otherwise identical encounters with different hidden opponent bids
+  and Fury render the same opponent HUD. The precommitted AI save is unchanged
+  by the player's preview controls.
+- Observed resource frames follow sealed → bids → impact → recovery → complete.
+  A capped fixture's player moves from 11 HP/12 pills to 11/4, then 12/4;
+  the opponent goes from 12/11 to 7/11, then 7/12. Other fixtures cover uncapped
+  healing/refunds, zero reserve, Fury and overkill. The UI uses actual capped HP
+  loss, while the card's damage badge retains the accepted hit value.
+- Normal, fast, skipped and reduced-motion runs retain identical accepted
+  results and saved totals. Early Next cancels the old reveal, unfinished-round
+  reload shows final resources without replay, and completed-match reload cannot
+  pay twice. Synthetic pagehide/pageshow completes presentation and preserves
+  saves; this does not certify native phone background behaviour.
+- Screenshots and measurements cover **1440px**, **360px** and **390px**, with
+  no horizontal overflow or browser errors. Phone HUD numbers are 25px, compact
+  result numbers 21–23px, and pill ± buttons are 44×44px. Portrait battles still
+  scroll vertically; a compact battle-table redesign remains a separate follow-up.
+  Resource captions are 10px and span the panel; the result footer keeps its
+  controls in view while the full explanation scrolls underneath.
+- Normal completion measured **1101–1103 ms from the first sealed frame** in
+  the recorded run. The configured phases are 100/390/720/1100 ms. These are
+  local observations, not a physical-phone performance guarantee.
+
+Ignored evidence is recorded in `test-results/battle-presentation-smoke.json`,
+`battle-presentation-{preview,clash}-{desktop,360,390}.png` and the updated
+immersion results. Owned test browsers were closed. Physical iOS/Android checks,
+audible recovery-cue tuning and human repeat-play pacing remain open; see
+[scope and next additions](IMMERSION.md#life-pills-and-battle-transitions--2026-09-22).
+
 ## Mist Gate immersion · 2026-09-22
 
 Local development on `codex/game-lobby`, following the navigation slice. This is
-browser/source evidence, not a public deployment or physical-phone test.
+browser/source evidence, not a public deployment or physical-phone test. The
+counts, timing and mode scope below describe that earlier pass; the shared
+resource/clash follow-up above supersedes them.
 
 - **206 Node tests pass**, including 12 new presentation-controller tests.
   Coverage includes normalized/preference-only writes, blocked storage, cancelled

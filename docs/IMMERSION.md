@@ -3,8 +3,8 @@
 Direction requested **2026-09-22**: enrich the experience of inhabiting the world,
 handling cards, making four-round decisions and travelling with individual card
 copies. This M4 design and delivery plan is linked to the confirmed iOS/Android
-direction. **The first 霧隱渡口 presentation pass is now implemented locally**;
-its scope is recorded below. The wider ideas remain proposals to playtest, not
+direction. **霧隱渡口 and the shared life/pill/clash presentation are implemented locally**;
+their scope is recorded below. The wider ideas remain proposals to playtest, not
 a committed launch feature list. Public release state belongs in [HOSTING.md](HOSTING.md).
 
 ## Creative direction
@@ -37,9 +37,9 @@ understand.
   interaction cues. Device-local preferences remember sound, ambience/effect
   levels, reduced motion and normal/fast reveals. Native haptics, recorded
   soundscapes and a music system remain future work.
-- Round results already expose both bids, attacks, effects and damage; match
-  results expose rewards and XP. Mist Gate stages that information while
-  preserving access to the complete explanation.
+- Every battle mode now has a jade life meter, individual pill markers and a
+  staged public-result clash. Damage and recovery are distinct beats, followed
+  by the complete explanation. Match results expose actual rewards and XP.
 - Card details already have a 同行記 with acquisition date/source, XP, level,
   appearance/win totals and lore. The save does not contain a detailed,
   timestamped account of every card's past adventures.
@@ -59,10 +59,11 @@ particular care for subtlety and transitions:
   Selection has a small lift, the offering tray distinguishes bid/Fury/reserve,
   and a public faction strip explains bonuses from the original hand. The
   strip remains after an ally has played; there are no new faction rules.
-- On commitment, a seal introduces the saved result. Bids appear at 100 ms,
-  impact at 390 ms, and presentation completes at 760 ms, with 160 ms visual
+- On commitment, a seal introduces the saved result. The first pass used bids
+  at 100 ms, impact at 390 ms and completion at 760 ms, with 160 ms visual
   transitions and stable controls. Skip/Next are immediately available. Restored
-  or reopened results render completely without replaying the sequence.
+  or reopened results render completely without replaying the sequence. The
+  shared resource pass below now adds a separate recovery beat.
 - Sound is off initially. The player can enable soft synthesized cues and a
   quiet water-like texture, with separate environment/effect levels. Audio has
   its own deterministic noise source so it cannot change combat randomness.
@@ -81,18 +82,58 @@ Implementation ownership: `mist-gate-ui.mjs` and `mist-gate.css` supply the scen
 `experience.mjs` owns optional preferences/audio/reveal timing; `app.mjs` connects
 the existing battle and return paths. `backpack-ui.mjs` supplies the read-only
 passport variant. There are no engine, economy or profile-schema changes, and
-the public build includes 24 allowlisted files. Verification belongs in
+that pass brought the public build to 24 allowlisted files. Verification belongs in
 [VALIDATION.md](VALIDATION.md#mist-gate-immersion--2026-09-22).
 
 This completes a local playable slice of M4.1–M4.2. Human playtesting, measured
 physical-phone performance and the wider content pipeline remain open milestone
 evidence; screenshots and browser emulation do not complete those requirements.
 
+## Life, pills and battle transitions · 2026-09-22
+
+Implemented after the owner's request to make 生命 and 仙丹 more engaging and add
+battle animation/transitions:
+
+- A jade ring and segmented life line retain an explicit HP number; low life
+  also shows a visible 危 marker. Twelve pill capsules show the actual reserve.
+  The player's proposed bid lifts its capsules, and Fury marks its extra three
+  separately. Planning never subtracts pills or reveals the opponent's bid.
+- All battle modes use the same sequence: accepted bids spend pills at **100 ms**,
+  cards meet and capped HP loss lands at **390 ms**, healing/refunds appear at
+  **720 ms**, and presentation completes at **1100 ms**. A small ink stroke and
+  damage badge give the clash weight; a recovery cue plays only for an actual
+  positive recovery when sound is enabled. Mist Gate keeps its scene and seal.
+- The HUD shows actual HP lost and actual recovery after caps. A card's damage
+  badge remains labelled 傷害, since an overkill hit can exceed remaining HP.
+  Complete resource totals and effect explanations remain available as text.
+- Match start and Next bring the heading and hand in softly, without blocking
+  input. Fast, skip, reduced motion and interrupted reveals show final totals
+  immediately. Opening settings or resuming a saved reveal does not replay it.
+- Resource captions span their panel for phone readability. A sticky result
+  footer keeps Next, Skip and settings reachable while the explanation scrolls;
+  the full battle table still uses its existing vertical layout.
+- `battle-presentation.mjs` derives transient frames from the before-resources
+  and the engine's already-accepted result. It never resolves rules or settles
+  rewards. The before-resources are not persisted; reload honestly shows the
+  saved final resources instead of reconstructing an animation. Completed-match
+  reload retains earned rewards but does not restore a completed-result receipt.
+
+`battle-ui.mjs` / `battle.css` own markup and motion; `experience.mjs` owns phase
+cancellation; `app.mjs` captures and connects the presentation. The public
+allowlist now contains **27 files**, with no new runtime dependency, bitmap,
+service, rule or save-schema change. This is local work, not a deployment. See
+[verification](VALIDATION.md#life-pills-and-battle-transitions--2026-09-22).
+
+The 1.1-second normal sequence supersedes the initial ≤900 ms proposal to give
+recovery a readable beat. Skip and Next never wait for it. Human repeat-play
+pacing and physical-phone performance remain to be measured.
+
 ## Additions worth testing next
 
 | Priority | Addition | What would make it worthwhile |
 | --- | --- | --- |
 | Next polish | Listen on speakers/headphones and physical phones; tune the synthesized water texture, cue volume and transition envelopes. Try a brief ambience dip at commitment. | The cue is felt without becoming repetitive or masking concentration; mute/lifecycle remains immediate and reliable. |
+| Next polish | Playtest the shared life/pill sequence through four rounds, including a low-life comeback and no-recovery result. | Players can explain the spend, hit and recovery without reading every effect; tune the 1.1-second normal pace from actual repeat play. |
 | Next polish | Give earned XP a restrained visual flow into each played copy; add one brief faction connection between the relevant cards. | Make growth and resonance easier to follow without adding another wait or hiding the numbers. Current delivery uses real XP rows and a faction strip. |
 | Phone playtest | Try a more compact portrait battle layout or a carefully placed bid tray. | Reduce scrolling between the four cards and commitment controls while keeping card details readable and touch targets clear. Current narrow layouts fit the width but still scroll vertically. |
 | Next scene | A closer original ferry/shore illustration, with independently controlled mist/water layers and a gentle arrival-to-table transition. | Establish a sense of place beyond the existing map crop, within measured phone asset/render budgets and documented art provenance. |
@@ -145,14 +186,15 @@ through a whole existing battle, including losses and early knockouts.
 | Arrival | Existing map art, a lantern accent and the current line: 「渡船停在霧中，掌燈人正等你落下第一子。」 Optional water ambience follows the player's audio choice. | Preparation and deck editing remain immediately available. Returning players can proceed without replaying an introduction. |
 | Choose | Cards feel lifted from the hand; each pill adjustment has a subtle cue and an explicit number. | Keep initiative, both public hands, remaining pills and Fury cost visible. Selection previews remain estimates. |
 | Commit | A seal closes on the player's choice; any ambience dips briefly. | The first mover's card is public; pill spend and Fury stay hidden until both moves are committed. Never infer feedback from the other side's secret bid. |
-| Reveal | Show both resolved commitments → compare actual attacks → impact → damage/recovery and remaining resources. | Aim for a normal reveal of at most 900 ms, with no mandatory reading timer. Keep the complete textual explanation and an explicit next-round control. |
+| Reveal | Show both resolved commitments → compare actual attacks → impact → damage/recovery and remaining resources. | The shared implementation uses 1100 ms with immediately available skip/Next; playtest that pace. Keep the complete textual explanation. |
 | Completion | The win, draw or loss has a short distinct response. Earned XP is associated with each exact played copy, alongside the existing reward totals. | Viewing/skipping effects does not pay rewards. Unplayed cards receive no XP; practice retains its existing no-XP/no-currency rule. |
 | Return | On a first victory, the next real location becomes legible on the map; on loss/draw, the same encounter offers retry or a deck adjustment. | Preserve the implemented next/retry and deck-return context. No extra confirmation is needed to dismiss a celebration. |
 
-The 900 ms reveal and the content pipeline's 120–180 ms selection / 250–400 ms
-flip ranges are **initial playtest targets**, not measured performance or a
-requirement to animate every beat separately. Try the fast/static version early;
-four-round repeat play should remain brisk.
+The original 900 ms reveal proposal has been superseded by the resource pass
+above. The content pipeline's 120–180 ms selection / 250–400 ms flip ranges are
+initial playtest targets, not measured performance or a requirement to animate
+every beat separately. Try the fast/static version early; four-round repeat play
+should remain brisk.
 
 ## Delivery packets
 

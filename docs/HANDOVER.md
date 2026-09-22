@@ -36,7 +36,7 @@ contains no credentials. Resource identities and deployment receipts live in
 The 2026-09-22 navigation slice adds a five-destination game lobby, unified
 cards/decks/codex hub, quest overlay and explicit encounter preparation with
 return-to-deck and next/retry flows. See [NAVIGATION.md](NAVIGATION.md) for behavior,
-code ownership and checks. The current source allowlist has 21 files; the
+code ownership and checks. That slice brought the source allowlist to 21 files; the
 19-file count above describes the live v0.5.1 snapshot, not this local change.
 No service, schema, account or save-key migration accompanies the UI.
 
@@ -44,11 +44,19 @@ The 2026-09-22 [immersion work](IMMERSION.md) now includes a local 霧隱渡口 
 lantern/mist arrival and battle atmosphere, short skippable public-result reveals,
 optional synthesized ambience/cues, persistent device preferences and read-only
 exact-copy journals linked from rewards. `mist-gate-ui.mjs`, `mist-gate.css` and
-`experience.mjs` bring the source allowlist to **24 files**. Battle/economy rules
+`experience.mjs` brought the source allowlist to 24 files. Battle/economy rules
 and profile schemas are unchanged. New detailed journal milestones, native
 haptics, other realm treatments and gameplay experiments remain planned. See
 [local evidence](VALIDATION.md#mist-gate-immersion--2026-09-22) and
 [phone launch sequencing](MOBILE-RELEASE.md).
+
+The same day's resource/clash follow-up adds shared jade life meters, twelve
+pill capsules with bid/Fury preview, separate spending/impact/recovery beats and
+soft round arrivals in every battle mode. `battle-ui.mjs`, `battle.css` and
+`battle-presentation.mjs` bring the current allowlist to **27 files**. Presentation
+reads accepted engine results; before-resource frames are transient, so resumed
+reveals show saved final totals. See [scope](IMMERSION.md#life-pills-and-battle-transitions--2026-09-22)
+and [checks](VALIDATION.md#life-pills-and-battle-transitions--2026-09-22).
 
 ## What actually runs
 

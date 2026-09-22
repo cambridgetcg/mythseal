@@ -100,6 +100,14 @@ comfort controls and exact-copy XP → 同行記 → result navigation. See
 Human playtesting, physical-device performance and the wider art/content work
 remain open acceptance evidence. This is local development, not a deployment.
 
+**Shared battle presentation (2026-09-22):** jade life meters, twelve pill
+capsules with bid/Fury planning, a card clash and separate spend/damage/recovery
+beats now work in every battle mode. Normal presentation takes 1.1 seconds;
+skip, fast and reduced motion show the same final totals immediately. Soft
+match/round arrivals complete this local follow-up. See
+[scope and next polish](docs/IMMERSION.md#life-pills-and-battle-transitions--2026-09-22)
+and [verification](docs/VALIDATION.md#life-pills-and-battle-transitions--2026-09-22).
+
 **Immersion track (local first slice; remaining work planned):** follow [IMMERSION.md](docs/IMMERSION.md) for the
 player moments, first-encounter storyboard and implementation/validation seams.
 

@@ -135,6 +135,102 @@ test('reveals progress through public phases without game callbacks or persisten
   controller.destroy();
 });
 
+test('battle callbacks synchronously paint the initial frame and extend recovery to a single final frame', () => {
+  const env = environment(), controller = createExperienceController(env), element = dialog(env), phases = [];
+  controller.reveal(element, { battle: true, onPhase(phase, target) {
+    assert.equal(target, element); assert.equal(target.dataset.phase, phase);
+    assert.equal(target.dataset.revealState, phase === 'complete' ? 'complete' : 'animating');
+    target.paintedPhase = phase; phases.push(phase);
+  } });
+  assert.equal(element.paintedPhase, 'sealed', 'The first frame is painted before reveal returns');
+  env.advance(99); assert.deepEqual(phases, ['sealed']);
+  env.advance(1); assert.equal(element.paintedPhase, 'bids');
+  env.advance(290); assert.equal(element.paintedPhase, 'impact');
+  env.advance(329); assert.equal(element.paintedPhase, 'impact');
+  env.advance(1); assert.equal(element.paintedPhase, 'recovery');
+  env.advance(40); assert.equal(element.paintedPhase, 'recovery', 'Battle recovery remains visible past the legacy 760 ms duration');
+  env.advance(340); assert.equal(element.paintedPhase, 'complete');
+  assert.deepEqual(phases, ['sealed', 'bids', 'impact', 'recovery', 'complete']);
+  assert.equal(env.timers.size, 0); controller.finishReveal(); assert.equal(phases.length, 5);
+  assert.deepEqual(env.writes, []);
+  controller.destroy();
+});
+
+test('static, reduced, fast and hidden battle reveals paint only accepted final resources', () => {
+  for (const mode of ['static', 'reduced', 'system', 'fast', 'hidden', 'destroyed']) {
+    const env = environment(), controller = createExperienceController(env), element = dialog(env), phases = [];
+    if (mode === 'reduced') controller.setPreferences({ motion: 'reduce' });
+    if (mode === 'system') env.media.matches = true;
+    if (mode === 'fast') controller.setPreferences({ pace: 'fast' });
+    if (mode === 'hidden') env.document.hidden = true;
+    if (mode === 'destroyed') controller.destroy();
+    controller.reveal(element, { battle: true, animate: mode !== 'static', onPhase: phase => phases.push(phase) });
+    assert.deepEqual(phases, ['complete'], mode);
+    assert.equal(element.dataset.revealState, 'complete'); assert.equal(element.skip.hidden, true);
+    assert.equal(env.timers.size, 0); controller.finishReveal(); assert.equal(phases.length, 1);
+    controller.destroy();
+  }
+});
+
+test('skip and lifecycle interruptions paint final resources before hiding skip, with no stale callbacks', () => {
+  for (const interrupt of ['skip', 'hidden', 'pagehide', 'reduce', 'system', 'fast', 'destroy']) {
+    const env = environment(), controller = createExperienceController(env), element = dialog(env), phases = [];
+    controller.reveal(element, { battle: true, onPhase(phase) {
+      phases.push(phase);
+      if (phase === 'complete') {
+        assert.equal(element.skip.hidden, false, 'The accepted final frame precedes skip removal');
+        element.paintedFinal = true;
+      }
+    } });
+    env.advance(100); element.skip.focus();
+    if (interrupt === 'hidden') { env.document.hidden = true; env.document.emit('visibilitychange'); }
+    else if (interrupt === 'pagehide') env.window.emit('pagehide');
+    else if (interrupt === 'reduce') controller.setPreferences({ motion: 'reduce' });
+    else if (interrupt === 'system') { env.media.matches = true; env.media.emit('change'); }
+    else if (interrupt === 'fast') controller.setPreferences({ pace: 'fast' });
+    else if (interrupt === 'destroy') controller.destroy();
+    else controller.finishReveal();
+    assert.deepEqual(phases, ['sealed', 'bids', 'complete'], interrupt);
+    assert.equal(element.paintedFinal, true); assert.equal(element.skip.hidden, true);
+    assert.equal(env.document.activeElement, element.next); assert.equal(env.timers.size, 0);
+    for (const callback of env.scheduled) callback();
+    env.advance(2000); controller.finishReveal();
+    assert.deepEqual(phases, ['sealed', 'bids', 'complete'], `${interrupt} leaves no late phase repaint`);
+    controller.destroy();
+  }
+});
+
+test('replacement paints the old result final before starting the new one and rejects stale phase effects', async () => {
+  const env = environment(), audio = fakeAudio(env), controller = createExperienceController(env), first = dialog(env), second = dialog(env), phases = [];
+  controller.setPreferences({ sound: true }); await controller.unlockAudio();
+  controller.reveal(first, { battle: true, onPhase: phase => phases.push(`first:${phase}`) });
+  const stale = [...env.scheduled];
+  controller.reveal(second, { battle: true, onPhase: phase => phases.push(`second:${phase}`) });
+  assert.deepEqual(phases, ['first:sealed', 'first:complete', 'second:sealed']);
+  for (const callback of stale) callback();
+  assert.equal(phases.length, 3);
+  assert.equal(audio.contexts[0].nodes.filter(node => node.kind === 'oscillator').length, 0);
+  env.advance(1100);
+  assert.deepEqual(phases.slice(3), ['second:bids', 'second:impact', 'second:recovery', 'second:complete']);
+  assert.equal(audio.contexts[0].nodes.filter(node => node.kind === 'oscillator').length, 2, 'Recovery has no automatic tone without an actual recovery decision');
+  controller.destroy();
+});
+
+test('presentation callback failure cannot strand skip, focus or timers; callback cancellation cannot schedule stale work', () => {
+  const env = environment(), controller = createExperienceController(env), element = dialog(env), calls = [];
+  controller.reveal(element, { battle: true, onPhase(phase) { calls.push(phase); throw Error('paint failed'); } });
+  element.skip.focus(); env.advance(1100);
+  assert.deepEqual(calls, ['sealed', 'bids', 'impact', 'recovery', 'complete']);
+  assert.equal(element.dataset.revealState, 'complete'); assert.equal(element.skip.hidden, true);
+  assert.equal(env.document.activeElement, element.next); assert.equal(env.timers.size, 0);
+  const cancelled = [];
+  controller.reveal(element, { battle: true, onPhase(phase) {
+    cancelled.push(phase); if (phase === 'sealed') controller.finishReveal();
+  } });
+  assert.deepEqual(cancelled, ['sealed', 'complete']); assert.equal(env.timers.size, 0);
+  controller.destroy();
+});
+
 test('skip and replacement clear every timeout, ignore stale callbacks and never hide focused skip', () => {
   const env = environment(), controller = createExperienceController(env), first = dialog(env), second = dialog(env, { next: false });
   controller.reveal(first); const stale = [...env.scheduled];
@@ -294,7 +390,7 @@ test('a delayed audio resume cannot restart ambience after hide or destruction',
 test('effects volume applies immediately, ended voices disconnect, and unsupported audio is harmless', async () => {
   const env = environment(), audio = fakeAudio(env), controller = createExperienceController(env);
   controller.setPreferences({ sound: true }); await controller.unlockAudio();
-  for (const kind of ['select', 'pill', 'commit', 'reveal', 'impact', 'win', 'lose', 'draw']) assert.equal(controller.cue(kind), true);
+  for (const kind of ['select', 'pill', 'commit', 'reveal', 'impact', 'win', 'lose', 'draw', 'recovery']) assert.equal(controller.cue(kind), true);
   assert.equal(controller.cue('unknown'), false);
   const context = audio.contexts[0], oscillators = context.nodes.filter(node => node.kind === 'oscillator');
   assert(oscillators.slice(0, 2).every(node => node.stopped && node.disconnected), 'Rapid input has a bounded voice count');

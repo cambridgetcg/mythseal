@@ -37,3 +37,8 @@ water-like texture. The noise generator is independent of gameplay randomness;
 its two-second mono buffer is generated locally, with tapered loop edges and a
 short gain envelope. This is synthesized ambience, not a field recording or
 music track. See [IMMERSION.md](IMMERSION.md) for proposed art/audio follow-ups.
+
+The same day's shared battle pass adds CSS jade life rings, pill capsules and
+an original inline SVG ink-crossing/ripple in `battle-ui.mjs` / `battle.css`.
+The optional recovery cue is another synthesized tone. No external asset or
+new bitmap/audio download accompanies the resource and clash presentation.

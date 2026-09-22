@@ -147,6 +147,7 @@ async function commit(page, move, { mist = true, skip = false } = {}) {
     assert.equal(await page.locator('.mist-reveal').getAttribute('data-reveal-state'), 'complete');
     await page.locator('.result-modal .resolution').waitFor({ state: 'visible' });
   } else {
+    await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
     await page.locator('.result-modal .resolution').waitFor();
     assert.equal(await page.locator('.mist-reveal').count(), 0);
   }
@@ -266,7 +267,7 @@ try {
     await release(page);
   }
   const normalPhases = timings.find(item => item.label === 'normal' && item.round === 1).phases.map(item => item.phase);
-  assert.deepEqual(normalPhases, ['sealed', 'bids', 'impact', 'complete']);
+  assert.deepEqual(normalPhases, ['sealed', 'bids', 'impact', 'recovery', 'complete']);
   assert(baseline.moves.length < 4, 'The winning fixture also exercises an early knockout');
   passed('Normal, fast, system-reduced, manual-reduced, skipped and sound-enabled reveals produce identical moves, accepted snapshots, settled saves and game-random call counts, including early KO');
   passed('Only played exact UIDs gain XP; result passports return without another award; final reload preserves balances, copy XP and completed state');
@@ -376,7 +377,7 @@ try {
   for (const field of ['coins', 'dust', 'xp']) assert.equal(practiced.profile[field], practiceSeed[field]);
   assert.deepEqual(practiced.profile.instances.map(instance => [instance.uid, instance.xp]), practiceSeed.instances.map(instance => [instance.uid, instance.xp]));
   await release(practice);
-  passed('Jade Forest and practice retain ordinary preparation/reveal; practice still awards no currency or card XP');
+  passed('Jade Forest and practice use the shared battle reveal without Mist scenery; practice still awards no currency or card XP');
 
   for (const width of [360, 390]) {
     const phone = await seededPage(seed, { width, reducedMotion: 'reduce', preferences: preference });

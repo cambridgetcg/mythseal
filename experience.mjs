@@ -20,9 +20,9 @@ const TONES = Object.freeze({
   select: [540, 620, 0.06, 'sine'], pill: [720, 660, 0.045, 'sine'],
   commit: [180, 125, 0.18, 'sine'], reveal: [460, 640, 0.18, 'sine'],
   impact: [125, 85, 0.12, 'triangle'], win: [520, 780, 0.28, 'sine'],
-  lose: [260, 220, 0.22, 'sine'], draw: [330, 390, 0.22, 'sine'],
+  lose: [260, 220, 0.22, 'sine'], draw: [330, 390, 0.22, 'sine'], recovery: [390, 520, 0.16, 'sine'],
 });
-const PHASE_LABELS = { sealed: '雙方落子，準備揭曉。', bids: '仙丹揭曉。', impact: '勝負已定。', complete: '揭曉完成。' };
+const PHASE_LABELS = { sealed: '雙方落子，準備揭曉。', bids: '仙丹揭曉。', impact: '勝負已定。', recovery: '回合效果結算。', complete: '揭曉完成。' };
 
 export function createExperienceController({ storage, document, window, onPreferencesChange } = {}) {
   let preferences;
@@ -166,13 +166,18 @@ export function createExperienceController({ storage, document, window, onPrefer
   }
   function setScene(active) { if (destroyed) return; scene = active === true; syncAmbience(); }
 
-  function phase(element, value) {
+  function phase(current, value) {
+    const { element, onPhase } = current;
     element.dataset.phase = value;
     const label = element.querySelector?.('[data-reveal-status]');
     if (label) label.textContent = PHASE_LABELS[value];
+    try { onPhase?.(value, element); } catch {}
   }
-  function complete(element) {
-    phase(element, 'complete'); element.dataset.revealState = 'complete';
+  function complete(current) {
+    const { element } = current;
+    element.dataset.revealState = 'complete'; phase(current, 'complete');
+    // A presentation callback may have started a replacement on this element.
+    if (activeReveal?.element === element) return;
     const skip = element.querySelector?.('[data-action="skip-reveal"]');
     if (!skip) return;
     if (document?.activeElement === skip || skip.contains?.(document?.activeElement)) {
@@ -187,22 +192,27 @@ export function createExperienceController({ storage, document, window, onPrefer
     if (!activeReveal) return;
     const prior = activeReveal; activeReveal = null;
     for (const timer of prior.timers) cancel(timer);
-    prior.timers.clear(); complete(prior.element);
+    prior.timers.clear(); complete(prior);
   }
-  function reveal(element, { animate = true } = {}) {
+  function reveal(element, { animate = true, onPhase = null, battle = false } = {}) {
     finishReveal();
     if (!element?.dataset) return;
-    if (destroyed || !animate || reducedMotion() || preferences.pace === 'fast' || hidden()) { complete(element); return; }
-    const current = { element, timers: new Set() }; activeReveal = current;
-    element.dataset.revealState = 'animating'; phase(element, 'sealed');
+    const current = { element, timers: new Set(), onPhase: typeof onPhase === 'function' ? onPhase : null };
+    if (destroyed || !animate || reducedMotion() || preferences.pace === 'fast' || hidden()) { complete(current); return; }
+    activeReveal = current;
+    element.dataset.revealState = 'animating';
     const skip = element.querySelector?.('[data-action="skip-reveal"]');
     if (skip) { skip.hidden = false; skip.disabled = false; }
-    for (const [delay, value, sound] of [[100, 'bids', 'reveal'], [390, 'impact', 'impact'], [760, 'complete', null]]) {
+    phase(current, 'sealed');
+    if (activeReveal !== current) return;
+    const phases = [[100, 'bids', 'reveal'], [390, 'impact', 'impact'], ...(battle ? [[720, 'recovery', null], [1100, 'complete', null]] : [[760, 'complete', null]])];
+    for (const [delay, value, sound] of phases) {
       const timer = schedule(() => {
         current.timers.delete(timer);
         if (activeReveal !== current) return;
         if (hidden() || element.isConnected === false || value === 'complete') { finishReveal(); return; }
-        phase(element, value); cue(sound);
+        phase(current, value);
+        if (activeReveal === current) cue(sound);
       }, delay);
       current.timers.add(timer);
     }

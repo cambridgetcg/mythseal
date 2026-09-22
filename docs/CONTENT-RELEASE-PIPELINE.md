@@ -81,6 +81,10 @@ WebP 作主要 runtime 候選，AVIF 作經品質／解碼時間檢查後的額�
 
 初始節奏可用選卡 120–180 ms、翻牌 250–400 ms、揭曉全段 ≤900 ms；減少動態模式改為即時狀態／短淡入，提供跳過重複演出。CSS 與 JS 都讀 `prefers-reduced-motion`，並提供遊戲內減少動態選項；切換時取消現有動畫並完成狀態對齊。裝飾動態在頁面不可見時暫停，關鍵結果保留文字與數字。[MDN reduced motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion)
 
+2026-09-22 本機資源演出將一般揭曉調整為 1100 ms，留出獨立的回復／回丹節拍；
+此設定取代上述初始 ≤900 ms 提案，跳過與下一回合仍可即時使用。實機與重複遊玩
+節奏尚待測量，詳見 [生命、仙丹與對戰演出](IMMERSION.md#life-pills-and-battle-transitions--2026-09-22)。
+
 ## 5. 四條發佈線與相容 manifest
 
 | 發佈線 | 獨立版本／固定產物 | 驗收及回退 |
