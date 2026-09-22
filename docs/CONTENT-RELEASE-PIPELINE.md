@@ -159,6 +159,11 @@ Native 內容更新不能當成繞過商店 review 的任意遠端程式替換�
 
 ## 9. 下一個可交付切片
 
+2026-09-22 補充：[沉浸體驗設計](IMMERSION.md) 把首次遊歷「霧隱渡口」列為
+M4.1–M4.2 的完整體驗切片。以下單卡 manifest／動畫試作仍是素材流程的獨立任務；
+首次遊歷可先沿用現有圖集，以已保存的公開結果串起落子、揭曉、歷練及返回旅途。
+新音效也需記錄原創／授權來源及下載、解碼成本。這是計劃補充，尚未新增素材或演出。
+
 1. 先為現有 24 張卡建立 art manifest、原稿 checksums 和正確 crop rectangles；產生兩級 per-card WebP／AVIF derivatives，保留現在的 PNG fallback。驗卡序、裁切邊界、字／圖分離和真機可辨識度。
 2. 做一張悟空卡的 CSS／WAAPI 翻牌及短暫武器光效，加 reduced-motion／跳過／取消；沿用已保存的 battle result。先測一張，未達效能目標不推全卡動畫。
 3. 在本次 web artifact allowlist／build 邊界檢查上增加固定 release manifest 和 preview smoke；保留目前本機 Wrangler OAuth 的可追蹤發布流程。待供應商 GitHub App integration 或經確認支援的短期認證路徑可用，再驗證自動 staging promotion 與舊版本回退，不把自動部署同合約發行綁在一起。

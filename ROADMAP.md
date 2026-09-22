@@ -15,6 +15,13 @@ foundation. Adapt that experience for portrait phone play while retaining the
 browser version. Physical-device validation, native packaging, closed beta and
 store launch are planned milestones below; no launch date is set.
 
+**Immersion direction requested · 2026-09-22:** enrich the world, tactile card/pill
+feedback, hidden-bid reveals and attachment to individual card copies. The
+[immersion design](docs/IMMERSION.md) proposes a quiet mythic world with decisive
+battle moments, starting with one complete 霧隱渡口 encounter. The M4 packets below
+are planned work; their creative details and later gameplay experiments remain
+proposals to playtest.
+
 The long-term goal is a limited-edition collectible that retains its identity and earned XP when traded. The backend should validate ordinary battles and growth promptly; players should not need a wallet confirmation or a chain transaction each turn. Blockchain would establish collectible issuance and ownership. Wallets, collectible rights and native gameplay must be designed together before promising playable NFT transfers across every platform.
 
 The detailed [technical plan](docs/TECHNICAL-PLAN.md), [backend design](docs/BACKEND-STACK.md), [mobile plan](docs/MOBILE-RELEASE.md), [NFT stack](docs/NFT-STACK.md) and [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md) explain the proposed architecture. Their original baseline and policy research are dated; the current-state documents above take precedence for what is implemented. Recheck platform requirements when selecting an actual release flow.
@@ -84,11 +91,21 @@ unified cards/deck/codex hub, quest overlay and encounter preparation/next-match
 flow are implemented for local review. See [navigation behaviour and checks](docs/NAVIGATION.md).
 This does not change the live release or complete the broader M4 acceptance criteria.
 
+**Immersion track (planned):** follow [IMMERSION.md](docs/IMMERSION.md) for the
+player moments, first-encounter storyboard and implementation/validation seams.
+
+| Packet | Planned experience | Exit evidence |
+| --- | --- | --- |
+| **M4.1 · Feedback foundation** | Tactile card/pill/commit cues, public-result presentation, persistent audio/motion/pace preferences and one faction/card sample using the existing DOM/art. | Normal, fast, skipped and reduced-motion paths show the same accepted result; hidden bids remain private and controls work with touch/keyboard. |
+| **M4.2 · First immersive encounter** | One complete 霧隱渡口 journey: arrival/preparation → commitment → readable reveal/impact → exact-copy XP → next/retry. | Recorded playtests for clarity and repeat-play pace; interruption/reload cannot duplicate rewards or strand a match. Measure phone behaviour with M5. |
+| **M4.3 · World and companion identity** | Distinct realm atmosphere, short guardian writing, clearer 同行記 and an earned-pack opening ritual; owned favourite-card display is an optional later selection. | Asset provenance/budgets and static/muted alternatives; any new memory derives from recorded events; no rule, rarity-odds or reward changes hidden inside effects. |
+| **M4.4 · Encounter depth experiments** | Candidate training puzzles, distinct legal opponent playstyles and later encounter/route variants. | A bounded prototype with versioned content/rules, reproducible scenarios and balance/AI information-boundary evidence before adoption. Optional for initial mobile scope. |
+
 - Improve onboarding, explain four-round decisions and exact-card growth, and organize Traditional Chinese/English text without changing save identities. Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
 - Add new classical characters through explicit rules/content versions. Build per-card artwork manifests/derivatives with provenance; trial one card's CSS/Web Animations effects with reduced-motion, skip and background/resume support before scaling the art pipeline.
 - If PvP is selected, add matchmaking and a server-owned arena ladder as a separate slice. Specify simultaneous hidden moves, timeout/abandonment, reconnection and match outcomes before ranking or seasonal rewards.
 
-**Acceptance:** a new player completes a battle → travel/daily → backpack/upgrade loop without assistance; assets and rules have reproducible versioned manifests; selected phone performance/accessibility targets are measured. PvP is complete only when two real clients finish/reconnect without exposing hidden moves, and duplicate settlements cannot change ranking or rewards twice.
+**Acceptance:** a new player completes a battle → travel/daily → backpack/upgrade loop without assistance, can explain a reveal and identify the exact copies that gained XP; repeated play remains brisk. Selected immersion packets preserve outcomes through mute, reduced motion, skip and interruption; assets and rules have reproducible versioned manifests; selected phone performance/accessibility targets are measured. PvP is complete only when two real clients finish/reconnect without exposing hidden moves, and duplicate settlements cannot change ranking or rewards twice.
 
 ### M5 · Mobile adaptation → iOS and Android closed beta
 
@@ -144,6 +161,7 @@ These are bounded starting points, not instructions to start every phase at once
 | Transaction adapter spike | One least-privilege transaction path with rollback, concurrent-start and duplicate-settlement tests. | Agreed contract; local isolated fixtures first. Coordinate schema ownership with the API author. |
 | Online client adapter | One match/inventory UI using contract fixtures; clear offline versus online status and reconnect handling. | Agreed contract; can run alongside server implementation. No local-save promotion. |
 | Content/animation sample | One card's original-art manifest, derivatives and reduced-motion animation, with measured payload/render cost. | Independent M4 task; preserve the existing asset fallback. |
+| Immersion foundation and first encounter | Public-event presentation adapter, comfort controls and a complete 霧隱渡口 arrival → reveal → exact-copy XP → next/retry sequence; see [IMMERSION.md](docs/IMMERSION.md). | M4.1–M4.2; guest AI can proceed alongside backend work. Preserve hidden bids, accepted results and single settlement; coordinate `app.mjs` ownership. |
 | Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
 | Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
 
