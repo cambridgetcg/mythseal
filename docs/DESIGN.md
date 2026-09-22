@@ -22,6 +22,37 @@ Additional prototype choices: 12 starting pills; exact eight unique cards and a 
 
 `previewMove` deliberately omits unrevealed opposing effects. Its displayed attack and damage are estimates, not a guarantee. `resolveRound` computes both sides together, returns a new state, and includes full reveal information and readable effect notes.
 
+## 同名傳承 · local, 2026-09-22
+
+An owned copy can receive EXP from explicitly selected ordinary copies of the
+same character (`cardId`). Each material provides **80 + its current EXP**;
+the existing thresholds stay **0 / 80 / 200 / 400 / 700** for Lv.1–5. Legacy
+and WX-01 base Wukong share the same character identity. This costs no coins
+or dust. Existing paid upgrades, daily training and battle EXP are unchanged.
+
+Any art treatment may be the receiving card. Only `base` printings may be
+materials: AA, LAA, INK and TR are always protected, even if unlocked. Locked
+copies, copies in any saved deck, unfinished battle participants, unacknowledged
+pack/box rewards and the displayed Leader cannot be consumed. A receiving card
+in an unfinished battle or an unacknowledged receipt cannot inherit yet; a
+locked or saved-deck receiving card may inherit. The receiving copy retains
+its UID, printing, acquisition details, lock and battle history.
+
+The player selects exact copies, sees their serials/printings/EXP and the
+projected level and expedition stats, then confirms permanent consumption.
+Materials do not enter merchant buyback. Partial overflow at 700 EXP is shown
+before confirmation and discarded; a selection containing a wholly unnecessary
+material is rejected. No materials are selected automatically. The survivor's
+level bonus applies only in expedition, as before.
+
+`inheritance.mjs` previews and revalidates the complete selected copy records
+and current protections before returning an immutable replacement profile.
+The app commits once under the existing native Web Lock, using a freshly read
+save; cancellation while waiting, stale quotes and repeated confirmation cannot
+consume another copy. Storage failure does not update the in-memory collection
+or display success. No persistent schema field, save key or service changes are
+needed. This remains local progression, not authoritative online card ownership.
+
 ## Original factions and atlas
 
 | Column | Faction | Bonus | Row 0 | Row 1 | Row 2 |

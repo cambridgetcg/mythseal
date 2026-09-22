@@ -260,3 +260,14 @@ Web, API/rules, native binaries, artwork and contracts have separate releases. U
 - [x] Atomic saved box receipts, sequential reveal, full grouped overview, skip and reload recovery.
 - [x] Preview-only, once-per-journey 10,000-coin owner playtest supply; deliberate claim, excluded from public assets.
 - [ ] Existing hosted rollout gates still apply; these changes are not deployed.
+
+### 同名傳承 · local, 2026-09-22
+
+- [x] Same-character base copies provide 80 EXP plus their existing EXP; any art treatment can receive it, up to the existing Lv.5 / 700 EXP cap.
+- [x] Exact-copy material selection, level/EXP/expedition-stat preview, explicit irreversible confirmation and a quiet result animation.
+- [x] Special art, locked cards, all saved decks, unfinished battle cards and unacknowledged rewards stay protected; no automatic selection or extra currency cost.
+- [x] Fresh-save validation and one locked write preserve the receiving printing, serial and history. Wholly redundant materials are refused; partial overflow is disclosed.
+- [ ] Playtest pacing across pack-opening, duplicate supply and the existing paid training route before rebalancing. Expanded journals and an authoritative online inheritance command remain future work.
+- [ ] Public release follows the existing save/module and account rollout gates; this local feature is not deployed.
+
+Rules and edge cases are recorded in [DESIGN.md](docs/DESIGN.md#同名傳承--local-2026-09-22).

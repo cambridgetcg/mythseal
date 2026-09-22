@@ -4,6 +4,8 @@ import { PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, ref
 import { WORLDS, getWorldForNode, nextNodeInWorld } from './stories.mjs';
 import { getInstance, getPreferredInstance, getActiveDeck, getDeckLevels, toggleInstanceLock, saveInstanceDeck, activateDeck, deleteDeck, validateInstanceDeck } from './collection.mjs';
 import { backpackMarkup, instanceMarkup } from './backpack-ui.mjs';
+import { getInheritanceMaterials, previewInheritance, inheritInstances } from './inheritance.mjs';
+import { inheritanceMarkup, inheritanceConfirmMarkup, inheritanceResultMarkup } from './inheritance-ui.mjs';
 import { worldMarkup, dailyMarkup, marketMarkup, arenaMarkup, rewardText } from './adventure-ui.mjs';
 import { gameHeaderMarkup, gameDockMarkup, lobbyMarkup } from './navigation-ui.mjs';
 import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGatePillsMarkup, mistGateResonanceMarkup, mistGateResultMarkup, mistGateRevealMarkup } from './mist-gate-ui.mjs';
@@ -42,6 +44,7 @@ let experience, experienceReturn=null, packOpening=null;
 experience=createExperienceController({storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},document,window,onPreferencesChange:applyExperiencePreferences});
 applyExperiencePreferences(experience.getPreferences());
 let recoveryDraft=null;
+let inheritanceView=null;
 // Navigation drafts never create, settle or replace a persisted encounter.
 let preparation=null, preparationReturn=null, accountReturn='home', modalKind=null, modalOrigin=null;
 const screenScroll=new Map();
@@ -255,6 +258,7 @@ function playTone(kind='select') {
   experience.cue(kind);
 }
 function closeModal() {
+  inheritanceView=null;
   packOpening?.destroy();packOpening=null;
   experience.finishReveal();experienceReturn=null;
   overlay.innerHTML=''; document.body.style.overflow='';app.inert=false;modalKind=null;
@@ -266,6 +270,7 @@ function closeModal() {
   lastFocus=null;modalOrigin=null;
 }
 function modal(content, className='', dismissible=true, kind=null) {
+  if(!kind?.startsWith('inheritance-'))inheritanceView=null;
   packOpening?.destroy();packOpening=null;
   experience.finishReveal();
   if(!overlay.firstElementChild){lastFocus=document.activeElement;modalOrigin={screen,focus:captureFocus(app),scroll:window.scrollY};}
@@ -326,6 +331,7 @@ function showWX01Choice({story=false,treatment='aa'}={}) {
   modal(wx01RedeemMarkup(profile,cardMarkup,{story,treatment}),'',true,'wx01-choice');
 }
 function refreshOverlay() {
+  if(modalKind?.startsWith('inheritance-'))return refreshInheritance();
   if(!['quests','preparation'].includes(modalKind))return;
   const focus=captureFocus(overlay),dialog=overlay.querySelector('.modal'),scroll=dialog.scrollTop,backdropScroll=overlay.firstElementChild.scrollTop;
   if(modalKind==='quests')overlay.querySelector('.quest-content').innerHTML=dailyMarkup(profile,trainingId,questTab);
@@ -412,6 +418,91 @@ function preferredInstance(reference){
 function showInstance(reference){
   try{const item=preferredInstance(reference);if(!item)throw Error('這張卡暫時不在行囊。');modal(instanceMarkup(profile,item.uid,cardMarkup),'instance-modal');}
   catch(error){toast(error.message);}
+}
+function inheritanceContent() {
+  const view=inheritanceView;
+  if(view.phase==='result')return inheritanceResultMarkup(profile,view.result,cardMarkup);
+  if(view.phase==='confirm')return inheritanceConfirmMarkup(profile,view.quote,cardMarkup);
+  return `${view.notice?`<p class="inheritance-notice" role="status">${safe(view.notice)}</p>`:''}${inheritanceMarkup(profile,view.targetUid,view.selectedUids,cardMarkup)}`;
+}
+function paintInheritance({open=false}={}) {
+  if(!inheritanceView)return;
+  const kind=`inheritance-${inheritanceView.phase}`;
+  if(open)return modal(`<div class="inheritance-content">${inheritanceContent()}</div>`,'inheritance-modal',true,kind);
+  const content=overlay.querySelector('.inheritance-content');if(!content)return;
+  const focus=captureFocus(overlay),dialog=overlay.querySelector('.modal'),scroll=dialog.scrollTop,backdropScroll=overlay.firstElementChild.scrollTop;
+  modalKind=kind;content.innerHTML=inheritanceContent();restoreFocus(overlay,focus);
+  if(!overlay.contains(document.activeElement))overlay.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+  dialog.scrollTop=scroll;overlay.firstElementChild.scrollTop=backdropScroll;
+}
+function refreshInheritance() {
+  const view=inheritanceView;if(!view||view.phase==='result')return;
+  try {
+    const available=new Set(getInheritanceMaterials(profile,view.targetUid).filter(row=>row.eligible).map(row=>row.instance.uid));
+    let changed=view.selectedUids.some(uid=>!available.has(uid));
+    if(view.quote){
+      try{changed ||= previewInheritance(profile,view.targetUid,view.selectedUids).fingerprint!==view.quote.fingerprint;}
+      catch{changed=true;}
+    }
+    if(changed){view.selectedUids=[];view.quote=null;view.phase='select';view.notice='卡牌狀態已更新，請重新選擇並確認。';announce(view.notice);}
+    paintInheritance();
+  } catch(error) { closeModal();toast(error.message); }
+}
+function openInheritance(uid) {
+  if(economyBusy)return;
+  try {
+    syncProfile(loadProfile());getInstance(profile,uid);
+    inheritanceView={targetUid:uid,selectedUids:[],quote:null,phase:'select',notice:''};
+    paintInheritance({open:true});
+  } catch(error) { toast(error.message); }
+}
+function pickInheritance(uid) {
+  if(economyBusy||inheritanceView?.phase!=='select')return;
+  try {
+    syncProfile(loadProfile());refreshInheritance();
+    const view=inheritanceView;if(!view)return;
+    const material=getInheritanceMaterials(profile,view.targetUid).find(row=>row.instance.uid===uid);
+    if(!material?.eligible)return toast(material?.reason||'這張卡暫時不能用作傳承。');
+    view.selectedUids=view.selectedUids.includes(uid)?view.selectedUids.filter(id=>id!==uid):[...view.selectedUids,uid];
+    view.notice='';view.quote=null;paintInheritance();playTone('select');
+  } catch(error) { toast(error.message); }
+}
+function reviewInheritance() {
+  if(economyBusy||inheritanceView?.phase!=='select')return;
+  try {
+    syncProfile(loadProfile());
+    const view=inheritanceView;view.quote=previewInheritance(profile,view.targetUid,view.selectedUids);
+    view.phase='confirm';paintInheritance({open:true});
+  } catch(error) { refreshInheritance();toast(error.message); }
+}
+async function confirmInheritance() {
+  const view=inheritanceView;
+  if(economyBusy||view?.phase!=='confirm'||!view.quote)return;
+  if(!navigator.locks)return toast('請用支援安全儲存的新版瀏覽器進行傳承；卡牌未有消耗。');
+  economyBusy=true;
+  const button=overlay.querySelector('[data-action="inherit-confirm"]');
+  if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
+  const quote=view.quote;
+  try {
+    const result=await transact(current=>{
+      if(inheritanceView!==view||view.phase!=='confirm'||view.quote!==quote)throw Error('傳承已取消，卡牌未有消耗。');
+      return inheritInstances(current,quote);
+    },result=>{
+      view.phase='result';view.result=result;view.quote=null;
+      const consumed=new Set(quote.materialUids);
+      bagView.draftInstanceIds=bagView.draftInstanceIds.filter(uid=>!consumed.has(uid));
+      if(consumed.has(trainingId))trainingId=view.targetUid;
+    });
+    render();paintInheritance({open:true});playTone('recovery');
+    announce(`同名傳承完成，獲得 ${result.gainedXP} EXP，主卡 Lv.${result.afterLevel}。`);
+  } catch(error) {
+    try{syncProfile(loadProfile());refreshInheritance();render();}catch{}
+    toast(error.message||'未能儲存，卡牌未有消耗。');
+  } finally {
+    economyBusy=false;
+    const retry=overlay.querySelector('[data-action="inherit-confirm"]');
+    if(retry){retry.disabled=false;retry.removeAttribute('aria-busy');}
+  }
 }
 function loadBagDeck(id){
   const slot=profile.deckSlots.find(s=>s.id===id)||getActiveDeck(profile);
@@ -658,6 +749,19 @@ document.addEventListener('click', event=>{
   if(action==='bag-tab')return switchCardsTab(id);
   if(action==='bag-card'){closeModal();switchCardsTab('cards');bagView.query=getCard(id).name;bagView.filter='all';bagView.faction='all';render();window.scrollTo({top:0,behavior:'instant'});return;}
   if(action==='instance-inspect')return showInstance(id);
+  if(action==='instance-inherit')return openInheritance(id);
+  if(action==='inherit-pick')return pickInheritance(id);
+  if(action==='inherit-review')return reviewInheritance();
+  if(action==='inherit-back'){
+    if(economyBusy||!inheritanceView)return;
+    inheritanceView.phase='select';inheritanceView.quote=null;
+    try{syncProfile(loadProfile());refreshInheritance();}catch(error){toast(error.message);}return;
+  }
+  if(action==='inherit-confirm')return confirmInheritance();
+  if(action==='inherit-done'){
+    if(economyBusy||!inheritanceView)return;
+    try{const uid=inheritanceView.targetUid;syncProfile(loadProfile());showInstance(uid);}catch(error){toast(error.message);}return;
+  }
   if(action==='instance-lock')return economy(p=>toggleInstanceLock(p,id),'卡牌保護設定已更新。',()=>{if(overlay.firstElementChild)showInstance(id);});
   if(action==='instance-sell')return sellInstanceModal(id);
   if(action==='confirm-instance-sell')return economy(p=>sellInstance(p,id),'這張卡已交予商旅，歷練與編號一同保留。',()=>closeModal());

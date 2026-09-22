@@ -424,3 +424,31 @@ Web Lock races and synthetic supply claims. Native Safari confirmed the requeste
 supply in the existing journey and displayed both market options. No box was
 purchased in the owner's journey during verification. The build still contains
 60 public files; all three supply files stay preview-only. No deployment occurred.
+
+### Same-character inheritance · local, 2026-09-22
+
+The owner chose EXP inheritance with special-art protection. In **藏卡 → 我的戰卡
+→ one copy's 同行記 → 同名傳承**, each explicitly selected same-`cardId` base
+copy contributes 80 plus its existing EXP. The target may have any treatment,
+retains its exact identity/history and caps at the existing Lv.5 / 700 EXP.
+Specials, locked cards, all saved decks, pending battle cards, reward receipts
+and displayed Leader materials are protected. Pending/receipt targets are also
+blocked. Partial overflow is disclosed; wholly unnecessary donors are refused.
+
+`inheritance.mjs` owns pure previews, protections and immutable consumption;
+`inheritance-ui.mjs`/`inheritance.css` own selection, confirmation and result.
+`app.mjs` commits under the shared native Web Lock with a fresh quote, only
+shows success after storage accepts it, invalidates stale previews and allows
+cancellation while queued for the lock. The target's XP changes and the chosen
+materials leave ownership permanently, without merchant buyback. There are no
+new saved fields, schema versions, service calls or migrations.
+
+Verification: **359 Node tests**, **9 Python tests**, 63 allowlisted public files;
+the existing backpack browser suite passed six groups. New inheritance browser
+acceptance passed nine groups in each isolated Chrome/WebKit engine at
+360/390/1440, including AA/TR identity, overflow, protected materials,
+preview/cancel, competing tabs, quota refusal/retry, lock-wait cancellation,
+unavailable-lock refusal and reload. Screenshots were visually reviewed.
+`npm run test:inheritance` reproduces the new browser checks. User card data
+was not consumed or modified during testing. Local source only; public v0.5.1
+and the existing hosted account/module rollout gates remain unchanged.
