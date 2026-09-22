@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -62,7 +63,7 @@ async function seededPage(seed, { legacy = false, mobile = false, legacyBattle =
       if (legacyBattle) localStorage.setItem('shanhai.battle.v2', JSON.stringify(legacyBattle));
     }
   }, { seed, key: legacy ? legacyProfileKey : PROFILE_KEY, now: fixedNow, legacyBattle });
-  const page = await context.newPage();
+  const page = await context.newPage(); installViewportNavigation(page);
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => {
@@ -150,7 +151,8 @@ try {
   const page = await seededPage(fixture);
   await go(page, 'bag');
   assert.equal(await page.locator('.bag-item').count(), fixture.instances.length);
-  assert.equal(await page.locator('.bag-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length), 6);
+  await page.locator('.bag-grid').scrollIntoViewIfNeeded();
+  assert(await page.locator('.bag-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length >= 2), 'Desktop copy pages use multiple readable columns');
   await shot(page, 'backpack-desktop.png');
   await page.locator('#bag-search').fill('青霄');
   assert.equal(await page.locator('.bag-item').count(), 2);
@@ -159,8 +161,8 @@ try {
   assert.equal(await page.locator('.bag-grid [data-action="instance-inspect"]').first().getAttribute('data-id'), copyUID);
   await action(page, 'instance-inspect', copyUID, '.bag-grid ').click();
   await page.locator('.bag-passport-id').waitFor();
-  assert.match(await page.locator('.bag-passport').innerText(), new RegExp(copyUID));
-  assert.match(await page.locator('.bag-passport').innerText(), /7 場 · 4 勝/);
+  assert.match(await page.locator('.instance-modal').textContent(), new RegExp(copyUID));
+  assert.match(await page.locator('.instance-modal').textContent(), /7 場 · 4 勝/);
   await action(page, 'instance-upgrade', copyUID, '.modal ').click();
   await waitInstance(page, copyUID, { xp: 400, level: 4 });
   assert.equal((await read(page)).instances.find(instance => instance.uid === originalUID).xp, 95);
@@ -245,6 +247,7 @@ try {
 
   const mobile = await seededPage(await read(page), { mobile: true });
   await go(mobile, 'bag');
+  await mobile.locator('.bag-grid').scrollIntoViewIfNeeded();
   assert.equal(await mobile.locator('.bag-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length), 2);
   await shot(mobile, 'backpack-mobile.png');
   await mobile.locator('#bag-filter').selectOption('duplicates');

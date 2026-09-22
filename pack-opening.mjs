@@ -2,7 +2,7 @@
 import { getCard } from './engine.mjs';
 import { cardPresentation, PRINT_TREATMENTS } from './card-presentation.mjs';
 
-export function createPackOpeningController({ element, receipt, reducedMotion = () => false, pace = () => 'normal', announce = () => {}, window = globalThis.window, document = globalThis.document } = {}) {
+export function createPackOpeningController({ element, receipt, reducedMotion = () => false, pace = () => 'normal', announce = () => {}, onLayout = () => {}, revealElement = () => {}, window = globalThis.window, document = globalThis.document } = {}) {
   const box = receipt?.kind === 'box';
   const validBox = box && Array.isArray(receipt.packs) && [12, 24].includes(receipt.packs.length) && receipt.cards?.length === receipt.packs.length * 3
     && receipt.packs.every((pack, packIndex) => Array.isArray(pack?.cards) && pack.cards.length === 3 && pack.cards.every((card, index) => {
@@ -60,10 +60,17 @@ export function createPackOpeningController({ element, receipt, reducedMotion = 
     }
     const packRevealed = box ? [0, 1, 2].filter(index => revealed.has(packIndex * 3 + index)).length : revealed.size;
     status(phase === 'sealed' ? '按封印，揭曉這份相逢。' : phase === 'opening' ? '封印漸開，旅人將至。' : phase === 'ready' ? `已揭曉 ${packRevealed} / ${box ? 3 : count} 張 · 按卡背逐張相見` : phase === 'pack-complete' ? `第 ${packIndex + 1} 匣已揭曉${receipt.packs[packIndex].mode === 'god' ? ' · 神契匣，三相同輝' : ''}。` : `${box ? `${packCount} 匣、` : ''}${count} 張戰卡已入藏${receipt.mode === 'god' ? ' · 神契匣，三相同輝' : ''}。`);
+    onLayout();
   }
-  function focusNext() {
+  function focusNext({ preservePage = false } = {}) {
     const target = [...element.querySelectorAll('[data-action="pack-card-reveal"]')].find(node => !node.hidden && !node.disabled) || (box && phase === 'pack-complete' ? button('box-next') : button('pack-ack'));
-    target?.focus({ preventScroll: true });
+    // Let the player see the card they just turned. On a one-card page, move
+    // focus to Next instead of instantly hiding the newly revealed artwork.
+    if(preservePage && target?.closest?.('[hidden]')) {
+      const next = [...element.querySelectorAll('[data-viewport-action="next"]')].find(node => !node.disabled && !node.closest('[hidden]'));
+      next?.focus({preventScroll:true}); return;
+    }
+    if(target){revealElement(target);target.focus({ preventScroll: true });}
   }
   function finish({ focus = false } = {}) {
     if (destroyed) return;
@@ -92,7 +99,7 @@ export function createPackOpeningController({ element, receipt, reducedMotion = 
     for (const slot of element.querySelectorAll('[data-pack-slot]')) slot.classList.remove('just-revealed');
     query(`[data-pack-slot="${index}"]`)?.classList.add('just-revealed');
     if (box ? [0, 1, 2].every(offset => revealed.has(packIndex * 3 + offset)) : revealed.size === count) phase = box ? 'pack-complete' : 'complete';
-    paint(); announce(`${box ? `第 ${packIndex + 1} 匣第 ${index % 3 + 1} 張` : `第 ${index + 1} 張`}：${descriptions[index]}。已入藏。`); focusNext();
+    paint(); announce(`${box ? `第 ${packIndex + 1} 匣第 ${index % 3 + 1} 張` : `第 ${index + 1} 張`}：${descriptions[index]}。已入藏。`); focusNext({preservePage:true});
   }
   function nextPack() {
     if (destroyed || !box || phase !== 'pack-complete') return;

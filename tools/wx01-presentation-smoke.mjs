@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Isolated local WX-01 UI acceptance. Synthetic saves only; no personal browser/profile. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -57,7 +58,7 @@ async function openPage(seed, { width = 390, reduced = false, rng = .9999 } = {}
     if (url.pathname.startsWith('/api/') || !['GET', 'HEAD'].includes(request.method())) { errors.push(`Unexpected API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient'); }
     return route.continue();
   });
-  const page = await context.newPage(); page.setDefaultTimeout(12000);
+  const page = await context.newPage(); installViewportNavigation(page); page.setDefaultTimeout(12000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
@@ -97,9 +98,16 @@ try {
     const page = await openPage(seedCollection(), { width });
     assert.equal(await page.locator('.lobby-leader [data-print-id="wx01-005-laa1"]').count(), 1);
     const initial = await read(page);
-    for (const uid of initial.deckSlots[0].instanceIds) {
+    const deckUIDs = initial.deckSlots.find(slot => slot.id === initial.activeDeckId).instanceIds;
+    const previewPrints = deckUIDs.slice(0, 3).map(uid => initial.instances.find(item => item.uid === uid).printId);
+    assert.deepEqual(await page.locator('.scene-deck-portraits [data-print-id]').evaluateAll(nodes => nodes.map(node => node.dataset.printId)), previewPrints);
+    await action(page, 'lobby-deck').click();
+    assert.deepEqual(await page.locator('.bag-draft-card').evaluateAll(nodes => nodes.map(node => node.dataset.id)), deckUIDs);
+    for (const uid of deckUIDs) {
       const instance = initial.instances.find(item => item.uid === uid);
-      assert.equal(await page.locator(`.lobby-card-copy[data-id="${uid}"] .lobby-card-portrait[data-print-id="${instance.printId}"]`).count(), 1);
+      const copy = page.locator(`.bag-draft-card[data-id="${uid}"]`);
+      await copy.scrollIntoViewIfNeeded();
+      assert.equal(await copy.locator(`[data-print-id="${instance.printId}"]`).count(), 1);
     }
     await go(page, 'market'); await page.locator('.wx01-market').waitFor();
     await shot(page, `market-${width}`);
@@ -130,6 +138,7 @@ try {
     assert.equal(redeemed.wx01.receipt.cards[0].printId, 'wx01-005-laa1');
     const leaderUID = redeemed.wx01.receipt.cards[0].instanceId;
     await ack(page); await go(page, 'bag');
+    await action(page, 'cards-tab', 'cards').click();
     await action(page, 'bag-layout', 'copies').click();
     await action(page, 'instance-inspect', leaderUID).first().click();
     assert.equal(await page.locator('.bag-passport-art .card[data-print-id="wx01-005-laa1"]').count(), 1);

@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Grouped collection acceptance; isolated synthetic saves and loopback assets only. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -74,7 +75,7 @@ async function pageFor(profile, width) {
     }
     return route.continue();
   });
-  const page = await context.newPage(); page.setDefaultTimeout(12000);
+  const page = await context.newPage(); installViewportNavigation(page); page.setDefaultTimeout(12000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
   await page.goto(base.href); await page.locator('.game-lobby').waitFor();
@@ -146,7 +147,7 @@ try {
     await shot(page, `aa-copies-${width}`);
     const exact = page.locator(`.bag-grid [data-action="instance-inspect"][data-id="${ids.aa}"]`);
     await exact.scrollIntoViewIfNeeded(); await exact.focus(); const copyScroll = await page.evaluate(() => scrollY);
-    await page.keyboard.press('Enter'); await page.locator('.bag-passport').waitFor();
+    await page.keyboard.press('Enter'); await page.locator('.instance-modal').waitFor();
     assert.equal(await page.locator('.bag-passport-id dd').innerText(), ids.aa);
     assert.equal(await page.locator('.bag-passport-art .card').getAttribute('data-print-id'), 'wx01-005-aa1');
     await page.keyboard.press('Escape'); await expectFocusScroll(page, exact, copyScroll);
@@ -238,7 +239,7 @@ try {
       await page.locator('.game-dock [data-action="bag"]').click(); await tab(page, 'codex');
       await page.locator('.collection-item[data-card-id="baigu"] [data-action="inspect"]').click();
       await page.locator('.codex-detail.is-uncollected').waitFor();
-      const writer = await page.context().newPage();
+      const writer = await page.context().newPage(); installViewportNavigation(writer);
       writer.on('pageerror', error => errors.push(error.message));
       await writer.goto(base.href); await writer.locator('.game-lobby').waitFor();
       const observerWrites = await page.evaluate(() => window.collectionDisplayWrites.length);

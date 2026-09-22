@@ -22,11 +22,15 @@ import { cardPresentation, printFrameMarkup, printLabel } from './card-presentat
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
 import { createPackOpeningController } from './pack-opening.mjs';
+import { createViewportController } from './viewport.mjs';
+import { prepareScene, prepareMove, preparePack } from './scene-adapters.mjs';
+import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
 const announcer = document.querySelector('#announcer');
+const viewport = createViewportController({document,window,announce});
 const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const profileStore=createProfileStore({storage:localStorage});
@@ -132,7 +136,10 @@ function persistBattle(){
   localStorage.setItem(BATTLE_KEY,JSON.stringify({match,encounter,selected,pills,fury,aiMove,revealPending,recorded,lastReward}));
 }
 function clearBattleSnapshot(id){if(read(BATTLE_KEY,null)?.encounter?.id===id)localStorage.removeItem(BATTLE_KEY);}
-function pendingBanner(){return (profile.wx01.receipt?`<div class="resume-banner"><span>西行畫作已入藏，等你揭曉。</span><button class="small-button" data-action="pack-resume">查看這份相逢 →</button></div>`:'')+(profile.pending?`<div class="resume-banner"><span>你有一場未完的${modeName(profile.pending.kind)}，進度已保留。</span><button class="small-button" data-action="resume">繼續對局 →</button></div>`:'');}
+function pendingBanner(){
+  if(!profile.wx01.receipt&&!profile.pending)return '';
+  return `<div class="resume-banner scene-resume-strip"><span>旅程已保存</span><div>${profile.wx01.receipt?'<button class="small-button" data-action="pack-resume" aria-label="西行畫作已入藏，查看這份相逢">揭曉藏畫 →</button>':''}${profile.pending?`<button class="small-button" data-action="resume" aria-label="繼續未完的${modeName(profile.pending.kind)}，進度已保留">繼續對局 →</button>`:''}</div></div>`;
+}
 const faction = card => FACTIONS[card.faction];
 
 function cardMarkup(card, options = {}) {
@@ -209,10 +216,7 @@ function collectionMarkup() {
 
 function cardsHubTabs() {
   const active=screen==='collection'?'codex':bagView.tab;
-  return `<nav class="cards-hub-tabs" aria-label="藏卡分類">${[['cards','我的戰卡'],['decks','三套牌組'],['codex','萬象圖鑑']].map(([id,label])=>`<button type="button" data-action="cards-tab" data-id="${id}" aria-pressed="${active===id}" class="${active===id?'active':''}">${label}</button>`).join('')}</nav>`;
-}
-function preparationReturnMarkup() {
-  return preparationReturn?`<div class="prep-return"><button class="text-button" data-action="return-prep">← 返回出戰整備</button><span>下一場 · ${safe(modeName(preparation?.kind))}${preparation?.nodeId?` · ${safe(NODES.find(n=>n.id===preparation.nodeId)?.name||'')}`:''}</span></div>`:'';
+  return `<nav class="cards-hub-tabs" aria-label="藏卡分類">${[['cards','我的戰卡'],['decks','三套牌組'],['codex','萬象圖鑑']].map(([id,label])=>`<button type="button" data-action="cards-tab" data-id="${id}" aria-pressed="${active===id}" class="${active===id?'active':''}">${label}</button>`).join('')}${preparationReturn?`<button type="button" data-action="return-prep" aria-label="返回出戰整備，${safe(modeName(preparation?.kind))}${preparation?.nodeId?`，${safe(NODES.find(n=>n.id===preparation.nodeId)?.name||'')}`:''}">← 返回整備</button>`:''}</nav>`;
 }
 
 function captureFocus(container) {
@@ -224,7 +228,7 @@ function captureFocus(container) {
 function restoreFocus(container,focus) {
   if(!focus)return;
   const target=focus.elementId?document.getElementById(focus.elementId):[...container.querySelectorAll('[data-action]')].find(el=>el.dataset.action===focus.action&&el.dataset.id===focus.id);
-  if(target&&!target.disabled)target.focus({preventScroll:true});
+  if(target&&!target.disabled){viewport.revealElement(target);target.focus({preventScroll:true});}
   else if(['pill-plus','pill-minus'].includes(focus.action))container.querySelector('#pill-slider')?.focus({preventScroll:true});
 }
 function render() {
@@ -234,12 +238,14 @@ function render() {
   profile=refreshDaily(profile);
   const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
-  app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?(profile.wx01.receipt?pendingBanner():''):pendingBanner()}${cardsScreen?preparationReturnMarkup()+cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
+  app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?(profile.wx01.receipt?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
+  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});
   const currentMap=app.querySelector('.world-map[data-world]');
   if(currentMap)currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
   refreshOverlay();
   syncExperienceScene();
   restoreFocus(app,focus);
+  if(screen==='account'&&account.getState().confirmation)viewport.selectModule({key:viewKey(),moduleId:'confirmation'});
   battleEntering=false;
 }
 function announce(message) { announcer.textContent = message; }
@@ -271,8 +277,21 @@ function modal(content, className='', dismissible=true, kind=null) {
   modalKind=kind;
   overlay.innerHTML=`<div class="modal-backdrop" data-dismissible="${dismissible}"><section class="modal ${className}" role="dialog" aria-modal="true" aria-label="萬象契對話框">${dismissible?'<button class="modal-close" data-action="close-modal" aria-label="關閉">×</button>':''}${content}</section></div>`;
   document.body.style.overflow='hidden';app.inert=true;
+  fitOverlay();
   syncExperienceScene();
-  requestAnimationFrame(()=>overlay.querySelector('button:not(:disabled):not([hidden])')?.focus({preventScroll:true}));
+  requestAnimationFrame(focusDialogStart);
+}
+function focusDialogStart() {
+  [...overlay.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),[tabindex="0"]')]
+    .find(node=>node.tabIndex>=0&&!node.closest('[hidden],[inert]')&&node.getClientRects().length)?.focus({preventScroll:true});
+}
+function fitOverlay() {
+  const dialog=overlay.querySelector('.modal');if(!dialog)return;
+  dialog.classList.add('viewport-dialog');
+  if(modalKind==='pack-receipt')preparePack(dialog);
+  else prepareDialog(dialog,{kind:modalKind});
+  const receiptId=dialog.querySelector('[data-receipt-id]')?.dataset.receiptId;
+  viewport.refresh({key:`modal-${modalKind||'dialog'}${receiptId?`-${receiptId}`:''}`,root:overlay});
 }
 function dismissModal() {
   const origin=experienceReturn;
@@ -316,7 +335,8 @@ function showPackReceipt(recovered=false) {
   if(!receipt){render();return toast('這份畫作已收入行囊。');}
   modal(packReceiptMarkup(receipt,cardMarkup),'pack-modal',true,'pack-receipt');
   packOpening=createPackOpeningController({element:overlay.querySelector('.pack-opening'),receipt,
-    reducedMotion:()=>experience.reducedMotion(),pace:()=>experience.getPreferences().pace,announce,window,document});
+    reducedMotion:()=>experience.reducedMotion(),pace:()=>experience.getPreferences().pace,announce,window,document,
+    onLayout:fitOverlay,revealElement:element=>viewport.revealElement(element)});
   if(recovered)packOpening.finish();else packOpening.open();
 }
 function showWX01Choice({story=false,treatment='aa'}={}) {
@@ -335,8 +355,9 @@ function refreshOverlay() {
   const focus=captureFocus(overlay),dialog=overlay.querySelector('.modal'),scroll=dialog.scrollTop,backdropScroll=overlay.firstElementChild.scrollTop;
   if(modalKind==='quests')overlay.querySelector('.quest-content').innerHTML=dailyMarkup(profile,trainingId,questTab);
   if(modalKind==='preparation')overlay.querySelector('.prep-content').innerHTML=preparationContent();
+  fitOverlay();
   restoreFocus(overlay,focus);
-  if(focus&&!overlay.contains(document.activeElement))overlay.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+  if(focus&&!overlay.contains(document.activeElement))focusDialogStart();
   dialog.scrollTop=scroll;overlay.firstElementChild.scrollTop=backdropScroll;
 }
 function nextJourneyNode() {
@@ -453,8 +474,8 @@ function paintInheritance({open=false}={}) {
   if(open)return modal(`<div class="inheritance-content">${inheritanceContent()}</div>`,'inheritance-modal',true,kind);
   const content=overlay.querySelector('.inheritance-content');if(!content)return;
   const focus=captureFocus(overlay),dialog=overlay.querySelector('.modal'),scroll=dialog.scrollTop,backdropScroll=overlay.firstElementChild.scrollTop;
-  modalKind=kind;content.innerHTML=inheritanceContent();restoreFocus(overlay,focus);
-  if(!overlay.contains(document.activeElement))overlay.querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+  modalKind=kind;content.innerHTML=inheritanceContent();fitOverlay();restoreFocus(overlay,focus);
+  if(!overlay.contains(document.activeElement))focusDialogStart();
   dialog.scrollTop=scroll;overlay.firstElementChild.scrollTop=backdropScroll;
 }
 function refreshInheritance() {
@@ -627,7 +648,7 @@ function switchCardsTab(tab) {
 }
 function updateMovePanel() {
   const panel=app.querySelector('.move-panel');
-  if(panel){const focus=captureFocus(panel);panel.outerHTML=movePanel();restoreFocus(app.querySelector('.move-panel'),focus);}
+  if(panel){const focus=captureFocus(panel);panel.outerHTML=movePanel();prepareMove(app);viewport.refresh({key:viewKey(),root:app});restoreFocus(app.querySelector('.move-panel'),focus);}
   updateResourcePreview();
 }
 async function commitMove() {
@@ -744,7 +765,7 @@ document.addEventListener('click', event=>{
     'account-upload': () => account.upload(),
     'account-confirm-restore': () => account.setConfirmation('restore'),
     'account-confirm-delete': () => account.setConfirmation('delete'),
-    'account-cancel-confirmation': () => account.cancelConfirmation(),
+    'account-cancel-confirmation': () => {account.cancelConfirmation();viewport.selectModule({key:viewKey(),moduleId:'cloud'});},
     'account-restore': () => account.restore(),
     'account-delete': () => account.deleteBackup(),
     'account-change-email': () => account.changeEmail(),
@@ -774,9 +795,9 @@ document.addEventListener('click', event=>{
   if(action==='bag-close-group')return closeBagGroup();
   if(action==='bag-layout'){
     if(!['groups','copies'].includes(id))return;
-    bagView.layout=id;bagView.expandedCardId=null;bagView.printId='all';bagGroupReturn=null;render();return;
+    bagView.layout=id;bagView.expandedCardId=null;bagView.printId='all';bagGroupReturn=null;render();viewport.selectModule({key:viewKey(),moduleId:'cards'});return;
   }
-  if(action==='bag-print-filter'){bagView.printId=id;render();return;}
+  if(action==='bag-print-filter'){bagView.printId=id;render();viewport.selectModule({key:viewKey(),moduleId:'cards'});return;}
   if(action==='codex-status'){if(!['all','collected','missing'].includes(id))return;codexStatus=id;render();return;}
   if(action==='instance-inspect')return showInstance(id);
   if(action==='instance-inherit')return openInheritance(id);
@@ -828,15 +849,15 @@ document.addEventListener('click', event=>{
     if(instances.some(i=>!i))return toast('群英初陣需要悟空、關羽、黛玉、孔子與四位山海同伴。');
     bagView.draftInstanceIds=instances.map(i=>i.uid);deckDraftReady=true;render();toast('群英初陣已備妥：四族共鳴，合共 24 星。儲存後即可出戰。');return;
   }
-  if(action==='pack-set'){selectedPack=id;render();return;}
+  if(action==='pack-set'){selectedPack=id;render();viewport.selectModule({key:viewKey(),moduleId:'packs',focus:false});return;}
   if(action==='world-select'){
     const world=WORLDS.find(item=>item.id===id);if(!world)return;
     worldSelections.set(getWorldForNode(selectedNode).id,selectedNode);
     selectedNode=worldSelections.get(id)||(world.nodeIds.includes(profile.location)?profile.location:null)
       ||world.nodeIds.find(nodeId=>isNodeUnlocked(profile,nodeId)&&!profile.cleared.includes(nodeId))||world.nodeIds[0];
-    render();return;
+    render();viewport.selectModule({key:viewKey(),moduleId:'map',focus:false});return;
   }
-  if(action==='map-select'||action==='story-stage'){if(!NODES.some(n=>n.id===id))return;selectedNode=id;render();return;}
+  if(action==='map-select'||action==='story-stage'){if(!NODES.some(n=>n.id===id))return;selectedNode=id;render();viewport.selectModule({key:viewKey(),moduleId:'chapter'});return;}
   if(action==='travel')return prepareEncounter('expedition',id);
   if(action==='ranked')return prepareEncounter('arena');
   if(action==='resume')return resumeBattle();
@@ -872,7 +893,7 @@ document.addEventListener('click', event=>{
     if(busy||match.player.used.includes(id))return;selected=id;playTone('select');
     app.querySelectorAll('.player-hand .card').forEach(el=>{const active=el.dataset.id===id;el.classList.toggle('selected',active);el.setAttribute('aria-pressed',String(active));});
     const detail=app.querySelector('.hand-caption [data-action="inspect"]');detail.dataset.id=id;detail.textContent=`查看「${getCard(id).name}」詳情 ↗`;
-    updateMovePanel();announce(`已選擇 ${getCard(id).name}。`);return;
+    updateMovePanel();viewport.selectModule({key:viewKey(),moduleId:'move'});announce(`已選擇 ${getCard(id).name}。`);return;
   }
   if(action==='pill-minus'||action==='pill-plus'){
     const max=match.player.pills-(fury?3:0);pills=Math.max(0,Math.min(max,pills+(action==='pill-plus'?1:-1)));updateMovePanel();playTone('pill');return;

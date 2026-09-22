@@ -1,0 +1,27 @@
+/* Explicit module/page paths; no scaling or overflow clipping of unseen content. */
+html,body{height:100%;min-height:0;margin:0}body{height:100dvh;overflow:hidden}#app{height:100dvh;min-height:0;min-width:0}
+.shell.game-shell{height:100%;min-height:0;padding-bottom:0;display:flex;flex-direction:column;gap:0}
+.game-shell .game-header,.game-shell .game-header.is-battle{height:72px;min-height:72px;flex:0 0 72px}
+.game-shell>main{flex:1 1 0%;min-height:0;min-width:0}
+.game-shell .game-dock{position:static;inset:auto;transform:none;flex:0 0 68px;height:68px;min-height:0;margin:8px auto max(8px,env(safe-area-inset-bottom));padding:4px 10px;box-sizing:border-box;max-width:100%}
+.game-shell .game-destination{min-height:0;gap:3px;font-size:11px;padding:4px}.game-shell .game-destination svg{width:21px;height:21px}
+.game-shell .game-destination.is-current:before{top:-4px}.game-shell .cards-hub-tabs{flex:0 0 auto;margin-top:0;gap:22px}.game-shell .cards-hub-tabs>button{min-height:44px;padding:9px 2px;font-size:12px}
+.game-shell .resume-banner,.game-shell .prep-return{flex:0 0 auto;margin:6px 0;padding:5px 10px;min-height:36px}
+.game-shell.screen-battle{padding-bottom:max(6px,env(safe-area-inset-bottom))}
+[data-viewport-surface]{display:flex;flex-direction:column;min-height:0;min-width:0;gap:10px}
+[data-viewport-surface] [hidden]{display:none!important}
+[data-viewport-module]{display:flex;flex-direction:column;flex:1 1 0%;min-height:0;min-width:0;gap:10px}
+[data-viewport-module]>:not(.viewport-list-frame):not([data-viewport-fill]){flex-shrink:0}
+[data-viewport-fill],.viewport-list-frame{display:flex;flex-direction:column;flex:1 1 0%;min-height:0;min-width:0;gap:8px}
+[data-viewport-list]{flex:1 1 0%;min-height:0;min-width:0;align-content:start;grid-auto-rows:max-content;margin-top:0;margin-bottom:0}
+[data-viewport-list]>*{flex-shrink:0}
+.viewport-module-tabs{display:flex;flex-wrap:wrap;gap:6px;flex:0 0 auto;min-width:0;margin:0;padding:0;border-bottom:1px solid #c8b57f38;padding-bottom:8px}
+.viewport-module-tabs>button{flex:1 1 auto;min-height:44px;padding:7px 12px;border:1px solid #b6bd9538;background:#10241c;color:#aabca8;font-size:12px;letter-spacing:1px}
+.viewport-module-tabs>button[aria-selected="true"]{background:#35422b;border-color:#ccb97885;color:#e9d29b}
+.viewport-pagination{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;flex:0 0 auto;min-height:44px;margin:0;padding:3px 0;border-top:1px solid #b6bd9526}
+.viewport-pagination>button{min-width:72px;min-height:44px;padding:6px 10px;font:11px var(--sans);letter-spacing:.4px;color:#d8c797;border:1px solid #bfaf7640;background:#14291e}
+.viewport-pagination>button:disabled{opacity:.35;cursor:default}.viewport-pagination>[data-viewport-status]{text-align:center;font:10px var(--sans);color:#a9b8a4;font-variant-numeric:tabular-nums;line-height:1.5}
+.viewport-module-tabs>button:focus-visible,.viewport-pagination>button:focus-visible,.viewport-pagination>[data-viewport-status]:focus-visible{outline:2px solid #e9cd8f;outline-offset:2px}
+@media(max-width:600px){.shell.game-shell{width:calc(100% - 24px)}.game-shell .game-header,.game-shell .game-header.is-battle{height:58px;min-height:58px;flex-basis:58px;gap:10px}.game-shell .game-dock{flex-basis:60px;height:60px;margin-top:6px;margin-bottom:max(6px,env(safe-area-inset-bottom));width:100%}.game-shell .game-destination{font-size:10px;letter-spacing:.6px}.game-shell .game-header-resources{gap:10px;padding-right:0}.game-shell .game-brand img{width:27px;height:27px}.game-shell .game-brand .brand-name{font-size:16px;letter-spacing:2px}.game-shell .game-brand .brand-en{font-size:7px;letter-spacing:1.5px}.game-shell .cards-hub-tabs>button{min-height:44px;font-size:11px;padding:7px 2px;letter-spacing:.7px}[data-viewport-surface],[data-viewport-module]{gap:7px}.viewport-module-tabs{gap:5px;padding-bottom:6px}.viewport-module-tabs>button{font-size:11px;letter-spacing:.3px;min-height:44px;padding:6px 9px}.viewport-pagination{gap:5px}.viewport-pagination>button{min-width:64px;min-height:44px;padding:6px 8px}.viewport-pagination>[data-viewport-status]{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.viewport-module-tabs>button,.viewport-pagination>button{transition:none!important}}
+body[data-motion="reduce"] .viewport-module-tabs>button,body[data-motion="reduce"] .viewport-pagination>button{transition:none!important}

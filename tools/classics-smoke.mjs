@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -52,7 +53,7 @@ async function seededContext(seed, mobile = false) {
       localStorage.setItem(key, JSON.stringify(seed));
     }
   }, { seed, key: seed.version === 2 ? legacyProfileKey : profileKey, now: fixedNow });
-  const page = await context.newPage();
+  const page = await context.newPage(); installViewportNavigation(page);
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => failures.push(error.message));
   page.on('response', response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });

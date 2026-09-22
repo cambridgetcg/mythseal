@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Synthetic local saves only: recovery exports, failed startup, and native-lock pack races. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -63,7 +64,7 @@ async function newContext(values, { quota = false, width = 390 } = {}) {
   return context;
 }
 async function pageIn(context) {
-  const page = await context.newPage(); page.setDefaultTimeout(10000);
+  const page = await context.newPage(); installViewportNavigation(page); page.setDefaultTimeout(10000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
   await page.goto(base.href);

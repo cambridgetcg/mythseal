@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Four-world and weekly-quest integration using isolated saves and local API fixtures. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -73,7 +74,7 @@ async function openPage(seed, { width = 1440, authenticated = false, backup = nu
     errors.push(`Unexpected mock API call ${method} ${path}`);
     return reply({ error: { code: 'unexpected_fixture_route' } }, 404);
   });
-  const page = await context.newPage();
+  const page = await context.newPage(); installViewportNavigation(page);
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { if (response.status() >= 400 && new URL(response.url()).origin === origin) errors.push(`${response.status()} ${response.url()}`); });

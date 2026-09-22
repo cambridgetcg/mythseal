@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Isolated loopback acceptance: synthetic profiles only, never an owner's browser/session. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -67,7 +68,7 @@ async function contextFor(seed, { width = 390, reduced = false, extra = {} } = {
   return context;
 }
 async function pageIn(context, path = '/') {
-  const page = await context.newPage(); page.setDefaultTimeout(15000);
+  const page = await context.newPage(); installViewportNavigation(page); page.setDefaultTimeout(15000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
   await page.goto(new URL(path, base).href);
@@ -108,7 +109,7 @@ async function overview(page, accepted, packs, label) {
       return bounds.height >= 44 && bounds.top >= 0 && bounds.bottom <= innerHeight + 1 && (hit === node || node.contains(hit));
     });
   assert(await ackReachable(), 'Acknowledgement must be reachable at overview start');
-  await page.locator('.modal').evaluate(async node => { node.scrollTop = node.scrollHeight; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
+  await page.locator('[data-summary-pack]').last().scrollIntoViewIfNeeded();
   const finalRow = await page.evaluate(() => {
     const modal = document.querySelector('.modal').getBoundingClientRect();
     const lastPack = [...document.querySelectorAll('[data-summary-pack]')].at(-1).getBoundingClientRect();

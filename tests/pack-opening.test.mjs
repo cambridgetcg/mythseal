@@ -104,6 +104,20 @@ test('skip cancels queued transitions; replay uses the same immutable receipt wi
   finally { Math.random = native; replay.controller.destroy(); }
 });
 
+test('a one-card page keeps newly revealed artwork visible and focuses the real Next control', () => {
+  const env = environment(), before = JSON.stringify(env.receipt);
+  const nextPage = { disabled: false, closest: () => null, focus() { env.document.activeElement = this; } };
+  const query = env.element.querySelectorAll;
+  env.element.querySelectorAll = selector => selector === '[data-viewport-action="next"]' ? [nextPage] : query(selector);
+  env.slots[1].back.closest = () => env.slots[1]; // The next copy is on a hidden page.
+  env.controller.open(); env.advance(300); env.controller.reveal(0);
+  assert.equal(env.document.activeElement, nextPage);
+  assert.equal(env.slots[0].querySelector('[data-pack-face]').hidden, false);
+  assert.deepEqual(env.controller.getState().revealed, [0]);
+  assert.equal(JSON.stringify(env.receipt), before);
+  env.controller.destroy();
+});
+
 test('system/user reduced motion and fast pace immediately show accepted final cards', () => {
   for (const config of [{ reduce: true }, { fast: true }]) {
     const env = environment(config); env.controller.open();

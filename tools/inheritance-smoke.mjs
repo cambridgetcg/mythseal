@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Local inheritance acceptance with synthetic saves and real native browser locks. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -86,7 +87,7 @@ async function contextFor(seed, { width = 390 } = {}) {
   return context;
 }
 async function pageIn(context) {
-  const page = await context.newPage(); page.setDefaultTimeout(12000);
+  const page = await context.newPage(); installViewportNavigation(page); page.setDefaultTimeout(12000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
   await page.goto(base.href); await page.locator('.game-lobby').waitFor(); return page;
@@ -96,7 +97,7 @@ async function passport(page, uid) {
   await page.locator('.game-dock [data-action="bag"]').click();
   await action(page, 'bag-layout', 'copies').click();
   await page.locator(`.bag-grid [data-action="instance-inspect"][data-id="${uid}"]`).click();
-  await page.locator('.bag-passport').waitFor();
+  await page.locator('.instance-modal').waitFor();
 }
 async function openInheritance(page, uid) { await passport(page, uid); await action(page, 'instance-inherit', uid).click(); await action(page, 'inherit-review').waitFor(); }
 async function pickAndReview(page, ids) { for (const uid of ids) await action(page, 'inherit-pick', uid).click(); await action(page, 'inherit-review').click(); await action(page, 'inherit-confirm').waitFor(); }
@@ -115,7 +116,7 @@ async function shot(page, name) {
 }
 async function keyboardTrap(page) {
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  const focusables = page.locator('.modal button:not(:disabled)').filter({ visible: true });
+  const focusables = page.locator('.modal button:not(:disabled):not([tabindex="-1"])').filter({ visible: true });
   await focusables.first().focus(); await page.keyboard.press('Shift+Tab'); assert(await focusables.last().evaluate(node => node === document.activeElement));
   await page.keyboard.press('Tab'); assert(await focusables.first().evaluate(node => node === document.activeElement));
 }
@@ -146,8 +147,8 @@ try {
     assert.match(await page.locator('[data-inheritance-gained]').innerText(), /220/);
     await topmost(action(page, 'inherit-review')); await shot(page, `selection-${width}`);
     await action(page, 'inherit-review').click(); await page.locator('.inheritance-confirm').waitFor();
-    assert.match(await page.locator('.inheritance-confirm').innerText(), /永久|不可|不能|消耗/);
-    for (const uid of [ids.target, ...donors]) assert((await page.locator('.inheritance-confirm').innerText()).includes(uid));
+    assert.match(await page.locator('.inheritance-confirm').textContent(), /永久|不可|不能|消耗/);
+    for (const uid of [ids.target, ...donors]) assert((await page.locator('.inheritance-confirm').textContent()).includes(uid));
     await keyboardTrap(page); await topmost(action(page, 'inherit-confirm')); await shot(page, `confirm-${width}`);
     assert.deepEqual(await read(page), profile); assert.equal(await writes(page), startWrites);
     await action(page, 'inherit-back').click(); await page.locator('.inheritance-panel').waitFor();
@@ -160,8 +161,8 @@ try {
     assert.deepEqual(await read(page), expected); assert.equal(await writes(page), startWrites + 1);
     assert.equal(await page.locator(`.inheritance-result [data-print-id="wx01-005-aa1"]`).count() > 0, true);
     await topmost(action(page, 'inherit-done')); await shot(page, `result-${width}`);
-    await action(page, 'inherit-done').click(); await page.locator('.bag-passport').waitFor();
-    assert((await page.locator('.bag-passport').innerText()).includes(ids.target));
+    await action(page, 'inherit-done').click(); await page.locator('.instance-modal').waitFor();
+    assert((await page.locator('.instance-modal').textContent()).includes(ids.target));
     await page.reload(); await page.locator('.game-lobby').waitFor(); assert.deepEqual(await read(page), expected);
     await release(page);
     passed(`${width}px AA inheritance: keyboard selection, preview/back/Escape write nothing; double confirm consumes exact two base copies once, gains220XP and preserves print/history through reload`);
@@ -195,7 +196,7 @@ try {
     assert.equal(await page.locator('[data-action="inherit-pick"][aria-pressed="true"]').count(), 0);
     assert(await action(page, 'inherit-review').isDisabled()); assert.deepEqual(await read(page), profile); assert.equal(await writes(page), startWrites);
     await shot(page, 'protected-360');
-    await page.locator('.modal').evaluate(node => { node.scrollTop = node.scrollHeight; });
+    await action(page, 'inherit-pick', ids.leader).scrollIntoViewIfNeeded();
     await shot(page, 'protected-bottom-360'); await close(page);
     for (const name of ['pending', 'receipt']) { await passport(page, ids[name]); assert(await action(page, 'instance-inherit', ids[name]).isDisabled()); await close(page); }
     await release(page); passed('Locked, saved-deck, pending, receipt and special-print donors are visible but disabled; vault/different-role copies excluded; pending/receipt targets also disabled');

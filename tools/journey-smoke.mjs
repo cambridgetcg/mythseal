@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -57,7 +58,7 @@ async function contextWithSeed(seed, mobile = false) {
     localStorage.setItem('journey-smoke.seeded', 'true');
     for (const [name, value] of Object.entries(seed)) localStorage.setItem(name === 'profile' ? key : name, JSON.stringify(value));
   }, { seed, key: profileKey });
-  const page = await context.newPage(); watch(page);
+  const page = await context.newPage(); installViewportNavigation(page); watch(page);
   await page.goto(base);
   await page.locator('.game-lobby').waitFor();
   return { context, page };
@@ -289,7 +290,7 @@ try {
   const abandonedId = (await profile(battle)).pending.id;
   await battle.locator('[data-action="battle-menu"]').click();
   assert.equal(await battle.locator('[data-action="abandon-navigate"]').getAttribute('data-encounter'), abandonedId);
-  const secondTab = await duel.context.newPage(); watch(secondTab);
+  const secondTab = await duel.context.newPage(); installViewportNavigation(secondTab); watch(secondTab);
   await secondTab.goto(base); await secondTab.locator('.game-lobby').waitFor();
   await practice(secondTab);
   await secondTab.locator('[data-action="discard-pending"]').click();

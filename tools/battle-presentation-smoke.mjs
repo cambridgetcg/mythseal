@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Browser integration for public resource HUDs and accepted-result playback. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -55,7 +56,7 @@ async function openFixture(value, { width = 1440, reducedMotion = 'no-preference
       localStorage.setItem(keys.preferences, JSON.stringify({ sound: false, ambience: 0.35, effects: 0.6, motion: 'system', pace }));
     }
   }, { value, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now: fixedNow, pace, pausePresentation });
-  const page = await context.newPage();
+  const page = await context.newPage(); installViewportNavigation(page);
   if (pausePresentation) await page.clock.install({ time: Date.parse(fixedNow) - 60_000 });
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => errors.push(error.message));
@@ -95,10 +96,10 @@ function assertResources(actual, expected, label) {
 }
 
 async function noOverflow(page, label) {
-  const dimensions = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, blocks: [...document.querySelectorAll('.modal, .battle-resources')].map(element => ({ width: element.clientWidth, scroll: element.scrollWidth })) }));
+  const dimensions = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, blocks: [...document.querySelectorAll('.modal, .battle-resources')].filter(element => element.getClientRects().length && !element.closest('[hidden],[inert]')).map(element => ({ width: element.clientWidth, scroll: element.scrollWidth })) }));
   assert(dimensions.document <= dimensions.viewport + 1, `${label}: document overflow ${JSON.stringify(dimensions)}`);
   assert(dimensions.blocks.every(block => block.scroll <= block.width + 1), `${label}: HUD/modal content clipped ${JSON.stringify(dimensions)}`);
-  const values = await page.locator('[data-hp-value], [data-pill-value]').evaluateAll(elements => elements.map(element => {
+  const values = await page.locator('[data-hp-value], [data-pill-value]').filter({ visible: true }).evaluateAll(elements => elements.filter(element => !element.closest('[inert]')).map(element => {
     const rect = element.getBoundingClientRect(), parent = element.closest('.battle-resources').getBoundingClientRect();
     return { text: element.textContent, width: rect.width, height: rect.height, left: rect.left, right: rect.right, parentLeft: parent.left, parentRight: parent.right };
   }));
@@ -299,11 +300,15 @@ try {
     await shot(page, `battle-presentation-preview-${width}.png`);
     const played = await play(page, capped);
     assert.deepEqual(played.state, reference);
-    await checkRevealFooter(page, { label: `${width}px completed at initial scroll` });
-    await page.locator('.battle-reveal').evaluate(element => { element.scrollTop = element.scrollHeight; });
-    await checkRevealFooter(page, { label: `${width}px completed at bottom scroll` });
+    const modules = await page.locator('.battle-reveal [data-viewport-action="module"]').evaluateAll(nodes => nodes.map(node => node.dataset.viewportTarget));
+    for (const id of modules) {
+      await page.locator(`.battle-reveal [data-viewport-action="module"][data-viewport-target="${id}"]`).click();
+      await checkRevealFooter(page, { label: `${width}px completed ${id} module` });
+      await noOverflow(page, `${width}px completed ${id} module`);
+      assert.equal(await page.locator('.battle-reveal').evaluate(element => element.scrollTop), 0, 'Reveal modules remain fixed without scrolling');
+    }
     await shot(page, `battle-presentation-clash-bottom-${width}.png`);
-    await page.locator('.battle-reveal').evaluate(element => { element.scrollTop = 0; });
+    await page.locator('.battle-reveal [data-viewport-action="module"][data-viewport-target="clash"]').click();
     await shot(page, `battle-presentation-clash-${width}.png`);
     await action(page, 'next-round').click(); await page.locator('.player-hand').waitFor();
     await noOverflow(page, `${width}px final resources and controls`);

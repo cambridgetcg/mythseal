@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Local browser evidence for Mist Gate presentation; never uses player profiles. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -43,7 +44,7 @@ async function seededPage(seed, { width = 1440, reducedMotion = 'no-preference',
       if (preferences) localStorage.setItem(preferenceKey, JSON.stringify(preferences));
     }
   }, { seed, profileKey: PROFILE_KEY, preferenceKey, preferences, blockedStorage, now: fixedNow });
-  const page = await context.newPage();
+  const page = await context.newPage(); installViewportNavigation(page);
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => {
@@ -188,39 +189,43 @@ async function inspectReward(page, initial, moves, before) {
       assert.equal(after.battles, instance.battles + 1);
     } else assert.deepEqual(after, instance, 'Unplayed copies must not receive XP or a fabricated battle history');
   }
+  const resultView = () => page.locator('.mist-complete').evaluate(element => ({
+    module: element.querySelector('[data-viewport-action="module"][aria-selected="true"]')?.dataset.viewportTarget,
+    pages: [...element.querySelectorAll('[data-viewport-list]')].filter(node => !node.closest('[hidden],[inert]')).map(node => [node.dataset.viewportList, node.dataset.page]),
+    scroll: element.scrollTop,
+  }));
   const settled = await storage(page), uid = shownUIDs[0], viewport = page.viewportSize();
   if (viewport.width > 600) await page.setViewportSize({ width: viewport.width, height: 600 });
   const returnLink = action(page, 'result-card', uid);
   await returnLink.scrollIntoViewIfNeeded();
-  await page.locator('.mist-complete').evaluate(element => { element.scrollTop = Math.max(element.scrollTop, Math.min(80, element.scrollHeight - element.clientHeight)); });
   await returnLink.focus();
-  const returnScroll = await page.locator('.mist-complete').evaluate(element => element.scrollTop);
-  if (viewport.width > 600) assert(returnScroll > 0, 'Result-return fixture must exercise nonzero modal scroll');
+  const returnView = await resultView();
+  assert.equal(returnView.scroll, 0, 'Result copies use modules and pages without modal scroll');
   await page.keyboard.press('Enter');
   await page.locator('.bag-passport-id').waitFor();
   assert.match(await page.locator('.bag-passport-id').innerText(), new RegExp(uid));
   assert.equal(await page.locator('.instance-modal [data-action="instance-upgrade"], .instance-modal [data-action="instance-lock"], .instance-modal [data-action="instance-sell"]').count(), 0, 'A result passport must remain read-only');
   await action(page, 'return-result').click();
-  await page.locator('.match-score').waitFor();
+  await page.locator('.match-score').waitFor({ state: 'attached' });
   await afterPaint(page);
   assert.equal(await returnLink.evaluate(element => element === document.activeElement), true, 'Returning from a copy restores its result link focus');
-  assert(Math.abs(await page.locator('.mist-complete').evaluate(element => element.scrollTop) - returnScroll) <= 2, 'Returning from a copy restores result dialog scroll');
+  assert.deepEqual(await resultView(), returnView, 'Returning from a copy restores the exact result module and page');
   assert.deepEqual(await storage(page), settled, 'Inspecting a result copy and returning must not award again');
   await action(page, 'result-card', uid).click();
   await page.keyboard.press('Escape');
-  await page.locator('.match-score').waitFor();
+  await page.locator('.match-score').waitFor({ state: 'attached' });
   const settingsLink = action(page, 'experience-settings', null, '.mist-complete ');
   await settingsLink.scrollIntoViewIfNeeded();
   await settingsLink.focus();
-  const settingsScroll = await page.locator('.mist-complete').evaluate(element => element.scrollTop);
-  assert(settingsScroll > 0, 'Settings-return fixture must exercise nonzero modal scroll');
+  const settingsView = await resultView();
+  assert.equal(settingsView.scroll, 0, 'Settings can open without modal scroll');
   await page.keyboard.press('Enter');
   await page.locator('.experience-settings').waitFor();
   await page.keyboard.press('Escape');
-  await page.locator('.match-score').waitFor();
+  await page.locator('.match-score').waitFor({ state: 'attached' });
   await afterPaint(page);
   assert.equal(await settingsLink.evaluate(element => element === document.activeElement), true, 'Settings returns focus to the originating result control');
-  assert(Math.abs(await page.locator('.mist-complete').evaluate(element => element.scrollTop) - settingsScroll) <= 2, 'Settings returns to the result dialog scroll position');
+  assert.deepEqual(await resultView(), settingsView, 'Settings returns to the same result module and page');
   assert.deepEqual(await storage(page), settled);
   if (viewport.width > 600) await page.setViewportSize(viewport);
 }

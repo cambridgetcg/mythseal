@@ -35,6 +35,16 @@ contains no credentials. Resource identities and deployment receipts live in
 
 ## Local development after the release snapshot
 
+The latest local navigation pass turns destinations and dialogs into viewport
+scenes with explicit module tabs and list pages. `viewport.mjs` owns transient
+module/page/focus state and measured capacity; `scene-adapters.mjs` restructures
+collections, decks, accounts, battles and saved pack receipts;
+`scene-dialogs.mjs` restructures existing dialog content. Presentation modules
+own lobby/world/market/quest markup. Their CSS loads after the earlier styles.
+See [NAVIGATION.md](NAVIGATION.md) for integration and verification boundaries.
+The public allowlist now contains **73 files**, excluding generated metadata.
+This work has no deployment, migration or profile schema change.
+
 The 2026-09-22 navigation slice adds a five-destination game lobby, unified
 cards/decks/codex hub, quest overlay and explicit encounter preparation with
 return-to-deck and next/retry flows. See [NAVIGATION.md](NAVIGATION.md) for behavior,

@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** UI integration smoke with intercepted fixture APIs; never sends real email. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -91,7 +92,7 @@ async function fixturePage(profile, { mobile = false, authenticated = false, ema
     errors.push(`Unexpected mock API route: ${method} ${path}`);
     return reply({ error: { code: 'not_found' } }, 404);
   });
-  const page = await context.newPage();
+  const page = await context.newPage(); installViewportNavigation(page);
   page.setDefaultTimeout(10000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => {
@@ -158,6 +159,7 @@ try {
   await action(page, 'account-refresh').click(); await idle(page);
   assert.deepEqual(await readProfile(page), seed);
   await action(page, 'account-confirm-restore').click();
+  assert(await page.locator('.account-confirmation').isVisible(), 'Confirmation must appear immediately without navigating to another module');
   await page.locator('.account-confirmation').waitFor();
   assert.deepEqual(await readProfile(page), seed, 'Opening restore confirmation must not change local progress');
   await action(page, 'account-restore').click(); await idle(page);
@@ -193,10 +195,15 @@ try {
   complete('A stale revision shows a conflict, disables changes, and needs explicit reread plus another upload');
 
   await action(page, 'account-confirm-delete').click();
+  assert(await page.locator('.account-confirmation').isVisible(), 'Confirmation must appear immediately without navigating to another module');
   assert(desktop.backup);
   await action(page, 'account-cancel-confirmation').click();
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.equal(await page.locator('[data-viewport-surface="account"] [data-viewport-action="module"][aria-selected="true"]').getAttribute('data-viewport-target'), 'cloud');
+  assert(await page.evaluate(() => document.activeElement?.tagName !== 'BODY' && !document.activeElement?.closest('[hidden],[inert]')), 'Cancelling confirmation restores visible keyboard focus in the cloud module');
   assert(desktop.backup);
   await action(page, 'account-confirm-delete').click();
+  assert(await page.locator('.account-confirmation').isVisible(), 'Confirmation must appear immediately without navigating to another module');
   await action(page, 'account-delete').click(); await idle(page);
   assert.equal(desktop.backup, null);
   assert.equal(desktop.revision, 5);
@@ -233,6 +240,7 @@ try {
   await action(mobile.page, 'account-upload').click(); await idle(mobile.page);
   await shot(mobile.page, 'account-mobile-signed-in.png');
   await action(mobile.page, 'account-confirm-restore').click();
+  assert(await mobile.page.locator('.account-confirmation').isVisible(), 'Confirmation must appear immediately without navigating to another module');
   await shot(mobile.page, 'account-mobile-confirmation.png');
   complete('390px mobile guest, long-email account, backup and confirmation screens have no horizontal overflow');
 
@@ -257,6 +265,7 @@ try {
   assert(await action(oldServer.page, 'account-confirm-delete').isDisabled());
   assert.match(await oldServer.page.locator('.account-panel.cloud').innerText(), /西行收藏的雲端備份尚未開放/);
   await action(oldServer.page, 'account-confirm-restore').click();
+  assert(await oldServer.page.locator('.account-confirmation').isVisible(), 'Confirmation must appear immediately without navigating to another module');
   await action(oldServer.page, 'account-restore').click(); await idle(oldServer.page);
   assert.deepEqual(await readProfile(oldServer.page), restoreSnapshot(legacySnapshot, { now: fixedNow }));
   assert.deepEqual((await readRecovery(oldServer.page)).snapshot, createSnapshot(seed));

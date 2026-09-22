@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 import { CARDS } from '../engine.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -17,7 +18,7 @@ const watch = page => {
 const noOverflow = async page => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Horizontal overflow');
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
-  const page = await context.newPage(); watch(page);
+  const page = await context.newPage(); installViewportNavigation(page); watch(page);
   await page.goto(base); await page.locator('.game-lobby').waitFor();
   await page.screenshot({ path: output + 'home-desktop.png', fullPage: true });
   assert.equal(await page.locator('.game-dock [data-action]').count(), 5);
@@ -96,7 +97,7 @@ try {
   await context.close();
 
   const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 1, hasTouch: true, reducedMotion: 'reduce' });
-  const phone = await mobile.newPage(); watch(phone);
+  const phone = await mobile.newPage(); installViewportNavigation(phone); watch(phone);
   await phone.goto(base); await phone.locator('.game-lobby').waitFor();
   await noOverflow(phone);
   await phone.screenshot({ path: output + 'home-mobile.png', fullPage: true });

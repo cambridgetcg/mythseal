@@ -41,6 +41,15 @@ v0.5.1 is unchanged; no release or hosted migration accompanies this work.
 
 ## Shipped baseline and its limits
 
+**Local viewport scenes (2026-09-22):** the five destinations now use bounded
+game scenes. World maps, chapters, market activities, quests and collection
+tools have named modules; card copies, deck slots, materials and box receipts
+have explicit pages. Life and pill reserves remain on the battle table while
+the player switches between hand, move and opponent. Dialogs use the same
+module/page routes. Page and focus state are transient; save formats, battle
+rules and rewards are unchanged. See [navigation behavior](docs/NAVIGATION.md).
+Native packaging and physical-device/on-screen keyboard validation remain planned.
+
 **Local stories and quests (2026-09-22):** the owner chose playable maps/quests
 first and deferred real online PvP/ranked. Three new four-chapter volumes inspired
 by 西遊記, 封神演義 and 白蛇傳 join the original six realms; weekly quests, a shared

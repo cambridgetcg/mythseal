@@ -1,3 +1,4 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** Game-shell regressions using isolated local saves and real UI actions. */
 import { CARDS } from '../engine.mjs';
 import assert from 'node:assert/strict';
@@ -39,7 +40,7 @@ async function seededPage(seed, width = 1440) {
       localStorage.setItem(key, JSON.stringify(seed));
     }
   }, { seed, key: PROFILE_KEY, now: fixedNow });
-  const page = await context.newPage();
+  const page = await context.newPage(); installViewportNavigation(page);
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => {
@@ -189,7 +190,7 @@ try {
 
   await page.locator('[data-action="battle-menu"]').click();
   await action(page, 'navigate-confirm').click();
-  // A short viewport makes restoration exercise real scroll, not a trivial 0.
+  // A short viewport exercises page navigation while the document stays fixed.
   await page.setViewportSize({ width: 1440, height: 500 });
   await go(page, 'bag');
   await action(page, 'bag-layout', 'copies').click();
@@ -200,7 +201,7 @@ try {
   await copyButton.scrollIntoViewIfNeeded();
   await copyButton.focus();
   const scrollBefore = await page.evaluate(() => scrollY);
-  assert(scrollBefore > 0, 'Card-detail fixture must exercise a scrolled list');
+  assert.equal(scrollBefore, 0, 'Copy details use viewport pages rather than document scroll');
   await page.keyboard.press('Enter');
   await page.locator('.bag-passport-id').waitFor();
   await page.keyboard.press('Escape');
@@ -216,14 +217,14 @@ try {
   await catalogueButton.scrollIntoViewIfNeeded();
   await catalogueButton.focus();
   const catalogueScroll = await page.evaluate(() => scrollY);
-  assert(catalogueScroll > 0, 'Codex-detail fixture must exercise a scrolled list');
+  assert.equal(catalogueScroll, 0, 'Codex details use viewport pages rather than document scroll');
   await page.keyboard.press('Enter');
   await page.locator('.detail-rank').waitFor();
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.collection-item').count(), CARDS.filter(card=>card.faction==='moon').length);
   assert.equal(await catalogueButton.evaluate(element => document.activeElement === element), true);
   assert(Math.abs(await page.evaluate(() => scrollY) - catalogueScroll) <= 2);
-  passed('Owned-copy and codex details restore filter, scroll and keyboard focus without leaving the card destination');
+  passed('Owned-copy and codex details restore filters, visible page and keyboard focus with zero document scroll');
 
   for (const { aim, finalNode = false } of [{ aim: 'win' }, { aim: 'lose' }, { aim: 'win', finalNode: true }]) {
     let seed = createProfile({ now: fixedNow });

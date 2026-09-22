@@ -2,6 +2,50 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Viewport game navigation · 2026-09-22
+
+Local development on `codex/game-lobby`. Destinations and dialogs now use named
+modules and explicit list pages within the screen. No deployment, save-format
+migration, economy/rule change or real player-profile mutation occurred.
+
+- **388 Node tests and nine Python tests pass.** The Python run retains the
+  existing harmless temporary HTTP 404 cleanup `ResourceWarning`. Controller
+  tests cover measured capacity, exact-item anchoring, keyboard tabs, focus,
+  teardown and pack-controller visibility ownership; pack tests retain newly
+  revealed artwork on its page without changing the accepted receipt.
+  `npm run build` succeeds with **73 allowlisted public files** plus metadata.
+- All **14 existing Chrome scenario suites** pass individually on the updated
+  navigation. WebKit additionally passes the WX-01 presentation, box and
+  inheritance suites. Account scenarios use intercepted APIs; restore/delete
+  confirmations must appear immediately and cancellation returns visible focus
+  to the cloud module. No real email or hosted mutation is involved.
+- The independent Chrome viewport matrix passes at **1440×900, 1280×720,
+  390×844, 360×740, 360×640 and 844×390**. It visits every module and actual list
+  page, checks active panels and document dimensions, hit-tests visible controls
+  at a 44px minimum and verifies exact copy/receipt identities remain reachable.
+  It completes real preparation, battles, round results, final rewards and a
+  legacy three-card pack; saved 24-pack receipts expose all 72 exact UIDs without
+  another grant or charge.
+- WebKit passes the same six sizes. The initial run completed desktop, laptop
+  and 390px flows; after fixing a native training-select width issue, separate
+  strict runs pass 360×740, 360×640 (including both saved-state cases) and
+  844×390. A focused training check also passes 390×844 and those three sizes.
+  The archived initial report retains its genuine failure; the three final
+  `viewport-webkit-{size}.json` reports record successful completion. No browser
+  errors or active-content overflow remain in these final checks.
+- Browsing preserves synthetic profile bytes and produces no journey writes.
+  Additional 360×640 cases cover simultaneous pending battle/pack receipt and
+  receipt-only preparation → edit deck → return. All **18 chapters** also fit
+  with both pending actions present, including the longest story descriptions.
+- Desktop, short-phone and landscape screenshots were reviewed for readable
+  card identity, chapter text, receipt counts, persistent resource HUD and dock.
+  Evidence remains in ignored `test-results/viewport-*.json`/screenshots and
+  `scene-pending-chapters-report.json`; tests use isolated browser contexts.
+
+Physical iOS/Android devices, on-screen keyboards and a hosted release remain
+separate checks. [NAVIGATION.md](NAVIGATION.md#viewport-scenes--2026-09-22)
+documents the transient controller and module/page integration.
+
 ## 西行 drop-rate design · 2026-09-22
 
 The owner selected cosmetic 領契 before battle Leader mechanics. The proposal

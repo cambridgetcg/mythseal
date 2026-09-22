@@ -64,5 +64,12 @@
   "assets/wx01/wukong-leader.png",
   "assets/expansion/wukong-alt.png",
   "assets/expansion/wukong-ink.png",
-  "assets/expansion/wukong-treasure.png"
+  "assets/expansion/wukong-treasure.png",
+  "viewport.mjs",
+  "viewport.css",
+  "scene-adapters.mjs",
+  "scene-navigation.css",
+  "scene-content.css",
+  "scene-dialogs.mjs",
+  "scene-dialogs.css"
 ]
