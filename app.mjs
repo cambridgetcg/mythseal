@@ -124,11 +124,14 @@ const faction = card => FACTIONS[card.faction];
 
 function cardMarkup(card, options = {}) {
   const { selectable=false, selected:falseSelected=false, used=false, small=false, bonus=false, collection=false, picked=false, action='inspect', side='player', instanceId=null } = options;
+  const rarity = CARD_RARITIES[card.id] || 'common', rarityName = RARITIES[rarity].name;
   const tag = selectable || small || collection ? 'button' : 'div';
-  const attrs = tag === 'button' ? `type="button" data-action="${action}" data-id="${instanceId||card.id}" data-card-id="${card.id}" data-side="${side}" aria-label="${safe(card.name)}，${card.stars} 星，力量 ${card.power}，傷害 ${card.damage}${used ? '，已出戰' : ''}" ${used && selectable ? 'disabled' : ''} ${selectable ? `aria-pressed="${falseSelected}"` : ''}` : '';
-  return `<${tag} class="card ${selectable?'selectable':''} ${falseSelected?'selected':''} ${used?'used':''} ${collection?'collection-card':''}" ${attrs} style="--faction:${faction(card).color}">
+  const attrs = tag === 'button' ? `type="button" data-action="${action}" data-id="${instanceId||card.id}" data-card-id="${card.id}" data-side="${side}" aria-label="${safe(card.name)}，${rarityName}，${card.stars} 星，力量 ${card.power}，傷害 ${card.damage}${used ? '，已出戰' : ''}" ${used && selectable ? 'disabled' : ''} ${selectable ? `aria-pressed="${falseSelected}"` : ''}` : '';
+  return `<${tag} class="card ${selectable?'selectable':''} ${falseSelected?'selected':''} ${used?'used':''} ${collection?'collection-card':''}" data-rarity="${rarity}" ${attrs} style="--faction:${faction(card).color}">
     <div class="card-art" style="background-image:url(assets/${card.artSet==='classics'?'classics':'portraits'}.png);background-position:${(card.art % 4) / 3 * 100}% ${Math.floor(card.art / 4) / 2 * 100}%"></div><div class="card-shade"></div>
-    <div class="card-top"><span class="faction-label">${faction(card).icon} ${faction(card).name}</span><span class="stars" aria-label="${card.stars} 星">${'✦'.repeat(card.stars)}</span></div>
+    <span class="card-rarity-frame" aria-hidden="true"></span>
+    <div class="card-top"><span class="card-faction-rarity"><span class="faction-label">${faction(card).icon} ${faction(card).name}</span><span class="card-rarity-badge" aria-hidden="true" title="${rarityName}">${rarityName[0]}</span></span><span class="stars" aria-label="${card.stars} 星">${'✦'.repeat(card.stars)}</span></div>
+    ${tag==='div'?`<span class="sr-only">收藏稀有度：${rarityName}</span>`:''}
     ${picked?'<span class="picked-check" aria-label="已加入牌組">✓</span>':''}
     <div class="card-copy"><div class="card-title">${card.title}</div><h3 class="card-name">${card.name}</h3><div class="card-divider"></div>
       <div class="card-stats"><span class="card-stat">力 <strong>${card.power}</strong></span><span class="card-stat">傷 <strong>${card.damage}</strong></span>${small?`<span class="card-stat" style="color:var(--gold)">${card.stars} 星</span>`:''}</div>

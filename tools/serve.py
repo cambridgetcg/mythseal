@@ -10,7 +10,11 @@ import webbrowser
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
-PUBLIC_FILES = frozenset(json.loads((ROOT / 'hosting/public-assets.json').read_text()))
+# Explicit local art studies are reviewable here, but excluded from production builds.
+PUBLIC_FILES = frozenset(
+    json.loads((ROOT / 'hosting/public-assets.json').read_text())
+    + json.loads((ROOT / 'hosting/preview-assets.json').read_text())
+)
 
 class GameHandler(SimpleHTTPRequestHandler):
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.mjs': 'text/javascript'}

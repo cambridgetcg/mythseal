@@ -10,7 +10,7 @@ import www from '../hosting/www.mjs';
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'mythseal-build-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  for (const path of [...PUBLIC_FILES, 'hosting/_headers', 'package.json', '.env', 'docs/private.md', '.git/config']) {
+  for (const path of [...PUBLIC_FILES, 'hosting/_headers', 'package.json', '.env', 'docs/private.md', '.git/config', 'atelier.html', 'assets/expansion/wukong-alt.png']) {
     await mkdir(dirname(join(root, path)), { recursive: true });
     await writeFile(join(root, path), path === 'package.json' ? '{"version":"0.4.1"}' : `fixture ${path}`);
   }

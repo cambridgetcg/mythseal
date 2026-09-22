@@ -147,11 +147,18 @@ npm test
 Pure engine, progression and collection suites use Node's built-in test runner. Browser checks use Playwright as a development tool; the game itself has no JavaScript dependencies:
 
 `npm ci` includes pinned Playwright. Start `npm run preview` in another terminal,
-then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for all six
+then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for all nine
 flows. The scripts use installed Google Chrome on macOS; set `CHROME_PATH` for
 another executable, or install the matching browser with
 `npx --no-install playwright install chromium`. No browser download is needed
 when Chrome is already installed. `PLAYWRIGHT_MODULE` remains an optional override.
+
+The [WX-01 set proposal](docs/EXPANSION-WX01.md) has a separate art/pack-opening
+preview at `http://127.0.0.1:4177/atelier.html` when `npm start` is running.
+It never grants cards or changes a save, and its six preview assets are excluded
+from production builds. Run `npm run test:atelier` against that Python server;
+set `BROWSER=webkit` to check an installed Playwright WebKit runtime as well.
+Use `PLAYWRIGHT_BROWSERS_PATH` if that runtime is in a project-local cache.
 
 ```sh
 # Start the local server in another terminal first.

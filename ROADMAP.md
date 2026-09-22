@@ -26,6 +26,14 @@ The long-term goal is a limited-edition collectible that retains its identity an
 
 The detailed [technical plan](docs/TECHNICAL-PLAN.md), [backend design](docs/BACKEND-STACK.md), [mobile plan](docs/MOBILE-RELEASE.md), [NFT stack](docs/NFT-STACK.md) and [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md) explain the proposed architecture. Their original baseline and policy research are dated; the current-state documents above take precedence for what is implemented. Recheck platform requirements when selecting an actual release flow.
 
+**Booster direction confirmed · 2026-09-22:** start with **西遊記**, then develop
+other series. [WX-01 · 西行・萬象初章](docs/EXPANSION-WX01.md) proposes 16 base
+identities (existing Wukong + 15 new characters) and nine cosmetic special
+printings: six AA, two ink-scroll and one treasure. Keep 凡品/靈品/神品 distinct
+from printing treatments and battle strength. The first local slice adds rarity
+frames and an `atelier.html` art/opening preview; new owned prints, the playable
+booster, character balance and special-print probabilities remain planned.
+
 ## Shipped baseline and its limits
 
 **Local stories and quests (2026-09-22):** the owner chose playable maps/quests
@@ -129,6 +137,16 @@ player moments, first-encounter storyboard and implementation/validation seams.
 | **M4.2 · First immersive encounter** | One complete 霧隱渡口 journey: arrival/preparation → commitment → readable reveal/impact → exact-copy XP → next/retry. | Recorded playtests for clarity and repeat-play pace; interruption/reload cannot duplicate rewards or strand a match. Measure phone behaviour with M5. |
 | **M4.3 · World and companion identity** | Distinct realm atmosphere, short guardian writing, clearer 同行記 and an earned-pack opening ritual; owned favourite-card display is an optional later selection. | Asset provenance/budgets and static/muted alternatives; any new memory derives from recorded events; no rule, rarity-odds or reward changes hidden inside effects. |
 | **M4.4 · Encounter depth experiments** | Candidate training puzzles, distinct legal opponent playstyles and later encounter/route variants. | A bounded prototype with versioned content/rules, reproducible scenarios and balance/AI information-boundary evidence before adoption. Optional for initial mobile scope. |
+
+**M4.5 · 西行 booster and printing identity:** follow the
+[set bible and delivery slices](docs/EXPANSION-WX01.md#delivery-slices-and-acceptance).
+Next content step: a four-character pilot, one per faction. In parallel, design
+the print catalogue and supported-reader/save/backup migration before issuing
+owned variants. Then complete the 16-character/25-print checklist and implement
+the earned-coin booster only after exact odds, a finite art-acquisition route,
+once-only opening receipts and old-save retention pass. The current two packs
+keep their rules. Later series: 封神 → a smaller 白蛇 collection, with 三國、水滸、
+聊齋、紅樓 and original 山海 companions in the editorial backlog. No dates set.
 
 - Improve onboarding, explain four-round decisions and exact-card growth, and organize Traditional Chinese/English text without changing save identities. Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
 - Add new classical characters through explicit rules/content versions. Build per-card artwork manifests/derivatives with provenance; trial one card's CSS/Web Animations effects with reduced-motion, skip and background/resume support before scaling the art pipeline.

@@ -20,6 +20,13 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 ```
 
 
+## 西行 printing studies · 2026-09-22
+
+Three original Wukong illustrations explore full-scene alternate art, an ink
+scroll and a lacquer/gold treasure treatment in the local `atelier.html` preview.
+See [exact prompts and assets](ART-EXPANSION.md) and the
+[WX-01 set plan](EXPANSION-WX01.md). These studies do not issue owned variants.
+
 ## Classical expansion · v0.3
 
 The new `assets/classics.png` atlas is documented separately in [ART-CLASSICS.md](ART-CLASSICS.md), including its exact built-in generation prompt, source output path and tile mapping. Original portraits and map remain unchanged.

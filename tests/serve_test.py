@@ -19,6 +19,7 @@ class LocalServerPrivacyTests(unittest.TestCase):
             root = Path(directory)
             (root / 'index.html').write_text('public game')
             (root / 'app.mjs').write_text('export const revision = 1;')
+            (root / 'atelier.html').write_text('local art study')
 
             class QuietHandler(serve.GameHandler):
                 def log_message(self, *_):
@@ -29,7 +30,7 @@ class LocalServerPrivacyTests(unittest.TestCase):
             thread.start()
             base = 'http://127.0.0.1:' + str(server.server_port)
             try:
-                for path in ['/', '/app.mjs']:
+                for path in ['/', '/app.mjs', '/atelier.html']:
                     with self.subTest(path=path):
                         with urlopen(base + path, timeout=3) as response:
                             original = response.read()

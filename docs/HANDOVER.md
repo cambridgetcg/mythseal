@@ -58,6 +58,26 @@ reads accepted engine results; before-resource frames are transient, so resumed
 reveals show saved final totals. See [scope](IMMERSION.md#life-pills-and-battle-transitions--2026-09-22)
 and [checks](VALIDATION.md#life-pills-and-battle-transitions--2026-09-22).
 
+## 西行 booster planning and rarity frames
+
+The owner chose 西遊記 first, then other series. [WX-01](EXPANSION-WX01.md)
+contains the 16-character/25-print proposal, episode art briefs, three existing
+rarities, AA/INK/TR treatments and the delivery sequence. `atelier.html` is a
+standalone local visual preview with four Wukong treatments and a fixed pack
+opening; it never reads or writes player saves, consumes coins or grants cards.
+`hosting/preview-assets.json` explicitly allows its six files on the Python
+loopback server; production builds exclude them. The public allowlist is now 33
+files, adding only `card-frames.css` to the previous 32.
+Three new original art studies and exact prompts are in [ART-EXPANSION.md](ART-EXPANSION.md).
+
+Existing game cards now derive their bronze/silver-jade/gold frame and rarity
+mark from `CARD_RARITIES` via `card-frames.css`. There are still 24 playable
+characters and the same two playable packs. New-card stats and special-print
+odds are not finalized. Owned printing metadata requires a separate compatible
+collection/cloud/old-reader rollout; current hydration would drop an unknown
+field. Do not casually add it or bump the profile version under the same key.
+This remains local development, with verification recorded in [VALIDATION.md](VALIDATION.md).
+
 ## What actually runs
 
 The 2026-09-22 [story/mode expansion](STORIES-AND-MODES.md) adds three original
@@ -150,7 +170,7 @@ hard reload at the same origin; visible existing progress returned without a
 reset or migration. The exact cached-module failure was not observed. Chrome and
 Safari keep separate browser-local journeys; starting fresh in one does not erase
 the other's save. See [the recovery evidence](VALIDATION.md#local-safari-preview-recovery--2026-09-22).
-Restart the server when changing its Python code or the public asset allowlist.
+Restart the server when changing its Python code or either public/preview asset allowlist.
 Offline work and mocked account UI work need no cloud
 credentials. On the existing Mac, first resolve the workspace path and inspect
 the branch/diff; do not overwrite another agent's uncommitted work.

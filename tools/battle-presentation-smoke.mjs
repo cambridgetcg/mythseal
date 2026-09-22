@@ -37,12 +37,16 @@ function fixture({ name, playerHP = 11, playerPills = 12, opponentHP = 12, oppon
   return { name, profile: started.profile, battle, playerMove: player, expected, finalProfile };
 }
 
-async function openFixture(value, { width = 1440, reducedMotion = 'no-preference', pace = 'normal' } = {}) {
+async function openFixture(value, { width = 1440, reducedMotion = 'no-preference', pace = 'normal', pausePresentation = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height: width < 600 ? 844 : 1000 }, reducedMotion, ...(width < 600 ? { isMobile: true, hasTouch: true, deviceScaleFactor: 1 } : {}) });
   contexts.add(context);
-  await context.addInitScript(({ value, keys, now, pace }) => {
-    const NativeDate = Date, fixed = new NativeDate(now).getTime();
-    globalThis.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
+  await context.addInitScript(({ value, keys, now, pace, pausePresentation }) => {
+    // Playwright owns Date as well as timers in the paused keyboard fixture.
+    // A second Date shim corrupts its clock-log replay across navigation.
+    if (!pausePresentation) {
+      const NativeDate = Date, fixed = new NativeDate(now).getTime();
+      globalThis.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
+    }
     Math.random = () => 0.23;
     if (!localStorage.getItem('battle-presentation-smoke.seeded')) {
       localStorage.setItem('battle-presentation-smoke.seeded', 'true');
@@ -50,8 +54,9 @@ async function openFixture(value, { width = 1440, reducedMotion = 'no-preference
       localStorage.setItem(keys.battle, JSON.stringify(value.battle));
       localStorage.setItem(keys.preferences, JSON.stringify({ sound: false, ambience: 0.35, effects: 0.6, motion: 'system', pace }));
     }
-  }, { value, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now: fixedNow, pace });
+  }, { value, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now: fixedNow, pace, pausePresentation });
   const page = await context.newPage();
+  if (pausePresentation) await page.clock.install({ time: Date.parse(fixedNow) - 60_000 });
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { if (response.status() >= 400 && new URL(response.url()).origin === new URL(base).origin) errors.push(`${response.status()} ${response.url()}`); });
@@ -59,6 +64,7 @@ async function openFixture(value, { width = 1440, reducedMotion = 'no-preference
   await action(page, 'resume').click();
   await page.locator('.player-hand').waitFor();
   assert.deepEqual((await read(page, battleKey)).match, value.battle.match);
+  if (pausePresentation) await page.clock.pauseAt(Date.parse(fixedNow));
   return page;
 }
 
@@ -303,10 +309,17 @@ try {
     await noOverflow(page, `${width}px final resources and controls`);
     await release(page);
 
-    const animated = await openFixture(capped, { width });
+    // Geometry/focus assertions must not race the 1.1-second automatic finish,
+    // which can move focus to Next before the test sends Enter. Real-time phase
+    // timing is covered above; keep this keyboard-Skip case on its sealed frame.
+    const animated = await openFixture(capped, { width, pausePresentation: true });
     await selectMove(animated, capped.playerMove);
     await action(animated, 'commit').click();
     await animated.locator('.battle-reveal').waitFor();
+    // Flush the modal's scheduled initial focus without reaching the first
+    // reveal phase at 100 ms; subsequent geometry checks cannot consume time.
+    await animated.clock.runFor(32);
+    assert.equal(await animated.locator('.battle-reveal').getAttribute('data-phase'), 'sealed');
     await checkRevealFooter(animated, { animated: true, label: `${width}px animating` });
     await action(animated, 'skip-reveal').focus();
     await animated.keyboard.press('Enter');

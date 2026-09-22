@@ -2,6 +2,51 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## 西行 collectible frames and art study · 2026-09-22
+
+Local development on `codex/game-lobby`; the owner selected 西遊記 as the first
+booster series. Existing cards now show their current collection rarity through
+bronze, silver-jade or gold framing. There are still **24 playable characters
+and two playable packs**. No rule, price, probability, profile schema, account,
+database or real player save changed. No deployment occurred.
+
+- **237 Node tests and nine Python tests pass.** Production-build fixtures
+  explicitly include unapproved atelier/art files and verify their exclusion;
+  the loopback server test covers the allowlisted local preview and no-store
+  responses while retaining private-file and symlink protections.
+- `npm run build` succeeds with **33 public runtime files**. The six files in
+  `hosting/preview-assets.json` are available only through the local Python
+  server and do not enter the production artifact.
+- The core gameplay, backpack and battle-presentation Chrome suites pass with
+  the live frames. The battle suite retains real-time phase coverage (about
+  1.1 seconds to completion); its mobile keyboard/geometry case now pauses the
+  test clock so automatic completion cannot move focus before Enter is sent.
+  All six battle groups and eight footer geometry/hit checks pass without errors.
+  Screenshots of the mobile backpack and battle cards were visually reviewed
+  for legible names, stats, rarity marks and faction labels.
+- `npm run test:atelier` passes in isolated **Chrome and WebKit 26.6**, with nine
+  check groups per engine at **360px, 390px and 1440px**. All four Wukong treatments
+  retain five stars, power 7, damage 6 and `stopAbility`. Checks cover distinct
+  rarity frames, keyboard selection, manual/all reveals, fixed INK/TR choice,
+  replay, opening skip, synthetic pagehide, reduced motion and focus recovery.
+- Synthetic local/session save canaries remain unchanged, with no storage
+  method writes or cookies. Request guards detect no API calls, external
+  requests or mutation requests. Both engines report zero console/page errors
+  and failed assets. Every owned test browser was closed.
+- Three original **1024×1536** Wukong art studies total about **9.2 MiB**.
+  [ART-EXPANSION.md](ART-EXPANSION.md) records the exact built-in imagegen prompts
+  and project asset paths. Frames and readable rules are HTML/CSS; no image
+  carries baked-in card text. Decoded-art screenshots were reviewed on both
+  desktop and mobile viewport layouts.
+
+Evidence: ignored `test-results/atelier-{chromium,webkit}-smoke.json` and
+`atelier-{chromium,webkit}-{ink,treasure,demo}-{360,1440}.png`. This is isolated
+WebKit evidence, not a new test of the owner's native Safari 18.6 session or a
+physical iPhone/Android. Art compression/loading budgets, character balance,
+owned-print compatibility and real booster distribution remain future work in
+the [WX-01 set plan](EXPANSION-WX01.md). The atelier is a fixed-content visual
+demonstration with no currency cost, RNG, ownership grant or pull-rate claim.
+
 ## Local Safari preview recovery · 2026-09-22
 
 Native **Safari 18.6** was observed showing only the background at
