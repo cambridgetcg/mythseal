@@ -1,8 +1,9 @@
 import { CARDS, FACTIONS, RULES, getCard, getBattleCard } from './engine.mjs';
 import { getInstance, getActiveDeck, getInstanceProtection, getXPProgress, validateInstanceDeck } from './collection.mjs';
 import { getUpgradeCost, getInstanceSale } from './progression.mjs';
-import { cardPresentation, cardArtStyle, printLabel } from './card-presentation.mjs';
+import { cardPresentation, cardArtStyle, printLabel, PRINT_TREATMENTS } from './card-presentation.mjs';
 import { getInheritanceTargetReason } from './inheritance.mjs';
+import { getFilteredInstances, getCardGroups } from './collection-display.mjs';
 
 const safe = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 const number = value => Number(value || 0).toLocaleString('zh-Hant');
@@ -22,35 +23,12 @@ function dateLabel(value) {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('zh-Hant', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Europe/London' }).format(date) : '未有記錄';
 }
-function acquiredTime(instance) {
-  const time = new Date(instance.acquiredAt).getTime();
-  return Number.isFinite(time) ? time : 0;
-}
 function xpMarkup(instance, { compact = false } = {}) {
   const xp = getXPProgress(instance), percentage = Math.round(xp.progress * 100), span = xp.nextThreshold - xp.currentThreshold;
   return `<div class="bag-xp${compact ? ' compact' : ''}"><div class="bag-xp-caption"><b>Lv.${xp.level}</b><span>${xp.maxed ? '歷練圓滿' : `${number(xp.progressXP)} / ${number(span)} 歷練`}</span></div><div class="bag-xp-track" role="progressbar" aria-label="${safe(getCard(instance.cardId).name)}的歷練" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}" aria-valuetext="${safe(`等級 ${xp.level}，累積 ${xp.xp} 歷練${xp.maxed ? '，已達上限' : ''}`)}"><span style="width:${percentage}%"></span></div></div>`;
 }
 function lockButton(instance, extraClass = '') {
   return `<button type="button" class="bag-lock ${extraClass}${instance.locked ? ' is-locked' : ''}" data-action="instance-lock" data-id="${safe(instance.uid)}" aria-pressed="${instance.locked}" aria-label="${instance.locked ? '解鎖' : '鎖定'}${safe(getCard(instance.cardId).name)}，卡牌編號 ${safe(instance.uid)}"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M6 9V6a4 4 0 0 1 ${instance.locked ? '8 0v3' : '7.5-2'}"/><rect x="4" y="9" width="12" height="9" rx="2"/><path d="M10 12v3"/></svg><span>${instance.locked ? '已鎖定' : '鎖定'}</span></button>`;
-}
-function copiesOf(profile) {
-  const counts = new Map();
-  for (const instance of profile.instances) counts.set(instance.cardId, (counts.get(instance.cardId) || 0) + 1);
-  return counts;
-}
-function filteredInstances(profile, view) {
-  const counts = copiesOf(profile), query = (view.query || '').trim().toLocaleLowerCase('zh-Hant');
-  return profile.instances.filter(instance => {
-    const card = getCard(instance.cardId);
-    return (!query || `${card.name} ${card.title} ${instance.uid} ${printLabel(card, { printId: instance.printId })}`.toLocaleLowerCase('zh-Hant').includes(query))
-      && (view.faction === 'all' || !view.faction || card.faction === view.faction)
-      && (view.filter !== 'locked' || instance.locked)
-      && (view.filter !== 'duplicates' || counts.get(instance.cardId) > 1);
-  }).slice().sort((a, b) => {
-    if (view.sort === 'name') return getCard(a.cardId).name.localeCompare(getCard(b.cardId).name, 'zh-Hant') || a.uid.localeCompare(b.uid, undefined, { numeric: true });
-    if (view.sort === 'level') return b.level - a.level || b.xp - a.xp || acquiredTime(b) - acquiredTime(a) || a.uid.localeCompare(b.uid, undefined, { numeric: true });
-    return acquiredTime(b) - acquiredTime(a) || b.uid.localeCompare(a.uid, undefined, { numeric: true });
-  });
 }
 function controlsMarkup(view) {
   return `<div class="bag-controls"><label class="bag-search-field" for="bag-search"><span>尋找卡牌</span><div class="bag-search-wrap"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input id="bag-search" type="search" placeholder="角色名稱或卡牌編號" value="${safe(view.query)}" autocomplete="off"></div></label><label for="bag-faction"><span>陣營</span><select id="bag-faction">${selectOptions([['all', '全部陣營'], ...Object.entries(FACTIONS).map(([id, faction]) => [id, `${faction.icon} ${faction.name}`])], view.faction || 'all')}</select></label><label for="bag-filter"><span>收藏狀態</span><select id="bag-filter">${selectOptions([['all', '所有卡牌'], ['locked', '已鎖定'], ['duplicates', '重複角色']], view.filter || 'all')}</select></label><label for="bag-sort"><span>排序</span><select id="bag-sort">${selectOptions([['recent', '最近入藏'], ['level', '等級優先'], ['name', '角色名稱']], view.sort || 'recent')}</select></label></div>`;
@@ -59,9 +37,34 @@ function instanceTile(profile, instance, cardMarkup, { picking = false, selected
   const card = getCard(instance.cardId);
   return `<article class="bag-item${selected ? ' is-picked' : ''}" aria-label="${safe(card.name)}，卡牌編號 ${safe(instance.uid)}">${cardMarkup(card, { collection: true, selectable: picking, selected, picked: selected, action: picking ? 'bag-pick-instance' : 'instance-inspect', instanceId: instance.uid, printId: instance.printId })}<div class="bag-item-meta"><div class="bag-item-status"><span>${picking ? (selected ? '已選入草稿' : '點卡面選入') : inDeck ? '出戰牌組' : originName(instance.origin)}</span>${picking ? `<button type="button" class="bag-inspect-link" data-action="instance-inspect" data-id="${safe(instance.uid)}" aria-label="查看${safe(card.name)}，卡牌編號 ${safe(instance.uid)}">詳情 ↗</button>` : lockButton(instance)}</div><span class="bag-print-label">${safe(printLabel(card, { printId: instance.printId }))}</span>${xpMarkup(instance, { compact: true })}<span class="bag-serial" title="${safe(instance.uid)}">編號 <span>${safe(instance.uid)}</span></span></div></article>`;
 }
+function shortPrintLabel(cardId, printId) {
+  const print = cardPresentation(cardId, { printId });
+  return print.treatment === 'base' ? `本畫 · ${print.setId === 'legacy' ? '初藏' : '西行'}` : `${PRINT_TREATMENTS[print.treatment].name} ${PRINT_TREATMENTS[print.treatment].code}`;
+}
+function layoutMarkup(view) {
+  const copies = view.layout === 'copies';
+  return `<div class="bag-layout-switch" role="group" aria-label="藏卡排列方式"><button type="button" data-action="bag-layout" data-id="groups" aria-pressed="${!copies}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 4h11v12H5zM2 7v12h11"/></svg>依角色收納</button><button type="button" data-action="bag-layout" data-id="copies" aria-pressed="${copies}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 3h6v14H2zM12 3h6v14h-6z"/></svg>逐張查看</button></div>`;
+}
+function groupTile(group, cardMarkup) {
+  const { card, cover, prints, totalCount, matchingCount, minLevel, maxLevel, lockedCount, deckCount } = group;
+  const filtered = matchingCount !== totalCount, range = minLevel === maxLevel ? `Lv.${minLevel}` : `Lv.${minLevel}–${maxLevel}`;
+  const label = `展開${card.name}，持有 ${totalCount} 張、${prints.length} 種版本${filtered ? `，其中 ${matchingCount} 張符合篩選` : ''}`;
+  return `<article class="bag-character-group${totalCount > 1 ? ' has-copies' : ''}" data-card-id="${safe(card.id)}" data-owned-count="${totalCount}" data-matching-count="${matchingCount}"><button type="button" class="bag-group-open" data-action="bag-open-group" data-id="${safe(card.id)}" aria-label="${safe(label)}"><span class="bag-group-stack" aria-hidden="true">${cardMarkup(card, { printId: cover.printId, instanceId: cover.uid })}<span class="bag-group-count"><span>藏</span> ${number(totalCount)}</span></span><span class="bag-group-open-label">${filtered ? `${matchingCount} / ${totalCount} 張符合` : `${number(totalCount)} 張同行卡`}<span aria-hidden="true">展開 ↗</span></span></button><div class="bag-group-meta"><div class="bag-group-level"><b>${range}</b><span>${prints.length} 種版本</span></div><div class="bag-group-prints" aria-label="全部持有版本">${prints.map(print => `<span class="bag-print-chip" data-print-id="${safe(print.printId)}" data-print-count="${print.count}" title="${safe(printLabel(card, { printId: print.printId }))}：持有 ${print.count} 張${filtered ? `，符合篩選 ${print.matchingCount} 張` : ''}">${safe(shortPrintLabel(card.id, print.printId))}<b>×${number(print.count)}</b></span>`).join('')}</div><p class="bag-group-protection">全藏：鎖定 ${lockedCount} · 編入牌組 ${deckCount}</p></div></article>`;
+}
+function characterInventoryMarkup(profile, view, cardMarkup) {
+  const card = getCard(view.expandedCardId), group = getCardGroups(profile).find(item => item.cardId === card.id);
+  const all = getFilteredInstances(profile, view).filter(instance => instance.cardId === card.id), printId = view.printId || 'all';
+  const instances = printId === 'all' ? all : all.filter(instance => instance.printId === printId);
+  const active = new Set(getActiveDeck(profile)?.instanceIds || []), count = group?.totalCount || 0;
+  const tabs = [{ printId: 'all', count, matchingCount: all.length }, ...(group?.prints || []).map(print => ({ ...print, matchingCount: all.filter(instance => instance.printId === print.printId).length }))];
+  const filterChanged = all.length !== count;
+  return `<section class="bag-character-inventory" data-card-id="${safe(card.id)}"><div class="bag-character-heading"><button type="button" class="text-button bag-group-back" data-action="bag-close-group">← 返回角色收納</button><div class="bag-character-title"><div><div class="eyebrow">同名相逢 · 各有歷練</div><h1>${safe(card.name)}<span>${number(count)} 張入藏</span></h1></div><span class="bag-character-faction">${FACTIONS[card.faction].icon} ${FACTIONS[card.faction].name}</span></div><p>每張卡各有畫作、編號與歷練；點開卡面查看同行記。</p></div>${controlsMarkup(view)}<div class="bag-print-tabs" role="group" aria-label="${safe(card.name)}的持有版本">${tabs.map(print => `<button type="button" data-action="bag-print-filter" data-id="${safe(print.printId)}" data-print-count="${print.count}" data-matching-count="${print.matchingCount}" aria-pressed="${printId === print.printId}"${print.matchingCount === 0 && printId !== print.printId ? ' disabled' : ''} title="${safe(print.printId === 'all' ? '所有持有版本' : printLabel(card, { printId: print.printId }))} · 持有 ${print.count} 張${filterChanged ? `，符合篩選 ${print.matchingCount} 張` : ''}"><span>${print.printId === 'all' ? '全部版本' : safe(shortPrintLabel(card.id, print.printId))}</span><b>${filterChanged ? `${print.matchingCount} / ${print.count}` : print.count}</b></button>`).join('')}</div><div class="bag-results"><span>顯示 <b>${instances.length}</b> / ${count} 張${filterChanged ? ' · 版本數量為符合／持有' : ''}</span><span>操作只影響選中的那張卡。</span></div>${instances.length ? `<div class="bag-grid bag-character-copies">${instances.map(instance => instanceTile(profile, instance, cardMarkup, { inDeck: active.has(instance.uid) })).join('')}</div>` : `<div class="bag-empty bag-character-empty"><span aria-hidden="true">◇</span><h3>${count ? '此頁暫無符合的卡牌' : '這位同行者，暫未留在背包'}</h3><p>${count ? '試試全部版本，或調整上方篩選。' : '返回角色收納，查看其他同行卡。'}</p>${count && printId !== 'all' ? '<button type="button" class="secondary" data-action="bag-print-filter" data-id="all">查看全部版本</button>' : ''}</div>`}</section>`;
+}
 function cardsMarkup(profile, view, cardMarkup) {
-  const instances = filteredInstances(profile, view), active = new Set(getActiveDeck(profile)?.instanceIds || []);
-  return `${controlsMarkup(view)}<div class="bag-results"><span>顯示 <b>${instances.length}</b> 張卡牌</span><span>同一角色，每張各有歷練。</span></div>${instances.length ? `<div class="bag-grid">${instances.map(instance => instanceTile(profile, instance, cardMarkup, { inDeck: active.has(instance.uid) })).join('')}</div>` : '<div class="bag-empty"><span aria-hidden="true">◇</span><h2>這一頁，暫未遇見。</h2><p>試試其他名稱、陣營或收藏狀態。</p></div>'}`;
+  if (view.expandedCardId) return characterInventoryMarkup(profile, view, cardMarkup);
+  const instances = getFilteredInstances(profile, view), copies = view.layout === 'copies';
+  const groups = copies ? [] : getCardGroups(profile, view), active = new Set(getActiveDeck(profile)?.instanceIds || []);
+  return `${controlsMarkup(view)}<div class="bag-browse-bar">${layoutMarkup(view)}<p>${copies ? '逐張查看編號、歷練與鎖定狀態。' : '先尋同行者，再展開每張相逢。'}</p></div><div class="bag-results"><span>${copies ? `顯示 <b>${instances.length}</b> 張卡牌` : `<b>${groups.length}</b> 位角色 · <b>${instances.length}</b> 張符合`}</span><span>${copies ? '同一角色，每張各有歷練。' : '卡疊標示全部持有數量。'}</span></div>${instances.length ? `<div class="bag-grid${copies ? '' : ' bag-group-grid'}">${copies ? instances.map(instance => instanceTile(profile, instance, cardMarkup, { inDeck: active.has(instance.uid) })).join('') : groups.map(group => groupTile(group, cardMarkup)).join('')}</div>` : '<div class="bag-empty"><span aria-hidden="true">◇</span><h2>這一頁，暫未遇見。</h2><p>試試其他名稱、陣營或收藏狀態。</p></div>'}`;
 }
 function portraitMarkup(instance) {
   const card = getCard(instance.cardId);
@@ -76,7 +79,7 @@ function deckSlotsMarkup(profile, view) {
 }
 function draftMarkup(profile, view, cardMarkup) {
   const ids = Array.isArray(view.draftInstanceIds) ? view.draftInstanceIds : [], chosen = new Set(ids), validation = validateInstanceDeck(profile, ids);
-  const instances = filteredInstances(profile, view), name = typeof view.deckName === 'string' ? view.deckName : '';
+  const instances = getFilteredInstances(profile, view), name = typeof view.deckName === 'string' ? view.deckName : '';
   const slot = profile.deckSlots.find(item => item.id === view.editingSlotId);
   const errors = validation.errors.map(message => message.replaceAll('卡牌實體', '卡牌').replaceAll('不同副本', '多張卡牌'));
   return `<section class="bag-draft" aria-labelledby="bag-draft-heading"><div class="bag-draft-heading"><div><div class="eyebrow">ARRANGE YOUR EIGHT</div><h2 id="bag-draft-heading">${slot ? '整備此陣' : '編組新陣'}</h2><p>選 8 位不同角色，總星數不超過 ${RULES.starLimit}。同一張卡可編入多套牌組。</p><button type="button" class="text-button" data-action="bag-classics-deck">試組群英初陣 ↗</button></div><div class="bag-draft-counts"><span class="${ids.length === RULES.deckSize ? 'is-ready' : ''}"><b>${ids.length}</b> / ${RULES.deckSize} 張</span><span class="${validation.stars > RULES.starLimit ? 'is-over' : ''}"><b>${validation.stars}</b> / ${RULES.starLimit} 星</span></div></div><div class="bag-draft-tray">${Array.from({ length: Math.max(RULES.deckSize, ids.length) }, (_, index) => {
@@ -90,7 +93,7 @@ function draftMarkup(profile, view, cardMarkup) {
 /** Pure markup only. The app owns filtering state, persistence, focus and actions. */
 export function backpackMarkup(profile, view = {}, cardMarkup, {showTabs=true} = {}) {
   const tab = view.tab === 'decks' ? 'decks' : 'cards', unique = new Set(profile.instances.map(instance => instance.cardId)).size;
-  return `<main class="bag-page screen-enter"><div class="bag-lead"><div class="page-lead"><div class="eyebrow">YOUR TRAVELLING COMPANIONS</div><h1>萬象藏卡</h1><p>把相逢收入行囊，把歷練留在卡上。</p></div><div class="bag-overview"><span><b>${profile.instances.length}</b><small>持有卡牌</small></span><span><b>${unique}<i> / ${CARDS.length}</i></b><small>收集角色</small></span><span><b>${profile.instances.filter(instance => instance.locked).length}</b><small>已鎖定珍藏</small></span></div></div>${showTabs?`<nav class="bag-tabs" aria-label="背包分類"><button type="button" data-action="bag-tab" data-id="cards" aria-pressed="${tab === 'cards'}" class="${tab === 'cards' ? 'active' : ''}">我的卡牌 <span>${profile.instances.length}</span></button><button type="button" data-action="bag-tab" data-id="decks" aria-pressed="${tab === 'decks'}" class="${tab === 'decks' ? 'active' : ''}">出戰牌組 <span>${profile.deckSlots.length} / 3</span></button><span class="bag-tabs-note">這張卡的歷練會隨卡保留</span></nav>`:''}${tab === 'cards' ? cardsMarkup(profile, view, cardMarkup) : `${deckSlotsMarkup(profile, view)}${draftMarkup(profile, view, cardMarkup)}`}</main>`;
+  return `<main class="bag-page screen-enter">${tab === 'cards' && view.expandedCardId ? '' : `<div class="bag-lead"><div class="page-lead"><div class="eyebrow">YOUR TRAVELLING COMPANIONS</div><h1>萬象藏卡</h1><p>把相逢收入行囊，把歷練留在卡上。</p></div><div class="bag-overview"><span><b>${profile.instances.length}</b><small>持有卡牌</small></span><span><b>${unique}<i> / ${CARDS.length}</i></b><small>收集角色</small></span><span><b>${profile.instances.filter(instance => instance.locked).length}</b><small>已鎖定珍藏</small></span></div></div>`}${showTabs?`<nav class="bag-tabs" aria-label="背包分類"><button type="button" data-action="bag-tab" data-id="cards" aria-pressed="${tab === 'cards'}" class="${tab === 'cards' ? 'active' : ''}">我的卡牌 <span>${profile.instances.length}</span></button><button type="button" data-action="bag-tab" data-id="decks" aria-pressed="${tab === 'decks'}" class="${tab === 'decks' ? 'active' : ''}">出戰牌組 <span>${profile.deckSlots.length} / 3</span></button><span class="bag-tabs-note">這張卡的歷練會隨卡保留</span></nav>`:''}${tab === 'cards' ? cardsMarkup(profile, view, cardMarkup) : `${deckSlotsMarkup(profile, view)}${draftMarkup(profile, view, cardMarkup)}`}</main>`;
 }
 
 /** Individual card passport; sale and training protection have separate rules. */

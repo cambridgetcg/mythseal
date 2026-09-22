@@ -111,9 +111,9 @@ try {
   await page.locator('[data-action="filter"][data-id="all"]').click();
   await page.locator('[data-action="collection-set"][data-id="classics"]').click();
   assert.equal(await page.locator('.collection-item').count(), 12);
-  await page.locator('#owned-only').check();
+  await page.locator('[data-action="codex-status"][data-id="collected"]').click();
   assert.equal(await page.locator('.collection-item').count(), 4);
-  await page.locator('#owned-only').uncheck();
+  await page.locator('[data-action="codex-status"][data-id="all"]').click();
   const locked = cardItem(page, 'pangu');
   assert.equal(await locked.locator('[data-action="bag-card"]').count(), 0);
   await locked.locator('[data-action="inspect"]').click();

@@ -53,6 +53,31 @@ consume another copy. Storage failure does not update the in-memory collection
 or display success. No persistent schema field, save key or service changes are
 needed. This remains local progression, not authoritative online card ownership.
 
+## Collection layout and ink discovery · local, 2026-09-22
+
+The backpack defaults to one stack per character, with total owned copies,
+distinct printings, level range and lock/deck counts. A cosmetic cover favours
+special art; it never changes the preferred training copy or active deck.
+Opening a stack exposes individual UID cards and owned-print filters. Legacy
+and WX-01 Wukong share one character stack but remain separate printing rows.
+Search, locked and duplicate filters distinguish matching copies from total
+ownership. Players may switch back to the flat copy grid; the deck editor
+always chooses exact copies. Opening/closing stacks restores focus and scroll.
+
+The character codex has stable numbers from the existing catalogue order,
+chapter completion, and all/collected/missing filters. Uncollected cards use
+grayscale art and a textual ink stamp, including hover, keyboard focus and
+detail views. Names, lore and rules remain readable. A character is collected
+when represented by an owned copy or a merchant-held copy; holding multiple
+printings does not inflate the character total. Owned-copy counts exclude the
+merchant vault. This is derived collection state, not a new permanent
+discovered-printing ledger. Acquiring a character changes its presentation;
+browsing or inspecting one never grants or modifies cards.
+
+Grouping and view filters are transient UI state. No save keys, schemas,
+currency rules, printing identities or battle snapshots change. Original art
+is reused through CSS; there are no new bitmap assets or runtime dependencies.
+
 ## Original factions and atlas
 
 | Column | Faction | Bonus | Row 0 | Row 1 | Row 2 |

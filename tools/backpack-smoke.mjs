@@ -16,7 +16,10 @@ const errors = [], checks = [], screenshots = [], contexts = [];
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const read = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROFILE_KEY);
-const go = (page, destination) => page.locator(`.game-dock [data-action="${destination}"]`).click();
+const go = async (page, destination) => {
+  await page.locator(`.game-dock [data-action="${destination}"]`).click();
+  if (destination === 'bag') await page.locator('[data-action="bag-layout"][data-id="copies"]').click();
+};
 const action = (page, name, uid, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${uid ? `[data-id="${uid}"]` : ''}`);
 const waitInstance = (page, uid, fields) => page.waitForFunction(({ key, uid, fields }) => {
   const instance = JSON.parse(localStorage.getItem(key))?.instances.find(item => item.uid === uid);

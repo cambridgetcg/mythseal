@@ -192,6 +192,7 @@ try {
   // A short viewport makes restoration exercise real scroll, not a trivial 0.
   await page.setViewportSize({ width: 1440, height: 500 });
   await go(page, 'bag');
+  await action(page, 'bag-layout', 'copies').click();
   await page.locator('#bag-sort').selectOption('level');
   await page.locator('#bag-filter').selectOption('duplicates');
   await page.locator('#bag-search').fill('青霄');

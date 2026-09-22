@@ -452,3 +452,36 @@ unavailable-lock refusal and reload. Screenshots were visually reviewed.
 `npm run test:inheritance` reproduces the new browser checks. User card data
 was not consumed or modified during testing. Local source only; public v0.5.1
 and the existing hosted account/module rollout gates remain unchanged.
+
+### Character stacks and ink codex · local, 2026-09-22
+
+The backpack now defaults to character stacks. `collection-display.mjs` groups
+owned copies without changing identity, training preference or deck selection.
+Stacks show total copies, distinct printings, level ranges and protections;
+filters separately report matching counts. Open one to browse its exact UIDs
+and owned-print tabs, or choose **逐張查看** for the original flat layout.
+The deck editor still renders exact copies. Returning from a stack restores
+the previous list position and keyboard focus. Expanded phone pages omit the
+duplicate global header, and selects have explicit 44px touch height.
+
+`codex-ui.mjs`/`codex.css` add stable character numbers, chapter completion,
+all/collected/missing filters, and a grayscale **未逢** treatment. Hover, focus
+and missing-card details retain the grayscale. Names, lore and rules remain
+readable. Collected status derives from owned plus merchant-held copies;
+owned quantities exclude the vault. This is character discovery, not a new
+permanent printing-unlock ledger. Opening a page grants nothing and all display
+preferences are transient. No schema, save-key, economy, artwork or service
+changes accompany the layout. The allowlist now contains 66 public files.
+
+Local verification: 377 Node tests and 9 Python tests pass. The new
+`npm run test:collection-display` suite covers isolated Chrome/WebKit at
+360/390/1440, exact grouped identities/printing counts, readonly save bytes,
+filters, deck drafts, focus/scroll restoration and monochrome details. Existing
+backpack, navigation and classics browser checks pass. The new display suite
+passed **10 groups per engine**, including a second-tab acquisition that recolours
+an already-open missing-card detail and updates progress with zero observer
+writes. Inheritance (9 groups) and WX-01 presentation (11 groups) regressions
+also passed in Chrome. The first WX-01 attempt stalled during Chrome context
+creation before game navigation; a fresh isolated retry passed, with both logs
+retained. Screenshots were inspected in both engines. No real player data was
+edited and no deployment occurred.

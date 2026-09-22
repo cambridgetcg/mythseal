@@ -94,6 +94,7 @@ async function pageIn(context) {
 async function release(page) { const context = page.context(); await context.close(); contexts.delete(context); }
 async function passport(page, uid) {
   await page.locator('.game-dock [data-action="bag"]').click();
+  await action(page, 'bag-layout', 'copies').click();
   await page.locator(`.bag-grid [data-action="instance-inspect"][data-id="${uid}"]`).click();
   await page.locator('.bag-passport').waitFor();
 }

@@ -271,3 +271,11 @@ Web, API/rules, native binaries, artwork and contracts have separate releases. U
 - [ ] Public release follows the existing save/module and account rollout gates; this local feature is not deployed.
 
 Rules and edge cases are recorded in [DESIGN.md](docs/DESIGN.md#同名傳承--local-2026-09-22).
+
+### Character stacks and ink codex · local, 2026-09-22
+
+- [x] Default character stacks with owned-copy/printing counts, cosmetic special-art covers, level ranges and protection summaries.
+- [x] Expand into exact numbered copies, filter by owned printing, or switch to the flat layout; deck construction still chooses exact UIDs.
+- [x] Numbered character codex with monochrome missing entries, chapter completion and all/collected/missing filters. Missing art stays monochrome when inspected.
+- [x] Responsive layouts, keyboard focus/scroll restoration and derived ownership refresh, without save or economy changes.
+- [ ] Public release remains behind the existing hosted rollout gates; these changes are local only.

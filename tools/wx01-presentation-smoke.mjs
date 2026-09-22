@@ -130,6 +130,7 @@ try {
     assert.equal(redeemed.wx01.receipt.cards[0].printId, 'wx01-005-laa1');
     const leaderUID = redeemed.wx01.receipt.cards[0].instanceId;
     await ack(page); await go(page, 'bag');
+    await action(page, 'bag-layout', 'copies').click();
     await action(page, 'instance-inspect', leaderUID).first().click();
     assert.equal(await page.locator('.bag-passport-art .card[data-print-id="wx01-005-laa1"]').count(), 1);
     await action(page, 'set-leader', leaderUID).click();

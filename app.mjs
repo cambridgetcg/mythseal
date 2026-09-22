@@ -1,9 +1,11 @@
-import { CARDS, LEGACY_CARDS, ORIGINAL_CARD_IDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, previewMove, resolveRound, hasFactionBonus, getBattleCard, CLASSIC_CARD_IDS } from './engine.mjs';
+import { CARDS, LEGACY_CARDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, previewMove, resolveRound, hasFactionBonus, getBattleCard } from './engine.mjs';
 
 import { PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, refreshDaily, claimLogin, claimTask, claimWeeklyTask, buyPack, buyCard, sellInstance, buybackInstance, getInstanceSale, upgradeCard, trainCard, beginBattle, finishBattle, abandonBattle, claimArenaChest, isNodeUnlocked } from './progression.mjs';
 import { WORLDS, getWorldForNode, nextNodeInWorld } from './stories.mjs';
 import { getInstance, getPreferredInstance, getActiveDeck, getDeckLevels, toggleInstanceLock, saveInstanceDeck, activateDeck, deleteDeck, validateInstanceDeck } from './collection.mjs';
 import { backpackMarkup, instanceMarkup } from './backpack-ui.mjs';
+import { isCharacterCollected } from './collection-display.mjs';
+import { codexMarkup } from './codex-ui.mjs';
 import { getInheritanceMaterials, previewInheritance, inheritInstances } from './inheritance.mjs';
 import { inheritanceMarkup, inheritanceConfirmMarkup, inheritanceResultMarkup } from './inheritance-ui.mjs';
 import { worldMarkup, dailyMarkup, marketMarkup, arenaMarkup, rewardText } from './adventure-ui.mjs';
@@ -17,7 +19,7 @@ import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { createSnapshot, restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
 import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './profile-store.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
-import { WX01_CARD_IDS, WX01_PRINTINGS } from './printing-catalogue.mjs';
+import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
 import { createPackOpeningController } from './pack-opening.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
@@ -30,13 +32,13 @@ const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(k
 const profileStore=createProfileStore({storage:localStorage});
 const loadProfile=()=>profileStore.load();
 let profile=loadProfile(), startupReady=false;
-let collectionSet='all', sourceFilter='all', ownedOnly=false, selectedPack='wx01';
+let collectionSet='all', sourceFilter='all', codexStatus='all', selectedPack='wx01', codexDetailId=null;
 const classicsDeck=['kongzi','qingxiao','wukong','guanyu','lindaiyu','shuangli','cangjiao','cuixian'];
 let deckDraftReady=false;
 let screen='home', filter='all', selectedNode=profile.location||NODES[0].id, trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
 let questTab='daily';
 const worldSelections=new Map(), worldScrollPositions=new Map();
-let bagView={tab:'cards',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};
+let bagView={tab:'cards',layout:'groups',expandedCardId:null,printId:'all',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''},bagGroupReturn=null;
 let match=null, encounter=null, selected=null, pills=0, fury=false, aiMove=null, busy=false, recorded=false, revealPending=false, lastReward=null;
 let lastRoundPresentation=null, battleEntering=false;
 let sound=false, toastTimer, lastFocus=null, economyBusy=false;
@@ -110,7 +112,7 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
     deckDraftReady=false;selectedNode=profile.location||NODES[0].id;
     preparation=null;preparationReturn=null;screenScroll.clear();worldSelections.clear();worldScrollPositions.clear();questTab='daily';
     trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
-    bagView={tab:'cards',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};
+    bagView={tab:'cards',layout:'groups',expandedCardId:null,printId:'all',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};bagGroupReturn=null;
     return restored;
   });
 }
@@ -134,11 +136,11 @@ function pendingBanner(){return (profile.wx01.receipt?`<div class="resume-banner
 const faction = card => FACTIONS[card.faction];
 
 function cardMarkup(card, options = {}) {
-  const { selectable=false, selected:falseSelected=false, used=false, small=false, bonus=false, collection=false, picked=false, action='inspect', side='player', instanceId=null, printId=undefined } = options;
+  const { selectable=false, selected:falseSelected=false, used=false, small=false, bonus=false, collection=false, picked=false, action='inspect', side='player', instanceId=null, printId=undefined, discovered=undefined } = options;
   const printing=cardPresentation(card,{printId:printId===undefined&&instanceId?getInstance(profile,instanceId).printId:printId});
   const rarity = CARD_RARITIES[card.id] || 'common', rarityName = RARITIES[rarity].name;
   const tag = selectable || small || collection ? 'button' : 'div';
-  const attrs = tag === 'button' ? `type="button" data-action="${action}" data-id="${instanceId||card.id}" data-card-id="${card.id}" data-side="${side}" aria-label="${safe(card.name)}，${safe(printing.label)}，${rarityName}，${card.stars} 星，力量 ${card.power}，傷害 ${card.damage}${used ? '，已出戰' : ''}" ${used && selectable ? 'disabled' : ''} ${selectable ? `aria-pressed="${falseSelected}"` : ''}` : '';
+  const attrs = tag === 'button' ? `type="button" data-action="${action}" data-id="${instanceId||card.id}" data-card-id="${card.id}" data-side="${side}" aria-label="${safe(card.name)}${discovered===false?'，未入藏':discovered===true?'，已入藏':''}，${safe(printing.label)}，${rarityName}，${card.stars} 星，力量 ${card.power}，傷害 ${card.damage}${used ? '，已出戰' : ''}" ${used && selectable ? 'disabled' : ''} ${selectable ? `aria-pressed="${falseSelected}"` : ''}` : '';
   return `<${tag} class="card ${selectable?'selectable':''} ${falseSelected?'selected':''} ${used?'used':''} ${collection?'collection-card':''}" data-rarity="${rarity}" data-treatment="${printing.treatment}" data-print-id="${printing.printId}" ${attrs} style="--faction:${faction(card).color}">
     <div class="card-art" style="${printing.artStyle}"></div><div class="card-shade"></div>
     <span class="card-rarity-frame" aria-hidden="true"></span>${printFrameMarkup(card,{printId:printing.printId})}
@@ -202,15 +204,7 @@ function battleMarkup() {
 }
 
 function collectionMarkup() {
-  const collected=CARDS.filter(c=>profile.inventory[c.id]>0).length;
-  const cards=CARDS.filter(c=>(filter==='all'||c.faction===filter)&&(collectionSet==='all'||(collectionSet==='wx01'?WX01_CARD_IDS.includes(c.id):collectionSet==='classics'?CLASSIC_CARD_IDS.includes(c.id):ORIGINAL_CARD_IDS.includes(c.id)))&&(sourceFilter==='all'||(c.source||'山海原創')===sourceFilter)&&(!ownedOnly||profile.inventory[c.id]>0));
-  const sources=[...new Set(CARDS.map(c=>c.source||'山海原創'))];
-  return `<main class="collection screen-enter"><div class="eyebrow">THE ARCHIVE OF REALMS · ${collected} / ${CARDS.length} 已入藏</div><div class="collection-head"><div><h1>萬象圖鑑</h1><p class="collection-intro">翻閱人物的來歷與弈道。每張持有的戰卡，都在「我的戰卡」留下自己的故事。</p></div></div>
-    <div class="collection-sets" aria-label="卡牌篇章">${[['all','萬象全卷'],['original','山海初章'],['classics','千古群英'],['wx01','西行萬象']].map(([id,name])=>`<button class="${collectionSet===id?'active':''}" data-action="collection-set" data-id="${id}" aria-pressed="${collectionSet===id}">${name}<span>${id==='all'?CARDS.length:id==='wx01'?WX01_CARD_IDS.length:id==='classics'?CLASSIC_CARD_IDS.length:ORIGINAL_CARD_IDS.length}</span></button>`).join('')}</div>
-    <div class="collection-tools"><label>人物出處<select id="source-filter"><option value="all">所有典籍</option>${sources.map(source=>`<option value="${safe(source)}" ${source===sourceFilter?'selected':''}>${safe(source)}</option>`).join('')}</select></label><label class="owned-filter"><input id="owned-only" type="checkbox" ${ownedOnly?'checked':''}>只看已入藏</label><span>${cards.length} 位人物</span></div>
-    <div class="filters" aria-label="篩選陣營"><button class="filter ${filter==='all'?'active':''}" data-action="filter" data-id="all">萬象 · 全部</button>${Object.entries(FACTIONS).map(([id,f])=>`<button class="filter ${filter===id?'active':''}" data-action="filter" data-id="${id}">${f.icon} ${f.name}</button>`).join('')}</div>
-    <div class="collection-grid">${cards.map(c=>{const owned=profile.inventory[c.id]>0;return `<div class="collection-item ${owned?'':'unowned'}" data-card-id="${c.id}"><div class="collection-source"><span>${safe(c.source||'山海原創')}</span><span class="rarity-dot" style="--rarity:${RARITIES[CARD_RARITIES[c.id]].color}" title="${RARITIES[CARD_RARITIES[c.id]].name}"></span></div>${cardMarkup(c,{collection:true,printId:collectionSet==='wx01'?WX01_PRINTINGS.find(print=>print.cardId===c.id&&print.treatment==='base')?.id:undefined})}<div class="collection-meta"><span>${owned?`持有 ${profile.inventory[c.id]} 張`:'尚未入藏'}</span></div><button class="collection-action" data-action="${owned?'bag-card':'market'}" data-id="${c.id}">${owned?'查看我的戰卡 →':'前往市集尋訪 ↗'}</button></div>`;}).join('')}</div>
-    ${cards.length?'':'<div class="empty-state">這一頁暫時無人入卷，試試其他篩選。</div>'}</main>`;
+  return codexMarkup(profile,{set:collectionSet,source:sourceFilter,faction:filter,status:codexStatus},cardMarkup);
 }
 
 function cardsHubTabs() {
@@ -332,6 +326,11 @@ function showWX01Choice({story=false,treatment='aa'}={}) {
 }
 function refreshOverlay() {
   if(modalKind?.startsWith('inheritance-'))return refreshInheritance();
+  if(modalKind==='codex-detail'&&codexDetailId){
+    const focus=captureFocus(overlay),scroll=overlay.querySelector('.modal')?.scrollTop||0,backdropScroll=overlay.firstElementChild.scrollTop;
+    detailModal(codexDetailId);
+    requestAnimationFrame(()=>{restoreFocus(overlay,focus);const dialog=overlay.querySelector('.codex-detail');if(dialog){dialog.scrollTop=scroll;overlay.firstElementChild.scrollTop=backdropScroll;}});return;
+  }
   if(!['quests','preparation'].includes(modalKind))return;
   const focus=captureFocus(overlay),dialog=overlay.querySelector('.modal'),scroll=dialog.scrollTop,backdropScroll=overlay.firstElementChild.scrollTop;
   if(modalKind==='quests')overlay.querySelector('.quest-content').innerHTML=dailyMarkup(profile,trainingId,questTab);
@@ -408,8 +407,13 @@ function rulesModal() {
 }
 function detailModal(id, side='player') {
   const c=screen==='battle'?getBattleCard(match,side,id):getCard(id), f=faction(c);
-  modal(`<div class="eyebrow">THE ARCHIVE · ${f.name}</div><div class="detail-layout">${cardMarkup(c,{printId:screen==='battle'?(side==='player'?encounter?.cardPrints?.[id]:undefined):screen==='collection'&&collectionSet==='wx01'?WX01_PRINTINGS.find(print=>print.cardId===id&&print.treatment==='base')?.id:undefined})}<div><div class="eyebrow" style="font-size:8px">${c.title}</div><h2>${c.name}</h2><p class="detail-rank" style="color:var(--gold);font-size:11px;margin:5px 0">${c.stars} 星 · 力量 ${c.power} · 傷害 ${c.damage}${screen==='battle'&&match.mode==='expedition'?` · 出戰 Lv.${c.level}`:''}</p><p class="detail-source">${safe(c.source||'山海原創')} · ${RARITIES[CARD_RARITIES[c.id]].name}${screen==='battle'?'':profile.inventory[c.id]>0?` · 已入藏 ${profile.inventory[c.id]} 張`:' · 尚未入藏'}</p><p class="detail-lore">${c.lore}</p><div class="detail-ability"><b>${c.ability.label}</b><p>${c.ability.description}</p></div><div class="detail-ability"><b>${f.bonus.label}</b><p>${f.bonus.description}本局抽出兩位同族角色即可啟動。</p></div></div></div>${screen==='battle'?'':`<div class="modal-actions"><button class="secondary" data-action="${profile.inventory[c.id]>0?'upgrade':'market'}" data-id="${c.id}">${profile.inventory[c.id]>0?'修練此卡 →':'前往市集尋訪 →'}</button></div>`}`);
+  const inCodex=screen==='collection',collected=isCharacterCollected(profile,id),held=profile.inventory[id]>0;
+  const printId=screen==='battle'?(side==='player'?encounter?.cardPrints?.[id]:undefined):inCodex&&collectionSet==='wx01'?WX01_PRINTINGS.find(print=>print.cardId===id&&print.treatment==='base')?.id:undefined;
+  if(inCodex)codexDetailId=id;
+  const action=held?(inCodex?'bag-card':'upgrade'):'market',label=held?(inCodex?'展開我的藏卡 →':'修練此卡 →'):'前往市集尋訪 →';
+  modal(`${inCodex&&!collected?'<p class="codex-detail-note">未入藏 · 墨影待現<br>可先翻閱人物與弈道，取得卡牌後便會亮起彩繪。</p>':''}<div class="eyebrow">THE ARCHIVE · ${f.name}</div><div class="detail-layout">${cardMarkup(c,{printId})}<div><div class="eyebrow" style="font-size:8px">${c.title}</div><h2>${c.name}</h2><p class="detail-rank" style="color:var(--gold);font-size:11px;margin:5px 0">${c.stars} 星 · 力量 ${c.power} · 傷害 ${c.damage}${screen==='battle'&&match.mode==='expedition'?` · 出戰 Lv.${c.level}`:''}</p><p class="detail-source">${safe(c.source||'山海原創')} · ${RARITIES[CARD_RARITIES[c.id]].name}${screen==='battle'?'':held?` · 已入藏 ${profile.inventory[c.id]} 張`:collected?' · 商旅保管中':' · 尚未入藏'}</p><p class="detail-lore">${c.lore}</p><div class="detail-ability"><b>${c.ability.label}</b><p>${c.ability.description}</p></div><div class="detail-ability"><b>${f.bonus.label}</b><p>${f.bonus.description}本局抽出兩位同族角色即可啟動。</p></div></div></div>${screen==='battle'?'':`<div class="modal-actions"><button class="secondary" data-action="${action}" data-id="${c.id}">${label}</button></div>`}`,inCodex?`codex-detail${collected?'':' is-uncollected'}`:'',true,inCodex?'codex-detail':null);
 }
+
 function preferredInstance(reference){
   const exact=profile.instances.find(i=>i.uid===reference);if(exact)return exact;
   const active=getActiveDeck(profile);
@@ -418,6 +422,24 @@ function preferredInstance(reference){
 function showInstance(reference){
   try{const item=preferredInstance(reference);if(!item)throw Error('這張卡暫時不在行囊。');modal(instanceMarkup(profile,item.uid,cardMarkup),'instance-modal');}
   catch(error){toast(error.message);}
+}
+function openBagGroup(cardId,{fromCodex=false}={}) {
+  try {
+    syncProfile(loadProfile());getCard(cardId);
+    if(!profile.instances.some(copy=>copy.cardId===cardId))return toast('這位角色暫時不在行囊。');
+    if(fromCodex){
+      const scroll=modalOrigin?.scroll??window.scrollY;closeModal();screenScroll.set(viewKey(),scroll);
+      screen='bag';bagView.tab='cards';bagView.query='';bagView.filter='all';bagView.faction='all';bagGroupReturn=null;
+    }else bagGroupReturn={scroll:window.scrollY,focus:captureFocus(app)};
+    bagView.layout='groups';bagView.expandedCardId=cardId;bagView.printId='all';
+    render();window.scrollTo({top:0,behavior:'instant'});app.querySelector('[data-action="bag-close-group"]')?.focus({preventScroll:true});
+  }catch(error){toast(error.message);}
+}
+function closeBagGroup() {
+  const origin=bagGroupReturn;bagView.expandedCardId=null;bagView.printId='all';bagGroupReturn=null;
+  render();window.scrollTo({top:origin?.scroll||0,behavior:'instant'});
+  if(origin?.focus)restoreFocus(app,origin.focus);
+  if(!app.contains(document.activeElement))app.querySelector('[data-action="bag-layout"][data-id="groups"]')?.focus({preventScroll:true});
 }
 function inheritanceContent() {
   const view=inheritanceView;
@@ -590,13 +612,13 @@ function navigate(destination) {
   closeModal();screenScroll.set(viewKey(),originScroll);
   if(destination==='account'&&originScreen!=='account')accountReturn=originScreen==='battle'?'home':originScreen;
   screen=destination==='classics'?'collection':destination;
-  if(destination==='classics'){collectionSet='classics';sourceFilter='all';filter='all';ownedOnly=false;}
+  if(destination==='classics'){collectionSet='classics';sourceFilter='all';filter='all';codexStatus='all';}
   preparation=null;preparationReturn=null;
   if(screen==='bag'&&bagView.tab==='decks'&&!deckDraftReady)loadBagDeck(profile.activeDeckId);
   render();window.scrollTo({top:screenScroll.get(viewKey())||0,behavior:'instant'});
   if(screen==='account') account.init();
 }
-function viewKey(){return screen==='bag'?`bag-${bagView.tab}`:screen;}
+function viewKey(){return screen==='bag'?`bag-${bagView.tab}${bagView.tab==='cards'?`-${bagView.expandedCardId||bagView.layout}`:''}`:screen;}
 function switchCardsTab(tab) {
   screenScroll.set(viewKey(),window.scrollY);
   if(tab==='codex')screen='collection';
@@ -747,7 +769,15 @@ document.addEventListener('click', event=>{
     restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>toast(error.message));return;
   }
   if(action==='bag-tab')return switchCardsTab(id);
-  if(action==='bag-card'){closeModal();switchCardsTab('cards');bagView.query=getCard(id).name;bagView.filter='all';bagView.faction='all';render();window.scrollTo({top:0,behavior:'instant'});return;}
+  if(action==='bag-card')return openBagGroup(id,{fromCodex:true});
+  if(action==='bag-open-group')return openBagGroup(id);
+  if(action==='bag-close-group')return closeBagGroup();
+  if(action==='bag-layout'){
+    if(!['groups','copies'].includes(id))return;
+    bagView.layout=id;bagView.expandedCardId=null;bagView.printId='all';bagGroupReturn=null;render();return;
+  }
+  if(action==='bag-print-filter'){bagView.printId=id;render();return;}
+  if(action==='codex-status'){if(!['all','collected','missing'].includes(id))return;codexStatus=id;render();return;}
   if(action==='instance-inspect')return showInstance(id);
   if(action==='instance-inherit')return openInheritance(id);
   if(action==='inherit-pick')return pickInheritance(id);
@@ -864,11 +894,10 @@ document.addEventListener('change',event=>{
     experience.setPreferences({[event.target.id==='experience-motion'?'motion':'pace']:event.target.value});return;
   }
   const bagField={'bag-sort':'sort','bag-filter':'filter','bag-faction':'faction'}[event.target.id];
-  if(bagField){bagView[bagField]=event.target.value;render();return;}
+  if(bagField){bagView[bagField]=event.target.value;if(bagField!=='sort')bagView.printId='all';render();return;}
 
   if(event.target.id==='training-select'){trainingId=event.target.value;render();}
   if(event.target.id==='source-filter'){sourceFilter=event.target.value;render();}
-  if(event.target.id==='owned-only'){ownedOnly=event.target.checked;render();}
 });
 window.addEventListener('pagehide',()=>{if(match?.status==='playing')try{persistBattle();}catch{}});
 function reloadLocalJourney() {
@@ -892,7 +921,7 @@ document.addEventListener('input',event=>{
     account.setDraft(event.target.name,event.target.value);return;
   }
   if(event.target.id==='bag-search'){
-    const cursor=event.target.selectionStart;bagView.query=event.target.value;render();const input=document.querySelector('#bag-search');input?.setSelectionRange(cursor,cursor);return;
+    const cursor=event.target.selectionStart;bagView.query=event.target.value;bagView.printId='all';render();const input=document.querySelector('#bag-search');input?.setSelectionRange(cursor,cursor);return;
   }
   if(event.target.id==='bag-deck-name'){bagView.deckName=event.target.value;return;}
 
