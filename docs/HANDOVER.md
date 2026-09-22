@@ -143,7 +143,13 @@ The last command serves guest play on loopback, normally port **4177**. It does
 not implement `/api/*`. Development responses use `Cache-Control: no-store`
 and send current file bytes instead of modification-time 304 responses, so
 unversioned modules stay fresh across edits. If a tab cached files from an older
-server, use a hard reload once; do not clear site data or local journey saves.
+server, use a hard reload once: **Command–Option–R in macOS Safari**, or
+**Command–Shift–R in Chrome**. Do not clear site data or local journey saves.
+The September 22 Safari 18.6 background-only incident resolved with the correct
+hard reload at the same origin; visible existing progress returned without a
+reset or migration. The exact cached-module failure was not observed. Chrome and
+Safari keep separate browser-local journeys; starting fresh in one does not erase
+the other's save. See [the recovery evidence](VALIDATION.md#local-safari-preview-recovery--2026-09-22).
 Restart the server when changing its Python code or the public asset allowlist.
 Offline work and mocked account UI work need no cloud
 credentials. On the existing Mac, first resolve the workspace path and inspect

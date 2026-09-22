@@ -2,21 +2,31 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
-## Local preview cache investigation · 2026-09-22
+## Local Safari preview recovery · 2026-09-22
 
-The owner reported nothing showing at `127.0.0.1:4177`. All 32 public files
-returned 200 with current checkout bytes and correct module MIME types. A fresh
-isolated Chrome loaded the lobby and completed the core gameplay smoke suite;
-the owner's failing tab was unavailable to browser control, so its cause remains
-unconfirmed. Stale cached modules are a hypothesis, not an observed console error.
+Native **Safari 18.6** was observed showing only the background at
+`http://127.0.0.1:4177/`. **Command–Option–R**, Safari's hard reload, immediately
+restored the lobby at that same origin. The visible interface showed the existing
+Lv.4 journey, all six original realms cleared and the existing deck. The earlier
+Command–Shift–R guidance was Chrome's shortcut, not Safari's. Recovery required
+no save reset, migration or application-code change. The exact cached-module
+failure was not observed; the hard reload resolving the blank screen is confirmed.
+
+All 32 public files returned 200 with current checkout bytes and correct module
+MIME types. Isolated fresh Chrome passed the core gameplay and story suites;
+an isolated **WebKit 26.6** probe also loaded the lobby and four-world atlas.
+These fresh contexts have separate saves from the owner's Safari. Actual native
+Safari map navigation was not verified in this incident check.
 
 The development server now sends `Cache-Control: no-store` and current bytes
 instead of modification-time 304 responses. Restarted on the same loopback port;
 live conditional requests return 200/no-store. Nine Python tests pass, including
 cache-response coverage and the existing private-file/symlink denial checks.
 The story suite's eight groups also pass after restart, with no browser errors.
-No user saves or browser data were read or cleared; no public deployment occurred.
-A tab retaining older cached files still needs one hard reload.
+The owner's progress was checked only through the visible Safari interface;
+browser storage and save contents were not manually read, exported or cleared.
+No public deployment occurred. Chrome and Safari keep separate browser-local
+journeys, so a fresh Chrome journey does not mean Safari's progress was reset.
 
 ## Story volumes and quests · 2026-09-22
 
