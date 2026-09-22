@@ -8,6 +8,13 @@ Start with [HANDOVER.md](docs/HANDOVER.md) for repository orientation, infrastru
 
 An Eastern mythic strategy card game with refined dark-fantasy artwork, four-round bluffing battles, travel, daily progression and cards with individual histories. Characters draw from Chinese mythology, literature and history, using original artwork and documented provenance. Target clients are browser, **iOS and Android**.
 
+**Mobile launch direction confirmed · 2026-09-22:** develop Mythseal for release
+as an **iOS game on the App Store and an Android game on Google Play**. The approved
+five-destination lobby and encounter/deck/rewards loop form the shared interface
+foundation. Adapt that experience for portrait phone play while retaining the
+browser version. Physical-device validation, native packaging, closed beta and
+store launch are planned milestones below; no launch date is set.
+
 The long-term goal is a limited-edition collectible that retains its identity and earned XP when traded. The backend should validate ordinary battles and growth promptly; players should not need a wallet confirmation or a chain transaction each turn. Blockchain would establish collectible issuance and ownership. Wallets, collectible rights and native gameplay must be designed together before promising playable NFT transfers across every platform.
 
 The detailed [technical plan](docs/TECHNICAL-PLAN.md), [backend design](docs/BACKEND-STACK.md), [mobile plan](docs/MOBILE-RELEASE.md), [NFT stack](docs/NFT-STACK.md) and [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md) explain the proposed architecture. Their original baseline and policy research are dated; the current-state documents above take precedence for what is implemented. Recheck platform requirements when selecting an actual release flow.
@@ -83,16 +90,25 @@ This does not change the live release or complete the broader M4 acceptance crit
 
 **Acceptance:** a new player completes a battle → travel/daily → backpack/upgrade loop without assistance; assets and rules have reproducible versioned manifests; selected phone performance/accessibility targets are measured. PvP is complete only when two real clients finish/reconnect without exposing hidden moves, and duplicate settlements cannot change ranking or rewards twice.
 
-### M5 · iOS and Android closed beta
+### M5 · Mobile adaptation → iOS and Android closed beta
 
-**Dependencies:** a stable client/API contract and M1 account lifecycle. Packaging and physical mobile-web experiments can run alongside M2–M4; chain selection is not required.
+**Dependencies:** the approved [M4 game shell](docs/NAVIGATION.md) is the starting point. Touch and
+native packaging experiments can run alongside M1–M4 using existing guest AI
+play. A beta that includes accounts needs the M1 account lifecycle and verified
+mobile backup/recovery; online progression additionally needs the applicable
+M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 
-- Finish the owner-controlled native toolchain/signing setup, then trial Capacitor with the allowlisted bundled assets. Implement a storage/lifecycle adapter, safe areas, Android back handling and audio recovery.
-- Test physical iPhone and Android devices: cold starts, upgrade/migration, background/process termination, poor connectivity and interrupted settlement. Keep offline practice usable; verify exact-card save recovery.
-- Prepare support/privacy information, account deletion, accessibility, ratings and release-specific data/plugin disclosures. Define the actual feature/payment matrix for each storefront using freshly checked requirements.
-- Produce TestFlight/Play testing builds when the owner has chosen the necessary accounts and release scope. Start with ordinary earned cards; make no assumption that a wrapped website is a finished native experience.
+| Milestone | Planned work | Exit evidence |
+| --- | --- | --- |
+| **M5.1 · Phone gameplay** | Adapt the lobby, five labelled destinations, quest panel, exact-card decks, preparation and results for portrait phones. Check safe areas, thumb reach, readable cards, text scaling, keyboard/input and consistent Back/close behaviour. Retain the responsive browser layout. | A new player completes lobby → prepare/edit deck → battle → rewards → next encounter on a physical iPhone and Android phone. Record screen sizes and accessibility/performance observations. |
+| **M5.2 · Native build trial** | Finish the native toolchain/signing setup and trial the existing Capacitor direction with only allowlisted bundled assets. Add durable storage/migration, Android back handling, lifecycle and audio recovery. | Development builds on both platforms preserve exact UIDs, XP and pending matches through cold starts, upgrades, backgrounding and process termination; no duplicate payouts. Decide whether the shared UI meets measured device targets before considering a rewrite. |
+| **M5.3 · Closed beta** | Produce iOS TestFlight and Google Play testing builds for the selected ordinary-card feature set. Adapt the existing email-code/explicit backup journey if accounts are included. Prepare onboarding, support/privacy information, account lifecycle, ratings, accessibility and release-specific data/plugin disclosures. | Signed beta builds pass the physical-device matrix, poor-network/offline and recovery checks. Record tester feedback and resolve blocking gameplay, save and usability issues. |
 
 **Acceptance:** signed builds pass the agreed physical-device matrix, recover after interruption without losing cards or duplicating payouts, and meet measured performance targets. Record actual closed-beta/store review outcomes. NFT ownership granting playable rights on native remains a separate product decision, not an implied feature of the beta.
+
+**Current status:** the shared lobby and navigation pass desktop/phone Chrome
+emulation locally. Physical iPhone/Android checks, native projects, signing and
+beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
 
 ### M6 · Limited-edition collectible rehearsal
 
@@ -105,13 +121,14 @@ This does not change the live release or complete the broader M4 acceptance crit
 
 **Acceptance:** all mint paths obey lifetime caps; burning cannot reopen supply; replay/privilege tests pass. Rebuilding the index reproduces ownership, transferred copies retain the same history, and a primary pin/gateway outage permits full restoration. Record wallet recovery, finality and cost measurements against agreed targets from [NFT-STACK.md](docs/NFT-STACK.md). No real funds, production entitlement or launch approval follows from a successful testnet rehearsal.
 
-### M7 · Production edition and store release
+### M7 · iOS / Android launch and collectible release
 
 **Dependencies:** for mobile, M5 and review of the selected store flow; for collectibles, M6 plus the owner's separate choice of production network, supply, rights, budget, supported markets and sale scope. These release tracks can proceed independently.
 
 - Freeze the edition/supply/art manifest and issuance permissions; independently review the contract and resolve critical/high findings. Rehearse key recovery, ownership reconciliation, incident response and content/database restoration.
 - Publish clear rights, reserves, support and provenance for the approved known-content edition. Verify deployed code and every issued/reserved copy against its cap; subsequent chapters need separate manifests and review.
 - Release only the accepted mobile feature set, with staged rollout and version compatibility. Monitor game balance, service health and support capacity. Mobile may launch before collectibles if the NFT gameplay decision remains open.
+- For the mobile track, graduate the tested builds to **Apple App Store and Google Play** submissions. Confirm launch territories, audience, minimum OS/device support, account ownership, the chosen free/paid feature set and current submission requirements. Prepare store screenshots/listings, support and release recovery; record each platform's review and rollout separately. Simultaneous launch is not assumed.
 
 **Acceptance:** actual deployment/store receipts, supply reconciliation, recovery evidence and operational ownership are recorded for the applicable release track. A plan, audit of a dependency or passing testnet suite alone does not satisfy production readiness.
 
@@ -127,7 +144,8 @@ These are bounded starting points, not instructions to start every phase at once
 | Transaction adapter spike | One least-privilege transaction path with rollback, concurrent-start and duplicate-settlement tests. | Agreed contract; local isolated fixtures first. Coordinate schema ownership with the API author. |
 | Online client adapter | One match/inventory UI using contract fixtures; clear offline versus online status and reconnect handling. | Agreed contract; can run alongside server implementation. No local-save promotion. |
 | Content/animation sample | One card's original-art manifest, derivatives and reduced-motion animation, with measured payload/render cost. | Independent M4 task; preserve the existing asset fallback. |
-| Mobile readiness report | Missing toolchain/signing prerequisites and an agreed physical-device/storage test matrix. | Independent M5 preparation; installation, enrollment and release are separate tasks. |
+| Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
+| Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
 
 Start with portable operations and the contract for one authoritative battle, not a simultaneous rewrite of accounts, economy, UI and chain services. Record each finished slice in the current-state/evidence documents and advance this roadmap only when its acceptance criteria are demonstrated.
 
@@ -147,7 +165,7 @@ The server records append-only XP against a stable card identity. A collectible 
 | --- | --- | --- |
 | Online economy entry | Fresh server-issued inventory; offline journeys remain preserved and editable. | M2 starter grant and progression contract. |
 | Infrastructure/operations | Existing Workers + Supabase; one transactional command authority; expand services only from measured need. | Authoritative alpha rollout and any paid resource. |
-| Audience and native product | Capacitor trial, ordinary earned cards first; choose launch regions/ages and NFT gameplay rights explicitly. | Closed beta/store disclosures; any collectible sale promise. |
+| Audience and native product | iOS App Store and Android Google Play launches are confirmed product goals; use the shared game shell and a Capacitor trial. Launch regions/ages, free/paid scope, devices and dates remain open. | Closed beta/store disclosures; any collectible sale promise. |
 | Wallet and production chain | Evaluate optional wallet recovery and Base Sepolia first; production choice remains open. | Testnet integration and later production issuance, separately. |
 | Supply, rights and commercial terms | Known-content limited editions; no promised resale value or required fungible token. | Approved edition manifest, sale or marketplace. |
 | Name, artwork and source licensing | 萬象契 / Mythseal selected; original art with provenance; no open-source license selected. | Public licensing/commercial release; domain ownership does not establish trademark clearance. |
