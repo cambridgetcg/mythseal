@@ -78,6 +78,9 @@ card art and rules remain accessible through detail modules.
   changing a volume returns to its map.
 - **對弈:** arena, practice and future modes. In a battle, life and pills stay in
   the header while hand, move, opponent and notes have separate modules.
+  This current split hides opponent context during a move; the planned
+  [battle-table revision](BATTLE-LAYOUT-PLAN.md) keeps the decision inputs visible
+  together. That revision is not implemented yet.
 - **藏卡:** cards, filters and arrangement; expanded characters also have a
   printing selector. Decks separate saved slots, draft positions, available
   copies and saving. The codex separates discovery cards from search tools.

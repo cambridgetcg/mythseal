@@ -156,6 +156,14 @@ and [verification](docs/VALIDATION.md#life-pills-and-battle-transitions--2026-09
 **Immersion track (local first slice; remaining work planned):** follow [IMMERSION.md](docs/IMMERSION.md) for the
 player moments, first-encounter storyboard and implementation/validation seams.
 
+**Next battle usability fix (planned 2026-09-23):** the viewport conversion hides
+opponent cards/commitment while choosing a move. Follow the
+[battle-table layout plan](docs/BATTLE-LAYOUT-PLAN.md): persist four public enemy
+cards, current confrontation, own hand and move controls together; keep played
+cards visible through reveal details. A separate conversation mockup is available;
+the running game has not yet adopted this layout. Preserve hidden bids and add
+direct simultaneous-visibility assertions to the existing viewport checks.
+
 **Carved map-piece study (2026-09-23):** [青玉行旅棋](docs/MAP-PIECE-PROTOTYPE.md)
 now provides a local CSS/SVG prototype across all maps: lift, follow each route
 node, settle, then choose whether to inspect/enter. A separate paged **路程**
