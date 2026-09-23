@@ -15,7 +15,8 @@ The browser game runs locally, against AI opponents. **旅程閣** adds email-co
 login and deliberate private cloud backup/restore. A cloud backup contains
 editable offline progress; it is **not an authoritative inventory, transferable
 online asset or NFT entitlement**. Player trading, server-settled battles,
-native applications and limited-batch NFTs are roadmap work.
+and native applications remain optional roadmap ideas. Collectible commercialization
+and paid acquisition are retired objectives; dated NFT designs are historical research.
 
 | Item | Handover baseline |
 | --- | --- |
