@@ -17,6 +17,7 @@ export function normalizePreferences(raw) {
 }
 
 const TONES = Object.freeze({
+  step: [240, 155, 0.075, 'triangle'],
   select: [540, 620, 0.06, 'sine'], pill: [720, 660, 0.045, 'sine'],
   commit: [180, 125, 0.18, 'sine'], reveal: [460, 640, 0.18, 'sine'],
   impact: [125, 85, 0.12, 'triangle'], win: [520, 780, 0.28, 'sine'],

@@ -76,5 +76,7 @@
   "activity-content.mjs",
   "expansion-state.mjs",
   "expansion-ui.mjs",
-  "expansion.css"
+  "expansion.css",
+  "map-piece.mjs",
+  "map-piece.css"
 ]

@@ -2,6 +2,37 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Carved map-piece prototype · 2026-09-23
+
+Local CSS/SVG presentation on `codex/game-lobby`; no deployment, save migration,
+game-rule change, real player-save access or studio commission.
+
+- **433 Node tests pass**, including authored forward/reverse routes, mid-edge
+  reversal through a junction and eligible cursor origins. The public build
+  passes with **80 allowlisted files**; `git diff --check` passes.
+- `tools/map-piece-smoke.mjs` passes **eight groups per engine** in Chromium and
+  WebKit. The six-size matrix is 1440×900, 1280×720, 390×844, 360×740, 360×640 and
+  844×390, with six-, four- and eight-node maps. Map/piece alignment, chapter and
+  route-list fit, unobstructed 44 px controls and profile/battle/RNG conservation
+  pass without browser or HTTP errors.
+- Full-motion cases cover visible travel, rapid retargeting, a bent-route
+  reversal, resize, changing OS reduced motion, leaving mid-move and switching
+  maps. Keyboard activation, focus transfer and retention on arrival pass.
+  Locked previews cannot move the piece, unlock a node or start a battle.
+- Existing Chromium navigation and stories suites pass again, retaining the
+  preparation/cancel, deck-return, battle continuity, quest and map regressions.
+  All browser data is isolated synthetic state and API fixtures stay local.
+- A bounded independent source review identified the reverse-route shortcut and
+  hidden route-button focus; both were fixed and covered by the final browser
+  runs. Desktop, portrait and short-landscape screenshots were visually inspected.
+
+Ignored evidence: `test-results/map-piece-unit.log`,
+`map-piece-{chromium,webkit}.json`, `map-piece-navigation.log`,
+`map-piece-stories.log` and the matching screenshots. These are browser-engine
+checks, not physical-device or human timing/audio evaluation. Final artwork,
+owner playtest and phone validation remain open in the
+[prototype/studio brief](MAP-PIECE-PROTOTYPE.md).
+
 ## Campaign and Fire Mountain · 2026-09-22
 
 Implemented locally on `codex/game-lobby`: six sequel volumes /48 new encounters

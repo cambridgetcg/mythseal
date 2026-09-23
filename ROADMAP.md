@@ -156,6 +156,17 @@ and [verification](docs/VALIDATION.md#life-pills-and-battle-transitions--2026-09
 **Immersion track (local first slice; remaining work planned):** follow [IMMERSION.md](docs/IMMERSION.md) for the
 player moments, first-encounter storyboard and implementation/validation seams.
 
+**Carved map-piece study (2026-09-23):** [青玉行旅棋](docs/MAP-PIECE-PROTOTYPE.md)
+now provides a local CSS/SVG prototype across all maps: lift, follow each route
+node, settle, then choose whether to inspect/enter. A separate paged **路程**
+module preserves map space. Keyboard, interruption and reduced-motion paths are
+included; browsing changes no save or game rules.
+
+- [x] Playable carved-piece navigation and studio handoff brief.
+- [ ] Owner playtest of pacing, readability and repeat travel.
+- [ ] Professional studio piece/material studies and desktop/phone mockups.
+- [ ] Final asset integration and physical-device review after art approval.
+
 | Packet | Planned experience | Exit evidence |
 | --- | --- | --- |
 | **M4.1 · Feedback foundation** | Tactile card/pill/commit cues, public-result presentation, persistent audio/motion/pace preferences and one faction/card sample using the existing DOM/art. | Normal, fast, skipped and reduced-motion paths show the same accepted result; hidden bids remain private and controls work with touch/keyboard. |

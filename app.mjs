@@ -24,6 +24,7 @@ import { cardPresentation, printFrameMarkup, printLabel } from './card-presentat
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
 import { createPackOpeningController } from './pack-opening.mjs';
+import { createMapTravel } from './map-piece.mjs';
 import { createViewportController } from './viewport.mjs';
 import { prepareScene, prepareMove, preparePack } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
@@ -43,7 +44,8 @@ const classicsDeck=['kongzi','qingxiao','wukong','guanyu','lindaiyu','shuangli',
 let deckDraftReady=false;
 let screen='home', filter='all', selectedNode=profile.location||NODES[0].id, trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
 let questTab='daily', activityRoute='owned';
-const worldSelections=new Map(), worldScrollPositions=new Map();
+const worldSelections=new Map(), worldScrollPositions=new Map(), worldPieces=new Map();
+let mapTravel=null;
 let bagView={tab:'cards',layout:'groups',expandedCardId:null,printId:'all',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''},bagGroupReturn=null;
 let match=null, encounter=null, selected=null, pills=0, fury=false, aiMove=null, busy=false, recorded=false, revealPending=false, lastReward=null;
 let lastRoundPresentation=null, battleEntering=false;
@@ -82,6 +84,7 @@ function applyExperiencePreferences(preferences) {
   document.body.dataset.motion=experience?.reducedMotion()?'reduce':'full';
   document.body.dataset.pageHidden=String(document.hidden);
   packOpening?.syncPreferences();
+  mapTravel?.syncPreferences();
   document.querySelectorAll('[data-action="sound"]').forEach(button=>{
     button.setAttribute('aria-pressed',String(sound));button.setAttribute('aria-label',`${sound?'關閉':'開啟'}音效`);button.textContent=sound?'♫':'♪';
   });
@@ -116,7 +119,7 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
     syncProfile(restored);
     match=null;encounter=null;selected=null;busy=false;recorded=false;revealPending=false;lastReward=null;lastRoundPresentation=null;battleEntering=false;
     deckDraftReady=false;selectedNode=profile.location||NODES[0].id;
-    preparation=null;preparationReturn=null;screenScroll.clear();worldSelections.clear();worldScrollPositions.clear();questTab='daily';
+    preparation=null;preparationReturn=null;screenScroll.clear();worldSelections.clear();worldScrollPositions.clear();worldPieces.clear();questTab='daily';
     trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
     bagView={tab:'cards',layout:'groups',expandedCardId:null,printId:'all',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};bagGroupReturn=null;
     return restored;
@@ -235,16 +238,24 @@ function restoreFocus(container,focus) {
   else if(['pill-plus','pill-minus'].includes(focus.action))container.querySelector('#pill-slider')?.focus({preventScroll:true});
 }
 function render() {
+  mapTravel?.destroy();mapTravel=null;
   const focus=captureFocus(app);
   const previousMap=app.querySelector('.world-map[data-world]');
   if(previousMap)worldScrollPositions.set(previousMap.dataset.world,previousMap.parentElement.scrollLeft);
   profile=refreshDaily(profile);
-  const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
+  const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
   app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?((profile.wx01.receipt||profile.expansion.fireMountain.run)?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
   prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});
   const currentMap=app.querySelector('.world-map[data-world]');
-  if(currentMap)currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
+  if(currentMap){
+    currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
+    const worldId=currentMap.dataset.world, world=getWorldForNode(selectedNode);
+    worldPieces.set(worldId,currentMap.querySelector('.map-piece').dataset.pieceNode);
+    mapTravel=createMapTravel({map:currentMap,nodes:world.nodeIds.map(id=>NODES.find(node=>node.id===id)),window,
+      reducedMotion:()=>experience.reducedMotion(),onStep:()=>experience.cue('step'),
+      onArrive:(id,{silent})=>{if(screen!=='world'||!currentMap.isConnected)return;selectedNode=id;worldPieces.set(worldId,id);render();if(!silent)announce(`行旅棋已落在${NODES.find(node=>node.id===id).name}。可查看此境。`);}});
+  }
   refreshOverlay();
   syncExperienceScene();
   restoreFocus(app,focus);
@@ -273,6 +284,7 @@ function closeModal() {
   lastFocus=null;modalOrigin=null;
 }
 function modal(content, className='', dismissible=true, kind=null) {
+  mapTravel?.finish({silent:true});
   if(!kind?.startsWith('inheritance-'))inheritanceView=null;
   packOpening?.destroy();packOpening=null;
   experience.finishReveal();
@@ -928,9 +940,23 @@ document.addEventListener('click', event=>{
     worldSelections.set(getWorldForNode(selectedNode).id,selectedNode);
     selectedNode=worldSelections.get(id)||(world.nodeIds.includes(profile.location)?profile.location:null)
       ||world.nodeIds.find(nodeId=>isNodeUnlocked(profile,nodeId)&&!profile.cleared.includes(nodeId))||world.nodeIds[0];
-    render();viewport.selectModule({key:viewKey(),moduleId:'map',focus:false});return;
+    render();viewport.selectModule({key:viewKey(),moduleId:'map'});return;
   }
-  if(action==='map-select'||action==='story-stage'){if(!NODES.some(n=>n.id===id))return;selectedNode=id;render();viewport.selectModule({key:viewKey(),moduleId:'chapter'});return;}
+  if(action==='map-inspect'){
+    if(!NODES.some(node=>node.id===id))return;
+    selectedNode=id;render();viewport.selectModule({key:viewKey(),moduleId:'chapter'});return;
+  }
+  if(action==='map-select'||action==='story-stage'){
+    const node=NODES.find(node=>node.id===id);if(!node||screen!=='world')return;
+    const state=mapTravel?.getState();
+    if(!isNodeUnlocked(profile,id)||(state?.current===id&&!state.moving)){
+      selectedNode=id;render();viewport.selectModule({key:viewKey(),moduleId:'chapter'});return;
+    }
+    selectedNode=id;worldPieces.set(node.worldId,id);
+    viewport.selectModule({key:viewKey(),moduleId:'map',focus:false});
+    if(action==='story-stage')app.querySelector(`.map-pin[data-id="${id}"]`)?.focus({preventScroll:true});
+    mapTravel?.moveTo(id);return;
+  }
   if(action==='travel-loaner')return prepareEncounter('expedition',id,'loaner');
   if(action==='travel')return prepareEncounter('expedition',id);
   if(action==='ranked')return prepareEncounter('arena');

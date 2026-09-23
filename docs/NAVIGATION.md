@@ -71,8 +71,11 @@ card art and rules remain accessible through detail modules.
 
 - **洞府:** one scenic journey entry, quest journal and compact active-deck/Leader
   display. The deck action opens all eight exact copies.
-- **遊歷:** map, selected chapter and volume context. Selecting a map node opens
-  its chapter; changing a volume returns to its map.
+- **遊歷:** map, paged route list, selected chapter and volume context. The
+  [carved-piece prototype](MAP-PIECE-PROTOTYPE.md) moves along the route when an
+  unlocked node is selected and keeps the map visible. Press the arrived piece
+  again or **查看此境** for its chapter. Locked nodes open their preview directly;
+  changing a volume returns to its map.
 - **對弈:** arena, practice and future modes. In a battle, life and pills stay in
   the header while hand, move, opponent and notes have separate modules.
 - **藏卡:** cards, filters and arrangement; expanded characters also have a
@@ -112,6 +115,12 @@ It uses isolated synthetic profiles at six portrait/landscape/desktop sizes.
 Existing scenario suites use `viewport-browser-helpers.mjs` only to navigate
 through actual tab/page controls; the helper never unhides DOM or force-clicks.
 Browser-engine emulation is distinct from physical iOS/Android validation.
+
+The 2026-09-23 carved-piece follow-up adds `map-piece.mjs` and `map-piece.css`.
+The controller cancels on render, keeps per-world intent only in memory, and
+respects sound/motion preferences. `adventure-ui.mjs` owns its markup and separate
+**路程** module. `npm run test:map-piece` checks the six-size map flow in both
+engines, including rapid reversals and keyboard focus across modules.
 
 ## Checks
 

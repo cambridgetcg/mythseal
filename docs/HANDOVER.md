@@ -1,6 +1,6 @@
 # Mythseal agent handover
 
-Start here when joining development. Updated **2026-09-22; v0.5.1 remains live**. Read
+Start here when joining development. Updated **2026-09-23; v0.5.1 remains live**. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
 
@@ -35,6 +35,13 @@ contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
 
 ## Local development after the release snapshot
+
+The latest [map-piece prototype](MAP-PIECE-PROTOTYPE.md) adds a carved jade cursor,
+interruptible movement through authored route nodes and a separate paged **路程**
+module. Arrival keeps the map visible; press the piece again or **查看此境** to
+inspect. `map-piece.mjs`/`map-piece.css` are replaceable CSS/SVG presentation;
+professional studio artwork is planned. Cursor state is transient and changes
+no gameplay or save schema. The source allowlist now contains **80 files**.
 
 The latest local navigation pass turns destinations and dialogs into viewport
 scenes with explicit module tabs and list pages. `viewport.mjs` owns transient
