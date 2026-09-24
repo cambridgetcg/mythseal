@@ -1,18 +1,20 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { CARDS, defaultDeckIds } from '../engine.mjs';
 import { createProfile, NODES, LOGIN_REWARD, PACK_PRICE, RARITIES, CARD_RARITIES } from '../progression.mjs';
 import { setInstanceXP } from '../collection.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
-const output = new URL('../test-results/', import.meta.url).pathname;
+const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 await mkdir(output, { recursive: true });
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const failures = [], checked = [], screenshots = [];
-const profileKey = 'shanhai.profile.v3', battleKey = 'shanhai.battle.v3';
+const profileKey = 'shanhai.profile.v5', battleKey = 'shanhai.battle.v5';
 const profile = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), profileKey);
 const snapshot = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), battleKey);
 const watch = page => {
@@ -27,11 +29,26 @@ const screenshot = async (page, label) => {
   await page.screenshot({ path: output + filename, fullPage: true });
   screenshots.push(filename);
 };
-const go = (page, screen) => page.locator(`nav [data-action="${screen}"]`).click();
-const waitProfile = (page, predicate, argument) => page.waitForFunction(({ key, expression, argument }) => {
-  const value = JSON.parse(localStorage.getItem(key));
-  return new Function('p', 'argument', `return (${expression})`)(value, argument);
-}, { key: profileKey, expression: predicate, argument });
+const go = async (page, screen) => {
+  if (await page.locator('.modal-close').count()) await page.locator('.modal-close').click();
+  if (screen === 'daily') {
+    await page.locator('.game-dock [data-action="home"]').click();
+    return page.locator('.game-lobby [data-action="quests"]').click();
+  }
+  return page.locator(`.game-dock [data-action="${screen}"]`).click();
+};
+const practice = async page => {
+  await go(page, 'arena');
+  await page.locator('[data-action="start"]').click();
+};
+const waitProfile = async (page, predicate, argument) => {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    if (predicate(await profile(page), argument)) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error('Timed out waiting for the expected profile change.');
+};
 const totalCopies = p => Object.values(p.inventory).reduce((sum, count) => sum + count, 0);
 async function contextWithSeed(seed, mobile = false) {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, reducedMotion: 'reduce', ...(mobile ? { isMobile: true, hasTouch: true, deviceScaleFactor: 1 } : {}) });
@@ -41,9 +58,9 @@ async function contextWithSeed(seed, mobile = false) {
     localStorage.setItem('journey-smoke.seeded', 'true');
     for (const [name, value] of Object.entries(seed)) localStorage.setItem(name === 'profile' ? key : name, JSON.stringify(value));
   }, { seed, key: profileKey });
-  const page = await context.newPage(); watch(page);
+  const page = await context.newPage(); installViewportNavigation(page); watch(page);
   await page.goto(base);
-  await page.locator('.hero h1').waitFor();
+  await page.locator('.game-lobby').waitFor();
   return { context, page };
 }
 
@@ -107,14 +124,14 @@ try {
 
   await go(page, 'daily');
   await page.locator('[data-action="claim-login"]').click();
-  await waitProfile(page, 'p.daily.loginClaimed');
+  await waitProfile(page, p => p.daily.loginClaimed);
   p = await profile(page);
   assert.equal(p.coins, 1200 + LOGIN_REWARD.coins);
   assert(await page.locator('[data-action="claim-login"]').isDisabled());
   const trainingUID = p.instances.find(instance => instance.cardId === 'qingxiao').uid;
   await page.locator('#training-select').selectOption(trainingUID);
   await page.locator('[data-action="daily-train"]').click();
-  await waitProfile(page, 'p.daily.trainingUsed');
+  await waitProfile(page, p => p.daily.trainingUsed);
   assert.equal((await profile(page)).levels.qingxiao, 2);
   assert.equal((await profile(page)).instances.find(instance => instance.uid === trainingUID).xp, 80);
   assert.equal((await profile(page)).coins, p.coins - 60);
@@ -123,13 +140,14 @@ try {
   assert(await page.locator('[data-action="daily-train"]').isDisabled());
   const afterTraining = await profile(page);
   await screenshot(page, 'daily-desktop');
-  await page.reload(); await page.locator('.hero h1').waitFor(); await go(page, 'daily');
+  await page.reload(); await page.locator('.game-lobby').waitFor(); await go(page, 'daily');
   assert.deepEqual(await profile(page), afterTraining);
   assert(await page.locator('[data-action="claim-login"]').isDisabled());
   assert(await page.locator('[data-action="daily-train"]').isDisabled());
   checked.push('login/training costs, once-daily buttons and reload persistence');
 
   await go(page, 'market');
+  await page.locator('[data-action="pack-set"][data-id="classics"]').click();
   const beforePack = await profile(page);
   await page.locator('[data-action="buy-pack"]').click();
   await page.locator('.pack-reveal').waitFor();
@@ -147,7 +165,7 @@ try {
   assert(cardId, 'An affordable surplus-purchase path exists');
   const buy = page.locator(`[data-action="buy-card"][data-id="${cardId}"]`);
   await buy.click();
-  await waitProfile(page, 'p.inventory[argument.id] === argument.count', { id: cardId, count: prior.inventory[cardId] + 1 });
+  await waitProfile(page, (p, argument) => p.inventory[argument.id] === argument.count, { id: cardId, count: prior.inventory[cardId] + 1 });
   p = await profile(page);
   assert.equal(p.coins, prior.coins - RARITIES[CARD_RARITIES[cardId]].buyPrice);
   assert.equal(p.daily.marketPurchases[cardId], 1);
@@ -155,7 +173,7 @@ try {
   // regression still exercises a real surplus sale and last-copy protection.
   if (p.inventory[cardId] === 1) {
     await page.locator(`[data-action="buy-card"][data-id="${cardId}"]`).click();
-    await waitProfile(page, 'p.inventory[argument] === 2', cardId);
+    await waitProfile(page, (p, argument) => p.inventory[argument] === 2, cardId);
     p = await profile(page);
   }
   let selling = p;
@@ -166,7 +184,7 @@ try {
     await page.locator(`[data-action="instance-sell"][data-id="${soldCopy.uid}"]`).click();
     assert.match(await page.locator('.modal .instance-serial').textContent(), new RegExp(soldCopy.uid));
     await page.locator(`[data-action="confirm-instance-sell"][data-id="${soldCopy.uid}"]`).click();
-    await waitProfile(page, 'p.inventory[argument.id] === argument.count', { id: cardId, count: selling.inventory[cardId] - 1 });
+    await waitProfile(page, (p, argument) => p.inventory[argument.id] === argument.count, { id: cardId, count: selling.inventory[cardId] - 1 });
     const next = await profile(page);
     assert.equal(next.coins, selling.coins + RARITIES[CARD_RARITIES[cardId]].sellPrice + 30 * (soldCopy.level - 1));
     assert.deepEqual(next.merchantVault.find(entry => entry.instance.uid === soldCopy.uid).instance, soldCopy);
@@ -179,7 +197,7 @@ try {
   await go(page, 'daily');
   assert.equal(await page.locator('[data-action="claim-task"][data-id="pack"]').isDisabled(), false);
   await page.locator('[data-action="claim-task"][data-id="pack"]').click();
-  await waitProfile(page, 'p.daily.claimedTasks.includes("pack")');
+  await waitProfile(page, p => p.daily.claimedTasks.includes('pack'));
   assert(await page.locator('[data-action="claim-task"][data-id="pack"]').isDisabled());
   checked.push('real pack reveal, guaranteed rarity, inventory/cost, NPC purchase/surplus sale, last-copy protection, pack task claim');
   await go(page, 'arena'); await screenshot(page, 'arena-desktop');
@@ -191,6 +209,7 @@ try {
   const duel = await contextWithSeed({ profile: seasoned });
   const battle = duel.page;
   await go(battle, 'world'); await battle.locator('[data-action="travel"]').click();
+  await battle.locator('[data-action="confirm-start"]').click();
   await battle.locator('.player-hand').waitFor();
   const original = await snapshot(battle);
   assert.equal(original.match.mode, 'expedition');
@@ -214,7 +233,7 @@ try {
   assert.equal(await snapshot(battle), null);
   await screenshot(battle, 'expedition-result-desktop');
   const completed = p;
-  await battle.reload(); await battle.locator('.hero h1').waitFor();
+  await battle.reload(); await battle.locator('.game-lobby').waitFor();
   assert.deepEqual(await profile(battle), completed);
   assert.equal(await battle.locator('[data-action="resume"]').count(), 0);
   await go(battle, 'world');
@@ -222,6 +241,7 @@ try {
   checked.push(`real expedition win (${remainingRounds + 1} rounds), round-reveal resume, first-clear/daily payout, next-node unlock, reload without duplicate payout`);
 
   await go(battle, 'arena'); await battle.locator('[data-action="ranked"]').click();
+  await battle.locator('[data-action="confirm-start"]').click();
   await battle.locator('.player-hand').waitFor();
   const ranked = await snapshot(battle);
   assert.equal(ranked.match.mode, 'arena');
@@ -236,16 +256,17 @@ try {
   assert([5, 10, 30].includes(afterArena.arena.points));
   assert.equal(afterArena.daily.arenaMatches, 1);
   await battle.locator('[data-action="end-home"]').click();
-  await battle.locator('.hero [data-action="start"]').click();
+  await practice(battle);
+  await battle.locator('[data-action="confirm-start"]').click();
   await battle.locator('.player-hand').waitFor();
   assert.equal((await snapshot(battle)).match.mode, 'practice');
   const chosen = await battle.locator('.player-hand [data-action="select"]').nth(1).getAttribute('data-id');
   await battle.locator(`.player-hand [data-action="select"][data-id="${chosen}"]`).click();
   await battle.locator('#pill-slider').fill('2');
   await battle.locator('[data-action="fury"]').click();
-  await battle.locator('.brand').click();
+  await battle.locator('[data-action="battle-menu"]').click();
   await battle.locator('[data-action="navigate-confirm"]').click();
-  await battle.locator('.hero h1').waitFor();
+  await battle.locator('.game-lobby').waitFor();
   const held = await snapshot(battle);
   assert.equal(held.selected, chosen);
   assert.equal(held.pills, 2);
@@ -267,15 +288,16 @@ try {
   // Tab A holds a confirmation for battle 1 while tab B starts battle 2.
   // Confirming A's old dialog must not cancel or erase B's newer snapshot.
   const abandonedId = (await profile(battle)).pending.id;
-  await battle.locator('.brand').click();
+  await battle.locator('[data-action="battle-menu"]').click();
   assert.equal(await battle.locator('[data-action="abandon-navigate"]').getAttribute('data-encounter'), abandonedId);
-  const secondTab = await duel.context.newPage(); watch(secondTab);
-  await secondTab.goto(base); await secondTab.locator('.hero h1').waitFor();
-  await secondTab.locator('.hero [data-action="start"]').click();
+  const secondTab = await duel.context.newPage(); installViewportNavigation(secondTab); watch(secondTab);
+  await secondTab.goto(base); await secondTab.locator('.game-lobby').waitFor();
+  await practice(secondTab);
   await secondTab.locator('[data-action="discard-pending"]').click();
-  await waitProfile(secondTab, 'p.pending === null');
+  await waitProfile(secondTab, p => p.pending === null);
   assert.equal(await snapshot(secondTab), null);
-  await secondTab.locator('.hero [data-action="start"]').click();
+  await practice(secondTab);
+  await secondTab.locator('[data-action="confirm-start"]').click();
   await secondTab.locator('.player-hand').waitFor();
   const newerProfile = await profile(secondTab), newerBattle = await snapshot(secondTab);
   assert.notEqual(newerProfile.pending.id, abandonedId);
@@ -284,9 +306,9 @@ try {
   await battle.locator('.toast').filter({ hasText: '這局已在另一頁改變' }).waitFor();
   assert.deepEqual(await profile(battle), newerProfile);
   assert.deepEqual(await snapshot(battle), newerBattle);
-  await secondTab.locator('.brand').click();
+  await secondTab.locator('[data-action="battle-menu"]').click();
   await secondTab.locator('[data-action="abandon-navigate"]').click();
-  await waitProfile(secondTab, 'p.pending === null');
+  await waitProfile(secondTab, p => p.pending === null);
   assert.equal((await profile(battle)).coins, afterArena.coins);
   checked.push('arena ignores level-five bonuses, real ladder settlement, practice mode, abandon without rewards');
   checked.push('stale cross-tab discard shows a warning and preserves the newer pending battle and its snapshot');
@@ -298,6 +320,7 @@ try {
     await screenshot(mobile.page, `${screen}-mobile`);
   }
   await go(mobile.page, 'market');
+  await mobile.page.locator('[data-action="pack-set"][data-id="classics"]').click();
   await mobile.page.locator('[data-action="buy-pack"]').click();
   await mobile.page.locator('.pack-reveal').waitFor();
   await screenshot(mobile.page, 'pack-mobile');

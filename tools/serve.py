@@ -10,12 +10,24 @@ import webbrowser
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
-PUBLIC_FILES = frozenset(json.loads((ROOT / 'hosting/public-assets.json').read_text()))
+# Explicit local art studies are reviewable here, but excluded from production builds.
+PUBLIC_FILES = frozenset(
+    json.loads((ROOT / 'hosting/public-assets.json').read_text())
+    + json.loads((ROOT / 'hosting/preview-assets.json').read_text())
+)
 
 class GameHandler(SimpleHTTPRequestHandler):
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.mjs': 'text/javascript'}
 
+    def end_headers(self):
+        # Development URLs are unversioned: never mix modules from different edits.
+        self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
+
     def send_head(self):
+        # Always read the current file, including edits within one mtime second.
+        if 'If-Modified-Since' in self.headers:
+            del self.headers['If-Modified-Since']
         path = unquote(urlsplit(self.path).path)
         relative = 'index.html' if path == '/' else path.removeprefix('/')
         if relative not in PUBLIC_FILES:

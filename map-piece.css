@@ -1,0 +1,35 @@
+/* Temporary carved-jade token and interaction study; replaceable by studio art. */
+.scene-chess-map .scene-map-module{display:flex;flex-direction:column;gap:8px}
+.scene-chess-map .world-map{border-color:#b8a16d66;box-shadow:inset 0 0 0 4px #11241b99,inset 0 0 34px #020a08b3}
+.scene-chess-map .map-routes{z-index:1;opacity:.65}
+.map-travel-route{stroke:#f4d48d;stroke-width:.45;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 2px #edc46b);opacity:.9}
+.scene-chess-map .map-pin{z-index:2}
+.scene-chess-map .map-pin .pin-disc{background:radial-gradient(ellipse,#15271fe6,#0b1915);box-shadow:inset 0 2px 5px #0008,0 1px 0 #e3c17c33;border:1px solid #baac7970;transition:opacity .12s,border-color .16s}
+.scene-chess-map .map-pin.available:hover .pin-disc,.scene-chess-map .map-pin:focus-visible .pin-disc{border-color:#eed394}
+.scene-chess-map .map-pin.has-piece .pin-disc{opacity:0}
+.scene-chess-map .map-pin:focus-visible{outline:2px solid #f2d794;outline-offset:5px;border-radius:50%}
+.map-piece{position:absolute;width:42px;height:42px;transform:translate(-50%,-50%);pointer-events:none;z-index:4;isolation:isolate}
+.map-piece-shadow{position:absolute;inset:11px -2px -4px;border-radius:50%;background:#020b0899;filter:blur(3px);opacity:.6;transform-origin:50% 60%}
+.map-piece-body{position:absolute;inset:0;border-radius:50%;transform:rotate(-8deg);background:radial-gradient(ellipse at 30% 15%,#e2e8b5 0%,#b2c898 19%,#86a981 51%,#456f56 88%);border:1px solid #d4dbae;box-shadow:0 4px 0 #2e5140,0 5px 0 #0a241a,0 6px 5px #030e09b3,inset 1px 2px 2px #f5f4c482,inset -2px -3px 3px #143c2ba6;display:grid;place-items:center}
+.map-piece-carving{position:absolute;inset:0;width:100%;height:100%;stroke:#224c3999;stroke-width:.8;filter:drop-shadow(0 1px 0 #e4ecc677)}
+.map-piece-glyph{font:24px var(--serif);line-height:1;color:#264a35;text-shadow:0 1px 0 #e9ecc5a3;transform:translateY(-1px);padding:0 0 1px}
+.map-piece-glint{position:absolute;inset:2px;border-radius:50%;background:linear-gradient(120deg,#fffde01f,transparent 48%);border-top:1px solid #f4f1c878}
+.map-travel-caption{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:0 0 auto;min-height:48px;padding:4px 10px;border:1px solid #b6ad783d;background:#11281ff0}
+.map-travel-caption>div{min-width:0;display:flex;flex-direction:column;gap:4px}
+.map-travel-caption strong{font:17px var(--serif);letter-spacing:1px;color:#e9dcaf;line-height:1.35}
+.map-travel-caption small{font-size:10px;color:#a4b69d;line-height:1.4}
+.map-travel-caption>button{flex:0 0 auto;min-height:44px;min-width:80px;font-size:11px;padding:8px 11px;letter-spacing:.5px;border:1px solid #c6b37a59;background:#293b29;color:#e7d299}
+.scene-chess-map .scene-route-module .story-stage-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:1 1 0%;align-content:start;gap:10px}
+.scene-chess-map .scene-route-module .story-stage-list>button{min-height:66px;border:1px solid #b6ad783d;padding:9px 12px;background:#12281e;text-align:left}
+.scene-chess-map .scene-route-module .story-stage-list b{font-size:15px}.scene-chess-map .scene-route-module .story-stage-list small{font-size:11px}
+.scene-chess-map .scene-route-module .story-stage-list>button.is-selected{border-color:#dac58c;background:#2c3b28}
+@media(max-width:600px){
+ .map-travel-caption{gap:6px;padding:3px 8px;min-height:50px}.map-travel-caption strong{font-size:15px;letter-spacing:.4px}.map-travel-caption small{font-size:9px}.map-travel-caption>button{padding:7px 8px;min-width:76px;font-size:10px}
+ .scene-chess-map .scene-route-module .story-stage-list{grid-template-columns:repeat(2,minmax(0,1fr))}.scene-chess-map .scene-route-module .story-stage-list>button{padding:8px;min-height:67px}.scene-chess-map .scene-route-module .story-stage-list b{font-size:13px}
+}
+@media(max-height:500px) and (min-width:601px){
+ .scene-chess-map .scene-map-module{display:flex;flex-direction:column;gap:5px}.map-travel-caption{padding:1px 8px;min-height:46px}.map-travel-caption strong{font-size:14px}.map-travel-caption small{font-size:9px}.map-travel-caption>button{padding:5px 9px}
+ .scene-chess-map .scene-route-module .story-stage-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.scene-chess-map .scene-route-module .story-stage-list>button{min-height:60px;padding:5px 8px}.scene-chess-map .scene-route-module .story-stage-list b{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.scene-chess-map .map-pin .pin-disc{transition:none}}
+body[data-motion=reduce] .scene-chess-map .map-pin .pin-disc{transition:none}

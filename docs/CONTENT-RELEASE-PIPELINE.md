@@ -81,6 +81,10 @@ WebP 作主要 runtime 候選，AVIF 作經品質／解碼時間檢查後的額�
 
 初始節奏可用選卡 120–180 ms、翻牌 250–400 ms、揭曉全段 ≤900 ms；減少動態模式改為即時狀態／短淡入，提供跳過重複演出。CSS 與 JS 都讀 `prefers-reduced-motion`，並提供遊戲內減少動態選項；切換時取消現有動畫並完成狀態對齊。裝飾動態在頁面不可見時暫停，關鍵結果保留文字與數字。[MDN reduced motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion)
 
+2026-09-22 本機資源演出將一般揭曉調整為 1100 ms，留出獨立的回復／回丹節拍；
+此設定取代上述初始 ≤900 ms 提案，跳過與下一回合仍可即時使用。實機與重複遊玩
+節奏尚待測量，詳見 [生命、仙丹與對戰演出](IMMERSION.md#life-pills-and-battle-transitions--2026-09-22)。
+
 ## 5. 四條發佈線與相容 manifest
 
 | 發佈線 | 獨立版本／固定產物 | 驗收及回退 |
@@ -158,6 +162,12 @@ Apple 官方支援 cloud-managed certificates，Xcode Cloud 可接 TestFlight；
 Native 內容更新不能當成繞過商店 review 的任意遠端程式替換。商店可接受功能／支付／NFT 關係仍遵循 [MOBILE-RELEASE.md](MOBILE-RELEASE.md) 的另行決定；包裝成功不代表已獲商店接受。後端需保留舊版 API 相容窗口，因為使用者不會同時更新 App。
 
 ## 9. 下一個可交付切片
+
+2026-09-22 補充：[沉浸體驗設計](IMMERSION.md) 的首次遊歷「霧隱渡口」已有
+本地可玩切片：沿用現有圖集、程式繪製提燈及合成聲景，以已保存的公開結果串起
+落子、揭曉、歷練及返回旅途。以下單卡 manifest／動畫試作仍是素材流程的獨立任務；
+尚未新增分層卡圖或錄音檔。後續音效也需記錄原創／授權來源及下載、解碼成本。
+這是本地實作，並非部署或真機驗收紀錄。
 
 1. 先為現有 24 張卡建立 art manifest、原稿 checksums 和正確 crop rectangles；產生兩級 per-card WebP／AVIF derivatives，保留現在的 PNG fallback。驗卡序、裁切邊界、字／圖分離和真機可辨識度。
 2. 做一張悟空卡的 CSS／WAAPI 翻牌及短暫武器光效，加 reduced-motion／跳過／取消；沿用已保存的 battle result。先測一張，未達效能目標不推全卡動畫。

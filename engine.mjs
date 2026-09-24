@@ -1,4 +1,6 @@
 /** Pure, deterministic combat. Randomness is confined to the draw and AI choices. */
+import { WX01_CARDS } from './wx01-cards.mjs';
+
 const freeze = (value) => {
   if (value && typeof value === 'object') {
     Object.values(value).forEach(freeze);
@@ -17,7 +19,7 @@ export const FACTIONS = freeze({
   grove: { name: '森羅', color: '#89c9a1', icon: '❧', bonus: effect('reduceDamage', 1, '生息 · 受傷 −1', '同族共鳴：落敗時受到的傷害 −1，最低為 1。') },
 });
 
-export const CARDS = freeze([
+export const LEGACY_CARDS = freeze([
   { id: 'qingxiao', name: '青霄', title: '天門劍守', faction: 'yun', power: 7, damage: 4, stars: 3, art: 0,
     ability: effect('power', 1, '凌霄 · 力量 +1', '自身力量 +1；加成在仙丹倍率之前計算。'), lore: '她守的不是天門，是凡人抬頭時仍能看見的那片晴空。' },
   { id: 'chiling', name: '赤翎', title: '逐日槍使', faction: 'ember', power: 7, damage: 5, stars: 4, art: 1,
@@ -68,10 +70,14 @@ export const CARDS = freeze([
     ability: effect('damage', 2, '伏虎 · 傷害 +2', '自身傷害 +2。'), lore: '山風捲起酒旗，他迎着林間低吼站定。往前一步，是膽識，也是退無可退的決心。' },
 ]);
 
-const cardsById = new Map(CARDS.map((card) => [card.id, card]));
-export const ORIGINAL_CARD_IDS = freeze(CARDS.filter((card) => card.artSet !== 'classics').map((card) => card.id));
-export const CLASSIC_CARD_IDS = freeze(CARDS.filter((card) => card.artSet === 'classics').map((card) => card.id));
+// These ordered legacy pools also define starter ownership and old pack draws.
+// Never derive them from the expanding catalogue or a new artSet.
+export const LEGACY_CARD_IDS = freeze(LEGACY_CARDS.map(card => card.id));
+export const ORIGINAL_CARD_IDS = freeze(LEGACY_CARDS.filter((card) => card.artSet !== 'classics').map((card) => card.id));
+export const CLASSIC_CARD_IDS = freeze(LEGACY_CARDS.filter((card) => card.artSet === 'classics').map((card) => card.id));
 export const defaultDeckIds = freeze(ORIGINAL_CARD_IDS.slice(0, 8));
+export const CARDS = freeze([...LEGACY_CARDS, ...WX01_CARDS]);
+const cardsById = new Map(CARDS.map((card) => [card.id, card]));
 
 export function getCard(id) {
   const card = cardsById.get(id);
@@ -148,8 +154,21 @@ function drawHand(ids, rng) {
 export function createMatch({
   deckIds = defaultDeckIds, opponentDeckIds = defaultDeckIds, rng = Math.random,
   mode = 'practice', playerLevels = {}, opponentLevels = {}, opponentName = null,
+  initialResources,
 } = {}) {
-  if (!['arena', 'expedition', 'practice'].includes(mode)) throw new RangeError('Unknown match mode.');
+  if (!['arena', 'expedition', 'practice', 'activity'].includes(mode)) throw new RangeError('Unknown match mode.');
+  let playerResources = { hp: RULES.life, pills: RULES.pills };
+  if (initialResources !== undefined) {
+    const player = initialResources?.player;
+    if (mode !== 'activity' || !initialResources || typeof initialResources !== 'object' || Array.isArray(initialResources)
+      || Object.keys(initialResources).join(',') !== 'player' || !player || typeof player !== 'object' || Array.isArray(player)
+      || Object.keys(player).length !== 2 || !Object.hasOwn(player, 'hp') || !Object.hasOwn(player, 'pills')
+      || !Number.isInteger(player.hp) || player.hp < 1 || player.hp > RULES.life
+      || !Number.isInteger(player.pills) || player.pills < 0 || player.pills > RULES.pills) {
+      throw new RangeError('Activity starting resources must be 1–12 life and 0–12 pills.');
+    }
+    playerResources = { hp: player.hp, pills: player.pills };
+  }
   const normalizedPlayerLevels = normalizeLevels(playerLevels);
   const normalizedOpponentLevels = normalizeLevels(opponentLevels);
   if (opponentName !== null && typeof opponentName !== 'string') throw new TypeError('Opponent name must be a string.');
@@ -160,7 +179,7 @@ export function createMatch({
   const initiative = difference === 0 ? (randomUnit(rng) < 0.5 ? 'player' : 'opponent') : (difference > 0 ? 'player' : 'opponent');
   return {
     mode, playerLevels: normalizedPlayerLevels, opponentLevels: normalizedOpponentLevels, opponentName,
-    player: { hp: RULES.life, pills: RULES.pills, hand: playerHand, used: [] },
+    player: { ...playerResources, hand: playerHand, used: [] },
     opponent: { hp: RULES.life, pills: RULES.pills, hand: opponentHand, used: [] },
     round: 1, initiative, history: [], status: 'playing', winner: null, lastResult: null,
   };

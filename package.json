@@ -6,13 +6,25 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "start": "python3 tools/serve.py",
+    "preview": "node tools/preview.mjs",
+    "test:browser": "node tools/smoke.mjs && node tools/journey-smoke.mjs && node tools/classics-smoke.mjs && node tools/backpack-smoke.mjs && node tools/account-smoke.mjs && node tools/navigation-smoke.mjs && node tools/immersion-smoke.mjs && node tools/battle-presentation-smoke.mjs && node tools/stories-smoke.mjs && node tools/wx01-presentation-smoke.mjs && node tools/profile-recovery-smoke.mjs && node tools/wx01-box-smoke.mjs && node tools/inheritance-smoke.mjs && node tools/collection-display-smoke.mjs",
+    "test:atelier": "node tools/atelier-smoke.mjs",
+    "test:liaozhai": "node tools/liaozhai-smoke.mjs && BROWSER=webkit node tools/liaozhai-smoke.mjs",
+    "test:honglou": "node tools/honglou-smoke.mjs && BROWSER=webkit node tools/honglou-smoke.mjs",
+    "analyze:wx01": "node tools/analyze-wx01-drops.mjs",
     "build": "node tools/build.mjs",
     "deploy": "node tools/deploy.mjs",
     "verify:hosting": "node tools/verify-hosting.mjs",
     "connect": "python3 tools/connect.py",
     "connections:check": "node tools/connections.mjs",
     "test:connections": "node --test tests/connections.test.mjs && python3 -m unittest discover -s tests -p '*_test.py'",
-    "test:contracts": "forge test --root contracts"
+    "test:contracts": "forge test --root contracts",
+    "test:wx01": "node tools/wx01-presentation-smoke.mjs && node tools/profile-recovery-smoke.mjs && BROWSER=webkit node tools/wx01-presentation-smoke.mjs && BROWSER=webkit node tools/profile-recovery-smoke.mjs && node tools/wx01-box-smoke.mjs && BROWSER=webkit node tools/wx01-box-smoke.mjs",
+    "test:inheritance": "node tools/inheritance-smoke.mjs && BROWSER=webkit node tools/inheritance-smoke.mjs",
+    "test:collection-display": "node tools/collection-display-smoke.mjs && BROWSER=webkit node tools/collection-display-smoke.mjs",
+    "test:viewport": "node tools/viewport-smoke.mjs && BROWSER=webkit node tools/viewport-smoke.mjs",
+    "test:expansion": "node tools/expansion-smoke.mjs && BROWSER=webkit node tools/expansion-smoke.mjs",
+    "test:map-piece": "node tools/map-piece-smoke.mjs && BROWSER=webkit node tools/map-piece-smoke.mjs"
   },
   "overrides": {
     "xcode": {
@@ -25,6 +37,7 @@
     "@openzeppelin/contracts": "5.6.1",
     "@supabase/supabase-js": "2.116.0",
     "pg": "8.23.0",
+    "playwright": "1.63.0",
     "resend-cli": "2.21.1",
     "supabase": "2.117.0",
     "viem": "2.56.8",

@@ -1,0 +1,98 @@
+/* Existing collectible rarities only; frames never encode combat strength. */
+.card[data-rarity="common"] {
+  --card-frame: #ae8760;
+  --card-frame-border: #99724e;
+  --card-frame-faint: #ae876040;
+}
+.card[data-rarity="rare"] {
+  --card-frame: #c4d6cc;
+  --card-frame-border: #8daea0;
+  --card-frame-faint: #afccbc59;
+}
+.card[data-rarity="epic"] {
+  --card-frame: #e1c68a;
+  --card-frame-border: #c1a15f;
+  --card-frame-faint: #d8b87380;
+}
+.card[data-rarity]:where(:not(.selected):not(:hover):not(:focus-visible)) {
+  border-color: var(--card-frame-border);
+}
+.card[data-rarity]::before,
+.card[data-rarity]:not(.used)::after {
+  border-color: var(--card-frame);
+}
+.card-rarity-frame {
+  position: absolute;
+  inset: 5px;
+  z-index: 1;
+  pointer-events: none;
+  color: var(--card-frame);
+  border-radius: 2px;
+}
+.card[data-rarity="rare"] > .card-rarity-frame {
+  border: 1px solid var(--card-frame-faint);
+}
+.card[data-rarity="rare"] > .card-rarity-frame::before,
+.card[data-rarity="rare"] > .card-rarity-frame::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  opacity: .75;
+}
+.card[data-rarity="rare"] > .card-rarity-frame::before { top: -2px; left: -2px; }
+.card[data-rarity="rare"] > .card-rarity-frame::after { bottom: -2px; right: -2px; }
+.card[data-rarity="epic"] > .card-rarity-frame {
+  inset: 3px;
+  border: 3px double var(--card-frame-faint);
+  border-radius: 5px;
+}
+.card[data-rarity="epic"] > .card-rarity-frame::before,
+.card[data-rarity="epic"] > .card-rarity-frame::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 12px;
+  border-top: 1px solid currentColor;
+  border-left: 1px solid currentColor;
+  border-radius: 9px 3px 0 3px;
+  opacity: .85;
+}
+.card[data-rarity="epic"] > .card-rarity-frame::before { top: 0; left: 0; }
+.card[data-rarity="epic"] > .card-rarity-frame::after { bottom: 0; right: 0; transform: rotate(180deg); }
+.card-faction-rarity {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.card-rarity-badge {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 19px;
+  border: 1px solid var(--card-frame-border);
+  border-radius: 2px;
+  background: #0d1b15ed;
+  color: var(--card-frame);
+  font: 11px/1 var(--serif);
+  letter-spacing: 0;
+  text-shadow: none;
+  pointer-events: none;
+}
+.card-rarity-frame,
+.card-rarity-frame::before,
+.card-rarity-frame::after,
+.card-rarity-badge { animation: none; transition: none; }
+.enemy-hand .card-faction-rarity,
+.prep-deck-strip .card-faction-rarity { gap: 3px; }
+.enemy-hand .card-rarity-badge,
+.prep-deck-strip .card-rarity-badge { width: 14px; height: 16px; font-size: 10px; }
+@media (max-width: 600px) {
+  .card-faction-rarity { gap: 4px; }
+  .card-rarity-badge { width: 16px; height: 18px; font-size: 10px; }
+  .enemy-hand .card-rarity-badge,
+  .prep-deck-strip .card-rarity-badge { display: none; }
+}

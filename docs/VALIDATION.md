@@ -2,6 +2,501 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## GitHub source checkpoint · 2026-09-24
+
+Before publishing the current development branch, reran **446 Node tests**,
+**nine Python tests**, the **80-file public build**, and `git diff --check`;
+all pass. The known Python temporary HTTP404 cleanup warning remains.
+The source/art changes were reviewed, including actual PNG hashes and preview
+allowlist separation. Saves, credentials, generated test output, local build
+output and private conversation-play receipts remain outside Git.
+
+The browser results below are the completed September 23 runs, not new runs
+for this documentation checkpoint. Honglou explicitly tests Tab/Shift+Tab
+traversal; Liaozhai currently tests Escape/opener restoration and lacks the
+equivalent explicit Tab loop and regression coverage. That is a bounded
+accessibility follow-up, not verified Tab coverage for LZ.
+
+Publication later on 2026-09-24: `e61d60a` (this work) and merge `e1fe8ac`
+(`origin/main` `83216cc`) were pushed to `origin/codex/game-lobby` and opened as
+[PR #1](https://github.com/cambridgetcg/mythseal/pull/1). Before that commit, `git diff --cached --check` (the staged
+tree, unlike the earlier unstaged run) flagged trailing whitespace at
+`tools/honglou-smoke.mjs:43` and a blank line at the end of `docs/ART-HL01.md`;
+both were fixed. The forge fixture, wrangler preview/deploy dry runs and all
+module syntax checks also passed locally. A same-day live read of
+`/release.json` still reported v0.5.1 `ea48558` and `/api/v1/account` returned
+HTTP 200 with `emailEnabled: true`.
+
+These are local source checks. Pushing Git does not deploy the website or run
+hosted account/migration checks. The existing GitHub workflow triggers on main,
+pull requests or manual dispatch; a development-branch push alone is not a CI
+pass. Remote publication is verified separately against the actual Git ref.
+
+## HL-01 literary design preview · 2026-09-23
+
+`honglou.html` is a separate local study: eight BASE portraits and three AA
+scenes, eight card identities (one exact 黛玉 reprint and seven candidates),
+star/faction filters, sourced character roles and a fixed three-card opening.
+No engine admission, owned-copy acquisition, profile migration or deployment.
+
+- **446 Node tests pass**, including eight HL content checks for reprint
+  identity, source roles, AA links, fixed sample, legal paper decks, candidate
+  tradeoffs, all five actual PNG headers and the isolated two-module graph.
+- **Nine Python tests pass**, retaining the known temporary HTTP404 cleanup
+  `ResourceWarning`. The build passes with **80 public files**; all nine HL
+  code/art paths remain in the preview allowlist only. `git diff --check` passes.
+- `npm run test:honglou` passes **14 groups per engine** in isolated Chromium
+  and WebKit at 1440×900, 390×844, 360×740 and 844×390 plus reduced motion. It
+  covers all eight cards on desktop, all three AA characters plus a non-AA card
+  at smaller sizes, fixed/repeated/partial/skipped openings, timer interruption,
+  image decoding, filter intersections and empty-state reset.
+- Tested controls have unobstructed 44px targets and no horizontal overflow.
+  BASE/AA have identical rules and the source switches to chapter 62 for 湘雲's
+  separate AA episode. The role descriptions distinguish authorship, hosting,
+  rhyme-setting and supervision. 黛玉 is labelled an existing-rules reprint.
+- Initial runs exposed native dialog Tab/Shift+Tab escaping into browser chrome,
+  including WebKit skipping intermediate controls. Explicit traversal of current
+  visible controls fixes both directions, including after an AA rerender.
+  Final full runs verify wrap, intermediate focus and Escape/opener restoration.
+- Synthetic local/session profile and battle canaries remain byte-identical
+  and unread. No RNG calls, cookie/storage/IndexedDB/cache access, external/API
+  requests, asset errors or page exceptions occurred in these flows. No real
+  player profile is used by the harness.
+- Root inspected desktop/mobile gallery and AA-dialog captures. Native Safari
+  loaded the preview in a new tab with its title, eight-card count and opening
+  controls. Main game at 4177 and both literary pages at 4178 return HTTP200
+  after the Mac restart. This is local availability, not hosted verification.
+- All five image copies match their retained generation originals byte-for-byte;
+  dimensions, hashes and exact prompts are in [ART-HL01](ART-HL01.md).
+
+Ignored browser evidence: `test-results/honglou-{chromium,webkit}-smoke.json`
+and their initial/catalogue/dialog/sample screenshots. Final JSON receipts
+supersede the failed focus attempts shown in the conversation. Phone emulation
+does not establish physical-device acceptance or competitive balance.
+
+Shared conversation play has begun separately: the first user choice was
+迎春＋0丹 against a precommitted 寶玉＋3丹. Attack 5 versus 24 gave the GM the
+round, but skill and 森羅 reductions limited damage to 2. Resources became
+user 10 life / 12 pills and GM 12 life / 9 pills. This single manual prototype round is
+an observed resource decision, not engine integration or a balance conclusion.
+
+## LZ-01 literary design preview · 2026-09-23
+
+Local standalone `liaozhai.html`, twelve candidate cards and thirteen available
+illustrations (three 2×2 atlases and one AA). The full set proposal has nineteen
+printings; six special artworks, engine/card ownership, earned-coin acquisition
+and 餘願 remain planned. No game catalogue, profile, service or deployment change.
+
+- **438 Node tests pass**, including five new checks for the roster, faction/
+  rarity mix, legal paper deck budgets, absence of obvious same-role raw upgrades,
+  immutable prints, fixed sample and isolated preview dependencies. These are
+  design/data checks, not battle-balance evidence.
+- **Nine Python tests pass**; the pre-existing temporary HTTP404 cleanup
+  `ResourceWarning` remains. The public build passes with **80 allowlisted
+  files**; all eight LZ preview code/art paths stay preview-only.
+- `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` passes **14 groups per
+  engine** in isolated Chromium and WebKit at 1440×900, 390×844, 360×740 and
+  844×390, plus a reduced-motion case. It verifies all twelve portraits, five
+  story filters, four factions, intersections and empty-state reset; card
+  inspection, BASE/AA rule equality and Escape/focus restoration; individual,
+  skipped, partial/reveal-all, repeated and interrupted-timer openings.
+- Checked controls have unobstructed **44px targets** and pages have no
+  horizontal overflow. The first WebKit attempt exposed a native select rendered
+  at 21px despite `min-height`; explicit height/appearance and a visible chevron
+  fixed it. Both complete engine suites pass after that CSS change.
+- Synthetic profile/battle canaries remain byte-identical, with no local/session
+  storage reads/writes, cookies, IndexedDB/cache access, API calls, external
+  requests or asset/runtime errors during the test flows. Source links are
+  inspected but not followed by the smoke. No real player save is opened by it.
+- Original portraits and AA were visually inspected, as were desktop/phone
+  previews and WebKit dialog/opening captures. Native Safari loaded the new
+  preview in a separate tab and exposed its title, opening control and return
+  link to the existing game at 4177. The preview server remains at 4178 for this
+  session; a fresh ordinary Python launch can serve it at 4177.
+
+Evidence (ignored): `test-results/liaozhai-unit.log`,
+`liaozhai-browser-final.log`, `liaozhai-{chromium,webkit}-smoke.json` and their
+screenshots, plus the parent `liaozhai-root-*` visual captures. The initial
+WebKit failure remains in `liaozhai-webkit.log`; final JSON/log supersedes it.
+Phone viewport emulation is not a physical-device check. Human card balance,
+art direction, full booster rules and hosted delivery remain open.
+
+## Carved map-piece prototype · 2026-09-23
+
+Local CSS/SVG presentation on `codex/game-lobby`; no deployment, save migration,
+game-rule change, real player-save access or studio commission.
+
+- **433 Node tests pass**, including authored forward/reverse routes, mid-edge
+  reversal through a junction and eligible cursor origins. The public build
+  passes with **80 allowlisted files**; `git diff --check` passes.
+- `tools/map-piece-smoke.mjs` passes **eight groups per engine** in Chromium and
+  WebKit. The six-size matrix is 1440×900, 1280×720, 390×844, 360×740, 360×640 and
+  844×390, with six-, four- and eight-node maps. Map/piece alignment, chapter and
+  route-list fit, unobstructed 44 px controls and profile/battle/RNG conservation
+  pass without browser or HTTP errors.
+- Full-motion cases cover visible travel, rapid retargeting, a bent-route
+  reversal, resize, changing OS reduced motion, leaving mid-move and switching
+  maps. Keyboard activation, focus transfer and retention on arrival pass.
+  Locked previews cannot move the piece, unlock a node or start a battle.
+- Existing Chromium navigation and stories suites pass again, retaining the
+  preparation/cancel, deck-return, battle continuity, quest and map regressions.
+  All browser data is isolated synthetic state and API fixtures stay local.
+- A bounded independent source review identified the reverse-route shortcut and
+  hidden route-button focus; both were fixed and covered by the final browser
+  runs. Desktop, portrait and short-landscape screenshots were visually inspected.
+
+Ignored evidence: `test-results/map-piece-unit.log`,
+`map-piece-{chromium,webkit}.json`, `map-piece-navigation.log`,
+`map-piece-stories.log` and the matching screenshots. These are browser-engine
+checks, not physical-device or human timing/audio evaluation. Final artwork,
+owner playtest and phone validation remain open in the
+[prototype/studio brief](MAP-PIECE-PROTOTYPE.md).
+
+## Campaign and Fire Mountain · 2026-09-22
+
+Implemented locally on `codex/game-lobby`: six sequel volumes /48 new encounters
+(66 total), standard 火焰山三連戰, saved supplies/loaner runs, mastery, exact
+character grants, pack tickets and a separate final AA choice. No hosted release,
+live database migration or real player-save access accompanied this work.
+
+- **430 Node tests and nine Python tests pass.** Coverage includes all48 authored
+  legal decks/chain links, full campaign reward totals, once-only grants,
+  deterministic activity draws/loot/pity, Monday rollover, exact-copy protection
+  through supplies, loaner XP isolation and quota failures. The Python run keeps
+  the pre-existing HTTP404 cleanup `ResourceWarning`.
+- Local profile **v5** and cloud snapshot **v3** preserve v4/v3/v2 sources,
+  exact copies, receipts and pending encounters. Old server capabilities block
+  unsupported v5 uploads. The additive SQL migration/fixtures are source-only;
+  their PostgreSQL runner and hosted retention checks were not executed.
+- All **14 existing Chromium scenario suites pass**. WebKit additionally passes
+  six profile-recovery groups, including interrupted migration and two-tab
+  purchase serialization. API/account scenarios remain isolated intercepted
+  fixtures. One old account assertion was updated for the activity warning.
+- Both browsers pass the existing viewport matrix at **1440×900, 1280×720,
+  390×844, 360×740, 360×640 and844×390**:23 groups and2,093 geometry checks per
+  engine, with no active overflow, covered controls or browser errors. Existing
+  72-copy box receipts and simultaneous saved battle/receipt states remain
+  reachable through real module/page controls.
+- The new `npm run test:expansion` matrix passes the same six sizes in Chromium
+  and WebKit:16 groups per engine,815/804 geometry checks. It traverses all six
+  new volumes, preparation routes, supplies, exact grants, tickets,48 mastery
+  rows, titles and AA choices. Browsing keeps profile bytes unchanged.
+- Both engines complete three real loaner battles through the UI, choose
+  supplies, bank the first-clear BASE and weekly ticket, open a zero-coin
+  three-card pack and claim the exact final AA without touching the old four-
+  stage AA entitlement. A saved campaign loaner reconstructs a missing battle
+  snapshot from its seed without changing owned copies. The scripted test pilot
+  reads its own synthetic AI moves; this is functional coverage, not a human
+  difficulty study or a change to production AI information access.
+- Review found and fixed a loaner retry that reset the preparation route and an
+  empty landscape AA sidebar. Both engines pass the subsequent focused landscape
+  run, including an actual loaner defeat/retry (six groups/191 geometry checks).
+  Desktop, phone and landscape screenshots were inspected for readable text and
+  reachable controls. Build passes with **78 allowlisted public files**.
+
+Final local evidence is ignored under `test-results/`: `expansion-unit-final.log`,
+`expansion-python.log`, `expansion-existing-browser-summary.json`,
+`expansion-profile-recovery-webkit.log`, `viewport-{chromium,webkit}.json`,
+`expansion-{chromium,webkit}-full.json` and the later focused
+`expansion-{chromium,webkit}.json` reports/screenshots. Early harness failures
+remain in their logs; the successful final reports supersede them.
+Physical mobile devices, long-term human balance and a coordinated hosted
+Worker/schema/static release remain separate work. See
+[the implemented design and tuning probe](CAMPAIGN-AND-EVENTS.md).
+
+## Viewport game navigation · 2026-09-22
+
+Local development on `codex/game-lobby`. Destinations and dialogs now use named
+modules and explicit list pages within the screen. No deployment, save-format
+migration, economy/rule change or real player-profile mutation occurred.
+
+- **388 Node tests and nine Python tests pass.** The Python run retains the
+  existing harmless temporary HTTP 404 cleanup `ResourceWarning`. Controller
+  tests cover measured capacity, exact-item anchoring, keyboard tabs, focus,
+  teardown and pack-controller visibility ownership; pack tests retain newly
+  revealed artwork on its page without changing the accepted receipt.
+  `npm run build` succeeds with **73 allowlisted public files** plus metadata.
+- All **14 existing Chrome scenario suites** pass individually on the updated
+  navigation. WebKit additionally passes the WX-01 presentation, box and
+  inheritance suites. Account scenarios use intercepted APIs; restore/delete
+  confirmations must appear immediately and cancellation returns visible focus
+  to the cloud module. No real email or hosted mutation is involved.
+- The independent Chrome viewport matrix passes at **1440×900, 1280×720,
+  390×844, 360×740, 360×640 and 844×390**. It visits every module and actual list
+  page, checks active panels and document dimensions, hit-tests visible controls
+  at a 44px minimum and verifies exact copy/receipt identities remain reachable.
+  It completes real preparation, battles, round results, final rewards and a
+  legacy three-card pack; saved 24-pack receipts expose all 72 exact UIDs without
+  another grant or charge.
+- WebKit passes the same six sizes. The initial run completed desktop, laptop
+  and 390px flows; after fixing a native training-select width issue, separate
+  strict runs pass 360×740, 360×640 (including both saved-state cases) and
+  844×390. A focused training check also passes 390×844 and those three sizes.
+  The archived initial report retains its genuine failure; the three final
+  `viewport-webkit-{size}.json` reports record successful completion. No browser
+  errors or active-content overflow remain in these final checks.
+- Browsing preserves synthetic profile bytes and produces no journey writes.
+  Additional 360×640 cases cover simultaneous pending battle/pack receipt and
+  receipt-only preparation → edit deck → return. All **18 chapters** also fit
+  with both pending actions present, including the longest story descriptions.
+- Desktop, short-phone and landscape screenshots were reviewed for readable
+  card identity, chapter text, receipt counts, persistent resource HUD and dock.
+  Evidence remains in ignored `test-results/viewport-*.json`/screenshots and
+  `scene-pending-chapters-report.json`; tests use isolated browser contexts.
+
+Physical iOS/Android devices, on-screen keyboards and a hosted release remain
+separate checks. [NAVIGATION.md](NAVIGATION.md#viewport-scenes--2026-09-22)
+documents the transient controller and module/page integration.
+
+## 西行 drop-rate design · 2026-09-22
+
+The owner selected cosmetic 領契 before battle Leader mechanics. The proposal
+now has 29 printings of 16 identities: four planned LAA portraits supplement the
+previous 25-print art study. [WX01-DROP-RATES.md](WX01-DROP-RATES.md) records the
+official-source scope, natural rates, twelve-pack dry protection, god-pack
+composition, per-print frequencies, earned choice route and capacity gates.
+
+- **246 Node tests pass**, including nine new analytical-model tests. The nine
+  targeted cases also pass after final BASE-label and input-validation edits.
+  Exact outcome enumeration verifies probability mass, three-card contents,
+  the rarity floor, all 29 reachable prints and unique god-pack characters.
+  Tests independently check counter transitions, rare-result preservation,
+  Markov stationary equations, known god-pack marginals and quantile boundaries.
+- A **1,000,000-pack simulation**, seed `20260922`, passes 38 comparisons with
+  the analytical model. It records 492 god packs; that observation is consistent
+  with the proposed 0.05%, not a claim that every million openings contain 500.
+  Monte Carlo tolerances explicitly allow dependence from the dry counter;
+  they are conservative smoke checks, not exact confidence intervals. Exact
+  enumeration/renewal calculations supply the reported probabilities.
+- An independent read-only review agrees on protected rates, per-print god
+  biases, character-distribution changes and rare-event waits. The live economy
+  was inspected through source and pure synthetic calls: no player save or
+  account was read or changed. The draft records the daily 80-coin rebate and
+  the 2,000-copy/512-KiB backup limits, including vault copies.
+- All analytical data remain under `tools/` and `tests/`; no game imports,
+  existing pack rules, production allowlist, atelier behavior, save fields,
+  service settings or schema changed. No new artwork or public deployment.
+  Browser/Python reruns were unnecessary for this documentation/offline-tool pass.
+
+Evidence: ignored `test-results/wx01-node-tests.log` and
+`test-results/wx01-drop-analysis.json`; reproduce with `npm run analyze:wx01 -- --json`.
+The model uses checklist IDs, not production engine IDs. New character balance,
+LAA artwork, runtime grants, compatible counters/印/storage, portrait selection
+and resumable issuance remain unimplemented. The existing atelier still shows
+fixed demonstration cards and no real probabilities or player grants.
+
+## 西行 collectible frames and art study · 2026-09-22
+
+Local development on `codex/game-lobby`; the owner selected 西遊記 as the first
+booster series. Existing cards now show their current collection rarity through
+bronze, silver-jade or gold framing. There are still **24 playable characters
+and two playable packs**. No rule, price, probability, profile schema, account,
+database or real player save changed. No deployment occurred.
+
+- **237 Node tests and nine Python tests pass.** Production-build fixtures
+  explicitly include unapproved atelier/art files and verify their exclusion;
+  the loopback server test covers the allowlisted local preview and no-store
+  responses while retaining private-file and symlink protections.
+- `npm run build` succeeds with **33 public runtime files**. The six files in
+  `hosting/preview-assets.json` are available only through the local Python
+  server and do not enter the production artifact.
+- The core gameplay, backpack and battle-presentation Chrome suites pass with
+  the live frames. The battle suite retains real-time phase coverage (about
+  1.1 seconds to completion); its mobile keyboard/geometry case now pauses the
+  test clock so automatic completion cannot move focus before Enter is sent.
+  All six battle groups and eight footer geometry/hit checks pass without errors.
+  Screenshots of the mobile backpack and battle cards were visually reviewed
+  for legible names, stats, rarity marks and faction labels.
+- `npm run test:atelier` passes in isolated **Chrome and WebKit 26.6**, with nine
+  check groups per engine at **360px, 390px and 1440px**. All four Wukong treatments
+  retain five stars, power 7, damage 6 and `stopAbility`. Checks cover distinct
+  rarity frames, keyboard selection, manual/all reveals, fixed INK/TR choice,
+  replay, opening skip, synthetic pagehide, reduced motion and focus recovery.
+- Synthetic local/session save canaries remain unchanged, with no storage
+  method writes or cookies. Request guards detect no API calls, external
+  requests or mutation requests. Both engines report zero console/page errors
+  and failed assets. Every owned test browser was closed.
+- Three original **1024×1536** Wukong art studies total about **9.2 MiB**.
+  [ART-EXPANSION.md](ART-EXPANSION.md) records the exact built-in imagegen prompts
+  and project asset paths. Frames and readable rules are HTML/CSS; no image
+  carries baked-in card text. Decoded-art screenshots were reviewed on both
+  desktop and mobile viewport layouts.
+
+Evidence: ignored `test-results/atelier-{chromium,webkit}-smoke.json` and
+`atelier-{chromium,webkit}-{ink,treasure,demo}-{360,1440}.png`. This is isolated
+WebKit evidence, not a new test of the owner's native Safari 18.6 session or a
+physical iPhone/Android. Art compression/loading budgets, character balance,
+owned-print compatibility and real booster distribution remain future work in
+the [WX-01 set plan](EXPANSION-WX01.md). The atelier is a fixed-content visual
+demonstration with no currency cost, RNG, ownership grant or pull-rate claim.
+
+## Local Safari preview recovery · 2026-09-22
+
+Native **Safari 18.6** was observed showing only the background at
+`http://127.0.0.1:4177/`. **Command–Option–R**, Safari's hard reload, immediately
+restored the lobby at that same origin. The visible interface showed the existing
+Lv.4 journey, all six original realms cleared and the existing deck. The earlier
+Command–Shift–R guidance was Chrome's shortcut, not Safari's. Recovery required
+no save reset, migration or application-code change. The exact cached-module
+failure was not observed; the hard reload resolving the blank screen is confirmed.
+
+All 32 public files returned 200 with current checkout bytes and correct module
+MIME types. Isolated fresh Chrome passed the core gameplay and story suites;
+an isolated **WebKit 26.6** probe also loaded the lobby and four-world atlas.
+These fresh contexts have separate saves from the owner's Safari. Actual native
+Safari map navigation was not verified in this incident check.
+
+The development server now sends `Cache-Control: no-store` and current bytes
+instead of modification-time 304 responses. Restarted on the same loopback port;
+live conditional requests return 200/no-store. Nine Python tests pass, including
+cache-response coverage and the existing private-file/symlink denial checks.
+The story suite's eight groups also pass after restart, with no browser errors.
+The owner's progress was checked only through the visible Safari interface;
+browser storage and save contents were not manually read, exported or cleared.
+No public deployment occurred. Chrome and Safari keep separate browser-local
+journeys, so a fresh Chrome journey does not mean Safari's progress was reset.
+
+## Story volumes and quests · 2026-09-22
+
+Local development on `codex/game-lobby`, following the resource/clash pass.
+The owner chose maps/quests now and deferred online PvP/ranked. No deployment,
+real account mutation, email or database migration occurred.
+
+- **237 Node tests and eight Python tests pass.** Eleven new weekly tests cover
+  London Monday/DST/year boundaries, backward clocks, zero-initialization of old
+  saves, once-only counters/claims, pending cards and old/new cloud snapshots.
+  Six story tests cover unchanged original nodes/rewards, legal themed decks,
+  branch prerequisites, interleaved clears, independent first-clear/cache rewards,
+  exact-copy progression and backup round trips.
+- All **nine Chrome suites** pass on loopback: the eight existing suites plus
+  `tools/stories-smoke.mjs`. Its eight groups include real wins in each new map,
+  same-volume next/retry/final-chapter boundaries, repeated first clear, accepted
+  result reload, daily and all three weekly claims, and explicit fixture-backed
+  old/new backup restore/upload. No external requests or browser errors were
+  reported; test browsers were closed.
+- A same-tab regression preserves a Westward battle, browses White Snake,
+  resumes and finishes the battle, then verifies result-map returns to Westward.
+  The fix restores the encounter's selected node on expedition resume.
+- **360px, 390px and 1440px** screenshots cover all volumes, quest tabs, mode hub,
+  lobby and preparation without horizontal overflow. Actual preparation close
+  buttons are at least 44px and clickable above the artwork. Quest tabs support
+  ArrowLeft/Right and Home/End with roving focus. The new suite records 22 images;
+  an independent visual pass records 27 layouts plus the locked-story lobby.
+- Fresh players can inspect every map; a locked-volume lobby opens Mist Gate
+  preparation without charging or starting a match. Browse/tab/preparation
+  cancellation preserves gameplay state. AI arena/practice are playable; PvP
+  and ranked remain noninteractive and explicitly unopened.
+- `npm run build` succeeds with **32 allowlisted assets**. The release test now
+  enumerates actual files in nested asset directories, retaining exact allowlist
+  and byte-hash assertions. Three generated maps are 1536×1024 PNGs, about
+  10.1 MiB total, with prompts/provenance in [ART-STORIES.md](ART-STORIES.md).
+
+Evidence: ignored `test-results/stories-smoke.json`, `stories-*.png` and
+`stories-visual-*.png`. Full narrative playtesting, economy tuning, physical
+iPhone/Android behaviour and compressed-art loading measurements remain open.
+Updated client/Worker validation must ship together in a future authorized
+release; these local tests do not establish hosted acceptance of new snapshots.
+See [implementation and planned online modes](STORIES-AND-MODES.md).
+
+## Life, pills and battle transitions · 2026-09-22
+
+The newer story/quest expansion above supersedes this pass's test/asset counts.
+
+Local follow-up on `codex/game-lobby`; not a deployment or a physical-device test.
+
+- **220 Node tests and eight Python tests pass.** Nine resource-presentation
+  tests use accepted engine results to cover costs including Fury, zero bids,
+  overkill, capped/suppressed healing and refunds, invalid data and static reload.
+  The controller suite now has 17 tests, including phase callbacks and immediate
+  completion/cancellation without stale paints or cues. The existing Python
+  temporary-404 cleanup warning remains harmless.
+- `npm run build` succeeds with **27 allowlisted runtime assets** plus metadata.
+  No dependency, binary art, rule, account or schema change accompanies this work.
+- All **eight Chrome browser suites** pass against `127.0.0.1:4177`: smoke,
+  journey, classics, backpack, account, navigation, immersion and the new
+  `tools/battle-presentation-smoke.mjs`. Account tests intercept fixture APIs;
+  no real email, account mutation or public deployment is involved.
+- The new suite checks own bid/Fury capsule previews against unchanged public
+  reserves. Otherwise identical encounters with different hidden opponent bids
+  and Fury render the same opponent HUD. The precommitted AI save is unchanged
+  by the player's preview controls.
+- Observed resource frames follow sealed → bids → impact → recovery → complete.
+  A capped fixture's player moves from 11 HP/12 pills to 11/4, then 12/4;
+  the opponent goes from 12/11 to 7/11, then 7/12. Other fixtures cover uncapped
+  healing/refunds, zero reserve, Fury and overkill. The UI uses actual capped HP
+  loss, while the card's damage badge retains the accepted hit value.
+- Normal, fast, skipped and reduced-motion runs retain identical accepted
+  results and saved totals. Early Next cancels the old reveal, unfinished-round
+  reload shows final resources without replay, and completed-match reload cannot
+  pay twice. Synthetic pagehide/pageshow completes presentation and preserves
+  saves; this does not certify native phone background behaviour.
+- Screenshots and measurements cover **1440px**, **360px** and **390px**, with
+  no horizontal overflow or browser errors. Phone HUD numbers are 25px, compact
+  result numbers 21–23px, and pill ± buttons are 44×44px. Portrait battles still
+  scroll vertically; a compact battle-table redesign remains a separate follow-up.
+  Resource captions are 10px and span the panel; the result footer keeps its
+  controls in view while the full explanation scrolls underneath.
+- Normal completion measured **1101–1103 ms from the first sealed frame** in
+  the recorded run. The configured phases are 100/390/720/1100 ms. These are
+  local observations, not a physical-phone performance guarantee.
+
+Ignored evidence is recorded in `test-results/battle-presentation-smoke.json`,
+`battle-presentation-{preview,clash}-{desktop,360,390}.png` and the updated
+immersion results. Owned test browsers were closed. Physical iOS/Android checks,
+audible recovery-cue tuning and human repeat-play pacing remain open; see
+[scope and next additions](IMMERSION.md#life-pills-and-battle-transitions--2026-09-22).
+
+## Mist Gate immersion · 2026-09-22
+
+Local development on `codex/game-lobby`, following the navigation slice. This is
+browser/source evidence, not a public deployment or physical-phone test. The
+counts, timing and mode scope below describe that earlier pass; the shared
+resource/clash follow-up above supersedes them.
+
+- **206 Node tests pass**, including 12 new presentation-controller tests.
+  Coverage includes normalized/preference-only writes, blocked storage, cancelled
+  and replaced reveals, focus after skip, system/in-game reduced motion,
+  gesture-only audio setup, lifecycle cleanup and delayed resume races. Audio
+  checks establish a 140 ms onset and zero-jump loop endpoints at 44.1/48 kHz;
+  they do not establish audible quality.
+- **Eight Python tests pass.** The existing temporary HTTP 404 cleanup
+  `ResourceWarning` remains harmless. `npm run build` succeeds with **24
+  allowlisted runtime assets** plus metadata; no dependency or binary-art change.
+- All seven headless Chrome scripts pass against `127.0.0.1:4177`: smoke,
+  journey, classics, backpack, account, navigation and the new
+  `tools/immersion-smoke.mjs`. Account checks use intercepted fixtures; no real
+  email, hosted service mutation, schema change or deployment occurred.
+- The new suite compares full accepted round snapshots, final profiles and
+  gameplay RNG call counts across normal, fast, system-reduced, manual-reduced,
+  skipped and sound-enabled presentation. All six agree, including an early KO.
+  Actual played UIDs gain the correct XP/level change; unplayed copies do not.
+- Reloading an unfinished reveal retains its encounter ID, exact copies,
+  HP/pills and committed result, then reaches the same settlement. Reloading
+  after completion retains rewards/XP without another payment. A real loss
+  exposes same-node retry; Jade Forest and practice keep ordinary presentation,
+  and practice still grants no currency/card XP.
+- Opening/closing preparation or settings leaves gameplay saves unchanged.
+  Sound/mix/motion/pace persist independently. A throwing `localStorage` getter
+  leaves the lobby and muted settings usable with the existing storage warning.
+  Read-only result passports and settings restore the parent result's nonzero
+  modal scroll and logical focus; Return/Escape do not pay or replay the result.
+- Arrival, battle, complete reveals, rewards and passport returns have no
+  horizontal overflow at **360px and 390px**. Visual review also covered
+  **1440px desktop**, the arrival close button, actual loss/early-KO outcomes,
+  all reveal phases and immediate reduced-motion readability. Portrait battle
+  still scrolls vertically; a more compact layout is a recorded follow-up.
+- The normal reveal finished about **796/806 ms after the initiating test click**
+  in the recorded run, including automation overhead. Controller scheduling is
+  100/390/760 ms. These observations are local evidence, not a device performance
+  guarantee. Skipping and Next do not require waiting for an animation callback.
+
+Ignored evidence: `test-results/immersion-smoke.json`, its `.log`,
+`immersion-*.png`, `mist-visual-*.png` and `mist-node-tests.log`. Artwork decoding
+was awaited before screenshots; no page errors were observed. Every owned test
+browser was closed. Human onboarding/pacing playtests, audible sound tuning and
+physical iPhone/Android lifecycle/performance remain open; see
+[implemented scope and additions](IMMERSION.md).
+
 ## Account and private-backup evidence
 
 - **The v0.5.0 release baseline passed: 172 Node tests and six Python tests.** Account coverage includes explicit upload/restore choices, identity changes and cancellation, stale local confirmations, cloud revision conflicts, immutable snapshot handling, logout, malformed provider responses, CSRF/content-type checks, bounded request bodies, rate-limit failure, missing/invalid sessions and upstream outages. Snapshot coverage includes canonical v3 data, duplicate IDs, pending battles, byte/card bounds, PostgreSQL-compatible Unicode and storage sizing. These are deterministic local checks, not live email tests.
@@ -84,3 +579,50 @@ Local prototype checks only. No public deployment or multiplayer server.
 Storage is local to the browser origin. Web Locks serialize profile transactions where supported; reward settlement consumes a pending encounter ID. This does not provide server-authoritative anti-cheat or a synchronized multiplayer battle. Keep active battles in one tab. Clearing browser data or switching ports/browsers changes available saves.
 
 Not claimed: optimal/balanced AI, extensive economy tuning, exact historical fidelity, extensive cross-browser coverage, live hosting, online player trading or full accessibility certification.
+# Toolkit portability follow-up · 2026-09-21
+
+[TOOLKIT.md](TOOLKIT.md#local-verification) records 194 passing Node tests, eight
+Python tests, all five browser suites against local Wrangler, isolated PostgreSQL
+backup checks, the local contract fixture and bundle dry runs. These are local
+results on the toolkit branch, separate from the historical CI/hosted results
+above. The September 22 follow-up adds a preview-binding regression for lone CR
+and Unicode line separators and portable browser screenshot paths. No real email,
+hosted data changes or deployment occurred in this pass.
+
+## Game lobby and navigation · 2026-09-22
+
+Local development evidence on `codex/game-lobby`; not a hosted release.
+
+- **194 Node tests and eight Python tests passed.** The Python run retained the
+  existing harmless temporary HTTP 404 cleanup `ResourceWarning` while passing.
+  Public build succeeded with **21 allowlisted runtime assets** plus metadata.
+- All six headless Chrome scripts passed against the current-source loopback
+  server at `127.0.0.1:4177`: smoke, journey, classics, backpack, account and the
+  new navigation suite. Account APIs were intercepted fixtures; no real email,
+  hosted account mutation, schema change or deployment was performed.
+- Preparation/cancel preserves profile and battle snapshot bytes. Editing an
+  exact duplicate copy and returning preserves the chosen location, and only
+  explicit Start freezes the active deck's UIDs into a pending encounter.
+- Leaving, editing the future active deck, resuming and reloading preserves the
+  original encounter ID, captured copies and pending battle snapshot. Existing
+  chosen-card/bid/Fury, reveal recovery and stale-tab abandon checks still pass.
+- Real UI wins lead to the next unlocked node; losses return through deck
+  preparation to the same node. Winning at the final node offers a revisit.
+  Preparation, deck detours and reload do not settle or award a completed match
+  twice. Draws use the same retry branch as losses; no new browser draw fixture
+  was added.
+- Filtered owned-card and codex details restore nonzero scroll and keyboard
+  focus. An empty unsaved deck draft survives tab/codex detours and the active
+  cards dock button. Claiming a daily reward keeps focus in the quest panel;
+  subsequent Tab navigation remains contained there.
+- At 360px and 390px, all five labelled dock controls remain visible with at
+  least 44px tap targets. All destinations, deck editor, catalogue, quest and
+  preparation panels fit without horizontal overflow or browser errors.
+- Root visually inspected original-art lobby, preparation and quests on phone
+  and desktop. The UI reviewer additionally inspected cards and 768px layout;
+  toast messages clear the dock. Screenshots are ignored local artifacts under
+  `test-results/navigation-ui-*`. Test-owned browser processes were closed.
+
+Behavior and scope are recorded in [NAVIGATION.md](NAVIGATION.md). Physical-device
+testing, native/browser-history integration and hosted release checks remain
+separate from this local UI slice.

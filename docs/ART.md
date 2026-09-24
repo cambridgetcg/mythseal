@@ -20,6 +20,71 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 ```
 
 
+## 聊齋 concept studies · 2026-09-23
+
+The separate local LZ-01 preview uses three original 2×2 portrait atlases (twelve
+characters) and one full-scene 小倩 AA under `assets/lz01/`. All four images were
+generated with the built-in imagegen tool, with no reference images supplied.
+They are preview-only and do not grant or change owned cards. See
+[exact prompts, cell mappings and provenance](ART-LZ01.md) and the
+[set design](EXPANSION-LZ01.md). No underlying model identifier was exposed.
+
+## 西行 printing studies · 2026-09-22
+
+Three original Wukong illustrations explore full-scene alternate art, an ink
+scroll and a lacquer/gold treasure treatment in the local `atelier.html` preview.
+See [exact prompts and assets](ART-EXPANSION.md) and the
+[WX-01 set record](EXPANSION-WX01.md). The standalone atelier remains a fixed
+demonstration with no save writes. The local playable WX-01 implementation now
+reuses these three unchanged images for Wukong AA, INK and TR owned printings.
+
+## Playable WX-01 artwork · 2026-09-22
+
+The local expansion adds **14 files** under `assets/wx01/`: four 2×2 base
+atlases covering 15 new characters (one unused tile), five full-scene AA images,
+four cosmetic 領契 portraits and one 六耳 ink-scroll. Together with the three
+earlier Wukong images and his unchanged classic base tile, these supply the
+16-character / 29-print checklist. They were created with the built-in image
+generation tool; an underlying model identifier was not exposed and is not
+inferred here. See [ART-WX01.md](ART-WX01.md) for exact prompts, file mappings and
+provenance, and [printing-catalogue.mjs](../printing-catalogue.mjs) for runtime
+atlas coordinates. UI labels, rarity frames and effects remain code-native.
+This is local content, not a public deployment or collectible issuance service.
+
 ## Classical expansion · v0.3
 
 The new `assets/classics.png` atlas is documented separately in [ART-CLASSICS.md](ART-CLASSICS.md), including its exact built-in generation prompt, source output path and tile mapping. Original portraits and map remain unchanged.
+
+## Mist Gate presentation · 2026-09-22
+
+The local first encounter reuses the unchanged original map and portrait atlases.
+`mist-gate-ui.mjs` contains an original code-drawn SVG paper lantern; its ribs,
+flame and reflection are vector paths, with mist/light supplied by `mist-gate.css`.
+Guardian arrival/result lines are original game writing. No external image,
+recording or generated bitmap was added for this slice.
+
+`experience.mjs` synthesizes short interaction tones and a quiet filtered-noise
+water-like texture. The noise generator is independent of gameplay randomness;
+its two-second mono buffer is generated locally, with tapered loop edges and a
+short gain envelope. This is synthesized ambience, not a field recording or
+music track. See [IMMERSION.md](IMMERSION.md) for proposed art/audio follow-ups.
+
+The same day's shared battle pass adds CSS jade life rings, pill capsules and
+an original inline SVG ink-crossing/ripple in `battle-ui.mjs` / `battle.css`.
+The optional recovery cue is another synthesized tone. No external asset or
+new bitmap/audio download accompanies the resource and clash presentation.
+
+## Traditional-story maps · 2026-09-22
+
+Three new original map illustrations for 西遊, 封神 and 白蛇 are in `assets/maps/`.
+See [ART-STORIES.md](ART-STORIES.md) for the built-in image-generation prompts,
+selected output paths and provenance. Existing atlases and the 山海 map remain
+unchanged; labels and pins are drawn by the application.
+
+## 紅樓・海棠詩社 · 2026-09-23
+
+Eight BASE portraits in two atlases and three full-scene AA works supply the
+local HL-01 study. These five original built-in imagegen PNGs remain preview-only;
+card rules and frames are rendered separately. [ART-HL01.md](ART-HL01.md) records
+the exact prompt components, selected archive outputs, tile mappings and hashes.
+黛玉、湘雲、探春 alternate artworks retain their base character's rules.

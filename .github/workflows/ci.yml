@@ -58,8 +58,8 @@ jobs:
         run: npm run build
       - name: Validate Cloudflare bundles without deploying
         run: |
-          npx --no-install wrangler deploy --dry-run
-          npx --no-install wrangler deploy --config wrangler.www.jsonc --dry-run
+          npm run preview -- --dry-run
+          npm run deploy -- --dry-run
         env:
           WRANGLER_SEND_METRICS: 'false'
       - name: Check JavaScript syntax

@@ -25,23 +25,38 @@ The runtime compatibility date is `2026-06-16`. It describes API behavior, not t
 ```sh
 npm ci
 npm test
-npm run build
-WRANGLER_SEND_METRICS=false npx --no-install wrangler deploy --dry-run
-WRANGLER_SEND_METRICS=false npx --no-install wrangler deploy --config wrangler.www.jsonc --dry-run
+npm run deploy -- --dry-run
 ```
+
+The tracked helper invokes `node_modules/wrangler/bin/wrangler.js` directly with
+the current Node executable, so a shared Wrangler on `PATH` cannot replace the
+pinned CLI. A dry run builds the allowlisted assets and validates **both** Worker
+bundles, including the apex `--keep-vars` flag. It permits uncommitted work and
+makes no hosted identity or secret-list requests; it does not establish release
+identity, binding availability or hosted retention. The helper selects the
+top-level environment explicitly and skips implicit `.env`/`.env.local` loading.
+Supply any intended CLI authentication through the existing native Wrangler
+session or process environment. Both config files currently use strict JSON;
+the helper rejects unreadable configuration before invoking Wrangler.
 
 Review the changes, commit the selected release, push it and verify exact-source
 GitHub CI. Use a clean checkout and confirm the intended Cloudflare account.
-For the **existing authenticated apex Worker**, inspect secret names without
-retrieving their values, then deploy with explicit binding preservation. Replace
-the example release message with the actual version and source SHA:
+For an authorized release of both existing Workers, use:
 
 ```sh
-npm run build
-npx --no-install wrangler secret list --config wrangler.jsonc
-npx --no-install wrangler deploy --config wrangler.jsonc --keep-vars \
-  --message "Mythseal vX.Y.Z SOURCE_SHA"
+npm run deploy
 ```
+
+Before any deployment, the helper checks a clean worktree, the pinned CLI, both
+configured Worker/account identities, authenticated access to Cloudflare account
+`cf4198e651bf3009877d49f688c9d88e`, and existing apex secret **metadata** for
+`SUPABASE_PUBLISHABLE_KEY`. It rejects conflicting account environment overrides.
+It then builds, dry-runs both bundles and rechecks the worktree/source commit.
+Missing access, missing binding metadata, invalid responses or a failed bundle
+check stop the release before either Worker is deployed. Provider output and
+error bodies are captured without printing them; Wrangler disk logs and telemetry
+are disabled for these invocations. The helper never retrieves the binding value
+or automatically retries a failed deployment command.
 
 `SUPABASE_PUBLISHABLE_KEY` must already be present for this path. A missing
 binding needs the selected project's publishable key provisioned through secure
@@ -53,11 +68,17 @@ readiness after the next release. A reviewed `--secrets-file` containing only th
 publishable key is the alternative used for the recorded account releases; keep
 it outside Git, mode `0600`, and remove the temporary file afterward.
 
-The generic `npm run deploy` / `tools/deploy.mjs` helper checks a clean checkout
-and the pinned CLI, builds, then deploys both Workers. **It currently passes
-neither `--keep-vars` nor `--secrets-file`; do not use that shortcut for an account
-release until binding preservation is added and verified.** Portability of this
-workflow is a concrete [roadmap task](../ROADMAP.md), not an assumed capability.
+The tracked helper now passes `--keep-vars` for the apex, without overriding the
+declared production variables or supplying any key value. Local stub tests cover
+the flag, wrong-account and missing-binding rejection, sanitized provider errors,
+and the rule that both bundles pass before deployment begins. This is local
+command/preflight evidence, **not a hosted binding-preservation test**. At the
+next authorized release, verify the deployed source, existing secret metadata,
+`/api/v1/account` readiness and intended OTP flag before recording preservation
+as proven. A successful anonymous account check still does not prove delivered
+mail or cross-device restore. Wrangler's documented behavior and the pinned
+implementation are the basis for this approach: [deploy flags](https://developers.cloudflare.com/workers/wrangler/commands/workers/#deploy),
+[identity command](https://developers.cloudflare.com/workers/wrangler/commands/general/#whoami).
 
 Deploy the separate redirect Worker only when its code/config needs changing:
 
@@ -66,9 +87,11 @@ npx --no-install wrangler deploy --config wrangler.www.jsonc \
   --message "Mythseal redirect vX.Y.Z SOURCE_SHA"
 ```
 
-The two Workers are independent, not an atomic release. If one deployment fails,
-inspect provider state and retry only the unresolved deployment. Never upload
-the repository root with `--assets .`.
+The helper deploys both Workers; the explicit redirect command above is for an
+already reviewed single-Worker release. The two Workers are independent, not an
+atomic release. If one deployment fails, inspect provider state and retry only
+the unresolved deployment. Never rerun the whole helper blindly after an
+ambiguous failure. Never upload the repository root with `--assets .`.
 
 Wrangler uses local OAuth. No OAuth token, API token or account secret is stored in Git or GitHub Actions. Existing CI runs deterministic tests, the allowlist build and syntax checks; it does **not** deploy production. A later Cloudflare Git integration or narrowly scoped deploy credential can automate a reviewed release path after preview/promotion is implemented. This release does not create unattended CD, staging or a public GitHub release.
 

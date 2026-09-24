@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1915">
+  <meta name="description" content="萬象契匠作閣：西行系列的卡框、同卡異畫與固定開匣展示。">
+  <title>匠作閣 · 新系列企劃預覽｜萬象契 Mythseal</title>
+  <link rel="icon" type="image/svg+xml" href="assets/mark.svg">
+  <link rel="stylesheet" href="atelier.css">
+</head>
+<body class="atelier">
+  <a class="skip-link" href="#atelier-main">跳至匠作預覽</a>
+  <div class="atelier-shell">
+    <header class="atelier-topbar">
+      <a class="atelier-brand" href="/" aria-label="萬象契 · 返回遊戲"><img src="assets/mark.svg" alt=""><span>萬象契<small>MYTHSEAL</small></span></a>
+      <span class="atelier-topnote">匠作手記 <span aria-hidden="true">/</span> 〇一</span>
+      <a class="back-link" href="/">返回洞府 <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main id="atelier-main">
+      <div class="atelier-intro">
+        <div><p class="eyebrow">THE COLLECTOR'S ATELIER</p><h1>匠作閣 <span>新系列企劃預覽</span></h1><p class="intro-line">一位齊天行者，四種入藏風景。</p></div>
+        <div class="preview-note"><span aria-hidden="true">◇</span><span>展示用，未加入背包<small>企劃中的畫面與工藝</small></span></div>
+      </div>
+
+      <section class="treatment-study" aria-labelledby="series-title">
+        <div class="study-heading"><div><p class="eyebrow">WX-01 <span aria-hidden="true">/</span> 系列暫名</p><h2 id="series-title">西行 · 萬象初章</h2></div><span class="study-number" aria-hidden="true">壹 / 同卡異畫</span></div>
+        <div class="treatment-layout">
+          <div class="hero-stage"><div class="stage-orbit" aria-hidden="true"></div><div id="hero-card" class="hero-card"></div><p class="hero-caption" id="hero-caption"></p></div>
+          <div class="treatment-desk">
+            <div class="treatment-heading"><span class="desk-kicker">挑一種藏法</span><span>同一張孫悟空 · 四種外觀</span></div>
+            <div id="treatment-picker" class="treatment-picker" role="group" aria-label="孫悟空外觀"></div>
+            <div class="treatment-copy" aria-live="polite" aria-atomic="true"><div class="treatment-index" id="treatment-index"></div><h3 id="treatment-title"></h3><p id="treatment-description"></p><div class="edition-tags"><span>✦ 神品</span><span id="treatment-tag"></span></div></div>
+            <section class="shared-rules" aria-labelledby="shared-rules-title"><div class="rules-heading"><h3 id="shared-rules-title">畫境各異，弈道如一。</h3><span class="rules-stars" aria-label="5 星">★★★★★</span></div><div class="rule-numbers"><span><small>力量</small><b>7</b></span><span><small>傷害</small><b>6</b></span><span class="rule-faction"><small>陣營</small><b><i aria-hidden="true">焰</i> 赤燼</b></span></div><div class="shared-skill"><b>破妄 · 封鎖技能</b><p>封鎖對手的角色技能，不影響同族共鳴；雙方封鎖同時生效。</p></div><p class="rules-note">四種外觀共用孫悟空的對弈能力與牌組名額。異畫與工藝不增加戰力。</p></section>
+          </div>
+        </div>
+      </section>
+
+      <section class="rarity-study" aria-labelledby="rarity-title"><div class="rarity-copy"><p class="eyebrow">貳 / 品階與陣營</p><h2 id="rarity-title">先識其品，再辨其族。</h2><p>品階以卡框、符號與字樣辨識；<br>陣營另有自己的印記與顏色。</p><div class="rarity-key"><span>○ 凡品</span><span>◇ 靈品</span><span>✦ 神品</span></div><p class="small-note">孫悟空的本畫、AA、INK、TR 均為神品。<br>畫法與工藝，是另一層收藏標記。</p></div><div id="rarity-samples" class="rarity-samples" aria-label="現有三種品階的卡框樣本"></div></section>
+
+      <section class="booster-study" aria-labelledby="booster-title">
+        <div class="study-heading"><div><p class="eyebrow">參 / 開匣手感</p><h2 id="booster-title">一封西行，三面相逢。</h2></div><span class="demo-stamp">固定展示</span></div>
+        <div class="booster-topline"><p>本畫 + 異畫 AA + 一張工藝示範。<br><span>內容固定，沒有抽取機率；不消耗金幣，也不領取卡牌。</span></p><fieldset class="finish-picker"><legend>第三張展示</legend><label><input type="radio" name="demo-finish" value="ink" checked><span>墨卷 INK</span></label><label><input type="radio" name="demo-finish" value="treasure"><span>天工 TR</span></label></fieldset></div>
+        <div id="booster-demo" class="booster-demo" data-phase="sealed">
+          <div class="booster-scene" id="booster-scene"><button type="button" class="booster-seal" data-action="open-pack" aria-label="解封展示秘匣，固定展示三張孫悟空"><span class="booster-emboss" aria-hidden="true"></span><span class="booster-set">WX-01</span><span class="booster-name">西行<br>萬象初章</span><span class="booster-flower" aria-hidden="true">✧</span><span class="booster-band"><span class="booster-wax" aria-hidden="true">契</span></span><span class="booster-bottom">三張固定展示 <small>按下封印，展開此卷</small></span></button><span class="booster-shadow" aria-hidden="true"></span></div>
+          <div id="demo-cards" class="demo-cards" hidden></div>
+          <div class="demo-controls"><p id="demo-status" role="status" aria-live="polite" aria-atomic="true">封存待啟 · 固定展示 3 張</p><div><button type="button" class="atelier-button subtle" data-action="skip-demo">直接看三張 <span aria-hidden="true">→</span></button><button type="button" class="atelier-button" data-action="reveal-all" hidden>全部翻開 <span aria-hidden="true">→</span></button><button type="button" class="atelier-button subtle" data-action="reset-demo" hidden>再看一次 · 展示</button></div></div>
+        </div>
+        <p class="demo-footnote"><span aria-hidden="true">◇</span> 這是一場固定的開匣排演，所有卡面只在此頁展示。</p>
+      </section>
+      <div class="atelier-end"><span>萬象未成，先見一隅。</span><a class="back-link" href="/">返回洞府 <span aria-hidden="true">↗</span></a></div>
+    </main>
+  </div>
+  <div class="sr-only" id="atelier-announcer" role="status" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p class="no-script">請啟用 JavaScript 以檢視卡面與固定開匣展示。<a href="/">返回洞府</a></p></noscript>
+  <script type="module" src="atelier.mjs"></script>
+</body>
+</html>

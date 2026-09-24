@@ -2,12 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { createAccountHandler } from '../server/account-api.mjs';
 import { createSnapshot } from '../cloud-save.mjs';
+import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { createProfile } from '../progression.mjs';
 
 const origin = 'https://mythseal.com';
 const user = { id: 'c69bf313-b64b-40d3-a15f-8c963b7b7100', email: 'player@example.com', private_field: 'omit' };
 const session = { access_token: 'verified.access.token', refresh_token: 'verified_refresh' };
-const snapshot = () => createSnapshot(createProfile({ now: '2026-09-21T12:00:00Z' }));
+const snapshotV3 = () => createSnapshot(createProfile({ now: '2026-09-21T12:00:00Z' }));
+const snapshotV2 = () => { const p = createProfile({ now: '2026-09-21T12:00:00Z' }); p.version = 4; delete p.expansion; return createSnapshot(p); };
+const snapshot = () => {
+  const p = createProfile({ now: '2026-09-21T12:00:00Z' }); p.version = 3; p.collectionVersion = 1; p.collectionExpansion = 1; delete p.wx01; delete p.expansion;
+  for (const card of p.instances) delete card.printId;
+  for (const key of ['inventory', 'levels']) p[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, p[key][id]]));
+  return { format: 'mythseal.offline-journey', version: 1, profile: p };
+};
 const backup = (revision = 1, saved = snapshot()) => ({ revision, updatedAt: '2026-09-21T12:00:00Z', snapshot: saved });
 const cookie = '__Host-mythseal-access=old.access.token; __Host-mythseal-refresh=old_refresh';
 
@@ -42,7 +50,7 @@ test('anonymous account reports email readiness without creating a Supabase clie
   const { run, calls } = setup({ env: { OTP_ENABLED: 'false' } });
   const result = await run('/api/v1/account');
   assert.equal(result.status, 200);
-  assert.deepEqual(await result.json(), { authenticated: false, user: null, emailEnabled: false });
+  assert.deepEqual(await result.json(), { authenticated: false, user: null, emailEnabled: false, journeyVersions: [1] });
   assert.deepEqual(calls, []);
   assert.match(result.headers.get('cache-control'), /no-store/);
 });
@@ -50,7 +58,7 @@ test('anonymous account reports email readiness without creating a Supabase clie
 test('validated session rotates only HttpOnly host cookies and strips private user fields', async () => {
   const { run, calls } = setup();
   const result = await run('/api/v1/account', { signedIn: true });
-  assert.deepEqual(await result.json(), { authenticated: true, user: { id: user.id, email: user.email }, emailEnabled: true });
+  assert.deepEqual(await result.json(), { authenticated: true, user: { id: user.id, email: user.email }, emailEnabled: true, journeyVersions: [1] });
   const cookies = result.headers.getSetCookie();
   assert.equal(cookies.length, 2);
   for (const value of cookies) {
@@ -285,4 +293,61 @@ test('unsupported API routes cannot fall through to HTML; static assets retain t
   assert.equal((await run('/api/v1/account', { url: 'https://preview.example' })).status, 403);
   const result = await worker.fetch(new Request(`${origin}/assets/mark.svg`), { ASSETS: { fetch: async request => new Response(new URL(request.url).pathname) } });
   assert.equal(await result.text(), '/assets/mark.svg');
+});
+
+test('v2 requires explicit capability and never reaches v1 RPCs or accepts a legacy payload', async () => {
+  const disabled = setup();
+  assert.equal((await disabled.run('/api/v2/journey', { signedIn: true })).status, 426);
+  assert.equal(disabled.calls.some(c => c[0] === 'rpc'), false);
+  const calls = [], saved = snapshotV2();
+  const enabled = setup({ env: { JOURNEY_V2_ENABLED: 'true' }, rpc: async (name, params) => {
+    calls.push([name, params]); return { data: backup(1, params.p_snapshot ?? saved) };
+  } });
+  assert.deepEqual((await (await enabled.run('/api/v1/account')).json()).journeyVersions, [1, 2]);
+  const result = await enabled.run('/api/v2/journey', { method: 'PUT', signedIn: true, body: { expectedRevision: 0, snapshot: saved } });
+  assert.equal(result.status, 200); assert.equal(calls[0][0], 'mythseal_backup_v2_write');
+  assert.deepEqual(calls[0][1], { p_expected_revision: 0, p_snapshot: saved });
+  assert.equal((await enabled.run('/api/v2/journey', { method: 'PUT', signedIn: true, body: { expectedRevision: 1, snapshot: snapshot() } })).status, 400);
+  assert.equal((await enabled.run('/api/v1/journey', { method: 'PUT', signedIn: true, body: { expectedRevision: 1, snapshot: saved } })).status, 400);
+  assert.equal(calls.length, 1, 'wrong-channel writes never reach either namespace');
+});
+
+test('v2 keeps account guard, CSRF, size bounds and schema checks on reads', async () => {
+  const { run, calls } = setup({ env: { JOURNEY_V2_ENABLED: 'true' } });
+  assert.equal((await run('/api/v2/journey', { signedIn: true, headers: { 'x-mythseal-account': 'other' } })).status, 401);
+  assert.equal((await run('/api/v2/journey', { method: 'PUT', signedIn: true, body: {}, headers: { origin: '' } })).status, 403);
+  assert.equal((await run('/api/v2/journey', { method: 'PUT', signedIn: true, body: {}, headers: { 'content-length': String(5 * 1024 * 1024) } })).status, 413);
+  assert.equal(calls.some(c => c[0] === 'rpc'), false);
+  assert.equal((await run('/api/v2/journey', { signedIn: true })).status, 502, 'a v1 RPC response cannot masquerade as v2');
+});
+
+test('v3 is independently default-off and never routes new snapshots through old namespaces', async () => {
+  const disabled = setup({ env: { JOURNEY_V2_ENABLED: 'true' } });
+  assert.equal((await disabled.run('/api/v3/journey', { signedIn: true })).status, 426);
+  assert.equal(disabled.calls.some(call => call[0] === 'client'), false);
+  const calls = [], saved = snapshotV3();
+  const enabled = setup({ env: { JOURNEY_V2_ENABLED: 'true', JOURNEY_V3_ENABLED: 'true' }, rpc: async (name, params) => {
+    calls.push([name, params]); return { data: backup(1, params.p_snapshot ?? saved) };
+  } });
+  assert.deepEqual((await (await enabled.run('/api/v1/account')).json()).journeyVersions, [1, 2, 3]);
+  const result = await enabled.run('/api/v3/journey', { method: 'PUT', signedIn: true, body: { expectedRevision: 0, snapshot: saved } });
+  assert.equal(result.status, 200); assert.equal(calls[0][0], 'mythseal_backup_v3_write');
+  assert.deepEqual(calls[0][1], { p_expected_revision: 0, p_snapshot: saved });
+  for (const snapshot of [snapshotV2(), { ...saved, version: 2 }]) {
+    assert.equal((await enabled.run('/api/v3/journey', { method: 'PUT', signedIn: true, body: { expectedRevision: 1, snapshot } })).status, 400);
+  }
+  assert.equal((await enabled.run('/api/v2/journey', { method: 'PUT', signedIn: true, body: { expectedRevision: 1, snapshot: saved } })).status, 400);
+  assert.equal(calls.length, 1);
+});
+
+test('v3 preserves identity, CSRF, request-size, active-run and response-schema guards', async () => {
+  const { run, calls } = setup({ env: { JOURNEY_V3_ENABLED: 'true' } });
+  assert.deepEqual((await (await run('/api/v1/account')).json()).journeyVersions, [1, 3]);
+  assert.equal((await run('/api/v3/journey', { signedIn: true, headers: { 'x-mythseal-account': 'other' } })).status, 401);
+  assert.equal((await run('/api/v3/journey', { method: 'PUT', signedIn: true, body: {}, headers: { origin: '' } })).status, 403);
+  assert.equal((await run('/api/v3/journey', { method: 'PUT', signedIn: true, body: {}, headers: { 'content-length': String(5 * 1024 * 1024) } })).status, 413);
+  const snapshot = snapshotV3(); snapshot.profile.expansion.fireMountain.run = { phase: 'supply' };
+  assert.equal((await run('/api/v3/journey', { method: 'PUT', signedIn: true, body: { expectedRevision: 0, snapshot } })).status, 400);
+  assert.equal(calls.some(call => call[0] === 'rpc'), false);
+  assert.equal((await run('/api/v3/journey', { signedIn: true })).status, 502, 'older RPC response cannot masquerade as v3');
 });

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1818">
+  <meta name="description" content="萬象契・聊齋志異：燈下有靈。十二位雨夜來客、聶小倩本畫與異畫，以及不消耗金幣的固定試開包。">
+  <title>聊齋・燈下有靈｜萬象契 Mythseal</title>
+  <link rel="icon" type="image/svg+xml" href="assets/mark.svg">
+  <link rel="stylesheet" href="liaozhai.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳至系列預覽</a>
+  <header class="topbar page-width">
+    <a class="brand" href="/" aria-label="萬象契・返回遊戲"><img src="assets/mark.svg" alt=""><span>萬象契<small>MYTHSEAL</small></span></a>
+    <span class="top-note">匠作閣 <i aria-hidden="true">／</i> 系列手記 〇二</span>
+    <a class="text-link" href="/">返回洞府 <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main id="main">
+    <section class="hero page-width" aria-labelledby="set-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="little-line" aria-hidden="true"></span> LZ-01 <span aria-hidden="true">／</span> 聊齋志異</p>
+        <p class="hero-preface">蒲松齡筆下，另一種人間。</p>
+        <h1 id="set-title">燈下<span>有靈</span><i aria-hidden="true">。</i></h1>
+        <p class="hero-line">雨夜有客，燈下有人。</p>
+        <p class="hero-description">狐鬼會笑，也會記得一場相守。<br>十二位來客，一封留給夜晚的信。</p>
+        <div class="hero-actions"><a class="button primary" href="#sample">試開一封 <span aria-hidden="true">↓</span></a><a class="button quiet" href="#catalogue">翻閱十二張卡 <span aria-hidden="true">↗</span></a></div>
+        <p class="preview-note"><span aria-hidden="true">◇</span> 系列設計預覽 · 卡牌數值仍待試玩調整</p>
+      </div>
+      <div class="hero-art">
+        <div class="moon-disc" aria-hidden="true"></div>
+        <span class="vertical-note" aria-hidden="true">雨落無聲處　留燈待故人</span>
+        <div class="hero-card-wrap"><div id="hero-card"></div><span class="hero-stamp" aria-hidden="true">人<br>間<br>有<br>情</span></div>
+        <div class="hero-treatment"><p id="hero-caption">聶小倩 · 燈前相守</p><div class="segmented" role="group" aria-label="聶小倩畫作"><button type="button" data-action="treatment" data-treatment="base" aria-pressed="false">本畫 <small>BASE</small></button><button type="button" data-action="treatment" data-treatment="aa" aria-pressed="true">異畫 <small>AA</small></button></div></div>
+        <button class="hero-read text-link" type="button" data-action="inspect-hero">細讀聶小倩 <span aria-hidden="true">↗</span></button>
+      </div>
+    </section>
+
+    <div class="series-ribbon"><div class="page-width"><span><b>壹拾貳</b> 位雨夜來客</span><span><b>伍</b> 篇原著故事</span><span><b>本畫 / 異畫</b> 同一張卡的另一刻</span><span class="ribbon-end">詭美 <i aria-hidden="true">·</i> 人情 <i aria-hidden="true">·</i> 相守</span></div></div>
+
+    <section id="sample" class="sample-section page-width" aria-labelledby="sample-title">
+      <div class="section-heading"><div><p class="eyebrow">壹 <span aria-hidden="true">／</span> 燈前拆信</p><h2 id="sample-title">今夜，誰來叩門？</h2></div><p>聶小倩、寧采臣、燕赤霞。<br>先從同一個故事，認識這一封。</p></div>
+      <div class="sample-notice"><span class="notice-seal" aria-hidden="true">試</span><div><strong>試開包 · 固定展示</strong><p>不消耗金幣，不加入背包。三張內容固定，沒有抽取機率。</p></div></div>
+      <div id="sample-stage" class="sample-stage" data-phase="sealed">
+        <div id="sealed-scene" class="sealed-scene">
+          <span class="letter-shadow" aria-hidden="true"></span>
+          <button type="button" class="sealed-letter" data-action="open-sample" aria-describedby="sample-status"><span class="letter-border" aria-hidden="true"></span><span class="letter-code">LZ-01 · 故事小包</span><span class="letter-title">聊齋<br>燈下有靈</span><span class="letter-rule" aria-hidden="true"></span><span class="letter-seal" aria-hidden="true">啟</span><span class="letter-bottom">雨夜來信<small>輕觸封印，見一場相逢</small></span></button>
+          <div class="letter-aside"><span aria-hidden="true">燈未熄，<br>　故人未遠。</span><p>一封 · 三張 · 固定展示</p></div>
+        </div>
+        <div id="sample-cards" class="sample-cards" hidden></div>
+        <div class="sample-controls"><p id="sample-status" role="status" aria-live="polite" aria-atomic="true">信已送到 · 輕觸封印開始展示</p><div><button class="button quiet" type="button" data-action="skip-sample">直接揭曉三張 <span aria-hidden="true">→</span></button><button class="button quiet" type="button" data-action="restart-sample" disabled>再讀一封</button></div></div>
+      </div>
+    </section>
+
+    <section id="catalogue" class="catalogue-section page-width" aria-labelledby="catalogue-title">
+      <div class="section-heading"><div><p class="eyebrow">貳 <span aria-hidden="true">／</span> 異聞人物錄</p><h2 id="catalogue-title">有情者，皆可入卷。</h2></div><p>十二張候選卡的完整規則草案。<br>點開卡面，讀一段身世與設計。</p></div>
+      <div class="catalogue-tools"><div class="story-filters" id="story-filters" role="group" aria-label="按原著故事篩選"></div><label class="faction-filter">陣營 <select id="faction-filter" aria-label="按陣營篩選"></select></label></div>
+      <div class="catalogue-meta"><p id="catalogue-count" role="status" aria-live="polite" aria-atomic="true">十二位來客</p><span>數值為設計草案 · 未加入正式卡池</span></div>
+      <div class="catalogue-grid" id="catalogue-grid"></div>
+      <div class="empty-state" id="empty-state" hidden><span aria-hidden="true">◇</span><p>這一卷，暫無此陣營的來客。</p><button class="button quiet" type="button" data-action="clear-filters">查看全部十二張</button></div>
+    </section>
+
+    <section class="colophon page-width" aria-labelledby="colophon-title"><div><p class="eyebrow">參 <span aria-hidden="true">／</span> 卷末小記</p><h2 id="colophon-title">故事有來處，畫境待續。</h2><p>取意《聊齋志異》，以原創卡面與遊戲規則重新相遇。<br>本畫與異畫共用角色、星數和技能；畫法不增加戰力。</p><p class="print-progress">12 款本畫＋1 款異畫先行；另有 6 款特別畫作規劃中。</p></div><div class="source-list"><p>翻閱原著</p><div id="set-sources"></div><small>角色故事與原文連結亦收在每張卡的詳情內。</small></div></section>
+  </main>
+
+  <footer class="page-width"><span>一點燈火，照見人間。</span><a class="text-link" href="/">返回萬象契 <span aria-hidden="true">↗</span></a></footer>
+  <dialog id="card-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description"><div class="dialog-shell"><button class="dialog-close" type="button" data-action="close-dialog" aria-label="關閉卡牌詳情">×</button><div id="dialog-content"></div></div></dialog>
+  <div class="sr-only" id="announcer" role="status" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p class="no-script">請啟用 JavaScript，翻閱十二張候選卡與固定試開包。<a href="/">返回萬象契</a></p></noscript>
+  <script type="module" src="liaozhai.mjs"></script>
+</body>
+</html>

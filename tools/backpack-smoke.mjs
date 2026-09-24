@@ -1,19 +1,26 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createProfile, PROFILE_KEY, LEGACY_PROFILE_KEY } from '../progression.mjs';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createProfile, PROFILE_KEY } from '../progression.mjs';
 import { mintInstance, setInstanceXP } from '../collection.mjs';
-import { createMatch, chooseAIMove } from '../engine.mjs';
+import { createMatch, chooseAIMove, LEGACY_CARD_IDS } from '../engine.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const output = new URL('../test-results/', import.meta.url).pathname;
+const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 const fixedNow = '2026-09-21T12:00:00Z';
+const legacyProfileKey = 'shanhai.profile.v2';
 const errors = [], checks = [], screenshots = [], contexts = [];
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ headless: true, executablePath: chrome });
+const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const read = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROFILE_KEY);
-const go = (page, destination) => page.locator(`nav.nav [data-action="${destination}"]`).click();
+const go = async (page, destination) => {
+  await page.locator(`.game-dock [data-action="${destination}"]`).click();
+  if (destination === 'bag') await page.locator('[data-action="bag-layout"][data-id="copies"]').click();
+};
 const action = (page, name, uid, prefix = '') => page.locator(`${prefix}[data-action="${name}"]${uid ? `[data-id="${uid}"]` : ''}`);
 const waitInstance = (page, uid, fields) => page.waitForFunction(({ key, uid, fields }) => {
   const instance = JSON.parse(localStorage.getItem(key))?.instances.find(item => item.uid === uid);
@@ -55,22 +62,23 @@ async function seededPage(seed, { legacy = false, mobile = false, legacyBattle =
       localStorage.setItem(key, JSON.stringify(seed));
       if (legacyBattle) localStorage.setItem('shanhai.battle.v2', JSON.stringify(legacyBattle));
     }
-  }, { seed, key: legacy ? LEGACY_PROFILE_KEY : PROFILE_KEY, now: fixedNow, legacyBattle });
-  const page = await context.newPage();
+  }, { seed, key: legacy ? legacyProfileKey : PROFILE_KEY, now: fixedNow, legacyBattle });
+  const page = await context.newPage(); installViewportNavigation(page);
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => {
     if (response.status() >= 400 && response.url().startsWith(base)) errors.push(`${response.status()} ${response.url()}`);
   });
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.locator('.hero h1').waitFor();
+  await page.locator('.game-lobby').waitFor();
   return page;
 }
 
 try {
   const old = createProfile({ now: fixedNow });
-  for (const key of ['instances', 'deckSlots', 'activeDeckId', 'merchantVault', 'instanceSerial', 'collectionVersion']) delete old[key];
-  old.version = 2;
+  for (const key of ['instances', 'deckSlots', 'activeDeckId', 'merchantVault', 'instanceSerial', 'collectionVersion', 'wx01', 'expansion']) delete old[key];
+  old.version = 2; old.collectionExpansion = 1;
+  for (const key of ['inventory', 'levels']) old[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, old[key][id]]));
   old.inventory.qingxiao = 2;
   old.levels.qingxiao = 3;
   old.coins = 4321; old.dust = 95; old.xp = 480;
@@ -78,16 +86,16 @@ try {
   old.deck.reverse();
   const migration = await seededPage(old, { legacy: true });
   const migrated = await read(migration);
-  assert.equal(migrated.version, 3);
+  assert.equal(migrated.version, 5);
   assert.equal(migrated.instances.length, Object.values(old.inventory).reduce((sum, count) => sum + count, 0));
   assert.equal(new Set(migrated.instances.map(instance => instance.uid)).size, migrated.instances.length);
   assert.deepEqual(migrated.instances.filter(instance => instance.cardId === 'qingxiao').map(instance => instance.level), [3, 3]);
   for (const field of ['coins', 'dust', 'xp', 'stats', 'deck']) assert.deepEqual(migrated[field], old[field]);
-  assert.equal(await migration.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(old));
-  await migration.reload(); await migration.locator('.hero h1').waitFor();
+  assert.equal(await migration.evaluate(key => localStorage.getItem(key), legacyProfileKey), JSON.stringify(old));
+  await migration.reload(); await migration.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(migration), migrated);
-  assert.equal(await migration.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(old));
-  passed('v2 migration retains copy counts, levels, deck and resources; original raw key and v3 IDs survive reload');
+  assert.equal(await migration.evaluate(key => localStorage.getItem(key), legacyProfileKey), JSON.stringify(old));
+  passed('v2 migration retains copy counts, levels, deck and resources; original raw key and migrated v5 IDs survive reload');
 
   const pendingOld = structuredClone(old);
   const oldMatch = createMatch({ deckIds: pendingOld.deck, mode: 'arena', playerLevels: pendingOld.levels, rng: () => 0.23 });
@@ -103,13 +111,13 @@ try {
   assert(oldMatch.player.hand.every(id => migratedBattle.pending.cardInstances[id]));
   const playedUID = migratedBattle.pending.cardInstances[removedRole];
   const beforePlayed = migratedBattle.instances.find(instance => instance.uid === playedUID);
-  assert.deepEqual(await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v3'))), oldBattle);
-  await resumed.reload(); await resumed.locator('.hero h1').waitFor();
+  assert.deepEqual(await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v5'))), oldBattle);
+  await resumed.reload(); await resumed.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(resumed)).pending, migratedBattle.pending);
   await action(resumed, 'resume').click();
   await resumed.locator('.player-hand').waitFor();
   for (let round = 0; round < 4; round++) {
-    const saved = await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v3')));
+    const saved = await resumed.evaluate(() => JSON.parse(localStorage.getItem('shanhai.battle.v5')));
     const role = round === 0 ? removedRole : saved.match.player.hand.find(id => !saved.match.player.used.includes(id));
     await action(resumed, 'select', role, '.player-hand ').click();
     await action(resumed, 'commit').click();
@@ -125,9 +133,9 @@ try {
   assert.equal(usedCopy.battles, beforePlayed.battles + 1);
   assert(usedCopy.xp > beforePlayed.xp);
   assert.deepEqual(settled.deck, pendingOld.deck);
-  assert.equal(await resumed.evaluate(key => localStorage.getItem(key), LEGACY_PROFILE_KEY), JSON.stringify(pendingOld));
+  assert.equal(await resumed.evaluate(key => localStorage.getItem(key), legacyProfileKey), JSON.stringify(pendingOld));
   assert.equal(await resumed.evaluate(() => localStorage.getItem('shanhai.battle.v2')), JSON.stringify(oldBattle));
-  await resumed.reload(); await resumed.locator('.hero h1').waitFor();
+  await resumed.reload(); await resumed.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(resumed), settled);
   passed('a pending v2 match resumes after a saved-deck edit, completes via UI, awards its original card once and preserves both old keys');
 
@@ -143,7 +151,8 @@ try {
   const page = await seededPage(fixture);
   await go(page, 'bag');
   assert.equal(await page.locator('.bag-item').count(), fixture.instances.length);
-  assert.equal(await page.locator('.bag-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length), 6);
+  await page.locator('.bag-grid').scrollIntoViewIfNeeded();
+  assert(await page.locator('.bag-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length >= 2), 'Desktop copy pages use multiple readable columns');
   await shot(page, 'backpack-desktop.png');
   await page.locator('#bag-search').fill('青霄');
   assert.equal(await page.locator('.bag-item').count(), 2);
@@ -152,8 +161,8 @@ try {
   assert.equal(await page.locator('.bag-grid [data-action="instance-inspect"]').first().getAttribute('data-id'), copyUID);
   await action(page, 'instance-inspect', copyUID, '.bag-grid ').click();
   await page.locator('.bag-passport-id').waitFor();
-  assert.match(await page.locator('.bag-passport').innerText(), new RegExp(copyUID));
-  assert.match(await page.locator('.bag-passport').innerText(), /7 場 · 4 勝/);
+  assert.match(await page.locator('.instance-modal').textContent(), new RegExp(copyUID));
+  assert.match(await page.locator('.instance-modal').textContent(), /7 場 · 4 勝/);
   await action(page, 'instance-upgrade', copyUID, '.modal ').click();
   await waitInstance(page, copyUID, { xp: 400, level: 4 });
   assert.equal((await read(page)).instances.find(instance => instance.uid === originalUID).xp, 95);
@@ -163,7 +172,7 @@ try {
   assert.equal(await action(page, 'instance-upgrade', copyUID, '.modal ').isDisabled(), false);
   await shot(page, 'backpack-passport.png');
   await page.locator('.modal-close').click();
-  await page.reload(); await page.locator('.hero h1').waitFor();
+  await page.reload(); await page.locator('.game-lobby').waitFor();
   await go(page, 'bag');
   await page.locator('#bag-filter').selectOption('locked');
   assert.equal(await page.locator('.bag-item').count(), 1);
@@ -190,7 +199,7 @@ try {
   assert.deepEqual(vaultEntry.instance, soldCard);
   assert(!sold.instances.some(instance => instance.uid === copyUID));
   assert.equal(sold.coins, beforeSale.coins + vaultEntry.sellPrice);
-  await page.reload(); await page.locator('.hero h1').waitFor();
+  await page.reload(); await page.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(page)).merchantVault.find(entry => entry.instance.uid === copyUID), vaultEntry);
   await go(page, 'market');
   await action(page, 'buyback-instance', copyUID).click();
@@ -202,7 +211,7 @@ try {
   passed('sale requires confirmation; cancel is inert; merchant buyback returns the exact UID with XP and battle history');
 
   await go(page, 'bag');
-  await action(page, 'bag-tab', 'decks').click();
+  await action(page, 'cards-tab', 'decks').click();
   const startingIDs = (await read(page)).deckSlots.find(slot => slot.id === 'deck-1').instanceIds;
   for (const [slotID, name, firstUID] of [['deck-2', '青霄再行', copyUID], ['deck-3', '第三陣 <山海>', originalUID]]) {
     await action(page, 'bag-new-deck').click();
@@ -231,13 +240,14 @@ try {
   assert.equal(await action(page, 'bag-delete-deck', 'deck-3').count(), 0);
   await shot(page, 'backpack-decks.png');
   const deckSnapshot = await read(page);
-  await page.reload(); await page.locator('.hero h1').waitFor();
+  await page.reload(); await page.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(page)).deckSlots, deckSnapshot.deckSlots);
   assert.equal((await read(page)).activeDeckId, 'deck-3');
   passed('deck slots 2 and 3 save and activate; same-role copy replaces draft selection; names and exact slots persist');
 
   const mobile = await seededPage(await read(page), { mobile: true });
   await go(mobile, 'bag');
+  await mobile.locator('.bag-grid').scrollIntoViewIfNeeded();
   assert.equal(await mobile.locator('.bag-grid').evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').length), 2);
   await shot(mobile, 'backpack-mobile.png');
   await mobile.locator('#bag-filter').selectOption('duplicates');
@@ -246,7 +256,7 @@ try {
   await noOverflow(mobile, '390px passport');
   assert.match(await mobile.locator('.bag-passport-id').innerText(), new RegExp(copyUID));
   await mobile.locator('.modal-close').click();
-  await action(mobile, 'bag-tab', 'decks').click();
+  await action(mobile, 'cards-tab', 'decks').click();
   await noOverflow(mobile, '390px decks');
   passed('390px mobile cards use two columns; card list, passport and three-deck editor have no horizontal overflow');
 

@@ -1,28 +1,37 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { CARDS, CLASSIC_CARD_IDS, ORIGINAL_CARD_IDS, defaultDeckIds, getCard, validateDeck } from '../engine.mjs';
 import { createProfile, WELCOME_CARD_IDS, PACK_PRICE, RARITIES, CARD_RARITIES } from '../progression.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
-const output = new URL('../test-results/', import.meta.url).pathname;
+const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 assert(existsSync(new URL('../assets/classics.png', import.meta.url)), 'Generate assets/classics.png before running this visual smoke.');
 await mkdir(output, { recursive: true });
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
 const fixedNow = '2026-09-21T12:00:00Z';
-const profileKey = 'shanhai.profile.v3', legacyProfileKey = 'shanhai.profile.v2', battleKey = 'shanhai.battle.v3';
+const profileKey = 'shanhai.profile.v5', legacyProfileKey = 'shanhai.profile.v2', battleKey = 'shanhai.battle.v5';
 const failures = [], checked = [], screenshots = [];
 const read = (page, key = profileKey) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
-const go = (page, screen) => page.locator(`nav [data-action="${screen}"]`).click();
+const go = async (page, screen) => {
+  await page.locator(`.game-dock [data-action="${screen === 'collection' ? 'bag' : screen}"]`).click();
+  if (screen === 'collection') await page.locator('.cards-hub-tabs [data-action="cards-tab"][data-id="codex"]').click();
+};
 const cardItem = (page, id) => page.locator(`.collection-item[data-card-id="${id}"]`);
 const countOwned = p => Object.values(p.inventory).filter(count => count > 0).length;
 const totalCopies = p => Object.values(p.inventory).reduce((sum, count) => sum + count, 0);
-const waitProfile = (page, predicate, argument) => page.waitForFunction(({ key, expression, argument }) => {
-  const p = JSON.parse(localStorage.getItem(key));
-  return new Function('p', 'argument', `return (${expression})`)(p, argument);
-}, { key: profileKey, expression: predicate, argument });
+const waitProfile = async (page, predicate, argument) => {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    if (predicate(await read(page), argument)) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error('Timed out waiting for the expected profile change.');
+};
 const noOverflow = async page => assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Horizontal overflow');
 async function shot(page, label) {
   await noOverflow(page);
@@ -44,18 +53,18 @@ async function seededContext(seed, mobile = false) {
       localStorage.setItem(key, JSON.stringify(seed));
     }
   }, { seed, key: seed.version === 2 ? legacyProfileKey : profileKey, now: fixedNow });
-  const page = await context.newPage();
+  const page = await context.newPage(); installViewportNavigation(page);
   page.setDefaultTimeout(10_000);
   page.on('pageerror', error => failures.push(error.message));
   page.on('response', response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
-  await page.goto(base); await page.locator('.hero h1').waitFor();
+  await page.goto(base); await page.locator('.game-lobby').waitFor();
   return { context, page };
 }
 
 try {
   const old = createProfile({ now: fixedNow });
   old.version = 2;
-  for (const key of ['instances', 'instanceSerial', 'collectionVersion', 'deckSlots', 'activeDeckId', 'merchantVault']) delete old[key];
+  for (const key of ['instances', 'instanceSerial', 'collectionVersion', 'deckSlots', 'activeDeckId', 'merchantVault', 'wx01', 'expansion']) delete old[key];
   delete old.collectionExpansion;
   old.inventory = Object.fromEntries(ORIGINAL_CARD_IDS.map(id => [id, 1]));
   old.levels = Object.fromEntries(ORIGINAL_CARD_IDS.map(id => [id, id === 'qingxiao' ? 3 : 1]));
@@ -67,24 +76,24 @@ try {
   old.daily.loginClaimed = true;
   const { context, page } = await seededContext(old);
   const migrated = await read(page);
-  assert.equal(migrated.version, 3);
+  assert.equal(migrated.version, 5);
   assert.deepEqual(await read(page, legacyProfileKey), old, 'v2 backup remains unchanged');
-  assert.equal(migrated.collectionExpansion, 1);
+  assert.equal(migrated.collectionExpansion, 2);
   for (const key of ['coins', 'dust', 'xp', 'stats', 'arena', 'cleared', 'location', 'deck', 'daily']) assert.deepEqual(migrated[key], old[key]);
   assert.equal(migrated.levels.qingxiao, 3);
-  assert.equal(Object.keys(migrated.inventory).length, 24);
+  assert.equal(Object.keys(migrated.inventory).length, CARDS.length);
   assert.equal(countOwned(migrated), 16);
   for (const id of WELCOME_CARD_IDS) assert.equal(migrated.inventory[id], 1);
   for (const id of CLASSIC_CARD_IDS.filter(id => !WELCOME_CARD_IDS.includes(id))) assert.equal(migrated.inventory[id], 0);
-  await page.reload(); await page.locator('.hero h1').waitFor();
+  await page.reload(); await page.locator('.game-lobby').waitFor();
   assert.deepEqual(await read(page), migrated);
   await shot(page, 'home-desktop');
   checked.push('existing v2 progress unchanged, welcome four persist exactly once across reload');
 
   await go(page, 'collection');
-  assert.equal(await page.locator('.collection-item').count(), 24);
+  assert.equal(await page.locator('.collection-item').count(), CARDS.length);
   assert.equal(await page.locator('.collection-item:not(.unowned)').count(), 16);
-  assert.equal(await page.locator('.collection-item.unowned').count(), 8);
+  assert.equal(await page.locator('.collection-item.unowned').count(), CARDS.length - 16);
   const atlas = await page.evaluate(() => Object.fromEntries(['qingxiao', 'wukong'].map(id => [id, getComputedStyle(document.querySelector(`.collection-item[data-card-id="${id}"] .card-art`)).backgroundImage])));
   assert.match(atlas.qingxiao, /assets\/portraits\.png/);
   assert.match(atlas.wukong, /assets\/classics\.png/);
@@ -99,39 +108,42 @@ try {
   assert.deepEqual((await page.locator('.collection-item').evaluateAll(items => items.map(item => item.dataset.cardId))).sort(), ['lindaiyu', 'wangxifeng']);
   await page.locator('#source-filter').selectOption('all');
   await page.locator('[data-action="filter"][data-id="moon"]').click();
-  assert.equal(await page.locator('.collection-item').count(), 6);
+  assert.equal(await page.locator('.collection-item').count(), CARDS.filter(card=>card.faction==='moon').length);
   await page.locator('[data-action="filter"][data-id="all"]').click();
   await page.locator('[data-action="collection-set"][data-id="classics"]').click();
   assert.equal(await page.locator('.collection-item').count(), 12);
-  await page.locator('#owned-only').check();
+  await page.locator('[data-action="codex-status"][data-id="collected"]').click();
   assert.equal(await page.locator('.collection-item').count(), 4);
-  await page.locator('#owned-only').uncheck();
+  await page.locator('[data-action="codex-status"][data-id="all"]').click();
   const locked = cardItem(page, 'pangu');
-  assert(await locked.locator('[data-action="upgrade"]').isDisabled());
-  assert.equal(await locked.locator('[data-action="toggle-deck"]').count(), 0);
+  assert.equal(await locked.locator('[data-action="bag-card"]').count(), 0);
   await locked.locator('[data-action="inspect"]').click();
   assert.match(await page.locator('.detail-source').textContent(), /上古傳說.*尚未入藏/);
   assert.equal(await page.locator('.modal [data-action="upgrade"]').count(), 0);
   await shot(page, 'locked-detail-desktop');
   await page.locator('.modal-close').click();
   await shot(page, 'collection-desktop');
-  checked.push('24-card collection, 16 owned, source/faction/set/owned filters, locked inspection, distinct original/classic portrait atlases');
+  checked.push('39-card collection, 16 owned, source/faction/set/owned filters, locked inspection, distinct original/classic portrait atlases');
 
-  await page.locator('[data-action="classics-deck"]').click();
-  assert.equal(await page.locator('.deck-status strong').first().textContent(), '8 / 8');
-  assert.equal(await page.locator('.deck-status strong').nth(1).textContent(), '24 / 25');
-  assert.equal(await page.locator('[data-action="save-deck"]').isDisabled(), false);
-  await page.locator('[data-action="save-deck"]').click();
-  await page.locator('.hero h1').waitFor();
+  await page.locator('.cards-hub-tabs [data-id="decks"]').click();
+  const intended = ['kongzi', 'qingxiao', 'wukong', 'guanyu', 'lindaiyu', 'shuangli', 'cangjiao', 'cuixian'];
+  const beforePreset = await read(page);
+  await page.locator('[data-action="bag-classics-deck"]').click();
+  assert.deepEqual(await read(page), beforePreset, 'The themed preset is only a draft until explicitly saved');
+  assert.equal(await page.locator('.bag-draft-card').count(), 8);
+  assert.equal(await page.locator('[data-action="bag-save-deck"]').isDisabled(), false);
+  await page.locator('[data-action="bag-save-deck"]').click();
+  await waitProfile(page, p => p.deck.every((id, index) => id === intended[index]));
   const preset = (await read(page)).deck;
   assert.equal(validateDeck(preset).valid, true);
   assert.equal(validateDeck(preset).stars, 24);
   assert(WELCOME_CARD_IDS.every(id => preset.includes(id)));
-  await page.reload(); await page.locator('.hero h1').waitFor();
+  await page.reload(); await page.locator('.game-lobby').waitFor();
   assert.deepEqual((await read(page)).deck, preset);
-  checked.push('welcome-card preset saves a legal eight-card 24-star deck and survives reload');
+  checked.push('exact-copy welcome preset stays a draft until saved, then persists a legal eight-card 24-star deck across reload');
 
   await go(page, 'market');
+  await page.locator('[data-action="pack-set"][data-id="classics"]').click();
   assert.equal(await page.locator('[data-action="pack-set"][data-id="classics"]').getAttribute('aria-pressed'), 'true');
   const beforePack = await read(page);
   await page.locator('[data-action="buy-pack"]').click();
@@ -159,24 +171,28 @@ try {
   assert.equal((await read(page)).inventory[target], 0);
   const beforeBuy = await read(page);
   await page.locator(`[data-action="buy-card"][data-id="${target}"]`).click();
-  await waitProfile(page, 'p.inventory[argument] === 1', target);
+  await waitProfile(page, (p, argument) => p.inventory[argument] === 1, target);
   assert.equal((await read(page)).coins, beforeBuy.coins - RARITIES[CARD_RARITIES[target]].buyPrice);
   await go(page, 'collection');
   const acquired = cardItem(page, target);
-  assert.equal(await acquired.locator('[data-action="upgrade"]').isDisabled(), false);
-  await acquired.locator('[data-action="upgrade"]').click();
+  await acquired.locator('[data-action="bag-card"]').click();
   const beforeUpgrade = await read(page);
   const targetUID = beforeUpgrade.instances.find(instance => instance.cardId === target).uid;
+  assert.equal(await page.locator('.bag-item').count(), 1);
+  await page.locator(`.bag-grid [data-action="instance-inspect"][data-id="${targetUID}"]`).click();
   assert.equal(await page.locator('.bag-passport-id dd').textContent(), targetUID);
   await page.locator(`.modal [data-action="instance-upgrade"][data-id="${targetUID}"]`).click();
-  await waitProfile(page, 'p.instances.some(instance => instance.uid === argument && instance.level === 2 && instance.xp === 80)', targetUID);
+  await waitProfile(page, (p, argument) => p.instances.some(instance => instance.uid === argument && instance.level === 2 && instance.xp === 80), targetUID);
   assert.equal((await read(page)).coins, beforeUpgrade.coins - 120);
   assert.equal((await read(page)).dust, beforeUpgrade.dust - 6);
   await page.locator('.modal-close').click();
-  await cardItem(page, 'qingxiao').locator('[data-action="toggle-deck"]').click();
-  await cardItem(page, target).locator('[data-action="toggle-deck"]').click();
-  await page.locator('[data-action="save-deck"]').click();
-  await page.locator('.hero h1').waitFor();
+  await page.locator('.cards-hub-tabs [data-id="decks"]').click();
+  await page.locator('#bag-search').fill('');
+  const replacedUID = beforeUpgrade.instances.find(instance => instance.cardId === 'qingxiao').uid;
+  await page.locator(`.bag-grid [data-action="bag-pick-instance"][data-id="${replacedUID}"]`).click();
+  await page.locator(`.bag-grid [data-action="bag-pick-instance"][data-id="${targetUID}"]`).click();
+  await page.locator('[data-action="bag-save-deck"]').click();
+  await waitProfile(page, p => p.deck.includes(target) && !p.deck.includes('qingxiao'));
   const newDeck = (await read(page)).deck;
   assert(newDeck.includes(target)); assert(!newDeck.includes('qingxiao'));
   assert(validateDeck(newDeck).valid);
@@ -187,6 +203,7 @@ try {
   await go(page, 'world');
   await page.locator('[data-action="map-select"][data-id="mist-gate"]').click();
   await page.locator('[data-action="travel"]').click();
+  await page.locator('[data-action="confirm-start"]').click();
   await page.locator('.player-hand').waitFor();
   const started = await read(page, battleKey);
   assert(started.match.player.hand.includes(target));
@@ -225,7 +242,8 @@ try {
   await context.close();
 
   const mobile = await seededContext(createProfile({ now: fixedNow }), true);
-  await mobile.page.locator('[data-action="classics"]').click();
+  await go(mobile.page, 'collection');
+  await mobile.page.locator('[data-action="collection-set"][data-id="classics"]').click();
   assert.equal(await mobile.page.locator('.collection-item').count(), 12);
   await shot(mobile.page, 'collection-mobile');
   await cardItem(mobile.page, 'huangdi').locator('[data-action="inspect"]').click();

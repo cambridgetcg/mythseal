@@ -1,11 +1,17 @@
 /** Account-private backups of editable offline play; never a trusted card ledger. */
-import { hydrateProfile, refreshDaily, PROFILE_VERSION } from './progression.mjs';
+import { hydrateProfile, refreshDaily } from './progression.mjs';
+import { LEGACY_CARD_IDS } from './engine.mjs';
+import { getPrintForCard } from './printing-catalogue.mjs';
+import { validateWX01State } from './wx01-state.mjs';
+import { CAMPAIGN_NODES } from './campaign-content.mjs';
 
 export const SNAPSHOT_FORMAT = 'mythseal.offline-journey';
-export const SNAPSHOT_VERSION = 1;
-export const MAX_SNAPSHOT_BYTES = 512 * 1024;
-export const MAX_SNAPSHOT_CARDS = 2000;
-const MAX_NODES = 50_000;
+export const SNAPSHOT_VERSION = 3;
+export const MAX_SNAPSHOT_BYTES = 4 * 1024 * 1024;
+export const MAX_SNAPSHOT_CARDS = 10_000;
+export const LEGACY_MAX_SNAPSHOT_BYTES = 512 * 1024;
+export const LEGACY_MAX_SNAPSHOT_CARDS = 2000;
+const MAX_NODES = 500_000;
 const MAX_DEPTH = 12;
 const MAX_STRING_LENGTH = 512;
 const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor']);
@@ -18,6 +24,15 @@ const profileKeys = [
 const instanceKeys = ['uid', 'cardId', 'level', 'xp', 'locked', 'battles', 'wins', 'acquiredAt', 'origin'];
 const fail = (message = '旅程備份格式不完整，未有更改本機進度。') => { throw new Error(message); };
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const campaignIds = new Set(CAMPAIGN_NODES.map(node => node.id));
+
+/** Legacy namespaces cannot carry data introduced only by the v5 contract. */
+export function assertLegacyExpansionBoundary(profile) {
+  if (Object.hasOwn(profile, 'expansion') || profile.pending?.kind === 'activity'
+      || campaignIds.has(profile.pending?.nodeId) || campaignIds.has(profile.location)
+      || (profile.cleared ?? []).some(id => campaignIds.has(id))
+      || (profile.daily?.expeditionCaches ?? []).some(id => campaignIds.has(id))) fail();
+}
 
 function exactKeys(value, expected) {
   if (!isRecord(value)) fail();
@@ -26,7 +41,7 @@ function exactKeys(value, expected) {
 }
 
 /** Inspect before stringify/clone: no accessors, cycles, exotic objects or deep JSON. */
-function boundedJSON(value) {
+function boundedJSON(value, maximum = MAX_SNAPSHOT_BYTES) {
   let nodes = 0;
   let jsonbSpaces = 0;
   const ancestors = new Set();
@@ -75,7 +90,7 @@ function boundedJSON(value) {
   };
   visit(value, 0);
   const json = JSON.stringify(value);
-  if (new TextEncoder().encode(json).byteLength + jsonbSpaces > MAX_SNAPSHOT_BYTES) fail('旅程備份超過 512 KiB 儲存上限，請先保留本機匯出備份。');
+  if (new TextEncoder().encode(json).byteLength + jsonbSpaces > maximum) fail(`旅程備份超過 ${maximum === LEGACY_MAX_SNAPSHOT_BYTES ? '512 KiB' : '4 MiB'} 儲存上限，請先保留本機匯出備份。`);
   return json;
 }
 
@@ -91,20 +106,26 @@ function validDay(value) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-function validateProfile(profile) {
-  exactKeys(profile, profileKeys);
-  if (profile.version !== PROFILE_VERSION || profile.collectionVersion !== 1 || profile.collectionExpansion !== 1) {
+
+function validateProfile(profile, version) {
+  const legacy = version === 1, expanded = version === 3;
+  const hasWeekly = isRecord(profile) && Object.hasOwn(profile, 'weekly');
+  exactKeys(profile, [...profileKeys, ...(hasWeekly ? ['weekly'] : []), ...(legacy ? [] : ['wx01']), ...(expanded ? ['expansion'] : [])]);
+  if (profile.version !== (legacy ? 3 : expanded ? 5 : 4) || profile.collectionVersion !== (legacy ? 1 : 2) || profile.collectionExpansion !== (legacy ? 1 : 2) || (!legacy && !hasWeekly)) {
     fail('呢個旅程備份版本暫未支援，未有更改本機進度。');
   }
-  if (profile.pending !== null) fail('請先完成或放棄未完對局，再儲存雲端旅程。');
+  if (!expanded) assertLegacyExpansionBoundary(profile);
+  if (profile.pending !== null || expanded && profile.expansion?.fireMountain?.run !== null) fail('請先完成或放棄未完對局或活動旅程，再儲存雲端旅程。');
   if (!Array.isArray(profile.instances) || !Array.isArray(profile.merchantVault)
     || !Array.isArray(profile.deckSlots) || profile.deckSlots.length > 3) fail();
-  if (profile.instances.length + profile.merchantVault.length > MAX_SNAPSHOT_CARDS) {
-    fail('雲端旅程暫時最多保留 2,000 張卡牌，商旅保管區亦計算在內。');
+  if (profile.instances.length + profile.merchantVault.length > (legacy ? LEGACY_MAX_SNAPSHOT_CARDS : MAX_SNAPSHOT_CARDS)) {
+    fail(`雲端旅程暫時最多保留 ${legacy ? '2,000' : '10,000'} 張卡牌，商旅保管區亦計算在內。`);
   }
   const uids = new Set();
   const instance = item => {
-    exactKeys(item, instanceKeys);
+    exactKeys(item, legacy ? instanceKeys : [...instanceKeys, 'printId']);
+    if (legacy ? !LEGACY_CARD_IDS.includes(item.cardId) : typeof item.printId !== 'string') fail();
+    if (!legacy) getPrintForCard(item.cardId, item.printId);
     if (typeof item.uid !== 'string' || !/^card-\d{6,}$/.test(item.uid)) fail('旅程備份有無效卡牌編號。');
     if (uids.has(item.uid)) fail('旅程備份有重複卡牌編號，未有更改本機進度。');
     uids.add(item.uid);
@@ -122,6 +143,14 @@ function validateProfile(profile) {
     'claimedTasks', 'arenaChestClaimed', 'trainingUsed', 'marketPurchases', 'expeditionCaches',
   ]);
   if (!validDay(profile.daily.date)) fail('旅程備份日期無效。');
+  if (hasWeekly) {
+    exactKeys(profile.weekly, ['week', 'matches', 'expeditionWins', 'arenaMatches', 'claimedTasks']);
+    if (!validDay(profile.weekly.week) || new Date(`${profile.weekly.week}T12:00:00Z`).getUTCDay() !== 1) fail('旅程備份日期無效。');
+  }
+  if (legacy) {
+    exactKeys(profile.inventory, LEGACY_CARD_IDS); exactKeys(profile.levels, LEGACY_CARD_IDS);
+    if (Object.keys(profile.daily.marketPurchases).some(id => !LEGACY_CARD_IDS.includes(id))) fail();
+  } else validateWX01State(profile.wx01, profile);
 
   // Compare at the saved day, so this checks canonical data without a day rollover.
   // Any repair (missing cards, bad decks, counters, XP, dates or unknown fields)
@@ -129,21 +158,34 @@ function validateProfile(profile) {
   let canonical;
   try { canonical = hydrateProfile(profile, { now: `${profile.daily.date}T12:00:00.000Z` }); }
   catch { fail(); }
+  if (!expanded) { canonical.version = legacy ? 3 : 4; delete canonical.expansion; }
+  if (legacy) {
+    // Project only documented migration additions. Raw v1 keys/identities were
+    // checked above, so this cannot hide unknown fields or discarded copies.
+    canonical.version = 3; canonical.collectionVersion = 1; canonical.collectionExpansion = 1;
+    delete canonical.wx01;
+    for (const card of [...canonical.instances, ...canonical.merchantVault.map(entry => entry.instance)]) delete card.printId;
+    for (const key of ['inventory', 'levels']) canonical[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, canonical[key][id]]));
+  }
+  // Old v3 backups remain byte-for-byte payload compatible on validation.
+  // Only restoration upgrades their missing weekly counters, starting at zero.
+  if (!hasWeekly) delete canonical.weekly;
   if (stableJSON(canonical) !== stableJSON(profile)) fail('旅程備份資料不一致，未有更改本機進度。');
 }
 
 export function createSnapshot(profile) {
-  return validateSnapshot({ format: SNAPSHOT_FORMAT, version: SNAPSHOT_VERSION, profile });
+  return validateSnapshot({ format: SNAPSHOT_FORMAT, version: profile?.version === 3 ? 1 : profile?.version === 4 ? 2 : SNAPSHOT_VERSION, profile });
 }
 
 /** Return detached validated data. Unknown formats/versions never start a new game. */
-export function validateSnapshot(snapshot) {
-  const json = boundedJSON(snapshot);
+export function validateSnapshot(snapshot, { version } = {}) {
+  let json = boundedJSON(snapshot);
   exactKeys(snapshot, ['format', 'version', 'profile']);
-  if (snapshot.format !== SNAPSHOT_FORMAT || snapshot.version !== SNAPSHOT_VERSION) {
+  if (snapshot.format !== SNAPSHOT_FORMAT || ![1, 2, SNAPSHOT_VERSION].includes(snapshot.version) || (version !== undefined && snapshot.version !== version)) {
     fail('呢個旅程備份版本暫未支援，未有更改本機進度。');
   }
-  validateProfile(snapshot.profile);
+  if (snapshot.version === 1) json = boundedJSON(snapshot, LEGACY_MAX_SNAPSHOT_BYTES);
+  validateProfile(snapshot.profile, snapshot.version);
   return JSON.parse(json);
 }
 

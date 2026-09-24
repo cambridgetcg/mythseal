@@ -1,15 +1,19 @@
 # Mythseal agent handover
 
-Start here when joining development. Snapshot: **2026-09-21, v0.5.1 live**. Read
+Start here when joining development. Updated **2026-09-24**. The last recorded
+public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
 
 ## The project in one minute
 
 **萬象契 / Mythseal** is an original Eastern mythology card game inspired by
-神魔令's four-round bluffing/resource mechanics. It has 24 characters, travel,
+神魔令's four-round bluffing/resource mechanics. The recorded public v0.5.1 snapshot has 24 characters, travel,
 daily progression, earned-coin packs, an NPC market and a backpack with exact-copy
-XP/history and three decks. It is not a recovered copy of the old game.
+XP/history and three decks. Current local source adds 15 西遊 characters,
+29 WX-01 printings, a third pack, weekly quests, **66 story encounters** and
+the standard **火焰山三連戰** activity. It is not
+a recovered copy of the old game.
 
 The browser game runs locally, against AI opponents. **旅程閣** adds email-code
 login and deliberate private cloud backup/restore. A cloud backup contains
@@ -20,19 +24,291 @@ and paid acquisition are retired objectives; dated NFT designs are historical re
 
 | Item | Handover baseline |
 | --- | --- |
-| Source | [cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal), default branch `main`; GitHub API confirmed `isPrivate: true`, `visibility: PRIVATE` during this handover |
-| Public game | [mythseal.com](https://mythseal.com); HTTP and `www` redirect to HTTPS apex |
-| Live source | Tag `v0.5.1`, commit `ea485586d14032bc145a993749a49d5c343ff5f8`; later documentation commits are not deployments |
-| Public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **21:33:57 UTC** |
-| Release boundary | 19 allowlisted game assets, plus generated release metadata; server source, docs, tests and credentials are excluded |
-| Existing owner workspace | `/Users/macair/Games/shanhai-duel`; a fresh clone normally uses `mythseal` |
+| Source | [cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal), private repository; `main` is the recorded default branch, but the current development checkpoint is on **`codex/game-lobby`** |
+| Public game | [mythseal.com](https://mythseal.com); apex returned HTTP 200 and `/release.json` still reported v0.5.1 `ea48558` on **2026-09-24**. HTTP/`www` → HTTPS apex is recorded release evidence from 2026-09-21 |
+| Last recorded public source | Tag `v0.5.1`, commit `ea485586d14032bc145a993749a49d5c343ff5f8`, deployed **2026-09-21**; later source commits do not imply deployment |
+| Recorded public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **2026-09-21 21:33:57 UTC** and again on **2026-09-24**; see [HOSTING.md](HOSTING.md) for the release receipt |
+| Public release boundary | That v0.5.1 snapshot has 19 allowlisted game assets plus generated metadata; the current source build has 80. Server source, docs, tests and credentials stay excluded |
+| Current owner workspace | **`/Users/yuai/Projects/mythseal`**. `/Users/macair/Games/shanhai-duel` is a historical workspace, not the current path |
 
 A private repository still serves its approved JavaScript and artwork publicly.
 Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
 
+## Current source checkpoint · 2026-09-24
+
+Continue on **`codex/game-lobby`**, not an assumed `main` snapshot. The
+2026-09-24 publication checkpoint is recorded: the literary-preview, plan and
+handover work is commit **`e61d60a`** on base `ed60996`; `origin/main`'s
+2026-09-23 retirement commit `83216cc` is merged in **`e1fe8ac`**; the branch is
+pushed to `origin/codex/game-lobby` and opened as [PR #1](https://github.com/cambridgetcg/mythseal/pull/1) against
+`main`, where CI runs on the pull request. Merging that PR is the owner's
+decision. Pushing a branch authorizes no deployment.
+
+- **Direction note · 2026-09-23/24:** `main` retired collectible commercialization,
+  paid acquisition and NFT issuance as delivery objectives (`83216cc`, 22:32 BST).
+  The same morning's [blockchain plan](BLOCKCHAIN-IMPLEMENTATION-PLAN.md) recorded
+  the owner confirming limited collectibles; the later retirement takes precedence
+  and the plan is kept as dated research. Earned-coin literary boosters are
+  in-game mechanics, not commercialization. If the owner rules otherwise, update
+  ROADMAP's "Retired collectible launch phases" first.
+
+- **Playable game source:** 39 engine characters, 66 encounters, the standard
+  火焰山 activity and WX-01's 29 printings. Its owned-copy/pack/progression systems
+  are implemented locally; the coherent client/Worker/backup release gates below
+  still separate it from the recorded public v0.5.1 snapshot.
+- **Completed standalone previews:** LZ-01 has 12 BASE candidates + 1 AA available;
+  HL-01 has 8 BASE + 3 AA, including the unchanged 黛玉 identity and seven new
+  candidates. Each has inspection, filters and a fixed opening. Neither adds
+  new engine characters, ownership, actual booster acquisition or profile fields.
+- **Recorded local verification:** 446 Node tests, 9 Python tests and the 80-file
+  public build pass; rechecked on 2026-09-24 before publication together with the
+  forge fixture, wrangler preview/deploy dry runs and `git diff --cached --check`
+  (two whitespace nits fixed in `e61d60a`). LZ and HL browser suites each pass 14 groups per engine in
+  isolated Chromium/WebKit; [VALIDATION.md](VALIDATION.md) records scope and fixes.
+  These results do not establish hosted behavior, physical-device acceptance or
+  competitive balance.
+- **Next bounded work:** finish the private conversation playtest; choose an LZ/HL
+  rules/owned-copy/acquisition integration slice; conduct human balance review.
+  The [persistent battle-table layout](BATTLE-LAYOUT-PLAN.md) remains planned.
+  [Blockchain implementation](BLOCKCHAIN-IMPLEMENTATION-PLAN.md) is design work,
+  not a deployed contract, mint or trusted inventory. Preserve journey-v2/v3,
+  hashed/versioned module, account binding and backup-retention release gates.
+
+On this Mac the main game uses **http://127.0.0.1:4177/** and the separate literary
+preview server uses **http://127.0.0.1:4178/liaozhai.html** and
+**http://127.0.0.1:4178/honglou.html**. The most recent recorded restart returned
+HTTP 200; a future session must check that the processes are still running.
+Preserve these browser origins and existing saves. See the fresh-checkout recipe
+below for explicit branch selection, launch commands and repeatable checks.
+
+## Local development after the release snapshot
+
+### HL-01 local design preview · 2026-09-23
+
+The owner selected **紅樓・風月入夢 / 海棠詩社** after the Liaozhai study and
+asked to play together. `honglou.html`, `honglou.css`, `honglou.mjs` and
+`honglou-cards.mjs` provide eight inspectable cards, three AA scenes and a
+fixed 寶玉 BASE → 湘雲 BASE → 黛玉 AA opening. Source roles and separate
+chapter 37/62 moments are explicit. 黛玉 keeps her existing identity and rules;
+the seven other identities are preview candidates, absent from the engine.
+
+Five original images supply eight BASE portraits plus three AA works. Exact
+prompts, copied archive files and hashes are in [ART-HL01](ART-HL01.md); candidate
+tradeoffs and future integration are in [EXPANSION-HL01](EXPANSION-HL01.md).
+No profile, ownership, account, RNG or economic action enters this preview.
+Its nine code/art paths are preview-only; the public build stays at 80 files.
+
+After the Mac restart, main game 4177 and previews 4178 were restarted and
+returned HTTP200. Native Safari opened `/honglou.html`. `npm run test:honglou`
+defaults to 4178; set `GAME_URL` for another loopback server. Both Chromium and
+WebKit pass 14 groups, including explicit modal keyboard traversal. All 446 Node tests and nine
+Python tests pass. See [VALIDATION](VALIDATION.md#hl-01-literary-design-preview--2026-09-23).
+No release, hosted migration or service-account change accompanied that preview
+verification. Commit/push evidence belongs to the separate publication checkpoint.
+
+The user's separate conversation play has completed **round 1**: 迎春＋0丹 versus
+the previously sealed 寶玉＋3丹, leaving user 10 life / 12 pills and GM 12 life / 9 pills.
+The private Sol scratch match/receipts retain the state; do not replay that round
+or treat it as a saved game match. **Round 2 is awaiting the user's move; the GM's
+publicly announced card is 薛寶釵 and its commitment remains sealed.** Preserve that
+commitment rather than resealing or regenerating it. The user explicitly asked
+that future hidden bids **and bid ranges** remain undisclosed. Do not inspect or
+copy sealed state merely to prepare a handover, and keep scratch receipts outside
+Git. No unrevealed value or range belongs here. The full four-round playtest is
+still in progress; candidate balance and the final acquisition format remain open.
+
+### LZ-01 local design preview · 2026-09-23
+
+The owner selected **聊齋・燈下有靈** next and chose **詭美＋人情**. The complete
+literary programme is recorded in [BOOSTER-SERIES](BOOSTER-SERIES.md) and M4.5 in
+[ROADMAP](../ROADMAP.md). [EXPANSION-LZ01](EXPANSION-LZ01.md) records twelve
+candidate characters, five stories, unchanged four-faction/deck constraints,
+source anchors, tradeoffs, nineteen proposed printings and later integration.
+
+`liaozhai.html` / `liaozhai.css` / `liaozhai.mjs` and `liaozhai-cards.mjs` form a
+standalone preview served by `python3 tools/serve.py`. It has story/faction
+filters, full card inspection, 小倩 BASE/AA and a fixed three-card opening with
+skip/restart. Three 2×2 atlases plus one AA supply thirteen currently available
+illustrations; six special works remain planned. See [ART-LZ01](ART-LZ01.md)
+for exact built-in imagegen prompts, mapping and hashes.
+
+The preview imports no engine, account, profile or progression code; it reads
+and writes no player storage and has no RNG, payment or card grant. LZ candidates
+are absent from the game's 39-card roster. All eight new preview files/assets
+are in `hosting/preview-assets.json` only; the public build still has 80 assets.
+Gold purchases, owned copies, story integration and the **餘願** keyword are
+explicit later tasks, not implemented rules. No deployment or service change.
+
+Use `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` (or the server's actual
+loopback URL) for isolated Chromium/WebKit preview checks. `npm test` includes
+the content/dependency boundary checks. During this session the original game
+continues at **4177**, and a separate preview server runs at **4178**; the preview
+return link preserves the 4177 game origin. A future fresh launch can use 4177
+for both. Completed verification belongs in [VALIDATION](VALIDATION.md).
+
+### Prior local implementation
+
+The latest [map-piece prototype](MAP-PIECE-PROTOTYPE.md) adds a carved jade cursor,
+interruptible movement through authored route nodes and a separate paged **路程**
+module. Arrival keeps the map visible; press the piece again or **查看此境** to
+inspect. `map-piece.mjs`/`map-piece.css` are replaceable CSS/SVG presentation;
+professional studio artwork is planned. Cursor state is transient and changes
+no gameplay or save schema. The source allowlist now contains **80 files**.
+
+The latest local navigation pass turns destinations and dialogs into viewport
+scenes with explicit module tabs and list pages. `viewport.mjs` owns transient
+module/page/focus state and measured capacity; `scene-adapters.mjs` restructures
+collections, decks, accounts, battles and saved pack receipts;
+`scene-dialogs.mjs` restructures existing dialog content. Presentation modules
+own lobby/world/market/quest markup. Their CSS loads after the earlier styles.
+See [NAVIGATION.md](NAVIGATION.md) for integration and verification boundaries.
+That viewport checkpoint's allowlist contained **73 files**, excluding generated
+metadata. It had no profile schema change; the later campaign migration below
+is separate. Use the current build manifest for the expanded asset count.
+
+The 2026-09-22 navigation slice adds a five-destination game lobby, unified
+cards/decks/codex hub, quest overlay and explicit encounter preparation with
+return-to-deck and next/retry flows. See [NAVIGATION.md](NAVIGATION.md) for behavior,
+code ownership and checks. That slice brought the source allowlist to 21 files; the
+19-file count above describes the live v0.5.1 snapshot, not this local change.
+That initial UI slice did not migrate services, schemas, accounts or save keys.
+
+The 2026-09-22 [immersion work](IMMERSION.md) now includes a local 霧隱渡口 slice:
+lantern/mist arrival and battle atmosphere, short skippable public-result reveals,
+optional synthesized ambience/cues, persistent device preferences and read-only
+exact-copy journals linked from rewards. `mist-gate-ui.mjs`, `mist-gate.css` and
+`experience.mjs` brought the source allowlist to 24 files. Battle/economy rules
+and profile schemas are unchanged. New detailed journal milestones, native
+haptics, other realm treatments and gameplay experiments remain planned. See
+[local evidence](VALIDATION.md#mist-gate-immersion--2026-09-22) and
+[phone launch sequencing](MOBILE-RELEASE.md).
+
+The same day's resource/clash follow-up adds shared jade life meters, twelve
+pill capsules with bid/Fury preview, separate spending/impact/recovery beats and
+soft round arrivals in every battle mode. `battle-ui.mjs`, `battle.css` and
+`battle-presentation.mjs` brought that slice's allowlist to **27 files**. Presentation
+reads accepted engine results; before-resource frames are transient, so resumed
+reveals show saved final totals. See [scope](IMMERSION.md#life-pills-and-battle-transitions--2026-09-22)
+and [checks](VALIDATION.md#life-pills-and-battle-transitions--2026-09-22).
+
+## Playable local WX-01 and guarded saves
+
+The owner chose 西遊記 first, then other series. [WX-01](EXPANSION-WX01.md)
+records the 16-character/29-print local implementation, episode art direction,
+three existing rarities, AA/LAA/INK/TR treatments and remaining release gates.
+`atelier.html` is a standalone local visual preview with four Wukong treatments and a fixed pack
+opening; it never reads or writes player saves, consumes coins or grants cards.
+The atelier page/scripts remain preview-only. Its three Wukong images now also
+serve real local AA/INK/TR printings, so those images are allowlisted game assets.
+[ART-EXPANSION.md](ART-EXPANSION.md) records their original prompts.
+
+Existing game cards now derive their bronze/silver-jade/gold frame and rarity
+mark from `CARD_RARITIES` via `card-frames.css`. The local catalogue now has
+**39 rules cards**: the unchanged original/classic 24 plus 15 candidate 西遊 cards.
+WX-01 has **16 identities / 29 printings**, including an unchanged Wukong reprint.
+Four new base atlases and ten special images make **14 new art files**; prompts
+and mappings are in [ART-WX01.md](ART-WX01.md). Generation used the built-in image
+tool; an underlying model identifier was not exposed.
+
+The [rate specification](WX01-DROP-RATES.md) is implemented by `wx01-pack.mjs`:
+300 earned coins / three new Lv.1 copies, twelve-pack dry protection, 神契匣 and
+one 西行印 per pack. The ten-match weekly claim adds five 印. Exact AA/LAA/TR/INK
+choices cost 20/40/100/200 印; the four Westward clears qualify for one AA choice,
+including older cleared saves. Cosmetic LAA lobby display is owned-copy only,
+has no combat effects and protects the displayed UID from sale until unset.
+
+`printing-catalogue.mjs` binds each print to one rules card; `card-presentation.mjs`
+resolves art. Old copies receive `legacy/<cardId>`, not a new WX-01 edition.
+`progression.mjs` and `wx01-state.mjs` commit exact grant receipts; a pending
+receipt blocks new pack/choice grants and is resumed after reload. Reveals do
+not draw, pay or grant. Legacy packs keep their frozen card pools/order and six
+RNG calls; the NPC market and existing opponent deck generation stay legacy-only.
+
+Profile **v5**, collection **v2**, uses **`shanhai.profile.v5`**, battle v5 and
+recovery v5 keys. `profile-store.mjs` preserves v4/v3/v2 source keys, validates old
+canonical copies and current records, and rejects damaged/unsupported data
+without replacing it with a starter. Exact UIDs, XP, decks and vault history
+survive. Pending `cardPrints` preserve the participating copies' saved artwork.
+The existing profile lock name stays shared for stale-tab coordination.
+
+The cloud source accepts **v1/profile-v3** and **v2/profile-v4** unchanged on
+validation and upgrades only on explicit restore. **v3/profile-v5** adds
+campaign/activity state; v2/v3 retain the 10,000 owned/vault-copy and 4 MiB bounds.
+An active activity run blocks cloud upload/replacement, including its supply
+phase without a pending battle. Browser writes can
+still fail from quota. Core grants preflight count; the store checks final bytes
+and persistence before an opening is treated as accepted.
+
+**No release or hosted migration occurred.** `JOURNEY_V2_ENABLED` and
+`JOURNEY_V3_ENABLED` remain false/absent until the respective additive
+[v2](../supabase/migrations/20260922210000_wx01_journey_v2.sql) and
+[v3](../supabase/migrations/20260923000000_campaign_journey_v3.sql) migrations
+are separately applied and verified. A future release needs a coherent hashed/
+versioned client module graph, compatible Worker/client rollout and hosted
+old/new backup and binding-retention evidence. The public site's existing v1
+limits (2,000 copies / 512 KiB) remain the deployed baseline.
+
+Use [WX01 rules](../tests/wx01-cards.test.mjs),
+[sampler/model equivalence](../tests/wx01-pack.test.mjs),
+[grant/migration/receipt](../tests/wx01-progression.test.mjs),
+[profile-store](../tests/profile-store.test.mjs) and
+[cloud snapshot](../tests/cloud-save.test.mjs) tests for relevant local checks.
+Completed local checks are recorded at the end of this document; they do not
+establish hosted behavior.
+
+## Playable local campaign and activity
+
+The approved [campaign/activity expansion](CAMPAIGN-AND-EVENTS.md) adds six
+eight-stage continuation volumes after `west-spirit-mountain`: **48 new + 18 old
+= 66 encounters**. First clears bank eight BASE companions, six WX-01 tickets,
+a separate final AA choice and the title 聽見萬聲. Per-node mastery accumulates
+win / finish with 6 life / finish with 2 pills across wins. Original stages,
+rewards and the four-stage Westward AA entitlement stay unchanged.
+
+火焰山 unlocks after Mist Gate and offers owned or supplied legal decks at base
+combat levels. Three saved seeds determine hands and three saved loot seeds
+determine accepted outcomes. Wins carry resources into recovery (+2 life,
+pills at least 8), then one +4 life/pill supply; both full allows no-op continue.
+Only actually played owned UIDs get XP (12 win, 8 loss/draw); loaners mint and
+train nothing. Frozen UIDs remain protected between stages. First clear banks
+牛魔王 BASE; weekly clears 1/3 each bank a ticket; five lifetime clears award
+借得東風. A run spanning Monday settles its start-week prizes before rollover.
+
+`campaign-content.mjs`, `activity-content.mjs`, `expansion-state.mjs` and
+`progression.mjs` separate authored content, strict saved state and transactions.
+The 256-entry pending grant ledger keeps earned BASE/AA deliveries until claimed.
+`kind: reward` receipts cost zero and do not alter pack counters; `kind: ticket`
+uses the unchanged WX pool/dry counter, costs zero coins and earns one seal/task.
+Existing paid, box and choice receipts remain valid. Core count/counter guards
+and store byte/quota checks precede accepted UI results.
+
+Focused domain/persistence checks cover full budget, fixed seeds, pity,
+duplicate claims, exact XP, capacity, reload and Monday rollover. A 200-run
+mirrored-public-AI loaner probe cleared **16/200** (stage wins 122/200, 56/122,
+16/56); it is tuning evidence, not a human clear-rate forecast. Completed local
+Chromium/WebKit acceptance is recorded in [VALIDATION.md](VALIDATION.md#campaign-and-fire-mountain--2026-09-22).
+Human balance, physical devices and hosted rollout remain open. Advanced
+difficulty, new event art, seasonal rules and real PvP/ranked remain future work.
+
 ## What actually runs
+
+The 2026-09-22 [story/mode expansion](STORIES-AND-MODES.md) adds three original
+illustrated maps, twelve encounters and weekly quests. That checkpoint had four
+volumes/18 encounters, with independent chapter branches after Mist Gate. Daily
+and weekly activities share a journal; AI arena/practice are playable, real PvP
+and ranked remain explicitly deferred. `stories.mjs`, `stories.css` and three
+maps bring the source allowlist to **32 files**.
+
+That slice added an optional weekly object to profile v3; old local saves and old v1 backups
+remain supported without retroactive quest progress. It made no database migration or
+service change. WX-01 introduced v4; the campaign now upgrades local profiles
+to v5 as described above.
+A future release must update the client and account
+Worker validator together: live v0.5.1 rejects the new fields/story IDs. Recheck
+hosted old/new backup acceptance and binding retention; local fixture tests are
+not hosted evidence. All historical release information below remains unchanged.
 
 ```mermaid
 flowchart LR
@@ -71,6 +347,7 @@ source configuration and current connection/release records for operational stat
 | --- | --- | --- |
 | Battle rules and card catalogue | [engine.mjs](../engine.mjs), [DESIGN.md](DESIGN.md) | Pure rules, injectable randomness, no AI access to hidden player moves |
 | Local economy and travel | [progression.mjs](../progression.mjs), [PROGRESSION.md](PROGRESSION.md) | Daily rollover, single settlement, migration compatibility |
+| Campaign and activity | [campaign-content.mjs](../campaign-content.mjs), [activity-content.mjs](../activity-content.mjs), [expansion-state.mjs](../expansion-state.mjs), [scope](CAMPAIGN-AND-EVENTS.md) | Old 18 clears/rewards, fixed seeds, start-week accounting, frozen UIDs and pending grants |
 | Exact card copies and decks | [collection.mjs](../collection.mjs), [BACKPACK.md](BACKPACK.md) | UID, XP/history, locks, saved-deck references and sale/buyback continuity |
 | Screens and interaction | [app.mjs](../app.mjs), `adventure-ui.mjs`, `backpack-ui.mjs`, `account-ui.mjs` | Dependency-free browser runtime and current guest saves |
 | Cloud journeys | [account-client.mjs](../account-client.mjs), [cloud-save.mjs](../cloud-save.mjs), [ACCOUNTS.md](ACCOUNTS.md) | Explicit choices, stale-account/profile protection and local recovery copy |
@@ -84,25 +361,76 @@ browser-side Supabase SDK/session storage to duplicate this adapter.
 
 ## Start a fresh checkout
 
-Use **Node 22**, npm, Python **3.9+**, Git and an authorized GitHub account.
+Use **Node 22+** (CI uses 22; this Mac was checked on 24), npm, Python **3.9+**, Git and an authorized GitHub account.
 `npm ci` installs pinned development tooling, including optional platform
 binaries; do not omit development or optional dependencies. It does not install
 Foundry, Docker, Playwright browsers, Xcode or Android toolchains.
 
 ```sh
-gh repo clone cambridgetcg/mythseal
+gh repo clone cambridgetcg/mythseal -- --branch codex/game-lobby
 cd mythseal
 git status --short
 git switch -c agent/your-task
 npm ci
 npm test
-python3 tools/serve.py --open
+python3 -m unittest discover -s tests -p '*_test.py'
+npm run build
+python3 tools/serve.py --port 4177
 ```
 
-The last command serves guest play on loopback, normally port **4177**. It does
-not implement `/api/*`. Offline work and mocked account UI work need no cloud
+The explicit branch flag fetches the current development line instead of the
+older default-branch snapshot. On the existing Sol Mac, prefer
+`sol access run github -- repo clone cambridgetcg/mythseal -- --branch codex/game-lobby`
+when cloning; the current checkout is already at `/Users/yuai/Projects/mythseal`.
+For an existing clone, inspect its branch and dirty work before fetching/switching;
+do not reset or overwrite another agent's work to follow this recipe.
+
+**GitHub access gotcha on this Mac:** `gh`'s shared active account may be
+`mynameisyou-cmyk`, which cannot see this private repository, so plain
+`git fetch`/`git push` fail with "Repository not found" or "invalid credentials".
+Use `sol access run github -- <gh args>` for `gh` commands, and for `git` itself
+pass a one-off credential helper that supplies the `cambridgetcg` token from
+`gh auth token -u cambridgetcg` rather than switching the shared active account.
+
+The last command serves guest play and allowlisted literary previews on loopback,
+normally port **4177**. It does
+not implement `/api/*`. Development responses use `Cache-Control: no-store`
+and send current file bytes instead of modification-time 304 responses, so
+unversioned modules stay fresh across edits. If a tab cached files from an older
+server, use a hard reload once: **Command–Option–R in macOS Safari**, or
+**Command–Shift–R in Chrome**. Do not clear site data or local journey saves.
+The September 22 Safari 18.6 background-only incident resolved with the correct
+hard reload at the same origin; visible existing progress returned without a
+reset or migration. The exact cached-module failure was not observed. Chrome and
+Safari keep separate browser-local journeys; starting fresh in one does not erase
+the other's save. See [the recovery evidence](VALIDATION.md#local-safari-preview-recovery--2026-09-22).
+Restart the server when changing its Python code or either public/preview asset allowlist.
+Offline work and mocked account UI work need no cloud
 credentials. On the existing Mac, first resolve the workspace path and inspect
 the branch/diff; do not overwrite another agent's uncommitted work.
+
+For this Mac's two-server arrangement, keep the 4177 game process and launch the
+preview process in another terminal with `python3 tools/serve.py --port 4178`.
+The Python launcher tries subsequent ports if the requested port is occupied;
+use its printed URL rather than assuming that a launch acquired the requested
+port. The literary pages do not access player storage. Their 4178 return links
+lead back to the 4177 game origin.
+
+With that preview server running, reproduce both isolated literary suites:
+
+```sh
+GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai
+GAME_URL=http://127.0.0.1:4178 npm run test:honglou
+```
+
+For a fresh single-server launch, use `GAME_URL=http://127.0.0.1:4177` in both
+commands instead. Each script runs Chromium then WebKit. `npm ci` installs
+Playwright tooling but not its browser engines: use an installed Chrome via
+`CHROME_PATH` where needed and install the pinned runtimes with
+`npx --no-install playwright install chromium webkit` on a new machine.
+The ignored local `test-results/webkit-runtime` is detected when present; it is
+not included in a clone. These are synthetic-profile browser checks, not a use
+of the owner's Safari journey or a test of production login.
 
 For service work, consult [CONNECTIONS.md](CONNECTIONS.md) and select the exact
 Mythseal project before touching migrations or settings. Other Supabase projects
@@ -126,77 +454,70 @@ local receipts.
 
 ## Local account Worker preview
 
-For real account integration, build the public assets and use an **isolated local
-config**, rather than changing production origins or weakening production cookies.
-Create ignored `.runtime/dev/wrangler.jsonc` with this configuration; paths are
-relative to that file:
-
-```json
-{
-  "name": "mythseal-local-preview",
-  "main": "../../server/account-api.mjs",
-  "compatibility_date": "2026-06-16",
-  "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": false,
-  "preview_urls": false,
-  "assets": {
-    "directory": "../../dist",
-    "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
-    "html_handling": "auto-trailing-slash",
-    "not_found_handling": "none"
-  },
-  "vars": {
-    "APP_ORIGIN": "http://127.0.0.1:8791",
-    "ALLOW_INSECURE_LOCAL_AUTH": "true",
-    "OTP_ENABLED": "false",
-    "SUPABASE_URL": "https://puiuevggytoxyyearkcq.supabase.co"
-  },
-  "ratelimits": [
-    { "name": "AUTH_RATE_LIMIT", "namespace_id": "26092101", "simple": { "limit": 5, "period": 60 } },
-    { "name": "BACKUP_RATE_LIMIT", "namespace_id": "26092102", "simple": { "limit": 10, "period": 60 } }
-  ]
-}
-```
-
-Place only the selected project's `SUPABASE_PUBLISHABLE_KEY` in the adjacent
-`.runtime/dev/.dev.vars`, mode `0600`, through a local editor/secure setup. Do not
-copy the whole `.env.local`; it also contains unrelated administration secrets.
-Then, from the repository root:
+A fresh clone now has a tracked preview configuration and launcher:
 
 ```sh
-npm run build
-npx --no-install wrangler dev --config .runtime/dev/wrangler.jsonc --local \
-  --ip 127.0.0.1 --port 8791 --local-protocol http \
-  --persist-to .runtime/dev/state --show-interactive-dev-session false
+npm ci
+npm run preview -- --dry-run
+npm run preview
+# Open http://127.0.0.1:8791
 ```
 
-This runs the Worker locally but still connects to **hosted** Supabase. Keep OTP
-off for ordinary UI work. For an authorized real-mail test, enable it only in
-this local config and have the owner request a code using their own address.
-Use exactly `http://127.0.0.1:8791`; other origins fail the origin guard. Local
-storage is separate from the live website. The local cookie exception applies
-only to loopback. Mocked browser smoke is the credential-free alternative.
+`tools/preview.mjs` builds the allowlisted assets and runs project-local Wrangler
+4.136.1 using `hosting/wrangler.preview.jsonc`. It has no production routes or
+account ID, binds only loopback, and defaults `OTP_ENABLED=false`. Guest play and
+fixture-based account UI tests need no credentials. Static asset changes need a
+rebuild/restart; Worker source uses Wrangler's watcher. State is under ignored
+`.runtime/preview/state`. Stop with Ctrl+C.
 
-The exact JSON example passed the pinned Wrangler's dry run during this handover
-with no credentials. That checks its paths/bundling, not hosted account access.
+For separately authorized real-account integration, put **only** the selected
+project's `SUPABASE_PUBLISHABLE_KEY` in ignored `hosting/.dev.vars`, mode `0600`.
+Use one unquoted line `SUPABASE_PUBLISHABLE_KEY=sb_publishable_…` (replace the
+placeholder privately); comments and blank lines are allowed. The helper rejects
+other assignments, duplicate keys, alternate dotenv syntax, symlinks and
+non-private files. It passes only that file to Wrangler, clears inherited
+credentials/hooks and prevents automatic loading of root `.env.local`. Do not
+copy database, SMTP or management credentials into preview bindings.
+
+This configuration still names **hosted** Supabase, whose `mythseal-dev` project
+serves real accounts. A local Worker is not an isolated database. Keep OTP off for
+ordinary UI work. A real-mail test needs a separately reviewed local configuration
+and the owner's own address; this launcher does not offer an OTP-enabling flag.
+Use exactly `http://127.0.0.1:8791`; other origins fail the origin guard. Local saves
+remain separate from the live website, and insecure-cookie handling is limited
+to loopback.
+
+In a second terminal, run the existing browser suite with pinned Playwright:
+
+```sh
+GAME_URL=http://127.0.0.1:8791 npm run test:browser
+```
+
+The macOS scripts use installed Google Chrome. Elsewhere set `CHROME_PATH` or run
+`npx --no-install playwright install chromium`. Account tests intercept fixture
+APIs, so they do not verify hosted login or send real email. The older manual
+`.runtime/dev/wrangler.jsonc` recipe is no longer required by a fresh clone.
 
 ## Checks matched to the change
 
 | Work | Smallest relevant existing checks |
 | --- | --- |
-| Rules / local saves / card copies | `node --test tests/engine.test.mjs tests/progression.test.mjs tests/collection.test.mjs` |
+| Rules / local saves / card copies | `node --test tests/engine.test.mjs tests/progression.test.mjs tests/collection.test.mjs tests/profile-store.test.mjs` |
+| WX-01 rules / collation / grants | `node --test tests/wx01-cards.test.mjs tests/wx01-pack.test.mjs tests/wx01-progression.test.mjs`; analytical checks in `tests/wx01-drop-model.test.mjs` |
+| Campaign / activity / rewards | `node --test tests/campaign-content.test.mjs tests/activity-engine.test.mjs tests/expansion-progression.test.mjs tests/profile-store.test.mjs` |
+| Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |
 | Database migration | `bash tools/test-backup-sql.sh` against a **fresh disposable loopback** PostgreSQL database named `mythseal_test`; needs `psql`, role-creation privileges and privately supplied `TEST_DATABASE_URL` |
 | Contract toolkit | `npm run test:contracts`, with separately installed Foundry 1.7.1; local EVM only |
-| Browser flows | Existing smoke scripts listed in [README checks](../README.md#checks), with separately available Playwright/browser and a running local server; set `GAME_URL` explicitly |
+| Browser flows | Existing smoke scripts listed in [README checks](../README.md#checks), with pinned Playwright, an installed browser and a running local server; set `GAME_URL` explicitly |
 
 The SQL harness refuses remote databases and an existing Auth schema. Recreate
 only its disposable local database between full harness runs; never aim its
-bootstrap/reset at `mythseal-dev`. Both real migrations are already applied:
-`20260921210000` and `20260921210100`.
+bootstrap/reset at `mythseal-dev`. The two release migrations are already applied:
+`20260921210000` and `20260921210100`. The `20260922210000` journey-v2 and
+`20260923000000` journey-v3 files have not been applied to hosted services in this turn.
 
 The last release CI passed; the preceding connection-update CI recorded **177
 Node tests and eight Python tests**. CI also covers PostgreSQL races, Forge,
@@ -215,13 +536,16 @@ exist in a fresh clone and must not be dependencies of a new agent's workflow.
 ## Release and recovery
 
 Follow [HOSTING.md](HOSTING.md), including preservation of the existing
-publishable-key binding. The current generic `npm run deploy` helper predates
-authenticated hosting and does not explicitly preserve/inject that binding;
-use the documented explicit authenticated-release commands until that helper is
-updated. Never deploy the repository root or introduce administration credentials
+publishable-key binding. `npm run deploy -- --dry-run` checks both bundles
+without hosted identity or binding calls. A real `npm run deploy` requires a
+clean checkout, verifies the intended Cloudflare account and existing binding
+metadata, then uses explicit `--keep-vars` on the apex Worker. Hosted retention
+and account readiness still need verification after the next authorized release. Never deploy the repository root or introduce administration credentials
 to solve a missing runtime binding.
 
-Commit reviewed source, check exact-source CI, build from that clean commit,
+For WX-01, first resolve the versioned-module and hosted journey-v2 gates above;
+do not enable the Worker flag merely because a local build passes. Then
+commit reviewed source, check exact-source CI, build from that clean commit,
 deploy the required Worker(s), then verify the live release manifest, account
 readiness and relevant behavior. Record source SHA/tag, Worker version IDs and
 evidence in HOSTING/VALIDATION. A successful push, build or dry run is not a
@@ -273,3 +597,106 @@ Credential or permission prerequisite (names only; never values):
 Use [ROADMAP.md](../ROADMAP.md) for the next bounded tasks. Keep operational
 discoveries here or in the specific service/release document, update dated
 evidence when rechecked, and keep player data and credentials out of Git.
+
+
+### Local WX-01 verification receipt · 2026-09-22
+
+- `npm test`: 311 Node tests pass, including 100,000 seeded runtime/model pack comparisons.
+- Python discovery: 9 tests pass. Allowlisted build: 60 public files; atelier page/scripts, docs, tests and SQL remain excluded.
+- Existing nine browser flows pass with current-version fixtures and explicit legacy migration coverage. New WX-01 presentation: 11 groups each in isolated Chrome/WebKit at 360/390/1440. Recovery and real native-lock two-tab races: 5 groups per browser.
+- `tools/test-backup-sql.sh` passed v1/v2 ownership, independent revisions, size bounds, tombstones and concurrent CAS races in a disposable loopback PostgreSQL cluster; it was stopped and removed. No live database or hosted mutation was performed.
+- Visual inspection included market, AA/LAA/INK receipt, Leader chooser, lobby, preparation, clash and recovery. Browser evidence is local generated output in ignored `test-results/`; it is not native iOS/Android or real Safari profile verification.
+- Built-in art outputs/prompts are recorded in [ART-WX01](ART-WX01.md). New full-resolution PNGs total about 40 MiB; transfer-size optimization remains before a mobile/hosted rollout.
+- No deployment, live SQL migration or user-save editing occurred. The account capability and coherent-module release gates above remain open.
+
+
+### WX-01 boxes and local supply · 2026-09-22
+
+`buyWX01Box` offers 12/24 sequential packs for 3,600/7,200 coins, with 36/72 copies
+and 12/24 seals. `kind: box` receipts retain the existing fields and add ordered
+`packs: [{mode,cards}]`; `cards` is the exact flattened list and `mode` is `box`.
+Both local and cloud validators check every group, matching UID/order, amount,
+rarity floor and special-mode contents. Existing single and choice receipts
+remain valid. Profile4/cloud2 stay unchanged; hosted rollout gates stay open.
+
+`pack-opening` advances saved packs and finishes with a grouped whole-box overview.
+A reload resumes the overview. Acknowledgement remains separate from the grant.
+The local supply page `playtest.html` plus `playtest-supply.mjs` and
+`playtest-supply-ui.mjs` are in the preview allowlist only. They require a loopback
+origin, an existing save and native Web Locks; a click commits +10,000 coins and
+optional literal `wx01.playtestGift: wx01-box-20260922` in one profile write.
+The flag is absent on ordinary journeys. Nothing is granted automatically.
+
+Relevant tests: `tests/wx01-box.test.mjs`, `tests/playtest-supply.test.mjs`,
+cloud/pack controller regressions, and `tools/wx01-box-smoke.mjs` (Chrome/WebKit).
+
+
+Box follow-up verification: `npm test` passed **336 tests**; Python passed **9**.
+The new box suite and existing single-pack presentation suite passed in both
+isolated Chrome and WebKit. The box suite covers both quantities at 360/390/1440,
+last-row/footer visibility, sequential reveals, quota/capacity failures, native
+Web Lock races and synthetic supply claims. Native Safari confirmed the requested
+supply in the existing journey and displayed both market options. No box was
+purchased in the owner's journey during verification. The build still contains
+60 public files; all three supply files stay preview-only. No deployment occurred.
+
+### Same-character inheritance · local, 2026-09-22
+
+The owner chose EXP inheritance with special-art protection. In **藏卡 → 我的戰卡
+→ one copy's 同行記 → 同名傳承**, each explicitly selected same-`cardId` base
+copy contributes 80 plus its existing EXP. The target may have any treatment,
+retains its exact identity/history and caps at the existing Lv.5 / 700 EXP.
+Specials, locked cards, all saved decks, pending battle cards, reward receipts
+and displayed Leader materials are protected. Pending/receipt targets are also
+blocked. Partial overflow is disclosed; wholly unnecessary donors are refused.
+
+`inheritance.mjs` owns pure previews, protections and immutable consumption;
+`inheritance-ui.mjs`/`inheritance.css` own selection, confirmation and result.
+`app.mjs` commits under the shared native Web Lock with a fresh quote, only
+shows success after storage accepts it, invalidates stale previews and allows
+cancellation while queued for the lock. The target's XP changes and the chosen
+materials leave ownership permanently, without merchant buyback. There are no
+new saved fields, schema versions, service calls or migrations.
+
+Verification: **359 Node tests**, **9 Python tests**, 63 allowlisted public files;
+the existing backpack browser suite passed six groups. New inheritance browser
+acceptance passed nine groups in each isolated Chrome/WebKit engine at
+360/390/1440, including AA/TR identity, overflow, protected materials,
+preview/cancel, competing tabs, quota refusal/retry, lock-wait cancellation,
+unavailable-lock refusal and reload. Screenshots were visually reviewed.
+`npm run test:inheritance` reproduces the new browser checks. User card data
+was not consumed or modified during testing. Local source only; public v0.5.1
+and the existing hosted account/module rollout gates remain unchanged.
+
+### Character stacks and ink codex · local, 2026-09-22
+
+The backpack now defaults to character stacks. `collection-display.mjs` groups
+owned copies without changing identity, training preference or deck selection.
+Stacks show total copies, distinct printings, level ranges and protections;
+filters separately report matching counts. Open one to browse its exact UIDs
+and owned-print tabs, or choose **逐張查看** for the original flat layout.
+The deck editor still renders exact copies. Returning from a stack restores
+the previous list position and keyboard focus. Expanded phone pages omit the
+duplicate global header, and selects have explicit 44px touch height.
+
+`codex-ui.mjs`/`codex.css` add stable character numbers, chapter completion,
+all/collected/missing filters, and a grayscale **未逢** treatment. Hover, focus
+and missing-card details retain the grayscale. Names, lore and rules remain
+readable. Collected status derives from owned plus merchant-held copies;
+owned quantities exclude the vault. This is character discovery, not a new
+permanent printing-unlock ledger. Opening a page grants nothing and all display
+preferences are transient. No schema, save-key, economy, artwork or service
+changes accompany the layout. The allowlist now contains 66 public files.
+
+Local verification: 377 Node tests and 9 Python tests pass. The new
+`npm run test:collection-display` suite covers isolated Chrome/WebKit at
+360/390/1440, exact grouped identities/printing counts, readonly save bytes,
+filters, deck drafts, focus/scroll restoration and monochrome details. Existing
+backpack, navigation and classics browser checks pass. The new display suite
+passed **10 groups per engine**, including a second-tab acquisition that recolours
+an already-open missing-card detail and updates progress with zero observer
+writes. Inheritance (9 groups) and WX-01 presentation (11 groups) regressions
+also passed in Chrome. The first WX-01 attempt stalled during Chrome context
+creation before game navigation; a fresh isolated retry passed, with both logs
+retained. Screenshots were inspected in both engines. No real player data was
+edited and no deployment occurred.
