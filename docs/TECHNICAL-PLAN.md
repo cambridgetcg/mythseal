@@ -8,7 +8,12 @@ The existing browser game is rebranded Mythseal, packaged into an explicit publi
 
 The game still uses local saves and AI opponents. Daily activities, the backpack, per-copy XP and the NPC market are playable. v0.5.1 adds live email login and private offline-journey backup/restore through the Worker, Free London Supabase and Resend. Authoritative battles, player trading, on-chain ownership and native apps are not implemented. Existing `shanhai.*` storage namespaces are deliberately retained. Localhost and the public website have separate browser storage; backups never establish trusted card ownership.
 
-## Selected direction
+## Selected technical direction
+
+Commercial collectible launch and paid acquisition are retired objectives as of
+2026-09-23. The chain and collectible rows below preserve optional technical
+research, not a delivery obligation. Understanding alone is sufficient; there
+are no revenue, output or learning targets.
 
 | Layer | Choice | Why it fits this game |
 | --- | --- | --- |
@@ -58,8 +63,10 @@ Native gameplay entitlement needs its own product decision. The current mobile p
 2. **Authoritative account slice:** Supabase migrations/auth and one Workers command path; a complete server-settled practice match with per-copy history, duplicate-command tests and recovery. Then daily claims, packs and the NPC market.
 3. **Player trading:** exact-copy custody and atomic settlement, stale listing checks, concurrent-buyer tests and an audit ledger. Keep earned-only game currency initially.
 4. **Art and mobile:** approved per-card derivatives, one polished animation sample, then Capacitor builds through TestFlight/Play testing with physical-device checks. Do not regenerate artwork during CI.
-5. **Testnet collectibles:** fixed-content edition, ERC-721 cap invariants, wallet linking/recovery, IPFS restore, transfers and XP checkpoints. No paid random NFT pack in the first experiment.
-6. **Production launch decisions:** select final chain, issue quantities, recovery budget, supported platforms and signing arrangements from measured evidence; handle contract issuance independently of web releases.
+
+The former testnet-to-production collectible launch sequence is retired. Its
+architecture and constraints remain as dated research in the preserved history;
+there is no requirement to issue, sell or monetize cards.
 
 Web, API/rules, contract and art releases each have their own version. A release manifest fixes the compatible set. Website rollback cannot undo a database trade or a confirmed mint. The current `release.json` records the public file hashes, client version and source commit with `contractRefs: []`; it does not independently version the backend or reference a deployed contract.
 

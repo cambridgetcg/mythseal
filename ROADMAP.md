@@ -4,7 +4,13 @@
 
 Start with [HANDOVER.md](docs/HANDOVER.md) for repository orientation, infrastructure and the next agent's workflow. Use [HOSTING.md](docs/HOSTING.md) for deployed revisions, [ACCOUNTS.md](docs/ACCOUNTS.md) for actual account behavior, [CONNECTIONS.md](docs/CONNECTIONS.md) for service readiness and [VALIDATION.md](docs/VALIDATION.md) for evidence. This roadmap sets priorities and acceptance criteria; it does not authorize paid services, store enrollment, chain transactions or a sale. No release dates or production supply have been committed.
 
-## Product direction
+## Freely chosen game direction
+
+This is a free game and a space for understanding and play. It has no revenue,
+acquisition, retention, output or learning quota. Future work is optional.
+Collectible commercialization and paid acquisition are retired objectives.
+Game coins, XP, daily in-game activities and existing player saves remain game
+mechanics; they create no duty for the creator to produce or monetize.
 
 An Eastern mythic strategy card game with refined dark-fantasy artwork, four-round bluffing battles, travel, daily progression and cards with individual histories. Characters draw from Chinese mythology, literature and history, using original artwork and documented provenance. Target clients are browser, **iOS and Android**.
 
@@ -13,7 +19,9 @@ as an **iOS game on the App Store and an Android game on Google Play**. The appr
 five-destination lobby and encounter/deck/rewards loop form the shared interface
 foundation. Adapt that experience for portrait phone play while retaining the
 browser version. Physical-device validation, native packaging, closed beta and
-store launch are planned milestones below; no launch date is set.
+store launch are planned milestones below; no launch date is set. Under the
+2026-09-23 direction above, this native release remains a freely chosen,
+undated option with no growth or revenue target.
 
 **Immersion direction requested · 2026-09-22:** enrich the world, tactile card/pill
 feedback, hidden-bid reveals and attachment to individual card copies. The
@@ -22,7 +30,10 @@ battle moments, starting with one complete 霧隱渡口 encounter. The M4 packet
 are planned work; their creative details and later gameplay experiments remain
 proposals to playtest.
 
-The long-term goal is a limited-edition collectible that retains its identity and earned XP when traded. The backend should validate ordinary battles and growth promptly; players should not need a wallet confirmation or a chain transaction each turn. Blockchain would establish collectible issuance and ownership. Wallets, collectible rights and native gameplay must be designed together before promising playable NFT transfers across every platform.
+The optional technical direction is portable play and understandable card history.
+Server validation can support ordinary battles without making wallets,
+collectible issuance or a marketplace prerequisites. There is no requirement
+to turn this game into a paid product.
 
 The detailed [technical plan](docs/TECHNICAL-PLAN.md), [backend design](docs/BACKEND-STACK.md), [mobile plan](docs/MOBILE-RELEASE.md), [NFT stack](docs/NFT-STACK.md) and [content pipeline](docs/CONTENT-RELEASE-PIPELINE.md) explain the proposed architecture. Their original baseline and policy research are dated; the current-state documents above take precedence for what is implemented. Recheck platform requirements when selecting an actual release flow.
 
@@ -336,34 +347,32 @@ M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
 
-### M6 · Limited-edition collectible rehearsal
+### Retired collectible launch phases
 
-**Planning review · 2026-09-23:** the [blockchain implementation plan](docs/BLOCKCHAIN-IMPLEMENTATION-PLAN.md)
-compares Solana with Ethereum/Base and proposes one minimal collectible contract,
-required backend/indexer work and bounded implementation packets. Base is the
-recommended candidate; production chain, supply and issuance remain undecided.
-The owner confirmed limited collectible cards with per-copy history while
-ordinary cards remain free to play; ordinary gameplay does not require a wallet.
+The former M6/M7 collectible rehearsal and commercial production-edition track
+are retired as delivery objectives (2026-09-23). Their technical research is preserved in
+[the dated roadmap history](docs/history/retired-commercial-direction-2026-09-23/ROADMAP.md.txt) and the design documents; it is not a
+standing implementation queue. No sale, mint, paid plan or growth campaign is required.
 
-**Dependencies:** authoritative card identity/history from M2–M3; an explicit rights/mobile decision; a selected owner-controlled wallet and recovery workflow. Local contract/content tests can proceed before any authorized testnet writes.
+**Blockchain planning review · 2026-09-23 (dated research):** earlier the same
+day, the [blockchain implementation plan](docs/BLOCKCHAIN-IMPLEMENTATION-PLAN.md)
+compared Solana with Ethereum/Base and proposed one minimal collectible contract,
+indexer work and bounded packets, recording the owner's confirmation of limited
+collectible cards with per-copy history while ordinary cards stay free to play.
+The retirement above was committed later that evening and takes precedence; the
+plan is preserved for understanding, not as an active issuance objective. If the
+owner reopens collectibles, restart from that plan's dependencies rather than
+from this roadmap.
 
-- Evaluate Base Sepolia and ERC-721 first, with Polygon Amoy as a measured fallback. Define wallet linking, recovery and asset exit without making wallets mandatory for ordinary play.
-- Implement the capped edition contract and token-to-card mapping, then the ownership indexer and versioned XP checkpoints. Distinguish submission, confirmation and finality; handle replay, duplicate events, restarts and chain reorganizations.
-- Package approved original art and edition metadata with immutable content identities. Verify two independent pin locations plus a restorable CAR backup before depending on IPFS availability. A Pinata read check does not satisfy this step.
-- Rehearse known-content test editions and transfers using disposable test assets. Define active-battle and ownership-change behavior without assuming an in-game lock prevents an external ERC-721 transfer.
+### M7 · iOS / Android store release (optional, separately chosen)
 
-**Acceptance:** all mint paths obey lifetime caps; burning cannot reopen supply; replay/privilege tests pass. Rebuilding the index reproduces ownership, transferred copies retain the same history, and a primary pin/gateway outage permits full restoration. Record wallet recovery, finality and cost measurements against agreed targets from [NFT-STACK.md](docs/NFT-STACK.md). No real funds, production entitlement or launch approval follows from a successful testnet rehearsal.
+**Dependencies:** M5 and review of the selected store flow. This track is a
+freely chosen option after M5, without a date, quota or growth target.
 
-### M7 · iOS / Android launch and collectible release
+- Graduate the tested builds to **Apple App Store and Google Play** submissions. Confirm launch territories, audience, minimum OS/device support, account ownership, the chosen feature set and current submission requirements. Prepare store screenshots/listings, support and release recovery; record each platform's review and rollout separately. Simultaneous launch is not assumed.
+- Release only the accepted mobile feature set, with staged rollout and version compatibility. Monitor game balance, service health and support capacity.
 
-**Dependencies:** for mobile, M5 and review of the selected store flow; for collectibles, M6 plus the owner's separate choice of production network, supply, rights, budget, supported markets and sale scope. These release tracks can proceed independently.
-
-- Freeze the edition/supply/art manifest and issuance permissions; independently review the contract and resolve critical/high findings. Rehearse key recovery, ownership reconciliation, incident response and content/database restoration.
-- Publish clear rights, reserves, support and provenance for the approved known-content edition. Verify deployed code and every issued/reserved copy against its cap; subsequent chapters need separate manifests and review.
-- Release only the accepted mobile feature set, with staged rollout and version compatibility. Monitor game balance, service health and support capacity. Mobile may launch before collectibles if the NFT gameplay decision remains open.
-- For the mobile track, graduate the tested builds to **Apple App Store and Google Play** submissions. Confirm launch territories, audience, minimum OS/device support, account ownership, the chosen free/paid feature set and current submission requirements. Prepare store screenshots/listings, support and release recovery; record each platform's review and rollout separately. Simultaneous launch is not assumed.
-
-**Acceptance:** actual deployment/store receipts, supply reconciliation, recovery evidence and operational ownership are recorded for the applicable release track. A plan, audit of a dependency or passing testnet suite alone does not satisfy production readiness.
+**Acceptance:** actual store receipts, recovery evidence and operational ownership are recorded. A plan or passing emulator suite alone does not satisfy release readiness.
 
 ## Next tasks suitable for separate agents
 
@@ -384,7 +393,9 @@ These are bounded starting points, not instructions to start every phase at once
 
 Start with portable operations and the contract for one authoritative battle, not a simultaneous rewrite of accounts, economy, UI and chain services. Record each finished slice in the current-state/evidence documents and advance this roadmap only when its acceptance criteria are demonstrated.
 
-## Limited quantities and transferable card history
+## Historical collectible research (no active launch objective)
+
+The following preserves earlier design reasoning, not instructions to issue or sell collectibles.
 
 Distinguish **character** (Wukong's rules), **edition** (a release/art treatment with a cap) and **copy** (one numbered card with owner and XP history). Different copies grow independently. The draft first-edition illustration remains **12 characters × 100 copies = 1,200 total**, for discussion only; it is not approved supply. Testnet cards are disposable and convey no mainnet allocation. Later chapters must state whether scarcity was promised per edition or across a character's entire lifetime.
 
@@ -400,9 +411,9 @@ The server records append-only XP against a stable card identity. A collectible 
 | --- | --- | --- |
 | Online economy entry | Fresh server-issued inventory; offline journeys remain preserved and editable. | M2 starter grant and progression contract. |
 | Infrastructure/operations | Existing Workers + Supabase; one transactional command authority; expand services only from measured need. | Authoritative alpha rollout and any paid resource. |
-| Audience and native product | iOS App Store and Android Google Play launches are confirmed product goals; use the shared game shell and a Capacitor trial. Launch regions/ages, free/paid scope, devices and dates remain open. | Closed beta/store disclosures; any collectible sale promise. |
-| Wallet and production chain | Evaluate optional wallet recovery and Base Sepolia first; production choice remains open. | Testnet integration and later production issuance, separately. |
-| Supply, rights and commercial terms | Known-content limited editions; no promised resale value or required fungible token. | Approved edition manifest, sale or marketplace. |
+| Audience and native product | iOS App Store and Android Google Play remain the selected native direction (2026-09-22), now an optional undated release; use the shared game shell and a Capacitor trial. Supported regions/ages and devices remain open; no paid scope is planned. | Closed beta/store disclosures. |
+| Wallet and chain research | Retained as optional technical research; no active issuance objective. | Any new explicitly selected experiment. |
+| Commercial editions | Retired delivery objective; old supply drafts create no entitlement. | No sale or marketplace is planned by this roadmap. |
 | Name, artwork and source licensing | 萬象契 / Mythseal selected; original art with provenance; no open-source license selected. | Public licensing/commercial release; domain ownership does not establish trademark clearance. |
 
 Web, API/rules, native binaries, artwork and contracts have separate releases. Use the [content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md) for compatibility and rollback design; rolling back a website cannot undo an economy settlement, published NFT or transferred ownership.

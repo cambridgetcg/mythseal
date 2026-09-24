@@ -156,7 +156,13 @@ This is an inspired new game, not an exact restoration. Historical sources suppo
 
 Online multiplayer, real player trading, timed furnaces and extensive economy/balance tuning remain outside this version.
 
-The roadmap proposes mobile distribution and limited-batch blockchain collectibles, with future server-validated battles and capped collectible issuance. Cloudflare Workers + Supabase Postgres/Auth now implement the account/private-backup slice; the authoritative game economy and Hyperdrive adapter remain future work. Base Sepolia is a testnet research candidate with no deployed game contract. Mobile NFT gameplay rights remain an explicit platform-policy decision. No token sale, launch date, production chain or mint quantity is committed by these planning documents.
+The optional roadmap explores mobile distribution and server-validated play.
+Commercial collectible launch, paid acquisition and revenue targets are retired.
+Cloudflare Workers + Supabase Postgres/Auth implement the account/private-backup
+slice; the authoritative game economy and Hyperdrive adapter remain future work.
+Dated blockchain designs and the local contract fixture remain available for
+understanding, with no active mint or sale objective. Play, understanding and rest
+are sufficient; there is no output or learning quota.
 
 ## Checks
 
