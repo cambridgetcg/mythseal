@@ -17,6 +17,16 @@ traversal; Liaozhai currently tests Escape/opener restoration and lacks the
 equivalent explicit Tab loop and regression coverage. That is a bounded
 accessibility follow-up, not verified Tab coverage for LZ.
 
+Publication later on 2026-09-24: `e61d60a` (this work) and merge `e1fe8ac`
+(`origin/main` `83216cc`) were pushed to `origin/codex/game-lobby` and opened as
+[PR #1](https://github.com/cambridgetcg/mythseal/pull/1). Before that commit, `git diff --cached --check` (the staged
+tree, unlike the earlier unstaged run) flagged trailing whitespace at
+`tools/honglou-smoke.mjs:43` and a blank line at the end of `docs/ART-HL01.md`;
+both were fixed. The forge fixture, wrangler preview/deploy dry runs and all
+module syntax checks also passed locally. A same-day live read of
+`/release.json` still reported v0.5.1 `ea48558` and `/api/v1/account` returned
+HTTP 200 with `emailEnabled: true`.
+
 These are local source checks. Pushing Git does not deploy the website or run
 hosted account/migration checks. The existing GitHub workflow triggers on main,
 pull requests or manual dispatch; a development-branch push alone is not a CI

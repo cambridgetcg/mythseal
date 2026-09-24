@@ -25,9 +25,9 @@ and paid acquisition are retired objectives; dated NFT designs are historical re
 | Item | Handover baseline |
 | --- | --- |
 | Source | [cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal), private repository; `main` is the recorded default branch, but the current development checkpoint is on **`codex/game-lobby`** |
-| Public game | [mythseal.com](https://mythseal.com); HTTP/`www` → HTTPS apex is recorded release evidence, not a new check on 2026-09-24 |
+| Public game | [mythseal.com](https://mythseal.com); apex returned HTTP 200 and `/release.json` still reported v0.5.1 `ea48558` on **2026-09-24**. HTTP/`www` → HTTPS apex is recorded release evidence from 2026-09-21 |
 | Last recorded public source | Tag `v0.5.1`, commit `ea485586d14032bc145a993749a49d5c343ff5f8`, deployed **2026-09-21**; later source commits do not imply deployment |
-| Recorded public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **2026-09-21 21:33:57 UTC**; see [HOSTING.md](HOSTING.md) for the release receipt |
+| Recorded public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **2026-09-21 21:33:57 UTC** and again on **2026-09-24**; see [HOSTING.md](HOSTING.md) for the release receipt |
 | Public release boundary | That v0.5.1 snapshot has 19 allowlisted game assets plus generated metadata; the current source build has 80. Server source, docs, tests and credentials stay excluded |
 | Current owner workspace | **`/Users/yuai/Projects/mythseal`**. `/Users/macair/Games/shanhai-duel` is a historical workspace, not the current path |
 
@@ -38,11 +38,21 @@ contains no credentials. Resource identities and deployment receipts live in
 
 ## Current source checkpoint · 2026-09-24
 
-Continue on **`codex/game-lobby`**, not an assumed `main` snapshot. This handover
-was prepared from base **`ed60996`** plus the latest literary-preview, toolkit and
-documentation work. The owner requested committing and pushing all current work;
-the new commit ID and confirmed remote ref must come from the actual publication
-result. This text alone is not a commit/push receipt and authorizes no deployment.
+Continue on **`codex/game-lobby`**, not an assumed `main` snapshot. The
+2026-09-24 publication checkpoint is recorded: the literary-preview, plan and
+handover work is commit **`e61d60a`** on base `ed60996`; `origin/main`'s
+2026-09-23 retirement commit `83216cc` is merged in **`e1fe8ac`**; the branch is
+pushed to `origin/codex/game-lobby` and opened as [PR #1](https://github.com/cambridgetcg/mythseal/pull/1) against
+`main`, where CI runs on the pull request. Merging that PR is the owner's
+decision. Pushing a branch authorizes no deployment.
+
+- **Direction note · 2026-09-23/24:** `main` retired collectible commercialization,
+  paid acquisition and NFT issuance as delivery objectives (`83216cc`, 22:32 BST).
+  The same morning's [blockchain plan](BLOCKCHAIN-IMPLEMENTATION-PLAN.md) recorded
+  the owner confirming limited collectibles; the later retirement takes precedence
+  and the plan is kept as dated research. Earned-coin literary boosters are
+  in-game mechanics, not commercialization. If the owner rules otherwise, update
+  ROADMAP's "Retired collectible launch phases" first.
 
 - **Playable game source:** 39 engine characters, 66 encounters, the standard
   火焰山 activity and WX-01's 29 printings. Its owned-copy/pack/progression systems
@@ -53,7 +63,9 @@ result. This text alone is not a commit/push receipt and authorizes no deploymen
   candidates. Each has inspection, filters and a fixed opening. Neither adds
   new engine characters, ownership, actual booster acquisition or profile fields.
 - **Recorded local verification:** 446 Node tests, 9 Python tests and the 80-file
-  public build pass. LZ and HL browser suites each pass 14 groups per engine in
+  public build pass; rechecked on 2026-09-24 before publication together with the
+  forge fixture, wrangler preview/deploy dry runs and `git diff --cached --check`
+  (two whitespace nits fixed in `e61d60a`). LZ and HL browser suites each pass 14 groups per engine in
   isolated Chromium/WebKit; [VALIDATION.md](VALIDATION.md) records scope and fixes.
   These results do not establish hosted behavior, physical-device acceptance or
   competitive balance.
@@ -372,6 +384,13 @@ older default-branch snapshot. On the existing Sol Mac, prefer
 when cloning; the current checkout is already at `/Users/yuai/Projects/mythseal`.
 For an existing clone, inspect its branch and dirty work before fetching/switching;
 do not reset or overwrite another agent's work to follow this recipe.
+
+**GitHub access gotcha on this Mac:** `gh`'s shared active account may be
+`mynameisyou-cmyk`, which cannot see this private repository, so plain
+`git fetch`/`git push` fail with "Repository not found" or "invalid credentials".
+Use `sol access run github -- <gh args>` for `gh` commands, and for `git` itself
+pass a one-off credential helper that supplies the `cambridgetcg` token from
+`gh auth token -u cambridgetcg` rather than switching the shared active account.
 
 The last command serves guest play and allowlisted literary previews on loopback,
 normally port **4177**. It does
