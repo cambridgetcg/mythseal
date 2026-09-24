@@ -9,6 +9,8 @@
     "preview": "node tools/preview.mjs",
     "test:browser": "node tools/smoke.mjs && node tools/journey-smoke.mjs && node tools/classics-smoke.mjs && node tools/backpack-smoke.mjs && node tools/account-smoke.mjs && node tools/navigation-smoke.mjs && node tools/immersion-smoke.mjs && node tools/battle-presentation-smoke.mjs && node tools/stories-smoke.mjs && node tools/wx01-presentation-smoke.mjs && node tools/profile-recovery-smoke.mjs && node tools/wx01-box-smoke.mjs && node tools/inheritance-smoke.mjs && node tools/collection-display-smoke.mjs",
     "test:atelier": "node tools/atelier-smoke.mjs",
+    "test:liaozhai": "node tools/liaozhai-smoke.mjs && BROWSER=webkit node tools/liaozhai-smoke.mjs",
+    "test:honglou": "node tools/honglou-smoke.mjs && BROWSER=webkit node tools/honglou-smoke.mjs",
     "analyze:wx01": "node tools/analyze-wx01-drops.mjs",
     "build": "node tools/build.mjs",
     "deploy": "node tools/deploy.mjs",

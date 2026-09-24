@@ -2,7 +2,7 @@
 
 一張卡，一段傳說。
 
-An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The game now has 24 characters: 12 original山海 characters and 12 new interpretations of classical literary, historical and legendary figures. Illustrations, map, character writing and card balance are created for this game.
+An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The public v0.5.1 release has 24 characters: 12 original 山海 characters and 12 interpretations of classical literary, historical and legendary figures. The current `codex/game-lobby` development branch has **39 rules characters, 29 WX-01 printings and 66 encounters**, plus separate 聊齋 and 紅樓 design previews. Illustrations, map, character writing and card balance are created for this game.
 
 **Play [萬象契 · Mythseal](https://mythseal.com).** v0.5.1 is deployed on Cloudflare with email login enabled. The source repository remains private at `cambridgetcg/mythseal`. Exact public deployment revisions and live checks are recorded in [HOSTING.md](docs/HOSTING.md).
 
@@ -22,12 +22,13 @@ Clone the private repository with an authorized GitHub account:
 ```sh
 gh repo clone cambridgetcg/mythseal
 cd mythseal
+git switch codex/game-lobby
 python3 tools/serve.py --open
 ```
 
 The Python server works on macOS, Linux and Windows with Python 3 installed. On Windows, use `py` if that is your Python launcher.
 
-The existing workspace on this Mac remains `/Users/macair/Games/shanhai-duel`. A fresh clone uses `mythseal`; the folder name does not define the brand or save format.
+The current workspace on this Mac is `/Users/yuai/Projects/mythseal`. The explicit branch switch selects the latest development content. A fresh clone uses `mythseal`; the folder name does not define the brand or save format.
 
 ### Finder launcher on this Mac
 
@@ -51,7 +52,7 @@ for the optional, narrowly scoped publishable-key binding.
 
 Developer service access and pinned backend/NFT/mobile toolkits are tracked in [CONNECTIONS.md](docs/CONNECTIONS.md). Use `npm run connect` for owner login and `npm run connections:check -- --live` for a credential-safe status report. Developer credentials and player email sessions are separate; the account implementation is documented in [ACCOUNTS.md](docs/ACCOUNTS.md).
 
-The publishing workflow uses Node to produce 21 explicitly allowlisted game files in `dist`, then deploys those assets and the separately bundled server Worker with locally authenticated Wrangler:
+The current development build uses Node to produce 80 explicitly allowlisted game files in `dist`. Literary preview files remain outside that public bundle. A separately authorized release deploys the assets and server Worker with locally authenticated Wrangler:
 
 ```sh
 npm ci
@@ -64,6 +65,25 @@ npx --no-install wrangler deploy --dry-run
 Do not publish the repository root: server source, design documents, tests, credentials and local saves are excluded from website assets. Deployment is a manual maintainer operation; GitHub CI checks the build, API, SQL and other tests without deploying production. The Free London Supabase development project has been provisioned. Local checks, hosted migration evidence and public deployment evidence remain distinct in [VALIDATION.md](docs/VALIDATION.md), [CONNECTIONS.md](docs/CONNECTIONS.md) and [HOSTING.md](docs/HOSTING.md).
 
 ## Game lobby · local development
+
+### 紅樓・風月入夢 · 海棠詩社
+
+Open `/honglou.html` on the local Python server for eight candidate cards,
+three alternate-art scenes and a fixed three-card opening. 黛玉 retains her
+existing character identity and rules; the other seven are design candidates.
+The preview has no journey access or card grants. See [HL-01](docs/EXPANSION-HL01.md)
+for source passages, the 20-star paper deck and planned integration.
+
+### 聊齋・燈下有靈 · local design preview
+
+With the Python server running, open `/liaozhai.html` to browse twelve candidate
+characters, inspect their rules and original art, compare 小倩 BASE/AA and open
+a fixed three-card demonstration. The preview does not read or write your
+journey, consume coins or grant cards; these candidates are not yet in the game
+engine or owned collection. See [LZ-01](docs/EXPANSION-LZ01.md) and the
+[literary booster programme](docs/BOOSTER-SERIES.md).
+
+### Current local game
 
 The current development interface has five destinations: **洞府 / 遊歷 / 對弈 /
 藏卡 / 市集**. The lobby resumes a pending match or prepares your next journey;

@@ -4,5 +4,22 @@
   "atelier.mjs",
   "playtest.html",
   "playtest-supply.mjs",
-  "playtest-supply-ui.mjs"
+  "playtest-supply-ui.mjs",
+  "liaozhai.html",
+  "liaozhai.css",
+  "liaozhai.mjs",
+  "liaozhai-cards.mjs",
+  "assets/lz01/base-01.png",
+  "assets/lz01/base-02.png",
+  "assets/lz01/base-03.png",
+  "assets/lz01/xiaoqian-aa.png",
+  "honglou.html",
+  "honglou.css",
+  "honglou.mjs",
+  "honglou-cards.mjs",
+  "assets/hl01/base-01.png",
+  "assets/hl01/base-02.png",
+  "assets/hl01/daiyu-aa.png",
+  "assets/hl01/xiangyun-aa.png",
+  "assets/hl01/tanchun-aa.png"
 ]

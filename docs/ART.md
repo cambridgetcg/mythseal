@@ -20,6 +20,15 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 ```
 
 
+## 聊齋 concept studies · 2026-09-23
+
+The separate local LZ-01 preview uses three original 2×2 portrait atlases (twelve
+characters) and one full-scene 小倩 AA under `assets/lz01/`. All four images were
+generated with the built-in imagegen tool, with no reference images supplied.
+They are preview-only and do not grant or change owned cards. See
+[exact prompts, cell mappings and provenance](ART-LZ01.md) and the
+[set design](EXPANSION-LZ01.md). No underlying model identifier was exposed.
+
 ## 西行 printing studies · 2026-09-22
 
 Three original Wukong illustrations explore full-scene alternate art, an ink
@@ -71,3 +80,11 @@ Three new original map illustrations for 西遊, 封神 and 白蛇 are in `asset
 See [ART-STORIES.md](ART-STORIES.md) for the built-in image-generation prompts,
 selected output paths and provenance. Existing atlases and the 山海 map remain
 unchanged; labels and pins are drawn by the application.
+
+## 紅樓・海棠詩社 · 2026-09-23
+
+Eight BASE portraits in two atlases and three full-scene AA works supply the
+local HL-01 study. These five original built-in imagegen PNGs remain preview-only;
+card rules and frames are rendered separately. [ART-HL01.md](ART-HL01.md) records
+the exact prompt components, selected archive outputs, tile mappings and hashes.
+黛玉、湘雲、探春 alternate artworks retain their base character's rules.

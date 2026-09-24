@@ -2,6 +2,115 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## GitHub source checkpoint · 2026-09-24
+
+Before publishing the current development branch, reran **446 Node tests**,
+**nine Python tests**, the **80-file public build**, and `git diff --check`;
+all pass. The known Python temporary HTTP404 cleanup warning remains.
+The source/art changes were reviewed, including actual PNG hashes and preview
+allowlist separation. Saves, credentials, generated test output, local build
+output and private conversation-play receipts remain outside Git.
+
+The browser results below are the completed September 23 runs, not new runs
+for this documentation checkpoint. Honglou explicitly tests Tab/Shift+Tab
+traversal; Liaozhai currently tests Escape/opener restoration and lacks the
+equivalent explicit Tab loop and regression coverage. That is a bounded
+accessibility follow-up, not verified Tab coverage for LZ.
+
+These are local source checks. Pushing Git does not deploy the website or run
+hosted account/migration checks. The existing GitHub workflow triggers on main,
+pull requests or manual dispatch; a development-branch push alone is not a CI
+pass. Remote publication is verified separately against the actual Git ref.
+
+## HL-01 literary design preview · 2026-09-23
+
+`honglou.html` is a separate local study: eight BASE portraits and three AA
+scenes, eight card identities (one exact 黛玉 reprint and seven candidates),
+star/faction filters, sourced character roles and a fixed three-card opening.
+No engine admission, owned-copy acquisition, profile migration or deployment.
+
+- **446 Node tests pass**, including eight HL content checks for reprint
+  identity, source roles, AA links, fixed sample, legal paper decks, candidate
+  tradeoffs, all five actual PNG headers and the isolated two-module graph.
+- **Nine Python tests pass**, retaining the known temporary HTTP404 cleanup
+  `ResourceWarning`. The build passes with **80 public files**; all nine HL
+  code/art paths remain in the preview allowlist only. `git diff --check` passes.
+- `npm run test:honglou` passes **14 groups per engine** in isolated Chromium
+  and WebKit at 1440×900, 390×844, 360×740 and 844×390 plus reduced motion. It
+  covers all eight cards on desktop, all three AA characters plus a non-AA card
+  at smaller sizes, fixed/repeated/partial/skipped openings, timer interruption,
+  image decoding, filter intersections and empty-state reset.
+- Tested controls have unobstructed 44px targets and no horizontal overflow.
+  BASE/AA have identical rules and the source switches to chapter 62 for 湘雲's
+  separate AA episode. The role descriptions distinguish authorship, hosting,
+  rhyme-setting and supervision. 黛玉 is labelled an existing-rules reprint.
+- Initial runs exposed native dialog Tab/Shift+Tab escaping into browser chrome,
+  including WebKit skipping intermediate controls. Explicit traversal of current
+  visible controls fixes both directions, including after an AA rerender.
+  Final full runs verify wrap, intermediate focus and Escape/opener restoration.
+- Synthetic local/session profile and battle canaries remain byte-identical
+  and unread. No RNG calls, cookie/storage/IndexedDB/cache access, external/API
+  requests, asset errors or page exceptions occurred in these flows. No real
+  player profile is used by the harness.
+- Root inspected desktop/mobile gallery and AA-dialog captures. Native Safari
+  loaded the preview in a new tab with its title, eight-card count and opening
+  controls. Main game at 4177 and both literary pages at 4178 return HTTP200
+  after the Mac restart. This is local availability, not hosted verification.
+- All five image copies match their retained generation originals byte-for-byte;
+  dimensions, hashes and exact prompts are in [ART-HL01](ART-HL01.md).
+
+Ignored browser evidence: `test-results/honglou-{chromium,webkit}-smoke.json`
+and their initial/catalogue/dialog/sample screenshots. Final JSON receipts
+supersede the failed focus attempts shown in the conversation. Phone emulation
+does not establish physical-device acceptance or competitive balance.
+
+Shared conversation play has begun separately: the first user choice was
+迎春＋0丹 against a precommitted 寶玉＋3丹. Attack 5 versus 24 gave the GM the
+round, but skill and 森羅 reductions limited damage to 2. Resources became
+user 10 life / 12 pills and GM 12 life / 9 pills. This single manual prototype round is
+an observed resource decision, not engine integration or a balance conclusion.
+
+## LZ-01 literary design preview · 2026-09-23
+
+Local standalone `liaozhai.html`, twelve candidate cards and thirteen available
+illustrations (three 2×2 atlases and one AA). The full set proposal has nineteen
+printings; six special artworks, engine/card ownership, earned-coin acquisition
+and 餘願 remain planned. No game catalogue, profile, service or deployment change.
+
+- **438 Node tests pass**, including five new checks for the roster, faction/
+  rarity mix, legal paper deck budgets, absence of obvious same-role raw upgrades,
+  immutable prints, fixed sample and isolated preview dependencies. These are
+  design/data checks, not battle-balance evidence.
+- **Nine Python tests pass**; the pre-existing temporary HTTP404 cleanup
+  `ResourceWarning` remains. The public build passes with **80 allowlisted
+  files**; all eight LZ preview code/art paths stay preview-only.
+- `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` passes **14 groups per
+  engine** in isolated Chromium and WebKit at 1440×900, 390×844, 360×740 and
+  844×390, plus a reduced-motion case. It verifies all twelve portraits, five
+  story filters, four factions, intersections and empty-state reset; card
+  inspection, BASE/AA rule equality and Escape/focus restoration; individual,
+  skipped, partial/reveal-all, repeated and interrupted-timer openings.
+- Checked controls have unobstructed **44px targets** and pages have no
+  horizontal overflow. The first WebKit attempt exposed a native select rendered
+  at 21px despite `min-height`; explicit height/appearance and a visible chevron
+  fixed it. Both complete engine suites pass after that CSS change.
+- Synthetic profile/battle canaries remain byte-identical, with no local/session
+  storage reads/writes, cookies, IndexedDB/cache access, API calls, external
+  requests or asset/runtime errors during the test flows. Source links are
+  inspected but not followed by the smoke. No real player save is opened by it.
+- Original portraits and AA were visually inspected, as were desktop/phone
+  previews and WebKit dialog/opening captures. Native Safari loaded the new
+  preview in a separate tab and exposed its title, opening control and return
+  link to the existing game at 4177. The preview server remains at 4178 for this
+  session; a fresh ordinary Python launch can serve it at 4177.
+
+Evidence (ignored): `test-results/liaozhai-unit.log`,
+`liaozhai-browser-final.log`, `liaozhai-{chromium,webkit}-smoke.json` and their
+screenshots, plus the parent `liaozhai-root-*` visual captures. The initial
+WebKit failure remains in `liaozhai-webkit.log`; final JSON/log supersedes it.
+Phone viewport emulation is not a physical-device check. Human card balance,
+art direction, full booster rules and hosted delivery remain open.
+
 ## Carved map-piece prototype · 2026-09-23
 
 Local CSS/SVG presentation on `codex/game-lobby`; no deployment, save migration,

@@ -283,6 +283,14 @@ the integrated browser suite, physical-device review or hosted verification.
 
 These are a proposed editorial sequence, not release dates or production promises.
 
+**2026-09-23 update:** the owner selected **LZ-01 · 聊齋・燈下有靈** as the next
+active content slice, beginning with a twelve-character design and local art/
+fixed-pack preview. 封神 remains the next proposed full-size set. The complete
+programme, including 紅樓 seasonal collections and the 餘願 experiment, is now in
+[BOOSTER-SERIES](BOOSTER-SERIES.md) and [ROADMAP](../ROADMAP.md); see
+[the LZ-01 brief](EXPANSION-LZ01.md) for current scope. The earlier WX-02/WX-03
+labels below remain working labels, not finalized cross-series set IDs.
+
 | Series | Working direction | Character possibilities / connection |
 | --- | --- | --- |
 | WX-02 · 封神・蓮火問天 | The next full set: responsibility, chosen form, mortals and divinity | Existing 哪吒 reprint; 姜子牙、楊戩、雷震子、妲己、太乙真人、聞仲. Select exact novel portrayal, not television costumes. |

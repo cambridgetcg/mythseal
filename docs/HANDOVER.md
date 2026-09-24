@@ -1,13 +1,14 @@
 # Mythseal agent handover
 
-Start here when joining development. Updated **2026-09-23; v0.5.1 remains live**. Read
+Start here when joining development. Updated **2026-09-24**. The last recorded
+public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
 
 ## The project in one minute
 
 **萬象契 / Mythseal** is an original Eastern mythology card game inspired by
-神魔令's four-round bluffing/resource mechanics. Public v0.5.1 has 24 characters, travel,
+神魔令's four-round bluffing/resource mechanics. The recorded public v0.5.1 snapshot has 24 characters, travel,
 daily progression, earned-coin packs, an NPC market and a backpack with exact-copy
 XP/history and three decks. Current local source adds 15 西遊 characters,
 29 WX-01 printings, a third pack, weekly quests, **66 story encounters** and
@@ -22,19 +23,119 @@ native applications and limited-batch NFTs are roadmap work.
 
 | Item | Handover baseline |
 | --- | --- |
-| Source | [cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal), default branch `main`; GitHub API confirmed `isPrivate: true`, `visibility: PRIVATE` during this handover |
-| Public game | [mythseal.com](https://mythseal.com); HTTP and `www` redirect to HTTPS apex |
-| Live source | Tag `v0.5.1`, commit `ea485586d14032bc145a993749a49d5c343ff5f8`; later documentation commits are not deployments |
-| Public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **21:33:57 UTC** |
-| Release boundary | 19 allowlisted game assets, plus generated release metadata; server source, docs, tests and credentials are excluded |
-| Existing owner workspace | `/Users/macair/Games/shanhai-duel`; a fresh clone normally uses `mythseal` |
+| Source | [cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal), private repository; `main` is the recorded default branch, but the current development checkpoint is on **`codex/game-lobby`** |
+| Public game | [mythseal.com](https://mythseal.com); HTTP/`www` → HTTPS apex is recorded release evidence, not a new check on 2026-09-24 |
+| Last recorded public source | Tag `v0.5.1`, commit `ea485586d14032bc145a993749a49d5c343ff5f8`, deployed **2026-09-21**; later source commits do not imply deployment |
+| Recorded public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **2026-09-21 21:33:57 UTC**; see [HOSTING.md](HOSTING.md) for the release receipt |
+| Public release boundary | That v0.5.1 snapshot has 19 allowlisted game assets plus generated metadata; the current source build has 80. Server source, docs, tests and credentials stay excluded |
+| Current owner workspace | **`/Users/yuai/Projects/mythseal`**. `/Users/macair/Games/shanhai-duel` is a historical workspace, not the current path |
 
 A private repository still serves its approved JavaScript and artwork publicly.
 Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
 
+## Current source checkpoint · 2026-09-24
+
+Continue on **`codex/game-lobby`**, not an assumed `main` snapshot. This handover
+was prepared from base **`ed60996`** plus the latest literary-preview, toolkit and
+documentation work. The owner requested committing and pushing all current work;
+the new commit ID and confirmed remote ref must come from the actual publication
+result. This text alone is not a commit/push receipt and authorizes no deployment.
+
+- **Playable game source:** 39 engine characters, 66 encounters, the standard
+  火焰山 activity and WX-01's 29 printings. Its owned-copy/pack/progression systems
+  are implemented locally; the coherent client/Worker/backup release gates below
+  still separate it from the recorded public v0.5.1 snapshot.
+- **Completed standalone previews:** LZ-01 has 12 BASE candidates + 1 AA available;
+  HL-01 has 8 BASE + 3 AA, including the unchanged 黛玉 identity and seven new
+  candidates. Each has inspection, filters and a fixed opening. Neither adds
+  new engine characters, ownership, actual booster acquisition or profile fields.
+- **Recorded local verification:** 446 Node tests, 9 Python tests and the 80-file
+  public build pass. LZ and HL browser suites each pass 14 groups per engine in
+  isolated Chromium/WebKit; [VALIDATION.md](VALIDATION.md) records scope and fixes.
+  These results do not establish hosted behavior, physical-device acceptance or
+  competitive balance.
+- **Next bounded work:** finish the private conversation playtest; choose an LZ/HL
+  rules/owned-copy/acquisition integration slice; conduct human balance review.
+  The [persistent battle-table layout](BATTLE-LAYOUT-PLAN.md) remains planned.
+  [Blockchain implementation](BLOCKCHAIN-IMPLEMENTATION-PLAN.md) is design work,
+  not a deployed contract, mint or trusted inventory. Preserve journey-v2/v3,
+  hashed/versioned module, account binding and backup-retention release gates.
+
+On this Mac the main game uses **http://127.0.0.1:4177/** and the separate literary
+preview server uses **http://127.0.0.1:4178/liaozhai.html** and
+**http://127.0.0.1:4178/honglou.html**. The most recent recorded restart returned
+HTTP 200; a future session must check that the processes are still running.
+Preserve these browser origins and existing saves. See the fresh-checkout recipe
+below for explicit branch selection, launch commands and repeatable checks.
+
 ## Local development after the release snapshot
+
+### HL-01 local design preview · 2026-09-23
+
+The owner selected **紅樓・風月入夢 / 海棠詩社** after the Liaozhai study and
+asked to play together. `honglou.html`, `honglou.css`, `honglou.mjs` and
+`honglou-cards.mjs` provide eight inspectable cards, three AA scenes and a
+fixed 寶玉 BASE → 湘雲 BASE → 黛玉 AA opening. Source roles and separate
+chapter 37/62 moments are explicit. 黛玉 keeps her existing identity and rules;
+the seven other identities are preview candidates, absent from the engine.
+
+Five original images supply eight BASE portraits plus three AA works. Exact
+prompts, copied archive files and hashes are in [ART-HL01](ART-HL01.md); candidate
+tradeoffs and future integration are in [EXPANSION-HL01](EXPANSION-HL01.md).
+No profile, ownership, account, RNG or economic action enters this preview.
+Its nine code/art paths are preview-only; the public build stays at 80 files.
+
+After the Mac restart, main game 4177 and previews 4178 were restarted and
+returned HTTP200. Native Safari opened `/honglou.html`. `npm run test:honglou`
+defaults to 4178; set `GAME_URL` for another loopback server. Both Chromium and
+WebKit pass 14 groups, including explicit modal keyboard traversal. All 446 Node tests and nine
+Python tests pass. See [VALIDATION](VALIDATION.md#hl-01-literary-design-preview--2026-09-23).
+No release, hosted migration or service-account change accompanied that preview
+verification. Commit/push evidence belongs to the separate publication checkpoint.
+
+The user's separate conversation play has completed **round 1**: 迎春＋0丹 versus
+the previously sealed 寶玉＋3丹, leaving user 10 life / 12 pills and GM 12 life / 9 pills.
+The private Sol scratch match/receipts retain the state; do not replay that round
+or treat it as a saved game match. **Round 2 is awaiting the user's move; the GM's
+publicly announced card is 薛寶釵 and its commitment remains sealed.** Preserve that
+commitment rather than resealing or regenerating it. The user explicitly asked
+that future hidden bids **and bid ranges** remain undisclosed. Do not inspect or
+copy sealed state merely to prepare a handover, and keep scratch receipts outside
+Git. No unrevealed value or range belongs here. The full four-round playtest is
+still in progress; candidate balance and the final acquisition format remain open.
+
+### LZ-01 local design preview · 2026-09-23
+
+The owner selected **聊齋・燈下有靈** next and chose **詭美＋人情**. The complete
+literary programme is recorded in [BOOSTER-SERIES](BOOSTER-SERIES.md) and M4.5 in
+[ROADMAP](../ROADMAP.md). [EXPANSION-LZ01](EXPANSION-LZ01.md) records twelve
+candidate characters, five stories, unchanged four-faction/deck constraints,
+source anchors, tradeoffs, nineteen proposed printings and later integration.
+
+`liaozhai.html` / `liaozhai.css` / `liaozhai.mjs` and `liaozhai-cards.mjs` form a
+standalone preview served by `python3 tools/serve.py`. It has story/faction
+filters, full card inspection, 小倩 BASE/AA and a fixed three-card opening with
+skip/restart. Three 2×2 atlases plus one AA supply thirteen currently available
+illustrations; six special works remain planned. See [ART-LZ01](ART-LZ01.md)
+for exact built-in imagegen prompts, mapping and hashes.
+
+The preview imports no engine, account, profile or progression code; it reads
+and writes no player storage and has no RNG, payment or card grant. LZ candidates
+are absent from the game's 39-card roster. All eight new preview files/assets
+are in `hosting/preview-assets.json` only; the public build still has 80 assets.
+Gold purchases, owned copies, story integration and the **餘願** keyword are
+explicit later tasks, not implemented rules. No deployment or service change.
+
+Use `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` (or the server's actual
+loopback URL) for isolated Chromium/WebKit preview checks. `npm test` includes
+the content/dependency boundary checks. During this session the original game
+continues at **4177**, and a separate preview server runs at **4178**; the preview
+return link preserves the 4177 game origin. A future fresh launch can use 4177
+for both. Completed verification belongs in [VALIDATION](VALIDATION.md).
+
+### Prior local implementation
 
 The latest [map-piece prototype](MAP-PIECE-PROTOTYPE.md) adds a carved jade cursor,
 interruptible movement through authored route nodes and a separate paged **路程**
@@ -173,9 +274,10 @@ and store byte/quota checks precede accepted UI results.
 Focused domain/persistence checks cover full budget, fixed seeds, pity,
 duplicate claims, exact XP, capacity, reload and Monday rollover. A 200-run
 mirrored-public-AI loaner probe cleared **16/200** (stage wins 122/200, 56/122,
-16/56); it is tuning evidence, not a human clear-rate forecast. Browser acceptance
-is still in progress; append its final evidence separately. Advanced difficulty,
-new event art, seasonal rules and real PvP/ranked remain future work.
+16/56); it is tuning evidence, not a human clear-rate forecast. Completed local
+Chromium/WebKit acceptance is recorded in [VALIDATION.md](VALIDATION.md#campaign-and-fire-mountain--2026-09-22).
+Human balance, physical devices and hosted rollout remain open. Advanced
+difficulty, new event art, seasonal rules and real PvP/ranked remain future work.
 
 ## What actually runs
 
@@ -246,22 +348,32 @@ browser-side Supabase SDK/session storage to duplicate this adapter.
 
 ## Start a fresh checkout
 
-Use **Node 22+** (CI uses 22; the new Mac was checked on 24), npm, Python **3.9+**, Git and an authorized GitHub account.
+Use **Node 22+** (CI uses 22; this Mac was checked on 24), npm, Python **3.9+**, Git and an authorized GitHub account.
 `npm ci` installs pinned development tooling, including optional platform
 binaries; do not omit development or optional dependencies. It does not install
 Foundry, Docker, Playwright browsers, Xcode or Android toolchains.
 
 ```sh
-gh repo clone cambridgetcg/mythseal
+gh repo clone cambridgetcg/mythseal -- --branch codex/game-lobby
 cd mythseal
 git status --short
 git switch -c agent/your-task
 npm ci
 npm test
-python3 tools/serve.py --open
+python3 -m unittest discover -s tests -p '*_test.py'
+npm run build
+python3 tools/serve.py --port 4177
 ```
 
-The last command serves guest play on loopback, normally port **4177**. It does
+The explicit branch flag fetches the current development line instead of the
+older default-branch snapshot. On the existing Sol Mac, prefer
+`sol access run github -- repo clone cambridgetcg/mythseal -- --branch codex/game-lobby`
+when cloning; the current checkout is already at `/Users/yuai/Projects/mythseal`.
+For an existing clone, inspect its branch and dirty work before fetching/switching;
+do not reset or overwrite another agent's work to follow this recipe.
+
+The last command serves guest play and allowlisted literary previews on loopback,
+normally port **4177**. It does
 not implement `/api/*`. Development responses use `Cache-Control: no-store`
 and send current file bytes instead of modification-time 304 responses, so
 unversioned modules stay fresh across edits. If a tab cached files from an older
@@ -276,6 +388,29 @@ Restart the server when changing its Python code or either public/preview asset 
 Offline work and mocked account UI work need no cloud
 credentials. On the existing Mac, first resolve the workspace path and inspect
 the branch/diff; do not overwrite another agent's uncommitted work.
+
+For this Mac's two-server arrangement, keep the 4177 game process and launch the
+preview process in another terminal with `python3 tools/serve.py --port 4178`.
+The Python launcher tries subsequent ports if the requested port is occupied;
+use its printed URL rather than assuming that a launch acquired the requested
+port. The literary pages do not access player storage. Their 4178 return links
+lead back to the 4177 game origin.
+
+With that preview server running, reproduce both isolated literary suites:
+
+```sh
+GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai
+GAME_URL=http://127.0.0.1:4178 npm run test:honglou
+```
+
+For a fresh single-server launch, use `GAME_URL=http://127.0.0.1:4177` in both
+commands instead. Each script runs Chromium then WebKit. `npm ci` installs
+Playwright tooling but not its browser engines: use an installed Chrome via
+`CHROME_PATH` where needed and install the pinned runtimes with
+`npx --no-install playwright install chromium webkit` on a new machine.
+The ignored local `test-results/webkit-runtime` is detected when present; it is
+not included in a clone. These are synthetic-profile browser checks, not a use
+of the owner's Safari journey or a test of production login.
 
 For service work, consult [CONNECTIONS.md](CONNECTIONS.md) and select the exact
 Mythseal project before touching migrations or settings. Other Supabase projects
@@ -350,6 +485,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Rules / local saves / card copies | `node --test tests/engine.test.mjs tests/progression.test.mjs tests/collection.test.mjs tests/profile-store.test.mjs` |
 | WX-01 rules / collation / grants | `node --test tests/wx01-cards.test.mjs tests/wx01-pack.test.mjs tests/wx01-progression.test.mjs`; analytical checks in `tests/wx01-drop-model.test.mjs` |
 | Campaign / activity / rewards | `node --test tests/campaign-content.test.mjs tests/activity-engine.test.mjs tests/expansion-progression.test.mjs tests/profile-store.test.mjs` |
+| Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |

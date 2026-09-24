@@ -39,6 +39,18 @@ twelve-pack protection, 神契匣, 西行印 redemption and a first-volume AA ch
 Candidate card balance and phone experience still need playtesting. Production
 v0.5.1 is unchanged; no release or hosted migration accompanies this work.
 
+**Literary boosters confirmed · 2026-09-23:** record the complete expansion
+direction below and start **LZ-01 · 聊齋・燈下有靈** first. The owner selected
+**詭美＋人情：雨夜、狐鬼、燈火與相守**. Begin with a twelve-character design and
+an interactive local art/pack study, then integrate a reviewed earned-coin
+booster. The owner then selected **HL-01 · 紅樓・風月入夢 / 海棠詩社** for the
+next local design/art study, with shared conversation play. 封神 remains the
+next proposed full-size set; 白蛇, later 紅樓 collections, 三國, 水滸 and original
+山海 companion stories remain queued.
+These are content priorities, not release dates or existing acquisitions.
+See [the series programme](docs/BOOSTER-SERIES.md) and
+[LZ-01 design](docs/EXPANSION-LZ01.md) and [HL-01 design](docs/EXPANSION-HL01.md).
+
 **Local campaign and activity · 2026-09-22:** the approved
 [西行續卷 and 火焰山三連戰](docs/CAMPAIGN-AND-EVENTS.md) are implemented locally.
 Six eight-battle volumes add **48 encounters to the original 18 (66 total)**,
@@ -47,8 +59,9 @@ resource mastery. The standard three-boss activity freezes owned/loaner rosters,
 carries resources through supplies, banks targeted loot and awards first/weekly
 milestones and a five-clear title. Existing clears, old AA entitlement and pack
 rates remain intact. Profile v5/cloud snapshot v3 compatibility is in source;
-browser acceptance and human balance review are still in progress. Public
-v0.5.1 and hosted schemas are unchanged.
+Chromium/WebKit acceptance is recorded in [VALIDATION.md](docs/VALIDATION.md#campaign-and-fire-mountain--2026-09-22).
+Human balance and physical-device review remain open. Public v0.5.1 and hosted
+schemas are unchanged.
 
 ## Shipped baseline and its limits
 
@@ -192,17 +205,97 @@ copies and pending battles while recording printing IDs, pack receipts, dry coun
 qualify for the once-only AA choice. The original two packs retain their card
 pools/order, prices and six-call draw sequence.
 
-The campaign slice below now advances local saves to v5. Next: finish integrated
-browser/accessibility review and balance playtests, then physical-phone review
-with M5. Before any separate authorized public release,
+The campaign slice below now advances local saves to v5. Automated integrated
+browser checks are recorded in [VALIDATION.md](docs/VALIDATION.md); human
+accessibility/balance playtests and physical-phone review with M5 remain open.
+Before any separate authorized public release,
 apply and verify the additive journey-v2/v3 SQL migrations, verify old/new backup
 retention and account bindings, and ship a coherent hashed/versioned client
 module graph. `JOURNEY_V2_ENABLED` and `JOURNEY_V3_ENABLED` stay false or absent until
 their hosted schema compatibility is verified. Local v2/v3 snapshots allow
 10,000 owned/vault copies and 4 MiB; deployed v0.5.1 still has its v1 limits. Passing local tests is not
 evidence that the hosted migration or rollout has happened.
-Later series: 封神 → a smaller 白蛇 collection, with 三國、水滸、
-聊齋、紅樓 and original 山海 companions in the editorial backlog. No dates set.
+**M4.5-LZ · 聊齋 first (selected 2026-09-23):** follow the
+[twelve-character design](docs/EXPANSION-LZ01.md). The first slice is a separate
+local concept gallery and fixed three-card opening: twelve BASE portraits,
+one 小倩 AA, story/faction browsing, readable candidate rules and accessible
+reveal/skip/restart. It neither reads nor writes a journey, consumes coins nor
+grants owned copies. Its fixed samples are not evidence of drop rates.
+
+**LZ-A local study complete:** `liaozhai.html` now supplies that preview with
+thirteen illustrations in four image files. 438 Node tests, nine Python tests,
+the unchanged 80-file public build, and fourteen preview groups per
+Chromium/WebKit engine pass. Native Safari opens it; physical-phone and human
+balance review remain open. See [verification](docs/VALIDATION.md#lz-01-literary-design-preview--2026-09-23).
+
+- **LZ-A · Design and art study:** preserve five distinct story groups and four
+  factions; record original-text anchors, candidate stats and meaningful
+  tradeoffs. Review portrait crops, desktop/phone fit, keyboard focus, reduced
+  motion, repeat openings and absence of storage/API activity. Keep preview
+  files outside the production allowlist.
+- **LZ-B · Rules and ownership integration (planned):** admit reviewed characters
+  and immutable print identities into engine/catalogue/codex/decks. Preserve
+  original and WX pools, exact UIDs/XP, pending matches and all older save
+  namespaces. Introduce an explicitly versioned migration and compatible cloud
+  validation where needed; verify stale-tab/recovery behavior with synthetic
+  saves before opening the new content to real journeys.
+- **LZ-C · Earned-coin booster (planned):** specify price, exact distributions,
+  duplicate handling, protection and finite choice routes before implementation.
+  Persist payment, exact grants, counters and receipt atomically; reload and
+  skipped animation must not redraw or pay twice. Give each set its own explicit
+  counters rather than borrowing 西行印/pity. Verify model/runtime equivalence,
+  storage refusal, capacity, multi-tab races and old/new cloud compatibility.
+- **LZ-D · 餘願 experiment (planned):** a public previous-round loss may activate
+  a printed effect. Define first-round/draw behavior, skill suppression and
+  planning/reveal/resume semantics before adding engine support. No secret bid,
+  hidden AI choice or extra round enters the trigger. Base candidates use only
+  current effect types; this keyword is not active in the preview.
+- **LZ-E · Story and full printing programme (planned):** short linked encounters
+  and character-specific choices, then the proposed 12 BASE + 4 AA + 2 INK +
+  1 TR checklist. Final rates, balance and owned-card release are separate
+  acceptance steps; no scarcity countdowns or combat advantage for special art.
+
+**M4.5-HL · 海棠詩社 (selected 2026-09-23):** the next local study is
+`honglou.html`: eight BASE portraits and three AA scenes, a fixed opening,
+candidate rules and the characters' distinct poetry-club roles. The eight-card
+paper deck totals 20 stars. 黛玉 is an unchanged identity reprint; 寶玉、寶釵、
+湘雲、探春、李紈、迎春、惜春 are seven candidates. 熙鳳 stays in the later
+programme. The autumn club and 湘雲's later 芍藥 nap are separate source moments.
+See [HL-01](docs/EXPANSION-HL01.md) and [art provenance](docs/ART-HL01.md).
+
+- **HL-A · Local study complete:** eight portraits and three AA scenes are
+  available; 446 Node tests, nine Python tests, the 80-file public build and
+  14 preview groups per Chromium/WebKit engine pass. Modal keyboard traversal,
+  phone viewport fit, repeat openings and storage isolation are checked.
+  See [verification](docs/VALIDATION.md#hl-01-literary-design-preview--2026-09-23).
+- **HL-B · Shared play and balance (started):** first conversation round was
+  迎春＋0丹 versus sealed 寶玉＋3丹: only 2 damage suffered while saving all 12 pills.
+  Complete the four-round prototype, then try low-star pressure, defensive losses,
+  refund timing and mixed-faction hands; record actual human decisions before
+  calling the candidates balanced. Conversation play does not grant copies.
+- **HL-C · Collection format and integration:** choose a fixed seasonal
+  collection or earned-coin booster after review. Specify acquisition and
+  migrate catalogue/save/cloud validation coherently before admitting these
+  cards to the real game; reuse the retention requirements from LZ-B/C.
+
+**M4.5-S · Broader literary programme:**
+
+| Series | Proposed format and identity | Starting cast / next evidence |
+| --- | --- | --- |
+| 封神・蓮火問天 | 16-character full booster; pressure, disruption, efficient support and high-stakes bids | Unchanged 哪吒 reprint; 姜子牙、楊戩、雷震子、聞仲、妲己、太乙真人. Source-specific roster, 25-star decks and 蓮花化身 INK study. |
+| 白蛇・煙雨人間 | Intimate story collection; rain, bridges, companionship and shelter | 白素貞、小青、許仙、法海. Select a textual version before episodes or rules. |
+| 紅樓・風月入夢 | Seasonal collections; low-star efficiency, recovery and timing | HL-01 海棠詩社 selected above. 黛玉 unchanged; 熙鳳 reprint deferred. Collection versus booster remains open. |
+| 三國・風起赤壁 | Alliances and competing commitments | Preserve 關羽、諸葛亮、貂蟬; consider 劉備、張飛、趙雲、曹操、周瑜、孫尚香. Separate novel portrayal from history. |
+| 水滸・夜雨江湖 | Fellowship, difficult choices and rough humour | Preserve 魯智深/武松; consider 林沖、宋江、李逵、扈三娘. Fix the textual edition. |
+| 山海・同行拾光 | Original-companion stories and new AA scenes | 青霄、霜璃、渡影 and the existing cast retain a place alongside literary expansions. |
+
+Across the programme, series are not new factions. Preserve the four-faction,
+eight-distinct-character/25-star deck structure unless a later reviewed rules
+change explicitly replaces it. Existing named characters receive new printings
+of their existing identities. Alternate art depicts another moment—燕赤霞 after
+sheathing his sword, 聞仲 looking back during a march, 湘雲 resting among flowers—
+without increasing combat stats. See [BOOSTER-SERIES](docs/BOOSTER-SERIES.md) for
+the three initial numeric card sketches and the editorial/art contract.
 
 **M4.6 · Campaign and repeatable activities:** all 48 continuation stages and
 standard 火焰山 are implemented locally; see the
@@ -211,8 +304,9 @@ state records seeds, supplies, exact-copy protections, pending reward grants,
 tickets, weekly activity milestones and mastery without introducing a new
 currency. The old 18 stages and four-stage Westward AA grant remain unchanged.
 An initial 200-run mirrored-public-AI loaner probe cleared **16/200** runs;
-this is reproducible tuning evidence, not a forecast of human success. Finish
-browser acceptance and human standard-mode playtests before selecting changes.
+this is reproducible tuning evidence, not a forecast of human success. Automated
+browser acceptance is recorded in [VALIDATION.md](docs/VALIDATION.md); complete
+human standard-mode playtests before selecting balance changes.
 Advanced difficulty, event-specific art and seasonal rules remain planned;
 real PvP/ranked stays on the M2/M3 authority track.
 
@@ -243,6 +337,13 @@ emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
 
 ### M6 · Limited-edition collectible rehearsal
+
+**Planning review · 2026-09-23:** the [blockchain implementation plan](docs/BLOCKCHAIN-IMPLEMENTATION-PLAN.md)
+compares Solana with Ethereum/Base and proposes one minimal collectible contract,
+required backend/indexer work and bounded implementation packets. Base is the
+recommended candidate; production chain, supply and issuance remain undecided.
+The owner confirmed limited collectible cards with per-copy history while
+ordinary cards remain free to play; ordinary gameplay does not require a wallet.
 
 **Dependencies:** authoritative card identity/history from M2–M3; an explicit rights/mobile decision; a selected owner-controlled wallet and recovery workflow. Local contract/content tests can proceed before any authorized testnet writes.
 
@@ -277,7 +378,7 @@ These are bounded starting points, not instructions to start every phase at once
 | Online client adapter | One match/inventory UI using contract fixtures; clear offline versus online status and reconnect handling. | Agreed contract; can run alongside server implementation. No local-save promotion. |
 | Content/animation sample | One card's original-art manifest, derivatives and reduced-motion animation, with measured payload/render cost. | Independent M4 task; preserve the existing asset fallback. |
 | Mist Gate playtest and next polish | Review the local 霧隱渡口 arrival → reveal → exact-copy XP → next/retry slice; tune audio and pace, then select a small follow-up from [IMMERSION.md](docs/IMMERSION.md). | M4.1–M4.2 local slice is implemented; human/device evidence remains open. Preserve hidden bids, accepted results and single settlement; coordinate `app.mjs` ownership. |
-| Campaign/activity playtest | Finish viewport/browser acceptance, play all six volumes and compare owned/loaner 火焰山 difficulty, supply choices and reward pace. | M4.6 local implementation; record human evidence separately from the 16/200 mirrored-AI probe. Preserve saved seeds, old grants and once-only settlement. |
+| Campaign/activity playtest | Build on recorded automated viewport/browser acceptance; play all six volumes and compare owned/loaner 火焰山 difficulty, supply choices and reward pace. | M4.6 local implementation; record human evidence separately from the 16/200 mirrored-AI probe. Preserve saved seeds, old grants and once-only settlement. |
 | Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
 | Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
 
