@@ -12,6 +12,8 @@ Gameplay still runs from editable browser-local saves; an account backup is not 
 
 **Joining development?** Start with the [agent handover](docs/HANDOVER.md) for the live architecture, infrastructure/access map, fresh-checkout setup, checks and release procedure. The [roadmap](ROADMAP.md) breaks future work into bounded tasks with dependencies and acceptance criteria. Read [AGENTS.md](AGENTS.md) before editing.
 
+**Browse the files:** the [documentation library](docs/README.md) groups guides by purpose and labels implemented behavior, future design, infrastructure, evidence and research. It is the shared document index for people and agents.
+
 ## Run locally
 
 Clone the private repository with an authorized GitHub account:
@@ -160,10 +162,4 @@ This is a private development repository. No open-source license or NFT-holder a
 - `assets/portraits.png`: original 4 × 3 character atlas.
 - `assets/world-map.png`: original illustrated six-realm map.
 - `assets/classics.png`: 4 × 3 atlas of the twelve classical characters.
-- [Art generation record](docs/ART.md): exact prompts and provenance.
-- [Technical plan](docs/TECHNICAL-PLAN.md): implementation order and architecture decisions.
-- [Backend stack](docs/BACKEND-STACK.md): server authority, transactions, schema and cost assumptions.
-- [Accounts and cloud journeys](docs/ACCOUNTS.md): implemented backup behavior, security boundary and SMTP readiness.
-- [NFT stack](docs/NFT-STACK.md): testnet candidates, wallets, ownership indexing and metadata.
-- [Content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md): artwork, animation and versioned content delivery.
-- [Hosting](docs/HOSTING.md): build allowlist, Cloudflare setup and actual deployment evidence.
+- [Documentation library](docs/README.md): complete titles, purpose tags and links for gameplay, accounts, infrastructure, future architecture and provenance.

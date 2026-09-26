@@ -4,6 +4,10 @@ Start here when joining development. Snapshot: **2026-09-21, v0.5.1 live**. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
 
+Use the [documentation library](README.md) to browse by title, purpose and tags.
+It distinguishes implemented behavior, operations, future designs and historical
+research while this handover remains the operational starting point.
+
 ## The project in one minute
 
 **萬象契 / Mythseal** is an original Eastern mythology card game inspired by

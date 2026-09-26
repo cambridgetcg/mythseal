@@ -3,6 +3,7 @@
 An original browser card game inspired by the four-round bluffing and resource allocation of 神魔令. Traditional Chinese interface, original characters and artwork.
 
 - New agents: start with `docs/HANDOVER.md` for current architecture, infrastructure, fresh-checkout setup and verification boundaries; choose a bounded task from `ROADMAP.md`. Dated design proposals are not evidence of deployed services.
+- `docs/README.md` is the document index and classification vocabulary. Keep one owner for each guide's subject, link to existing detail, and preserve stable file paths when reorganizing navigation.
 - Coordinate one writer per artifact and preserve uncommitted work. Hand off the source commit, changed behavior, checks actually completed and any service/migration changes; keep credentials and player data out of handoffs.
 - Keep the browser runtime dependency-free: HTML, CSS and JavaScript ES modules. Use Node's built-in test runner; Python serves the local game. Build/deployment tooling is separate from runtime dependencies.
 - `engine.mjs` owns pure battle rules and card data; `app.mjs` owns UI and match presentation. Keep randomness injectable and do not give AI access to the player's hidden move.

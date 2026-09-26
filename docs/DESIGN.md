@@ -1,4 +1,4 @@
-# 山海弈 · prototype rules
+# 萬象契 · Mythseal battle rules and prototype choices
 
 An original local browser game inspired by the resource management and bluffing in 神魔令. Characters, writing, art and card balance are newly created. This is a playable local game, not an authenticated reconstruction of the old server.
 
