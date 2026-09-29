@@ -1,6 +1,6 @@
 # Mythseal agent handover
 
-Start here when joining development. Updated **2026-09-24**. The last recorded
+Start here when joining development. Updated **2026-09-29**. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -24,27 +24,47 @@ and paid acquisition are retired objectives; dated NFT designs are historical re
 
 | Item | Handover baseline |
 | --- | --- |
-| Source | [cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal), private repository; `main` is the recorded default branch, but the current development checkpoint is on **`codex/game-lobby`** |
+| Source | [cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal), private repository; fetched `main` is **`22092fc`**, including merged game-lobby PR #1, at the 2026-09-29 documentation checkpoint |
 | Public game | [mythseal.com](https://mythseal.com); apex returned HTTP 200 and `/release.json` still reported v0.5.1 `ea48558` on **2026-09-24**. HTTP/`www` → HTTPS apex is recorded release evidence from 2026-09-21 |
 | Last recorded public source | Tag `v0.5.1`, commit `ea485586d14032bc145a993749a49d5c343ff5f8`, deployed **2026-09-21**; later source commits do not imply deployment |
 | Recorded public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **2026-09-21 21:33:57 UTC** and again on **2026-09-24**; see [HOSTING.md](HOSTING.md) for the release receipt |
 | Public release boundary | That v0.5.1 snapshot has 19 allowlisted game assets plus generated metadata; the current source build has 80. Server source, docs, tests and credentials stay excluded |
-| Current owner workspace | **`/Users/yuai/Projects/mythseal`**. `/Users/macair/Games/shanhai-duel` is a historical workspace, not the current path |
+| Owner workspace | Machine-specific: the 2026-09-24 checkpoint used `mythseal`; another existing checkout is named `shanhai-duel`. Resolve the actual checkout/branch before editing; neither directory name establishes current source or running-service state |
 
 A private repository still serves its approved JavaScript and artwork publicly.
 Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
 
+## Experience planning checkpoint · 2026-09-29
+
+The fetched default branch now contains PR #1 at merge commit `22092fc`; start
+new work from current `main`, not an assumed still-unmerged game-lobby branch.
+The separate documentation-navigation PR #2 remains independent. Preserve its
+work when updating shared guide entry points.
+
+The owner requested transferring the RXSG restoration's smoothness and richer
+gameplay lessons into Mythseal. Read [EXPERIENCE-LESSONS](EXPERIENCE-LESSONS.md),
+then choose a [Q0–Q6 roadmap packet](../ROADMAP.md#experience-quality-track).
+[EXPERIENCE-MODULES](EXPERIENCE-MODULES.md) specifies the proposed module contracts,
+local/online boundaries and infrastructure. Start with the existing battle-table
+visibility fix and a small command/receipt extension; reuse WX boxes, inheritance,
+exact-copy identities and current content rather than rebuilding them.
+
+This is documentation/planning only: no gameplay implementation, dependency,
+hosted migration, service provisioning or deployment. It adds no fresh live,
+physical-device or performance evidence. Agent practice and care automation are
+proposals with explicit information/spending boundaries, not completed features.
+
 ## Current source checkpoint · 2026-09-24
 
-Continue on **`codex/game-lobby`**, not an assumed `main` snapshot. The
+Historical checkpoint: development then continued on **`codex/game-lobby`**. The
 2026-09-24 publication checkpoint is recorded: the literary-preview, plan and
 handover work is commit **`e61d60a`** on base `ed60996`; `origin/main`'s
 2026-09-23 retirement commit `83216cc` is merged in **`e1fe8ac`**; the branch is
 pushed to `origin/codex/game-lobby` and opened as [PR #1](https://github.com/cambridgetcg/mythseal/pull/1) against
-`main`, where CI runs on the pull request. Merging that PR is the owner's
-decision. Pushing a branch authorizes no deployment.
+`main`, where CI runs on the pull request. That PR has since merged as recorded
+above. Pushing a branch does not deploy the game.
 
 - **Direction note · 2026-09-23/24:** `main` retired collectible commercialization,
   paid acquisition and NFT issuance as delivery objectives (`83216cc`, 22:32 BST).
@@ -367,7 +387,7 @@ binaries; do not omit development or optional dependencies. It does not install
 Foundry, Docker, Playwright browsers, Xcode or Android toolchains.
 
 ```sh
-gh repo clone cambridgetcg/mythseal -- --branch codex/game-lobby
+gh repo clone cambridgetcg/mythseal -- --branch main
 cd mythseal
 git status --short
 git switch -c agent/your-task
@@ -378,14 +398,14 @@ npm run build
 python3 tools/serve.py --port 4177
 ```
 
-The explicit branch flag fetches the current development line instead of the
-older default-branch snapshot. On the existing Sol Mac, prefer
-`sol access run github -- repo clone cambridgetcg/mythseal -- --branch codex/game-lobby`
-when cloning; the current checkout is already at `/Users/yuai/Projects/mythseal`.
+The explicit branch flag selects `main`, which now includes the game-lobby
+development checkpoint. On the existing Sol Mac, its recorded access wrapper is
+`sol access run github -- repo clone cambridgetcg/mythseal -- --branch main`
+when cloning; that machine's recorded checkout is `/Users/yuai/Projects/mythseal`.
 For an existing clone, inspect its branch and dirty work before fetching/switching;
 do not reset or overwrite another agent's work to follow this recipe.
 
-**GitHub access gotcha on this Mac:** `gh`'s shared active account may be
+**Recorded GitHub access gotcha on the Sol Mac:** `gh`'s shared active account may be
 `mynameisyou-cmyk`, which cannot see this private repository, so plain
 `git fetch`/`git push` fail with "Repository not found" or "invalid credentials".
 Use `sol access run github -- <gh args>` for `gh` commands, and for `git` itself

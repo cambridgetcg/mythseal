@@ -12,6 +12,12 @@ Gameplay still runs from editable browser-local saves; an account backup is not 
 
 **Joining development?** Start with the [agent handover](docs/HANDOVER.md) for the live architecture, infrastructure/access map, fresh-checkout setup, checks and release procedure. The [roadmap](ROADMAP.md) breaks future work into bounded tasks with dependencies and acceptance criteria. Read [AGENTS.md](AGENTS.md) before editing.
 
+**Experience development:** [lessons from the RXSG restoration](docs/EXPERIENCE-LESSONS.md)
+map to [Q0–Q6 work packets](ROADMAP.md#experience-quality-track) and
+[module/infra design notes](docs/EXPERIENCE-MODULES.md): clearer decisions,
+previewed batch care, bounded automation, content capabilities and fair agent
+practice. These are plans built on the existing game, not new deployed features.
+
 The [fresh-clone toolkit check](docs/TOOLKIT.md) records the latest local setup,
 access verification, test evidence and remaining prerequisites.
 

@@ -10,6 +10,13 @@ The game still uses local saves and AI opponents. Daily activities, the backpack
 
 ## Selected technical direction
 
+The **2026-09-29 experience track** turns restoration lessons into bounded
+local improvements: [rationale and UX decisions](EXPERIENCE-LESSONS.md),
+[module/command/infrastructure contracts](EXPERIENCE-MODULES.md), and
+[Q0–Q6 delivery packets](../ROADMAP.md#experience-quality-track). Reuse current
+save/receipt/content modules before adding services; these documents propose
+work and do not change the deployed architecture below.
+
 Commercial collectible launch and paid acquisition are retired objectives as of
 2026-09-23. The chain and collectible rows below preserve optional technical
 research, not a delivery obligation. Understanding alone is sufficient; there
