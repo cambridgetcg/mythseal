@@ -297,7 +297,9 @@ async function reveal(page, { round, playerCard, opponentCard }) {
       const footer = modal.querySelector('.battle-reveal-footer [data-action="next-round"]'), rect = footer.getBoundingClientRect();
       const clear = [0.2, 0.5, 0.8].every(fraction => { const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height * fraction); return hit === footer || footer.contains(hit); });
       const doc = document.documentElement;
-      return { pair: visible(pair) ? pair.textContent : null, round: modal.querySelector('.reveal-pair-round')?.textContent, eyebrow: modal.querySelector('.eyebrow,.mist-reveal-caption')?.textContent,
+      const clipped = [modal, ...modal.querySelectorAll('[data-viewport-module],[data-viewport-list],.viewport-list-frame')].filter(visible)
+        .filter(node => node.scrollHeight > node.clientHeight + 2 || node.scrollWidth > node.clientWidth + 2).map(node => `${node.className}:${node.clientHeight}/${node.scrollHeight}`);
+      return { clipped, pair: visible(pair) ? pair.textContent : null, round: modal.querySelector('.reveal-pair-round')?.textContent, eyebrow: modal.querySelector('.eyebrow,.mist-reveal-caption')?.textContent,
         clash: visible(clash) ? [...clash.querySelectorAll('.clash-side')].map(side => `${side.dataset.side}:${side.querySelector('.card-name')?.textContent}`) : null,
         footer: { clear, inside: rect.bottom <= innerHeight + 0.5 && rect.top >= 0, height: rect.height }, scroll: doc.scrollHeight > innerHeight + 1 || doc.scrollWidth > innerWidth + 1 };
     });
@@ -309,6 +311,7 @@ async function reveal(page, { round, playerCard, opponentCard }) {
     assert(view.eyebrow?.includes(`${round}`), `${tab}: reveal labelled with round ${round}`);
     assert(view.footer.clear && view.footer.inside && view.footer.height >= 43.5, `${page.size} ${tab}: Next reachable ${JSON.stringify(view.footer)}`);
     assert(!view.scroll, `${tab}: no document scroll`);
+    assert.deepEqual(view.clipped, [], `${page.size} ${tab}: reveal page content must fit without scrolling`);
   }
   return accepted;
 }
