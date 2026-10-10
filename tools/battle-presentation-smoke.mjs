@@ -7,7 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { createMatch, resolveRound, RULES } from '../engine.mjs';
 import { createProfile, beginBattle, finishBattle, PROFILE_KEY } from '../progression.mjs';
 
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const browserName = process.env.BROWSER || 'chromium';
+if (!['chromium', 'webkit'].includes(browserName)) throw Error('BROWSER must be chromium or webkit.');
+const runtime = fileURLToPath(new URL('../test-results/webkit-runtime', import.meta.url));
+if (browserName === 'webkit' && !process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync(runtime)) process.env.PLAYWRIGHT_BROWSERS_PATH = runtime;
+const engines = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.GAME_URL || 'http://127.0.0.1:4177';
 if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(base).hostname)) throw Error('Battle presentation smoke requires a loopback server.');
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -20,7 +24,7 @@ const state = page => page.evaluate(({ profile, battle }) => ({ profile: JSON.pa
 const passed = label => { checks.push(label); console.log(`PASS ${label}`); };
 const resources = match => Object.fromEntries(['player', 'opponent'].map(side => [side, { hp: match[side].hp, pills: match[side].pills }]));
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ headless: true, ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
+const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
 
 // Legal resumable positions isolate boundary effects; the application commits
 // the moves and the real engine supplies expected combat/settlement results.
@@ -148,6 +152,8 @@ async function shot(page, name) {
   });
   // Overlay screenshots use the actual viewport so sticky controls and clipping
   // are reviewable; the unobscured battle screen keeps a full-page artifact.
+  // Keep Chromium artifact names stable; other engines get their own files.
+  if (browserName !== 'chromium') name = name.replace('battle-presentation-', `battle-presentation-${browserName}-`);
   await page.screenshot({ path: output + name, fullPage: (await page.locator('.modal').count()) === 0 }); screenshots.push(name);
 }
 
@@ -337,7 +343,7 @@ try {
   passed('360px and 390px public previews, clash cards, compact resource results and next-round controls fit with complete readable numerals');
   passed('360px and 390px sticky Next/settings/animated Skip fit the modal viewport, remain unobstructed across scrolling, and keyboard Skip returns focus to Next');
   assert.deepEqual(errors, [], 'Browser errors or missing local assets');
-  console.log(JSON.stringify({ ok: true, checks, screenshots, traces, layouts, footerChecks, browserErrors: errors, evidence: 'Isolated local Chrome, real engine outcomes and legal seeded positions; desktop/mobile viewports, not physical-device or audio-listening evidence.' }, null, 2));
+  console.log(JSON.stringify({ ok: true, checks, screenshots, traces, layouts, footerChecks, browserErrors: errors, browser: { name: browserName, version: browser.version() }, evidence: 'Isolated local headless browser, real engine outcomes and legal seeded positions; desktop/mobile viewports, not physical-device or audio-listening evidence.' }, null, 2));
 } catch (error) {
   console.error(JSON.stringify({ ok: false, passed: checks, screenshots, traces, layouts, footerChecks, browserErrors: errors, error: error.stack }, null, 2));
   process.exitCode = 1;

@@ -47,7 +47,7 @@ const SELECTORS = {
   lobbyAction: '.game-lobby [data-action="resume"]', // pending fixture -> lobby CTA "繼續對局"
   ownCard: '#app [data-action="select"][data-side="player"]',
   opponentCard: '#app [data-side="opponent"][data-card-id]', // public four-card hand (buttons from cardMarkup)
-  announced: '#app .enemy-thought, #app [data-battle-announced], #app [data-announced-card]', // NEEDS UPDATE if Q0 drops .enemy-thought
+  announced: '#app .enemy-thought, #app [data-battle-announced], #app [data-announced-card]', // Q0 table: centre slot [data-battle-announced]; the lineup card has aria-current
   pillPlus: '#app [data-action="pill-plus"]',
   pillMinus: '#app [data-action="pill-minus"]',
   fury: '#app [data-action="fury"]',
