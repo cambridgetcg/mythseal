@@ -6,9 +6,10 @@
  * elementFromPoint hit tests; that secret AI bids/Fury never change pre-reveal
  * DOM/ARIA; that inspection keeps focus, draft, saves and RNG; and that reveal,
  * Next and reload keep round/card labels. Keyboard focus returns to Commit after
- * Next; selection patches the hand in place. A fit sweep adds tablet and other
- * window sizes with four-character names. Headless engines only: physical
- * iOS/Android and human review are separate evidence.
+ * Next; selection patches the hand in place. A fit sweep adds tablet, phone
+ * landscape and other window sizes with four-character names, then commits and
+ * pages through every reveal page by tapping its pager. Headless engines only:
+ * physical iOS/Android and human review are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] [BATTLE_TABLE_SIZE=360x640] node tools/battle-table-smoke.mjs
  * BATTLE_TABLE_SIZE limits the flows and the fit sweep to that one contract size.
  */
@@ -34,8 +35,11 @@ const now = '2026-09-22T12:00:00.000Z', battleKey = 'shanhai.battle.v5', prefere
 const sizes = [[1440, 900], [1280, 720], [390, 844], [360, 740], [360, 640], [844, 390]];
 const selectedSizes = process.env.BATTLE_TABLE_SIZE ? sizes.filter(pair => pair.join('x') === process.env.BATTLE_TABLE_SIZE) : sizes;
 // Beyond the six contract sizes: portrait tablets and landscape windows between
-// the phone and roomy layouts, short roomy windows, and common phones.
-const SWEEP = [[601, 800], [700, 800], [744, 1133], [768, 1024], [800, 600], [820, 1180], [834, 1194], [906, 700], [960, 540], [1024, 600], [1024, 768], [1366, 768], [1920, 1080], [375, 667], [412, 915], [667, 375], [740, 360]];
+// the phone and roomy layouts, short roomy windows (800x600 to 1280x620 put the
+// reveal pair above the resource page), common phones, a phone browser with its
+// bars (375x553) and phone landscape (640x360, and 600 px wide or narrower:
+// 568x320, 600x400, 560x420, 600x540).
+const SWEEP = [[601, 800], [700, 800], [744, 1133], [768, 1024], [800, 600], [820, 1180], [834, 1194], [906, 700], [960, 540], [1024, 600], [1024, 768], [1280, 620], [1366, 768], [1920, 1080], [375, 667], [375, 553], [412, 915], [667, 375], [740, 360], [640, 360], [568, 320], [600, 400], [560, 420], [600, 540]];
 const sweepSizes = process.env.BATTLE_TABLE_SIZE ? selectedSizes : [...sizes, ...SWEEP];
 assert(selectedSizes.length, 'BATTLE_TABLE_SIZE must name one supported size');
 const checks = [], screenshots = [], errors = [], measurements = [], contexts = new Set();
@@ -299,8 +303,13 @@ async function inspect(page, selector, { keyboard = false, label }) {
   assert.equal(await rng(page), before.draws, `${label}: no RNG drawn`);
 }
 
-/** Commit, then walk every reveal page: played cards stay visible with lastResult labels. */
-async function reveal(page, { round, playerCard, opponentCard, keyboard = false }) {
+/**
+ * Commit, then walk every reveal page: played cards stay visible with lastResult
+ * labels. Each paged list is paged to its end by tapping 下頁 (press() asserts the
+ * button's centre is not covered); every page's items stay inside the list, and
+ * the 生命與仙丹 page reaches both public panels.
+ */
+async function reveal(page, { round, playerCard, opponentCard, keyboard = false, shotTab = null }) {
   if (keyboard) { await page.locator('#app [data-action="commit"]').focus(); await page.keyboard.press('Enter'); }
   else await press(page, page.locator('[data-action="commit"]'), 'commit');
   await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
@@ -335,6 +344,27 @@ async function reveal(page, { round, playerCard, opponentCard, keyboard = false 
     assert(view.footer.clear && view.footer.inside && view.footer.height >= 43.5, `${page.size} ${tab}: Next reachable ${JSON.stringify(view.footer)}`);
     assert(!view.scroll, `${tab}: no document scroll`);
     assert.deepEqual(view.clipped, [], `${page.size} ${tab}: reveal page content must fit without scrolling`);
+    const sides = new Set();
+    for (let turn = 0; turn < 8; turn++) {
+      const list = await page.evaluate(() => {
+        const module = document.querySelector('.battle-reveal [data-viewport-module]:not([hidden])'), list = module?.querySelector('[data-viewport-list]');
+        if (!list) return null;
+        const frame = list.getBoundingClientRect(), items = [...list.children].filter(item => !item.hidden);
+        const pager = module.querySelector('.viewport-pagination'), next = pager?.querySelector('[data-viewport-action="next"]');
+        const shown = !!pager && getComputedStyle(pager).display !== 'none';
+        return { page: list.dataset.page, pages: list.dataset.pageCount, overflow: list.dataset.viewportOverflow, sides: items.map(item => item.dataset.side).filter(Boolean),
+          cut: items.filter(item => { const rect = item.getBoundingClientRect(); return rect.top < frame.top - 1 || rect.bottom > frame.bottom + 1; }).map(item => `${item.className} ${Math.round(item.getBoundingClientRect().height)}/${Math.round(frame.height)}`),
+          pager: shown, more: shown && !!next && !next.disabled };
+      });
+      if (!list) break;
+      list.sides.forEach(side => sides.add(side));
+      assert.deepEqual([list.overflow, list.cut], ['false', []], `${page.size} ${tab} page ${list.page}/${list.pages}: items stay inside the list`);
+      assert(list.pager || list.pages === '1', `${page.size} ${tab}: ${list.pages} pages but no pager`);
+      if (!list.more) { assert.equal(list.page, list.pages, `${page.size} ${tab}: paged to the end`); break; }
+      await press(page, page.locator('.battle-reveal [data-viewport-module]:not([hidden]) [data-viewport-action="next"]'), `${tab} 下頁`);
+    }
+    if (tab === 'resources') assert.deepEqual([...sides].sort(), ['opponent', 'player'], `${page.size}: both public resource panels reachable by pointer`);
+    if (tab === shotTab) await shot(page, `reveal-${tab}`);
   }
   return accepted;
 }
@@ -556,9 +586,10 @@ try {
     }
     await press(page, page.locator('#battle-card-player-tieshan'), 'select tieshan');
     await shot(page, 'long-names');
+    await reveal(page, { round: 1, playerCard: 'tieshan', opponentCard: 'liuer', shotTab: 'resources' });
     await release(page);
   }
-  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced; every decision input inside the viewport and hit-testable; no page or table overflow`);
+  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced; every decision input inside the viewport and hit-testable; no page or table overflow; the reveal's pages fit, every pager is tappable and both resource panels are reachable`);
 
   // Finished overkill settles exactly once across Next and reload.
   const finished = FIXTURES['q0-overkill-finished'];
