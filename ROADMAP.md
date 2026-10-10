@@ -136,6 +136,10 @@ new renderer to make local play clearer.
 - **Exit:** simultaneous-visibility and real hit-test assertions pass for both
   initiative states and reveal/resume; hidden bids remain private. Record a
   before/after measurement and label any physical-device/human review still open.
+- **Status 2026-10-10:** implemented on branch `q0/battle-table`, awaiting review;
+  checks and the before/after record are in the
+  [battle-table plan](docs/BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10).
+  Physical-device and human review remain open.
 
 ### Q1 · One local command and receipt boundary
 

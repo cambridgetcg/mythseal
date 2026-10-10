@@ -1,8 +1,12 @@
 # Battle table visibility · layout plan
 
 Proposed 2026-09-23 after the owner could no longer see the opponent's played
-card and lineup while making a move after the viewport conversion. This is a
-plan and a separate conversation mockup; the running battle UI is unchanged.
+card and lineup while making a move after the viewport conversion.
+
+**Status 2026-10-10:** implemented on branch `q0/battle-table` (steps 1–4 below),
+not yet reviewed, merged or deployed. Headless Chromium/WebKit loopback checks
+pass; physical iOS/Android and human review remain open. See
+[Implementation record](#implementation-record-2026-10-10).
 
 ## Finding and priority
 
@@ -108,3 +112,72 @@ inspection/focus return, four-card visibility, 44 px controls and horizontal fit
 The 360 px table itself measures 560 px high; real game chrome, full portraits,
 attack estimates and short-landscape adaptation still require implementation
 verification. No player storage, network service or live game was used.
+
+## Implementation record (2026-10-10)
+
+Source: `q0/battle-table` from `ced2aa4`; checks below ran on `a6badf0` with a
+clean tree against a loopback dev server. This is synthetic evidence only.
+
+**What changed.** `battle-presentation.mjs` adds the public model:
+`permittedAnnouncement` (the only reader of the hidden AI move; returns a card ID
+or null and never reads bid/Fury), `createPlanningView` and `createRevealView`
+(labels from `lastResult`). `battle-ui.mjs` renders one table from it. The battle
+adapter now makes a single 對局 module, so no tab strip or pager exists. Selecting
+a card updates the row and centre in place. Inspect and history focus their origin,
+so focus returns in WebKit too. The reveal-time page is the same table in reveal
+mode, and the round-result dialog keeps a compact played pair beside its
+resource/effect pages (one line in short landscape). Commit computes a responding
+move only when the player leads and drops the resolved move. Resume gives an old
+snapshot without a leading commitment one from public state before any input. The
+snapshot schema is unchanged; `BATTLE_KEY` still stores the AI move locally, and
+Q5's observation must never read it. No engine, reward, AI, save or art changes.
+The selected card's full ability text now lives in its inspect sheet (centre slot)
+rather than under the move controls.
+
+**Checks.**
+- `node --test tests/*.test.mjs`: 456/456. New `tests/battle-table-view.test.mjs`
+  covers the gate, the view whitelist, the RNG trap, hidden-bid invariance over 40
+  seeded matches, the stale round, slots/used rounds and markup.
+- `npm run test:battle-table` (`tools/battle-table-smoke.mjs`), Chromium and
+  WebKit, at all six sizes: 38/38 each. It covers simultaneous visibility with
+  `elementFromPoint` hit tests after every real card/pill/slider/Fury input in both
+  initiative states and round 3, and identical HTML/ARIA/announcer for different
+  hidden bids. It also covers inspect focus, draft and save bytes, reveal pages →
+  Next → reload, Mist Gate, a legacy snapshot, motion/pace and once-only settlement.
+- `tools/viewport-smoke.mjs` 23/23 and `tools/battle-presentation-smoke.mjs`
+  6/6 in each engine. The presentation smoke now honours `BROWSER`; earlier
+  "WebKit" runs of it were Chromium.
+- The rest of `npm run test:browser` passed in Chromium. `tools/expansion-smoke.mjs`
+  passed in Chromium; WebKit stops at a pre-existing 43.08 px rewards-dialog tab
+  at 360×740 and 360×640, reproduced on the base commit. 844×390 passed.
+
+**Before/after** (`tools/battle-measure.mjs`, fixture
+`q0-arena-round1-opponent-leads`; before = `a53270d`, after = `a6badf0`; headless
+Playwright Chromium 153 and WebKit 26.6, loopback no-store server, normal pace):
+
+| Measure | Before | After |
+| --- | --- | --- |
+| One round, minimal taps (view switches) | 5 (0) | 5 (0) |
+| One round while checking the opponent | 11 (6) | 5 (0) |
+| Opponent cards, announcement, own selection and controls visible at once | never | every step |
+| Own cards visible at start, 390×844 | 2/4 | 4/4 |
+| Core input → next paint p50/p95, Chromium desktop / phone / phone CPU×4 | 16.0/16.8 · 32.6/33.4 · 32.3/35.7 ms | 16.2/16.9 · 32.6/34.2 · 32.5/33.7 ms |
+| Core input → next paint p50/p95, WebKit desktop / phone | 16/18 · 16/17 ms | 16/18 · 16/17 ms |
+| Resume tap → first own card clickable, cold p50, Chromium desktop / phone / CPU×4 | 57 / 33.8 / 76.9 ms | 61.7 / 44.6 / 91.3 ms |
+| Same, WebKit desktop / phone | 25 / 24 ms | 48 / 47 ms |
+| Commit → reveal complete; Next → decision-ready, all runs | 1113–1161; 29–63 ms | 1115–1180; 31–70 ms |
+| Transfer per entry, Chromium / WebKit | 7,996,394 / 11,936,212 B | 8,021,493 / 11,961,311 B |
+
+Steps and simultaneity improved as intended. Input latency did not change beyond
+frame quantization; Chromium phone numbers include about one frame of touch
+emulation. The first table paint after resume is 5–23 ms slower, and WebKit's
+Next → ready rose from 29–34 to 61–70 ms, likely because eight portraits and two
+thumbnails now paint at once (not profiled). These are single-machine headless
+runs, not device performance.
+
+**Still open.** Physical iOS/Android and human review; owner review of the
+compact phone cards and short-landscape arrangement; removal of now-unused
+battle CSS for the old hooks (`.hand-caption`, `.battle-divider`,
+`.mist-offering`) in `styles.css`/`mist-gate.css`; the pre-existing WebKit
+rewards-dialog tab width.
+
