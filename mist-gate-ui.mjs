@@ -1,6 +1,5 @@
 /** Decorative, public presentation of the existing Mist Gate encounter. */
 const safe = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
-const count = value => Math.max(0, Math.min(12, Math.floor(Number(value) || 0)));
 const factionColor = value => /^#[\da-f]{3,8}$/i.test(value || '') ? value : '#d8bd83';
 
 const lantern = (compact = false) => `<svg class="mist-lantern${compact ? ' is-small' : ''}" viewBox="0 0 100 150" fill="none" aria-hidden="true" focusable="false"><ellipse class="mist-lantern-halo" cx="50" cy="78" rx="45" ry="50"/><path class="mist-lantern-wire" d="M50 0v35M39 43v-6a11 11 0 0 1 22 0v6"/><path class="mist-lantern-cap" d="m26 47 8-6h32l8 6v5H26v-5Z"/><path class="mist-lantern-paper" d="M29 55h42l-4 48H33l-4-48Z"/><path class="mist-lantern-rib" d="m38 55 3 48m9-48v48m12-48-3 48M30 66h40M31 90h38"/><path class="mist-lantern-flame" d="M51 68c1 8-6 10-5 17 1 7 8 5 9 0 1-6-2-9-4-17Z"/><path class="mist-lantern-cap" d="M33 104h34v6H33z"/><path class="mist-lantern-wire" d="M50 110v17m-4 0 4-5 4 5-4 9-4-9Z"/><path class="mist-lantern-reflection" d="M28 142h44m-34 5h24"/></svg>`;
@@ -12,13 +11,6 @@ export function mistGateArrivalMarkup({ returning = false } = {}) {
 export function mistGateBattleMarkup({ round = 1, initiative = 'player' } = {}) {
   const lastRound = Number(round) >= 4;
   return `<aside class="mist-battle-heading" aria-label="霧隱渡口，守渡弈者"><div class="mist-battle-place">${lantern(true)}<div><span>霧隱渡口</span><small>守渡弈者 <span aria-hidden="true">·</span> AI 對弈</small></div></div><p>${lastRound ? '燈影將盡，這一子留給當下。' : initiative === 'opponent' ? '看清來勢，再決定如何渡河。' : '水面很靜，落子由你。'}</p></aside>`;
-}
-
-export function mistGatePillsMarkup({ pills = 0, fury = false, remaining = 12 } = {}) {
-  const offered = count(pills);
-  const furyCost = fury ? Math.min(3, 12 - offered) : 0;
-  const reserve = Math.min(count(remaining), 12 - offered - furyCost);
-  return `<div class="mist-offering${fury ? ' has-fury' : ''}" aria-hidden="true"><div class="mist-offering-caption"><span>暗置仙丹</span><span>${fury ? '蓄勢 · 怒擊' : '留有餘地'}</span></div><div class="mist-offering-tray">${Array.from({ length: 12 }, (_, index) => `<i class="${index < offered ? 'is-offered' : index < offered + furyCost ? 'is-fury' : index < offered + furyCost + reserve ? 'is-reserve' : 'is-spent'}"></i>`).join('')}</div></div>`;
 }
 
 export function mistGateResonanceMarkup({ factions = [] } = {}) {
