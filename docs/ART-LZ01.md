@@ -74,13 +74,20 @@ No image was generated, no file was added under `assets/lz01/`, and nothing was
 bound in `liaozhai-cards.mjs` or listed in `hosting/preview-assets.json`. The
 session that wrote them could not generate images. A later run should use the
 repository's built-in imagegen route ([pipeline](CONTENT-RELEASE-PIPELINE.md#2-插畫製作與可重建加工)).
-The owner chose not to use ArtCraft for this batch. Treat each prompt as a plan:
-if the generation prompt changes, record the text actually sent.
+Treat each prompt as a plan: if the generation prompt changes, record the text
+actually sent.
 
 **How the sources were checked:** on 2026-10-10, each quoted phrase was matched
 verbatim inside its own story section of the rendered zh.wikisource volume page.
-A second WebFetch reading confirmed the same phrases. Quotes avoid passages that
-carry this transcription's `{{另|…}}` variant-reading markup. Each brief separates
+A second WebFetch reading confirmed the same phrases. No quoted string contains
+this transcription's `{{另|…}}` variant-reading markup, but three sit beside
+variant readings: 「鋪人皮于榻上，執彩筆」 stops just before 「而{{另|繪|畫}}之」,
+「見一獰鬼，面翠色」 is followed by 「齒巉{{另|巉|然}}」, and 「黃昏告退，輒過齋頭，就燭誦經」
+sits between 「曲{{另|承|成}}」 and 「慘然{{另|去|出}}」. The rendered page prints
+these inline, for example 「執彩筆而繪一作「畫」之」. The 嬰寧 quotes added in
+the same-day review (「勿爾，墮矣！」, 「生俟其笑歇，乃出袖中花示之」,
+「懷梅袖中，負氣自往」, 「年已十六」, 「阿甥已十七」) were each matched once, inside
+the 嬰寧 section, in both the rendered page and its raw wikitext. Each brief separates
 the **verified anchor** from the **invented composition**. Rain, lamps, poses,
 footpaths and framing are Mythseal art direction unless the quote says otherwise.
 
@@ -93,8 +100,10 @@ footpaths and framing are Mythseal art direction unless the quote says otherwise
 | `lz01-008-ink1` | 畫皮之鬼 · INK 墨卷 | 墨下另一面 | `assets/lz01/huapi-ink.png` | [卷一・畫皮](https://zh.wikisource.org/wiki/聊齋志異/第01卷#畫皮) | 「舉皮如振衣狀，披于身，遂化為女子」 |
 | `lz01-001-tr1` | 聶小倩 · TR 天工 | 歸燈 | `assets/lz01/xiaoqian-treasure.png` | [卷二・聶小倩](https://zh.wikisource.org/wiki/聊齋志異/第02卷#聶小倩) | 「黃昏告退，輒過齋頭，就燭誦經」 |
 
-File names follow the existing `xiaoqian-aa.png` pattern and the
-`assets/lz01/[a-z0-9-]+.png` rule enforced by `tests/liaozhai-content.test.mjs`.
+File names follow the existing `xiaoqian-aa.png` pattern and match the
+`assets/lz01/[a-z0-9-]+.png` pattern that `tests/liaozhai-content.test.mjs`
+applies to BASE atlas paths. The test does not regex-check `LZ01_AA.src`; it
+only checks that file's PNG signature and non-zero header dimensions.
 `-treasure` follows the WX-01 TR file `assets/expansion/wukong-treasure.png`.
 The names are proposals; nothing may point at them until the files exist.
 
@@ -120,16 +129,22 @@ The names are proposals; nothing may point at them until the files exist.
 
 - **Verified anchor:** In the small garden behind the house, 王子服 hears rustling
   overhead and finds 嬰寧 laughing in a tree: 「仰視，則嬰寧在上。見生來，狂笑欲墮」.
-  The garden itself: 「有園半畝，細草鋪氈，楊花糝徑」. He carries the dried plum
-  blossom in his sleeve (「懷梅袖中」).
+  He calls up to her: 「生曰：『勿爾，墮矣！』」. The garden itself:
+  「有園半畝，細草鋪氈，楊花糝徑」. Only after her laughter has stopped does he
+  show the flower: 「生俟其笑歇，乃出袖中花示之」. 「懷梅袖中」 comes from an
+  earlier passage, when he set out alone to find her (「懷梅袖中，負氣自往」), not
+  from the garden scene.
 - **Invented:** The tree's blossom species (the text does not name it), the
-  light, the scale relationship and the camera distance.
+  light, the scale relationship and the camera distance. The dried plum blossom
+  is drawn still half-tucked in his sleeve, a foreshadowing of the later
+  reveal; in the text it stays out of sight until her laughter stops.
 - **Excluded:** the courtship dialogue that follows, the wrist-holding, the
-  neighbour episode and any fox features. In this story 嬰寧 is sixteen, so keep
-  her playful and non-romantic.
+  neighbour episode and any fox features. In this story 嬰寧 is sixteen
+  (「年已十六」) and 王子服 seventeen (「阿甥已十七」), so keep the scene playful
+  and non-romantic.
 
 ```text
-Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Yingning: Laughter Hidden among Flowers. A half-acre walled back garden behind a small three-bay thatched cottage, enclosed on all sides by flowering trees; fine grass like a soft carpet, a narrow path dusted with drifting willow catkins, abundant pale pink and white spring blossom filling much of the canvas as breathing space. High in a blossoming tree in the upper middle, Yingning, a fully clothed Chinese teenage girl from the classical story, simple fresh green robes and half-tied dark hair, is caught laughing so helplessly she almost loses her balance, one hand gripping a branch, petals shaken loose around her; her bright natural laughing face catches soft warm spring light and stays clearly readable. Far below on the path, small in scale, Wang Zifu, a fully clothed teenage scholar in muted warm russet cotton robes, looks up in alarm with one hand raised as if calling to her to be careful, a single dried plum blossom in his other hand; a respectful distance separates them. Humour and awkward longing, with one softly dim shaded corner of the garden hinting at a quieter hidden history. Strong vertical depth, small figures and generous negative space of blossom; bottom fifth is quiet grass and fallen petals, not cropped limbs. Exquisite painterly Chinese literary fantasy with ink wash texture under fine detail; restrained celadon, blossom ivory, pale peach, warm amber and a touch of aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, non-sexual, no fox ears or tails, no embrace or touching, no gore. No text, signatures, logos, watermark, numbers, borders or UI.
+Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Yingning: Laughter Hidden among Flowers. A half-acre walled back garden behind a small three-bay thatched cottage, enclosed on all sides by flowering trees; fine grass like a soft carpet, a narrow path dusted with drifting willow catkins, abundant pale pink and white spring blossom filling much of the canvas as breathing space. High in a blossoming tree in the upper middle, Yingning, a fully clothed Chinese teenage girl from the classical story, simple fresh green robes and half-tied dark hair, is caught laughing so helplessly she almost loses her balance, one hand gripping a branch, petals shaken loose around her; her bright natural laughing face catches soft warm spring light and stays clearly readable at small card size; her head is about one tenth of the image height, placed in the upper middle. Far below on the path, small in scale, Wang Zifu, a fully clothed teenage scholar in muted warm russet cotton robes, looks up in alarm with one hand raised as if calling to her to be careful, a single dried plum blossom still half-tucked in his sleeve; a respectful distance separates them. Humour, surprise and gentle concern, with one softly dim shaded corner of the garden hinting at a quieter hidden history. Strong vertical depth: only Wang Zifu is small, Yingning stays large enough to read, and generous negative space of blossom surrounds them; bottom fifth is quiet grass and fallen petals, not cropped limbs. Exquisite painterly Chinese literary fantasy with ink wash texture under fine detail; restrained celadon, blossom ivory, pale peach, warm amber and a touch of aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, non-sexual, no fox ears or tails, no embrace or touching, no romantic gaze, no gore. No text, signatures, logos, watermark, numbers, borders or UI.
 ```
 
 ### lz01-009-aa1 · 陳氏 AA · 仍有人守門
@@ -161,7 +176,7 @@ Use case: stylized-concept. Asset type: full scene alternate-art portrait for an
   drowning or distress, and no other identifiable person.
 
 ```text
-Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Wang Liulang: A Shore Left for the Living. Dusk at a quiet river fishing place. Wang Liulang, an adult male river spirit with a quiet wistful face, simple faded ink-blue fisherman clothing, damp hair and subtly translucent trailing sleeves, stands ankle-deep at the waterline, turned slightly aside so the bank beside him stays open; open relaxed hands, gentle humane expression. On a flat stone at the shore rest a small rustic wine jar and two shallow cups, one filled and untouched, waiting for a friend; a fishing net hangs drying on reeds. A narrow footpath climbs the damp bank from the water's edge toward a distant village with one warm window, clear and unobstructed: room for the living to pass safely. Broad calm water reflects the last amber light while mist gathers in midnight jade. Liulang upper-middle-left, the glowing cups lower-centre-right, the path rising diagonally; bottom fifth is soft ripples and stones. Exquisite painterly Chinese literary fantasy with ink wash texture; restrained ink blue, river jade, warm amber and ivory. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no drowning figure, no distress, no chains, no gore, no other identifiable face. No text, signatures, logos, watermark, numbers, borders or UI.
+Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Wang Liulang: A Shore Left for the Living. Dusk at a quiet river fishing place. Wang Liulang, an adult male river spirit with a quiet wistful face, simple faded ink-blue fisherman clothing, damp hair and subtly translucent trailing sleeves, stands ankle-deep at the waterline, turned slightly aside so the bank beside him stays open; open relaxed hands, gentle humane expression, his face clearly readable at small card size; his figure fills at least a third of the image height. On a flat stone at the shore rest a small rustic wine jar and two shallow cups, one filled and untouched, waiting for a friend; a fishing net hangs drying on reeds. A narrow footpath climbs the damp bank from the water's edge toward a distant village with one warm window, clear and unobstructed: room for the living to pass safely. Broad calm water reflects the last amber light while mist gathers in midnight jade. Liulang upper-middle-left, the glowing cups lower-centre-right, the path rising diagonally; bottom fifth is soft ripples and stones. Exquisite painterly Chinese literary fantasy with ink wash texture; restrained ink blue, river jade, warm amber and ivory. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no drowning figure, no distress, no chains, no gore, no other identifiable face. No text, signatures, logos, watermark, numbers, borders or UI.
 ```
 
 ### lz01-006-ink1 · 陸判 INK · 夜酌朱批
@@ -171,12 +186,14 @@ Use case: stylized-concept. Asset type: full scene alternate-art portrait for an
   The statue's appearance: 「東廡有立判，綠面赤須」. 朱 accepts the wager to
   「負得左廊判官來」.
 - **Invented:** Combining the drafts with the drinking table, the two background
-  vignettes, and the colour rule where vermilion is the only accent.
+  vignettes, and the colour rule: the only colours are spare vermilion and a
+  barely perceptible grey-green tint on his face, which keeps 「綠面」 in an ink
+  print.
 - **Excluded:** the heart exchange, the head exchange and any blade or blood.
   Red marks must not become legible characters. Reject outputs with pseudo-text.
 
 ```text
-Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Judge Lu: Vermilion Marks over Night Wine. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, dry-brush texture, fine woodblock-style hatching and disciplined empty paper; the only colour is spare vermilion. Judge Lu Pan, an imposing otherworldly adult male magistrate, his green face suggested only by a very faint cool grey-green ink wash, long beard touched with a restrained vermilion wash, dignified broad features, dark ceremonial robe and plain black official hat, sits at a low lamp-lit night table, wine cup set aside, holding a fine brush loaded with vermilion over a stack of essay drafts; bold vermilion circles and sweeping strike-strokes cross the pages. Opposite him Zhu Erdan, a broad sturdy adult scholar with a friendly coarse face and short beard in a plain cotton gown with loose sleeves, leans forward with a wine cup, rueful and eager. Behind them a door curtain hangs half lifted. Two small asymmetrical brush-edged vignettes are woven into the upper background: a standing wooden judge statue in a dim temple side corridor, and the same scholar carrying that statue on his back through the night. Imagery only. The drafts show only faint illegible grey texture, never recognizable characters; the vermilion marks are abstract circles and slashes, not writing. The central pair dominates with faces readable at small card size; bottom fifth is quiet paper and table edge. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no surgery, no blood, no severed head, no gore. No text, calligraphy, seals, signatures, logos, watermark, numbers, speech balloons, borders or UI.
+Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Judge Lu: Vermilion Marks over Night Wine. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, dry-brush texture, fine woodblock-style hatching and disciplined empty paper; the only colours are spare vermilion and a barely perceptible grey-green tint on his face. Judge Lu Pan, an imposing otherworldly adult male magistrate, his green face suggested only by that barely perceptible grey-green tint, long beard touched with a restrained vermilion wash, dignified broad features, dark ceremonial robe and plain black official hat, sits at a low lamp-lit night table, wine cup set aside, holding a fine brush loaded with vermilion over a stack of essay drafts; bold vermilion circles and sweeping strike-strokes cross the pages. Opposite him Zhu Erdan, a broad sturdy adult scholar with a friendly coarse face and short beard in a plain cotton gown with loose sleeves, leans forward with a wine cup, rueful and eager. Behind them a door curtain hangs half lifted. Two small asymmetrical brush-edged vignettes are woven into the upper background: a standing wooden judge statue in a dim temple side corridor, and the same scholar carrying that statue on his back through the night. Imagery only. The drafts show only faint illegible grey texture, never recognizable characters; the vermilion marks are abstract circles and slashes, not writing. The central pair dominates with faces readable at small card size; bottom fifth is quiet paper and table edge. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no surgery, no blood, no severed head, no gore. No text, calligraphy, seals, signatures, logos, watermark, numbers, speech balloons, borders or UI.
 ```
 
 ### lz01-008-ink1 · 畫皮之鬼 INK · 墨下另一面
@@ -186,12 +203,15 @@ Use case: stylized-concept. Asset type: full scene INK SCROLL special-print port
   「鋪人皮于榻上，執彩筆」. Its true face: 「見一獰鬼，面翠色」.
 - **Invented:** The sheet is drawn as blank painted silk, not skin. The
   disagreeing shadow and negative space, and the coloured brush tip as the only
-  colour, are also invented.
+  colour, are also invented. She is shown already in human form while lifting
+  the sheet; in the text the green-faced ghost dons the skin and only then
+  becomes a woman. The cast shadow carries the ghost's true shape instead.
 - **Excluded:** flayed skin, flesh, anatomy, the later killing, the beheading and
   smoke capture. The figure keeps an adult human appearance and stays clothed.
+  Reject any output where the sheet reads as skin, a mask or a face.
 
 ```text
-Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally The Painted-Skin Ghost: The Other Side beneath the Ink. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, wet-ink bleeds, dry-brush texture and abundant empty paper. The only colour is the tip of one painting brush, a tiny touch of jade green and vermilion. A quiet study glimpsed through a lattice window. In the centre, the Painted-Skin Ghost in its human appearance, an eerily composed adult woman in muted layered robes, lifts a long pale painted sheet in both hands as if shaking out a garment before putting it on; the sheet reads as blank silk with an unfinished, featureless painted face area, no skin texture and no anatomy. Her calm face is readable in the upper middle. Behind her on a paper screen, her own cast shadow disagrees with her: the ink shadow has a jagged, saw-toothed, unmistakably non-human silhouette, while bare paper outlines her gentle human form; ink and emptiness tell two different stories. The coloured brush lies set down on a low couch beside an ink stone. Quiet, uncanny and ambiguous: horror through mismatch, not violence. Bottom fifth is quiet paper and floor. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no flayed skin, no exposed flesh, no blood, no gore, no attack, no nudity. No text, calligraphy, seals, signatures, logos, watermark, numbers, borders or UI.
+Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally The Painted-Skin Ghost: The Other Side beneath the Ink. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, wet-ink bleeds, dry-brush texture and abundant empty paper. The only colour is the tip of one painting brush, a tiny touch of jade green and vermilion. A quiet study glimpsed through a lattice window. In the centre, the Painted-Skin Ghost in its human appearance, an eerily composed adult woman in muted layered robes, lifts a long pale painted sheet in both hands as if shaking out a garment before putting it on; the sheet reads as blank painted silk with a few loose unfinished colour washes; no face, no features, no mask, no skin texture and no anatomy. Her calm face is readable in the upper middle. Behind her on a paper screen, her own cast shadow disagrees with her: the ink shadow has a jagged, saw-toothed, unmistakably non-human silhouette, while bare paper outlines her gentle human form; ink and emptiness tell two different stories. The coloured brush lies set down on a low couch beside an ink stone. Quiet, uncanny and ambiguous: horror through mismatch, not violence. Bottom fifth is quiet paper and floor. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no flayed skin, no exposed flesh, no blood, no gore, no attack, no nudity. No text, calligraphy, seals, signatures, logos, watermark, numbers, borders or UI.
 ```
 
 ### lz01-001-tr1 · 聶小倩 TR · 歸燈
@@ -208,14 +228,14 @@ Use case: stylized-concept. Asset type: full scene INK SCROLL special-print port
   border.
 
 ```text
-Use case: stylized-concept. Asset type: full scene TREASURE collector-treatment portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Nie Xiaoqian: The Lamp of Return. A TREASURE treatment in BLACK LACQUER, GOLD LEAF AND JADE ENAMEL. Nie Xiaoqian, a young adult Chinese woman with pale luminous skin, long dark loose hair partly pinned with a simple slender jade hairpin, layered ivory and pale mist-blue robes with delicate spectral translucence only at the trailing sleeves, sits calmly at dusk beside a low scholar's desk in a modest study, a single candle in a simple bronze holder before her and an open sutra scroll whose paper is entirely blank; her face is quiet, steady and tender, in clear three-quarter view in the upper middle. Layered light study: the candle flame is the heart of the image, surrounded by concentric gold-leaf arcs and nested carved lacquer layers, a lattice window, a folding screen panel and bamboo outside rendered as jade enamel inlay, receding in depth like a treasured lacquer screen; every layer belongs to the painted room, not a card border. Nearly-black midnight-teal lacquer ground, restrained antique gold filigree, mineral jade, ivory and one small crimson knot. Very rich physical surface, luminous carved highlights, deep shadows with a clearly readable face. Composition solemn and balanced; bottom fifth is quiet lacquer and desk edge. Not a rainbow hologram. Tall vertical art fills the canvas without a separate outer border. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no gore, no fox ears, no romantic embrace. No text on the scroll, no seals containing text, no numbers, coins, signatures, logos, watermark or UI.
+Use case: stylized-concept. Asset type: full scene TREASURE collector-treatment portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Nie Xiaoqian: The Lamp of Return. A TREASURE treatment in BLACK LACQUER, GOLD LEAF AND JADE ENAMEL. Nie Xiaoqian, a young adult Chinese woman with pale luminous skin, long dark loose hair partly pinned with a simple slender jade hairpin, layered ivory and pale mist-blue robes with delicate spectral translucence only at the trailing sleeves, sits calmly at dusk beside a low scholar's desk in a modest study, a single candle in a simple bronze holder before her and an open sutra scroll whose paper is entirely blank; her face is quiet, steady and tender, in clear three-quarter view in the upper middle. Layered light study: the candle flame is the heart of the image, surrounded by concentric gold-leaf arcs and nested carved lacquer layers, a lattice window, a folding screen panel and bamboo outside rendered as jade enamel inlay, receding in depth like a treasured lacquer screen; every layer belongs to the painted room, not a card border. Nearly-black midnight-teal lacquer ground, restrained antique gold filigree, mineral jade, ivory and one small crimson knot. Very rich physical surface, luminous carved highlights, deep shadows with a clearly readable face. Composition solemn and balanced; bottom fifth is quiet lacquer and desk edge. Not a rainbow hologram. Tall vertical art fills the canvas without a separate outer border. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no gore, no fox ears, no romantic embrace. No text, lettering, calligraphy or pseudo-glyphs anywhere; the scroll, screen panels and lattice are blank. No seals containing text, no numbers, coins, signatures, logos, watermark, borders or UI.
 ```
 
 ### Slot readiness in the current preview code (checked 2026-10-10)
 
 | Slot | Current `liaozhai-cards.mjs` / `liaozhai.mjs` support | Needed before binding a generated file |
 | --- | --- | --- |
-| AA ×3 | **Partial.** `LZ01_AA` is a single object for 小倩. `artTreatment()`, the hero toggle and the dialog BASE/AA switch compare against that one `cardId`. | Change `LZ01_AA` to a frozen array with 小倩 first, following `HL01_AA` and the `altArtById` map in `honglou-cards.mjs` / `honglou.mjs`. Bind only existing files. |
+| AA ×3 | **Partial.** `LZ01_AA` is a single object for 小倩. `artTreatment()`, the hero toggle and the dialog BASE/AA switch compare against that one `cardId`. | Change `LZ01_AA` to a frozen array with 小倩 first, following `HL01_AA` in `honglou-cards.mjs`. `honglou.mjs` keys its `altArtById` map by `cardId`, which only works while each card has one special. Once INK/TR entries share the collection, 小倩's AA and TR would collide, so key the lookup by `printId` or `${cardId}:${treatment}`. Bind only existing files. |
 | INK ×2 | **Unsupported.** The preview knows only `base` and `aa`. The print mark, CSS (`[data-treatment=aa]`) and dialog toggle are binary. | Add an `ink` treatment, labelled 墨卷 INK to match `PRINT_TREATMENTS` in `card-presentation.mjs`. Copy the strings rather than importing them, because the module-graph test allows only `liaozhai.mjs` → `liaozhai-cards.mjs`. |
 | TR ×1 | **Unsupported**, for the same reason. 小倩 would then have three printings (BASE/AA/TR). | Add a `treasure` treatment labelled 天工 TR, plus a per-card printing selector that handles more than two choices. |
 
@@ -232,16 +252,27 @@ Checklist for each generated file before it is bound:
    and never to `hosting/public-assets.json`. The content test asserts that
    `liaozhai` / `assets/lz01` stay out of the public list.
 2. Add a frozen data entry `{ cardId, printId, treatment, name, src, label }`
-   without `power`, `damage`, `stars`, `ability` or `rarity`. The print ID must
-   reuse the card number, for example `lz01-004-aa1`.
+   without `power`, `damage`, `stars`, `ability` or `rarity`; a `sourceUrl` may
+   be added as `HL01_AA` does. The print ID must reuse the card number, for
+   example `lz01-004-aa1`. Look entries up by `printId` or
+   `${cardId}:${treatment}`, never by `cardId` alone, because 小倩 will have both
+   an AA and a TR.
 3. Update `tests/liaozhai-content.test.mjs`. It now asserts
-   `LZ01_AA.cardId === 'niexiaoqian'` and exactly **4** image paths. Add checks
-   for the print-ID pattern `^lz01-\d{3}-(aa|ink|tr)1$`, the matching card
-   number, the PNG signature and dimensions, and preview-list membership.
+   `LZ01_AA.cardId === 'niexiaoqian'` and exactly **4** image paths. Extend the
+   `assets/lz01/[a-z0-9-]+.png` regex check to every special-print `src` (today
+   it covers only BASE atlas paths). Add checks for the print-ID pattern
+   `^lz01-\d{3}-(aa|ink|tr)1$`, the matching card number, the PNG signature and
+   dimensions, and preview-list membership.
 4. Update the visible counts. `liaozhai.html` says
    「12 款本畫＋1 款異畫先行；另有 6 款特別畫作規劃中」, and its meta description
    mentions only the 聶小倩 AA. Run desktop and phone browser checks before
    marking a slot complete.
+5. Update the documents that describe the current files. In `docs/ART.md`, the
+   聊齋 section says "one full-scene 小倩 AA" and "All four images". In this
+   file, update the asset table and the SHA-256 table at the top and the
+   "All four selected files" sentence. In
+   [`EXPANSION-LZ01.md`](EXPANSION-LZ01.md), change the slot's status column
+   from "Planned · brief only (2026-10-10), no image" to the generated file.
 
 ### Provenance checklist (fill in after generation, one block per file)
 
