@@ -12,10 +12,10 @@ import { getInheritanceMaterials, previewInheritance, inheritInstances } from '.
 import { inheritanceMarkup, inheritanceConfirmMarkup, inheritanceResultMarkup } from './inheritance-ui.mjs';
 import { worldMarkup, dailyMarkup, marketMarkup, arenaMarkup, rewardText } from './adventure-ui.mjs';
 import { gameHeaderMarkup, gameDockMarkup, lobbyMarkup } from './navigation-ui.mjs';
-import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGatePillsMarkup, mistGateResonanceMarkup, mistGateResultMarkup, mistGateRevealMarkup } from './mist-gate-ui.mjs';
+import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResonanceMarkup, mistGateResultMarkup, mistGateRevealMarkup } from './mist-gate-ui.mjs';
 import { createExperienceController } from './experience.mjs';
-import { battleResourcesMarkup, battleClashMarkup } from './battle-ui.mjs';
-import { createRoundPresentation, paintRoundResources } from './battle-presentation.mjs';
+import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConfrontationMarkup, battleLineupMarkup, revealPairMarkup } from './battle-ui.mjs';
+import { createRoundPresentation, paintRoundResources, permittedAnnouncement, createPlanningView, createRevealView } from './battle-presentation.mjs';
 import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { createSnapshot, restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
@@ -26,7 +26,7 @@ import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.m
 import { createPackOpeningController } from './pack-opening.mjs';
 import { createMapTravel } from './map-piece.mjs';
 import { createViewportController } from './viewport.mjs';
-import { prepareScene, prepareMove, preparePack } from './scene-adapters.mjs';
+import { prepareScene, preparePack } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 
@@ -171,10 +171,6 @@ function header() {
 }
 function homeMarkup() { return lobbyMarkup(profile,cardMarkup,selectedNode); }
 
-function resourcesMarkup(side) {
-  const who = match[side];
-  return battleResourcesMarkup({side,hp:who.hp,pills:who.pills,plannedPills:side==='player'?pills:0,fury:side==='player'&&fury,preview:side==='player'});
-}
 function updateResourcePreview() {
   if(!match||match.status!=='playing'||revealPending)return;
   const element=app.querySelector('.battle-resources[data-side="player"]');
@@ -190,30 +186,39 @@ function updateResourcePreview() {
   element.setAttribute('aria-label',`你剩餘 ${match.player.hp} 生命，${total} 仙丹。預備消耗 ${cost} 丹，留存 ${total-cost} 丹。`);
 }
 
+const costNote=preview=>`共消耗 ${preview.cost} 丹 · 剩 ${match.player.pills-preview.cost} 丹`;
 function movePanel() {
-  const card = getBattleCard(match,'player',selected);
   const preview = previewMove(match, 'player', { cardId:selected, pills, fury });
   const maxPills = match.player.pills - (fury ? RULES.furyCost : 0);
-  return `<aside class="move-panel" aria-label="出牌設定"><h3>${card.name} <span style="font-size:11px;color:var(--muted)">· 出戰</span></h3><p class="move-subtitle">仙丹暗置 · 勝負揭曉前不公開</p>${isMistGate()?mistGatePillsMarkup({pills,fury,remaining:match.player.pills-preview.cost}):''}
-    <div class="pill-control"><button data-action="pill-minus" aria-label="減少一枚仙丹" ${pills===0?'disabled':''}>−</button><div class="pill-number"><span id="pill-amount">${pills}</span><small>投入仙丹</small></div><button data-action="pill-plus" aria-label="增加一枚仙丹" ${pills===maxPills?'disabled':''}>+</button></div>
-    <input class="pill-slider" id="pill-slider" aria-label="投入仙丹" type="range" min="0" max="${maxPills}" step="1" value="${pills}">
-    <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<3?'disabled':''}><span>怒擊 <span style="opacity:.65">· 另付 3 丹，傷害 +2</span></span><span class="toggle-track"></span></button>
-    <div class="attack-preview"><span>預估攻擊<small>含己方技能，未計對手影響</small></span><strong id="attack-value">${preview.attack}</strong></div>
-    <button class="primary" data-action="commit" ${busy?'disabled':''}>${isMistGate()?'封丹 · 落子':'落子 · 決勝'} <span>↗</span></button>
-    <p class="skill-detail"><b>${card.ability.label}</b><br>${card.ability.description}${preview.bonusActive?`<br><span style="color:${faction(card).color}">✧ ${faction(card).bonus.label}</span>`:''}<br><span id="cost-note">共消耗 ${preview.cost} 丹，出牌後剩 ${match.player.pills-preview.cost} 丹。</span></p></aside>`;
+  return `<aside class="move-panel" aria-label="出牌設定">
+    <div class="pill-control"><button data-action="pill-minus" aria-label="減少一枚仙丹" ${pills===0?'disabled':''}>−</button><div class="pill-number"><span id="pill-amount">${pills}</span><small>暗置仙丹</small></div><input class="pill-slider" id="pill-slider" aria-label="投入仙丹" type="range" min="0" max="${maxPills}" step="1" value="${pills}"><button data-action="pill-plus" aria-label="增加一枚仙丹" ${pills===maxPills?'disabled':''}>+</button></div>
+    <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<3?'disabled':''}><span>怒擊 <small>另付 3 丹 · 傷害 +2</small></span><span class="toggle-track"></span></button>
+    <div class="attack-preview"><span class="attack-preview-copy"><span>己方預估攻擊 <i>· 未計對手影響</i></span><small id="cost-note">${costNote(preview)}</small></span><strong id="attack-value">${preview.attack}</strong></div>
+    <button class="primary" data-action="commit" ${busy?'disabled':''}>${isMistGate()?'封丹 · 落子':'落子 · 決勝'} <span aria-hidden="true">↗</span></button></aside>`;
 }
 
+const battleArt=(id,side)=>cardPresentation(id,{printId:side==='player'?encounter?.cardPrints?.[id]:undefined});
+// The hidden AI move reaches the table only through permittedAnnouncement: a card ID or null.
+const planningView=()=>createPlanningView(match,{announcedCardId:permittedAnnouncement(match,aiMove,{revealPending})});
+function battleTableOptions(view,actionsHtml) {
+  const mist=isMistGate();
+  const resonance=mist?mistGateResonanceMarkup({factions:Object.entries(FACTIONS).filter(([id])=>match.player.hand.some(cardId=>getCard(cardId).faction===id&&hasFactionBonus(match,'player',cardId))).map(([,value])=>value)}):'';
+  return {draft:{selected,pills,fury},actionsHtml,art:battleArt,resonance,className:battleEntering?' battle-turn-enter':'',
+    eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader}):'',
+    playerNote:match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入'};
+}
 function battleMarkup() {
-  const enemyRevealed = match.initiative === 'opponent' && aiMove;
-  const last = match.history.at(-1);
-  const resonance=isMistGate()?mistGateResonanceMarkup({factions:Object.entries(FACTIONS).filter(([id])=>match.player.hand.some(cardId=>getCard(cardId).faction===id&&hasFactionBonus(match,'player',cardId))).map(([,value])=>value)}):'';
-  return `<main class="arena battle-table${battleEntering?' battle-turn-enter':''}">${isMistGate()?mistGateBattleMarkup({round:match.round,initiative:match.initiative}):''}<div class="arena-heading"><div class="eyebrow">${modeName(encounter?.kind)} · 策略對弈</div><div class="round-steps">第 ${match.round} / 4 回合 ${Array.from({length:4},(_,i)=>`<span class="${i<match.round-1?'done':i===match.round-1?'current':''}"></span>`).join('')}</div></div>
-    <div class="combatant"><div class="identity"><div class="avatar">隱</div><div><h2>${safe(match.opponentName||'山海弈者')}</h2><p>知進退，亦善藏鋒 · AI 對手</p></div></div>${resourcesMarkup('opponent')}</div>
-    <div class="enemy-zone"><div class="enemy-thought">${enemyRevealed?`對手亮出「${getCard(aiMove.cardId).name}」。`:'一局山海，靜候落子。'}<small>${enemyRevealed?'對手先手出牌，仙丹仍是秘密。':'你先手出牌，對手只看見卡牌。'}<br>點擊卡牌可查看技能。</small></div><div class="enemy-hand">${match.opponent.hand.map(id=>cardMarkup(getBattleCard(match,'opponent',id),{small:true,side:'opponent',selected:enemyRevealed && aiMove.cardId===id,used:match.opponent.used.includes(id)})).join('')}</div></div>
-    <div class="battle-divider"><span>${match.initiative==='player'?'你持先手 · 請落子':'你持後手 · 請應戰'}</span></div>
-    <div class="combatant"><div class="identity"><div class="avatar">你</div><div><h2>執令者</h2><p>${match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入'}</p></div></div>${resourcesMarkup('player')}</div>
-    ${resonance}<div class="player-area"><div class="player-hand">${match.player.hand.map(id=>cardMarkup(getBattleCard(match,'player',id),{printId:encounter?.cardPrints?.[id],selectable:true,selected:selected===id,used:match.player.used.includes(id),bonus:hasFactionBonus(match,'player',id),action:'select'})).join('')}<div class="hand-caption"><span>點選戰卡，再分配仙丹。</span><button class="text-button" style="padding:0;font-size:inherit" data-action="inspect" data-id="${selected}">查看「${getCard(selected).name}」詳情 ↗</button></div></div>${movePanel()}</div>
-    <div class="arena-bottom"><span class="battle-log">${last?`上一局 · ${last.player.card.name} ${last.player.attack} : ${last.opponent.attack} ${last.opponent.card.name} · ${last.winner==='player'?'你':'對手'}勝`:'善弈者，懂得在一局之中為下一局留下餘地。'}</span><button class="text-button" style="padding:0;font-size:inherit" data-action="history">對弈紀錄 ↗</button></div></main>`;
+  const view=planningView();
+  return battleTableMarkup(view,battleTableOptions(view,movePanel()));
+}
+/** Selecting a card changes the draft in place; the table never navigates away. */
+function updateBattleDraft() {
+  const table=app.querySelector('.battle-table[data-battle-phase="planning"]');
+  if(!table)return;
+  const focus=captureFocus(app),view=planningView();
+  table.querySelector('.player-hand').outerHTML=battleLineupMarkup(view,'player',{selected,art:battleArt});
+  table.querySelector('.battle-confrontation').outerHTML=battleConfrontationMarkup(view,{selected,art:battleArt});
+  updateMovePanel();restoreFocus(app,focus);
 }
 
 function collectionMarkup() {
@@ -640,6 +645,13 @@ function prepareRound() {
   aiMove=match.initiative==='opponent'?chooseAIMove(match):null;
   persistBattle();
 }
+/** A leading AI commits from public state before the player plans. Old or damaged
+ * snapshots can lack that commitment: create it now, never from the player's draft. */
+function ensureLeadingCommitment() {
+  if(revealPending||match?.status!=='playing'||match.initiative!=='opponent')return false;
+  try{if(permittedAnnouncement(match,aiMove,{revealPending}))return false;}catch{}
+  aiMove=chooseAIMove(match);persistBattle();return true;
+}
 async function startMatch(kind='practice',nodeId=null,route='owned') {
   if(economyBusy)return;
   if(loadProfile().pending)return pendingModal();
@@ -678,7 +690,8 @@ async function resumeBattle(){
     if(encounter.kind==='expedition')selectedNode=encounter.nodeId;
     closeModal();screen='battle';lastRoundPresentation=null;battleEntering=false;
     if(match.status==='finished'){await recordFinishedMatch();render();return matchEndModal();}
-    if(!selected)selected=match.player.hand.find(id=>!match.player.used.includes(id));
+    if(!revealPending&&(!match.player.hand.includes(selected)||match.player.used.includes(selected)))selected=match.player.hand.find(id=>!match.player.used.includes(id));
+    ensureLeadingCommitment();
     render();if(revealPending)resultModal();announce('已返回未完對局。');
   }catch(error){pendingModal();toast(error.message);}
 }
@@ -708,7 +721,7 @@ function switchCardsTab(tab) {
 }
 function updateMovePanel() {
   const panel=app.querySelector('.move-panel');
-  if(panel){const focus=captureFocus(panel);panel.outerHTML=movePanel();prepareMove(app);viewport.refresh({key:viewKey(),root:app});restoreFocus(app.querySelector('.move-panel'),focus);}
+  if(panel){const focus=captureFocus(panel);panel.outerHTML=movePanel();restoreFocus(app.querySelector('.move-panel'),focus);}
   updateResourcePreview();
 }
 async function commitMove() {
@@ -716,13 +729,17 @@ async function commitMove() {
   try{
     if(loadProfile().pending?.id!==encounter.id)throw Error('這場對局已在另一頁結束，請返回山海。');
     const playerMove={cardId:selected,pills,fury};
-    // The responding AI sees only the revealed card, never the hidden bid.
-    if(!aiMove)aiMove=chooseAIMove(match,Math.random,selected);
+    // The responding AI sees only the revealed card, never the hidden bid. A
+    // leading AI committed in prepareRound; it never sees the player's card.
+    if(match.initiative==='player')aiMove=chooseAIMove(match,Math.random,selected);
+    else if(ensureLeadingCommitment()){busy=false;render();return toast('對手剛亮出本輪戰卡，請確認後再落子。');}
     const before={player:{hp:match.player.hp,pills:match.player.pills},opponent:{hp:match.opponent.hp,pills:match.opponent.pills}};
-    match=resolveRound(match,playerMove,aiMove);revealPending=true;
+    // resolveRound advances round/initiative; the old move must not outlive it.
+    match=resolveRound(match,playerMove,aiMove);aiMove=null;revealPending=true;
     lastRoundPresentation=createRoundPresentation(before,match);
     persistBattle();playTone('commit');
-    await recordFinishedMatch();resultModal({animate:true});
+    // The inert table behind the reveal switches to the lastResult view at once.
+    await recordFinishedMatch();render();resultModal({animate:true});
   }catch(error){busy=false;toast(error.message);}
 }
 async function recordFinishedMatch() {
@@ -738,7 +755,7 @@ function resultModal({animate=false}={}) {
   const mist=isMistGate();
   const presentation=lastRoundPresentation||createRoundPresentation(null,match);
   modal(`${mist?mistGateRevealMarkup({round:r.round}):`<div class="eyebrow">ROUND ${r.round} · THE CARDS ARE REVEALED</div>`}<h2>${won?'此局，你勝。':'此局，暫退。'}</h2>
-    <p class="battle-reveal-status" data-reveal-status>雙方落子，準備揭曉。</p>
+    <p class="battle-reveal-status" data-reveal-status>雙方落子，準備揭曉。</p>${revealPairMarkup(createRevealView(match))}
     ${battleClashMarkup({playerCard:r.player.card,opponentCard:r.opponent.card,playerAttack:r.player.attack,opponentAttack:r.opponent.attack,playerPills:r.player.pills,opponentPills:r.opponent.pills,playerFury:r.player.fury,opponentFury:r.opponent.fury,winner:r.winner,damage:r.damage,tieReason:r.tieReason,cardMarkup:(card,{side}={})=>cardMarkup(card,{printId:side==='player'?encounter?.cardPrints?.[card.id]:undefined})})}
     <div class="battle-resource-results" aria-label="本回合生命與仙丹">${['player','opponent'].map(side=>battleResourcesMarkup({side,hp:match[side].hp,pills:match[side].pills,compact:true,label:side==='player'?'你':'對手'})).join('')}</div>
     <div class="resolution">${tie}${won?'對手':'你'}受到 <strong>${r.damage}</strong> 點傷害。<br>當前生命：你 <strong>${match.player.hp}</strong> · 對手 <strong>${match.opponent.hp}</strong>　｜　剩餘仙丹：你 ${match.player.pills} · 對手 ${match.opponent.pills}</div>
@@ -770,7 +787,8 @@ function historyMarkup() {
 }
 
 function roundHoldMarkup(){
-  return `<main class="adventure-page"><div class="page-lead"><div class="eyebrow">${modeName(encounter?.kind)}</div><h1>${match.status==='finished'?'此局已定，來路可期。':'雙方落子，勝負揭曉。'}</h1><p>你的生命 ${match.player.hp} · 對手生命 ${match.opponent.hp}</p></div>${historyMarkup()}<button class="primary" data-action="show-result">查看對局結果 →</button></main>`;
+  const view=createRevealView(match);
+  return battleTableMarkup(view,battleTableOptions(view,`<div class="battle-reveal-actions"><p>${match.status==='finished'?'此局已定，來路可期。':'雙方落子，勝負揭曉。'}</p><button class="primary" data-action="show-result">${match.status==='finished'?'查看對局結果':'查看本回合結果'} <span aria-hidden="true">→</span></button></div>`));
 }
 
 document.addEventListener('click', event=>{
@@ -986,14 +1004,13 @@ document.addEventListener('click', event=>{
   if(action==='close-modal')return dismissModal();
   if(action==='start'||action==='rules-start')return prepareEncounter();
   if(action==='end-home')return navigate('home');
-  if(action==='inspect')return detailModal(id,button.dataset.side||'player');
+  // WebKit does not focus a clicked button; record the origin so closing returns to it.
+  if(action==='inspect'){if(screen==='battle')button.focus({preventScroll:true});return detailModal(id,button.dataset.side||'player');}
   if(action==='show-result')return match.status==='finished'?matchEndModal():resultModal();
   if(action==='sound'){experience.setPreferences({sound:!sound});experience.unlockAudio().then(()=>playTone('select'));return;}
   if(action==='select'){
-    if(busy||match.player.used.includes(id))return;selected=id;playTone('select');
-    app.querySelectorAll('.player-hand .card').forEach(el=>{const active=el.dataset.id===id;el.classList.toggle('selected',active);el.setAttribute('aria-pressed',String(active));});
-    const detail=app.querySelector('.hand-caption [data-action="inspect"]');detail.dataset.id=id;detail.textContent=`查看「${getCard(id).name}」詳情 ↗`;
-    updateMovePanel();viewport.selectModule({key:viewKey(),moduleId:'move'});announce(`已選擇 ${getCard(id).name}。`);return;
+    if(busy||revealPending||match.status!=='playing'||!match.player.hand.includes(id)||match.player.used.includes(id))return;selected=id;playTone('select');
+    updateBattleDraft();announce(`已選擇 ${getCard(id).name}。`);return;
   }
   if(action==='pill-minus'||action==='pill-plus'){
     const max=match.player.pills-(fury?3:0);pills=Math.max(0,Math.min(max,pills+(action==='pill-plus'?1:-1)));updateMovePanel();playTone('pill');return;
@@ -1001,9 +1018,11 @@ document.addEventListener('click', event=>{
   if(action==='fury'){fury=!fury;pills=Math.min(pills,match.player.pills-(fury?3:0));updateMovePanel();playTone('select');return;}
   if(action==='commit')return commitMove();
   if(action==='next-round'){
-    if(match.status==='finished')return matchEndModal({celebrate:true});closeModal();prepareRound();battleEntering=true;render();announce(`第 ${match.round} 回合開始。`);return;
+    if(match.status==='finished')return matchEndModal({celebrate:true});closeModal();prepareRound();battleEntering=true;render();
+    const announced=permittedAnnouncement(match,aiMove,{revealPending});
+    announce(`第 ${match.round} 回合開始。${announced?`對手亮出「${getCard(announced).name}」。`:'你持先手。'}`);return;
   }
-  if(action==='history'){modal(`<div class="eyebrow">THE STORY SO FAR</div><h2>對弈紀錄</h2>${match.history.length?historyMarkup():'<p>勝負未定，故事才剛開始。</p>'}`);return;}
+  if(action==='history'){if(screen==='battle')button.focus({preventScroll:true});modal(`<div class="eyebrow">THE STORY SO FAR</div><h2>對弈紀錄</h2>${match.history.length?historyMarkup():'<p>勝負未定，故事才剛開始。</p>'}`);return;}
   if(action==='filter'){filter=id;render();return;}
 
 });
@@ -1050,12 +1069,8 @@ document.addEventListener('input',event=>{
   pills=Number(event.target.value);const max=match.player.pills-(fury?3:0);
   const preview=previewMove(match,'player',{cardId:selected,pills,fury});
   app.querySelector('#pill-amount').textContent=pills;app.querySelector('#attack-value').textContent=preview.attack;
-  app.querySelector('#cost-note').textContent=`共消耗 ${preview.cost} 丹，出牌後剩 ${match.player.pills-preview.cost} 丹。`;
+  app.querySelector('#cost-note').textContent=costNote(preview);
   app.querySelector('[data-action="pill-minus"]').disabled=pills===0;app.querySelector('[data-action="pill-plus"]').disabled=pills===max;
-  if(isMistGate()){
-    const offering=app.querySelector('.mist-offering');
-    if(offering)offering.outerHTML=mistGatePillsMarkup({pills,fury,remaining:match.player.pills-preview.cost});
-  }
   updateResourcePreview();
   experience.unlockAudio().then(()=>playTone('pill'));
 });

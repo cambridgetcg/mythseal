@@ -211,7 +211,8 @@ try {
   await page.locator(`.player-hand [data-action="select"][data-id="${target}"]`).click();
   const visibleStats = await page.locator(`.player-hand [data-action="select"][data-id="${target}"] .card-stat strong`).allTextContents();
   assert.deepEqual(visibleStats.map(Number), [getCard(target).power + 1, getCard(target).damage]);
-  await page.locator('.hand-caption [data-action="inspect"]').click();
+  // The selected card's details open from the table's centre slot.
+  await page.locator(`#battle-center-player[data-id="${target}"]`).click();
   assert.match(await page.locator('.detail-source').textContent(), /水滸傳/);
   assert.match(await page.locator('.detail-rank').textContent(), /出戰 Lv\.2/);
   await page.locator('.modal-close').click();
