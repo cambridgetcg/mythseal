@@ -3,10 +3,10 @@
 Proposed 2026-09-23 after the owner could no longer see the opponent's played
 card and lineup while making a move after the viewport conversion.
 
-**Status 2026-10-10:** implemented on branch `q0/battle-table` (steps 1–4 below),
-not yet reviewed, merged or deployed. Headless Chromium/WebKit loopback checks
-pass; physical iOS/Android and human review remain open. See
-[Implementation record](#implementation-record-2026-10-10).
+**Status 2026-10-11:** implemented on branch `q0/battle-table` (steps 1–4 below),
+with two rounds of review fixes; not yet merged or deployed. Headless
+Chromium/WebKit loopback checks pass; physical iOS/Android and human review
+remain open. See [Implementation record](#implementation-record-2026-10-10).
 
 ## Finding and priority
 
@@ -204,13 +204,62 @@ each now has a check in `tools/battle-table-smoke.mjs` that fails on `50eb243`.
   `.player-area`, `.hand-caption`, `.move-subtitle`, `.move-panel h3`,
   `.skill-detail`, `.arena-bottom`, `.mist-offering*`) are removed.
 
+**Second review fixes (2026-10-11).** A verification review of `852ce1d` found
+two regressions. `tools/battle-table-smoke.mjs` now catches both. Its sweep adds
+1280×620, 375×553, 640×360, 568×320, 600×400, 560×420 and 600×540. At every
+sweep size it commits and pages through each reveal page by tapping 下頁 (the
+button's centre must be clear). It also checks that each page's items stay inside
+their list and that both resource panels are reached.
+- *The reveal's 下頁 on 生命與仙丹 could not be tapped at 800×600 and 1024×600.*
+  The fixed played pair took the height that the paged resource list needed, so
+  one compact panel spilled over the pager. This happened at about 501–656 px tall
+  in windows wider than 600 px. Phones at 375×553 and 360×560 had the same overlap
+  with the button still clear. In 360 px tall landscape the panels overlapped the
+  footer, as they also did on `ced2aa4`.
+  These windows now put both public resource panels in one row with no pager, as
+  short landscape already did: windows wider than a phone up to 719 px tall,
+  landscape windows of phone width, and phones up to 619 px tall. The first two
+  also keep the reveal footer on one row, which lets the clash page's full cards fit
+  from 600 px tall; below that they use the short-landscape arrangement. Those
+  full cards overlapped Next at 800×600 and shorter, also on `ced2aa4`. In short
+  landscape the phase line yields beside the resource and
+  effect pages, as the eyebrow already did. Under 360 px tall the reveal also
+  shrinks its heading, tab rule and frame, and the phase line yields on the clash
+  page, so 568×320 fits (it overflowed on `ced2aa4` too).
+- *Phone landscape 600 px wide or narrower used the portrait column, which did not
+  fit,* covering the opponent's four cards at 568×320, 600×400 and 560×420. Short
+  landscape now uses the two-column table at every width. Up to 600 px wide the
+  right column is slimmer and the gaps tighter, so four-character names fit in the
+  lineups. Below 660 px wide the centre slots drop their thumbnails (the lineup
+  shows the same art), so their names fit too. Under 360 px tall the two columns
+  stop sharing rows. The confrontation sits beside the top of the opponent's row,
+  and the move panel sits beside the rest of it and the own row. The slot owner
+  reads vertically, so each slot is a single 44 px row.
+- On `852ce1d` the new checks fail as reported. 下頁 is covered by
+  `.battle-resource-caption` at 800×600 and 1024×600, by `.battle-pill-reserve` at
+  960×540 and by the panel itself at 1280×620. The table hit tests fail at 568×320,
+  600×400 and 560×420, and the resource page overflows at 375×553 and 740×360. At
+  800×600 to 1280×620 the clash page's older overflow fails first, so the pager
+  results above come from a run with the overflow checks turned off.
+- Checks on `ed899af` with a clean tree against a loopback dev server:
+  `node --test tests/*.test.mjs` 456/456; `tools/battle-table-smoke.mjs` 40/40 in
+  Chromium 154 and WebKit 26.6 (30 sweep sizes); `tools/viewport-smoke.mjs` 23/23
+  and `tools/battle-presentation-smoke.mjs` 6/6 in each engine; the rest of
+  `npm run test:browser` and `tools/expansion-smoke.mjs` in Chromium. Synthetic
+  headless evidence only.
+
 **Still open.** Physical iOS/Android and human review; owner review of the
-compact phone cards, the short-landscape arrangement and the new tablet layouts;
-the pre-existing WebKit rewards-dialog tab width. At short-landscape widths
-(for example 667×375) and landscape windows under about 740 px, the cost note
-and the centre slot's detail line can end in an ellipsis; the same numbers stay
-in the player's resource caption. Phone landscape narrower than 601 px (568×320,
-600×400) still uses the portrait column and does not fit. A full-motion reveal
-starts with the winner heading visible and fading out over 150 ms, because the
-heading's transition begins when the phase is first set; this predates Q0.
+compact phone cards, the short-landscape arrangement, the new tablet layouts and
+the phone-landscape and very short arrangements; the pre-existing WebKit
+rewards-dialog tab width. At short-landscape widths (for example 667×375) and
+landscape windows under about 740 px, the cost note and the centre slot's detail
+line can end in an ellipsis; the same numbers stay in the player's resource
+caption. Four-character names still clip where cards are 50 px wide or narrower
+(phone landscape under about 520 px, such as 480×320). They also clip in the
+lineups of landscape windows about 601–630 px wide, and up to about 690 px wide
+when taller than 500 px (for example 601×500, 601×520 and 640×520). The compact
+88 px clash cards clip their
+own face text, as they did in short landscape. A full-motion reveal starts with
+the winner heading visible and fading out over 150 ms, because the heading's
+transition begins when the phase is first set; this predates Q0.
 
