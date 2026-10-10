@@ -175,9 +175,42 @@ Next → ready rose from 29–34 to 61–70 ms, likely because eight portraits a
 thumbnails now paint at once (not profiled). These are single-machine headless
 runs, not device performance.
 
+**Review fixes (2026-10-10).** A verification review of `50eb243` found these;
+each now has a check in `tools/battle-table-smoke.mjs` that fails on `50eb243`.
+- *Tablet widths overflowed.* The roomy one-row move panel needs about 880 px,
+  so from 601 px to about 943 px it pushed Commit off-screen (for example 768×1024
+  and 800×600). The roomy table now starts at 960 px. Below that, portrait tablets
+  get the phone's single column with taller portraits and a two-row move panel,
+  and landscape windows get the short-landscape two-column table. Short roomy rows
+  widen cards just enough for a four-character name. A fit sweep runs 17 more sizes
+  (601×800 to 1920×1080, plus 375×667, 412×915, 667×375 and 740×360) with
+  four-character names: no overflow, every input hit-testable, no clipped name.
+- *Focus fell to `<body>` after Next.* Commit now hands focus to the reveal
+  table's action before the dialog opens, and Next focuses the new Commit. The
+  smoke asserts this by pointer and by keyboard.
+- *Selecting a card replayed the round-entry fade* because the hand was replaced.
+  Selection now patches the dealt nodes in place, so the 120 ms lift also runs.
+  The smoke checks node identity after every input, plus no running entrance
+  animation under full motion.
+- *The played pair showed the winner early.* On a resources/effects page carried
+  over from an earlier round, the pair showed `· 勝` and the gold winner name at
+  'bids'. Both now wait for 'impact' like the heading; cards, bids and attacks
+  stay public at 'bids'.
+- *Selected/announced four-character names with ✧ clipped at 360 px.* The second
+  highlight pixel is now a ring outside the 1 px border, and phone names use
+  0.5 px letter-spacing.
+- *Dead code.* The unused `mistGatePillsMarkup` export and the CSS for the old
+  hooks (`.combatant`, `.enemy-zone`, `.enemy-thought`, `.battle-divider`,
+  `.player-area`, `.hand-caption`, `.move-subtitle`, `.move-panel h3`,
+  `.skill-detail`, `.arena-bottom`, `.mist-offering*`) are removed.
+
 **Still open.** Physical iOS/Android and human review; owner review of the
-compact phone cards and short-landscape arrangement; removal of now-unused
-battle CSS for the old hooks (`.hand-caption`, `.battle-divider`,
-`.mist-offering`) in `styles.css`/`mist-gate.css`; the pre-existing WebKit
-rewards-dialog tab width.
+compact phone cards, the short-landscape arrangement and the new tablet layouts;
+the pre-existing WebKit rewards-dialog tab width. At short-landscape widths
+(for example 667×375) and landscape windows under about 740 px, the cost note
+and the centre slot's detail line can end in an ellipsis; the same numbers stay
+in the player's resource caption. Phone landscape narrower than 601 px (568×320,
+600×400) still uses the portrait column and does not fit. A full-motion reveal
+starts with the winner heading visible and fading out over 150 ms, because the
+heading's transition begins when the phase is first set; this predates Q0.
 
