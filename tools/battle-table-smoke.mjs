@@ -56,7 +56,7 @@ function fixtures() {
   const opponentLeads = table({ initiative: 'opponent' });
   const announced = { cardId: 'chiling', pills: 4, fury: false }, alternate = { cardId: 'chiling', pills: 9, fury: true };
   // Two real rounds from the opponent-led opening: the player then leads round 2.
-  let middle = table({ initiative: 'opponent' });
+  const middle = table({ initiative: 'opponent' });
   const r1 = resolveRound(middle.match, { cardId: 'qingxiao', pills: 2, fury: false }, announced);
   const r2 = resolveRound(r1, { cardId: 'yanxin', pills: 1, fury: false }, chooseAIMove(r1, () => 0.23, 'yanxin'));
   assert.equal(r2.status, 'playing'); assert.equal(r2.round, 3); assert.equal(r2.initiative, 'opponent');

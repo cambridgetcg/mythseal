@@ -6,7 +6,7 @@ import { battleTableMarkup, battleLineupMarkup, battleConfrontationMarkup, revea
 import { cardPresentation } from '../card-presentation.mjs';
 
 const move = (cardId, pills = 0, fury = false) => ({ cardId, pills, fury });
-const art = (id, side) => cardPresentation(id, { printId: side === 'player' ? undefined : undefined });
+const art = id => cardPresentation(id);
 function seeded(seed) {
   let value = seed >>> 0;
   return () => { value = (value + 0x6D2B79F5) >>> 0; let t = value; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -216,6 +216,7 @@ test('reveal markup and the dialog pair are labelled by the resolved round', () 
   const html = battleTableMarkup(view, { art });
   assert.match(html, /data-battle-phase="reveal"/); assert.match(html, /第 1 \/ 4 回合/);
   assert.equal(tags(section(html, 'player-hand')).every(tag => attribute(tag, 'data-action') === 'inspect'), true, 'no draft selection during a reveal');
-  assert.match(section(html, 'enemy-hand'), /id="battle-card-opponent-chiling"[^>]*class|class="card battle-mini is-played/);
+  const played = tags(section(html, 'enemy-hand')).find(tag => attribute(tag, 'data-id') === 'chiling');
+  assert.match(attribute(played, 'class'), /\bis-played\b/); assert.match(attribute(played, 'aria-label'), /本輪出戰（第 1 回合）/);
   assert.equal(RULES.rounds, view.rounds);
 });
