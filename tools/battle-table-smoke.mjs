@@ -5,9 +5,12 @@
  * four cards and selection, and the move controls are visible together with real
  * elementFromPoint hit tests; that secret AI bids/Fury never change pre-reveal
  * DOM/ARIA; that inspection keeps focus, draft, saves and RNG; and that reveal,
- * Next and reload keep round/card labels. Headless engines only: physical
+ * Next and reload keep round/card labels. Keyboard focus returns to Commit after
+ * Next; selection patches the hand in place. A fit sweep adds tablet and other
+ * window sizes with four-character names. Headless engines only: physical
  * iOS/Android and human review are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] [BATTLE_TABLE_SIZE=360x640] node tools/battle-table-smoke.mjs
+ * BATTLE_TABLE_SIZE limits the flows and the fit sweep to that one contract size.
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -30,6 +33,10 @@ const output = fileURLToPath(new URL('../test-results/', import.meta.url));
 const now = '2026-09-22T12:00:00.000Z', battleKey = 'shanhai.battle.v5', preferenceKey = 'shanhai.experience.v1';
 const sizes = [[1440, 900], [1280, 720], [390, 844], [360, 740], [360, 640], [844, 390]];
 const selectedSizes = process.env.BATTLE_TABLE_SIZE ? sizes.filter(pair => pair.join('x') === process.env.BATTLE_TABLE_SIZE) : sizes;
+// Beyond the six contract sizes: portrait tablets and landscape windows between
+// the phone and roomy layouts, short roomy windows, and common phones.
+const SWEEP = [[601, 800], [700, 800], [744, 1133], [768, 1024], [800, 600], [820, 1180], [834, 1194], [906, 700], [960, 540], [1024, 600], [1024, 768], [1366, 768], [1920, 1080], [375, 667], [412, 915], [667, 375], [740, 360]];
+const sweepSizes = process.env.BATTLE_TABLE_SIZE ? selectedSizes : [...sizes, ...SWEEP];
 assert(selectedSizes.length, 'BATTLE_TABLE_SIZE must name one supported size');
 const checks = [], screenshots = [], errors = [], measurements = [], contexts = new Set();
 const passed = label => { checks.push(label); console.log(`PASS ${label}`); };
@@ -38,12 +45,14 @@ const passed = label => { checks.push(label); console.log(`PASS ${label}`); };
 // real engine resolves every expected round. The longest authored opponent name
 // exercises the narrowest identity column.
 const HANDS = { player: ['yaoheng', 'qingxiao', 'yanxin', 'cangjiao'], opponent: ['yanxin', 'chiling', 'yaoheng', 'cuixian'] };
+// Four-character names; three moon cards in each hand also carry the ✧ resonance mark.
+const LONG_HANDS = { player: ['tieshan', 'yinjiao', 'liuer', 'puti'], opponent: ['yinjiao', 'tieshan', 'liuer', 'zhenyuan'] };
 const LONGEST_NAME = '五莊迎風童子';
-function table({ kind = 'arena', nodeId = null, initiative, opponentName = null, opponentLevels = {}, opponentHP = 12 }) {
+function table({ kind = 'arena', nodeId = null, initiative, opponentName = null, opponentLevels = {}, opponentHP = 12, hands = HANDS }) {
   const started = beginBattle(createProfile({ now }), { kind, nodeId, now });
   const match = createMatch({ mode: kind, rng: () => 0.23, opponentName, opponentLevels });
-  match.player = { hp: 12, pills: 12, hand: [...HANDS.player], used: [] };
-  match.opponent = { hp: opponentHP, pills: 12, hand: [...HANDS.opponent], used: [] };
+  match.player = { hp: 12, pills: 12, hand: [...hands.player], used: [] };
+  match.opponent = { hp: opponentHP, pills: 12, hand: [...hands.opponent], used: [] };
   match.initiative = initiative;
   return { started, match };
 }
@@ -62,6 +71,7 @@ function fixtures() {
   assert.equal(r2.status, 'playing'); assert.equal(r2.round, 3); assert.equal(r2.initiative, 'opponent');
   const mist = table({ kind: 'expedition', nodeId: 'mist-gate', initiative: 'opponent', opponentName: '守渡弈者', opponentLevels: { chiling: 3 } });
   const legacy = table({ initiative: 'opponent' });
+  const long = table({ initiative: 'opponent', opponentName: LONGEST_NAME, hands: LONG_HANDS }), longMove = { cardId: 'liuer', pills: 3, fury: false };
   const overkill = table({ initiative: 'opponent', opponentHP: 1 });
   const killing = { cardId: 'qingxiao', pills: 1, fury: true }, opener = { cardId: 'yanxin', pills: 0, fury: false };
   const finished = resolveRound(overkill.match, killing, opener);
@@ -73,6 +83,7 @@ function fixtures() {
     'q0-mid-match-r3': { seed: snapshot(middle.started, r2, chooseAIMove(r2, () => 0.23)), match: r2, aiMove: chooseAIMove(r2, () => 0.23) },
     'q0-mist-gate': { seed: snapshot(mist.started, mist.match, announced), match: mist.match, aiMove: announced },
     'q0-legacy-unannounced': { seed: snapshot(legacy.started, legacy.match, null), match: legacy.match },
+    'q0-long-names': { seed: snapshot(long.started, long.match, longMove), match: long.match, aiMove: longMove },
     'q0-overkill-finished': { seed: snapshot(overkill.started, overkill.match, opener, { selected: killing.cardId }), match: overkill.match, aiMove: opener, move: killing, expected: finished,
       finalProfile: finishBattle(overkill.started.profile, { encounterId: overkill.started.encounter.id, winner: finished.winner, playedCardIds: finished.player.used, now }).profile },
   };
@@ -184,6 +195,11 @@ async function assertDecisionVisible(page, label, { announced, selected }) {
         if (!card.getAttribute('aria-label')?.includes(badge.textContent.trim())) problems.push(`${card.id}: aria-label lacks state`);
       }
     }
+    // Names are never clipped in any state: a range wider than its box means an ellipsis.
+    for (const name of table.querySelectorAll('.battle-mini-name, .battle-slot-copy b')) {
+      const range = document.createRange(); range.selectNodeContents(name);
+      if (range.getBoundingClientRect().width > name.getBoundingClientRect().width + 0.01) problems.push(`name clipped: ${name.textContent}`);
+    }
     const states = cards => cards.map(card => card.querySelector('.battle-mini-state')?.textContent.trim());
     metrics.opponentStates = states(opponent); metrics.ownStates = states(own);
     metrics.opponentOrder = opponent.map(card => card.dataset.cardId); metrics.ownOrder = own.map(card => card.dataset.id);
@@ -232,9 +248,14 @@ async function assertDecisionVisible(page, label, { announced, selected }) {
 async function exerciseDraft(page, { announced }) {
   const before = await raw(page), draws = await rng(page), { match } = await saved(page);
   const legal = match.player.hand.filter(id => !match.player.used.includes(id));
+  // Selection patches the dealt card nodes; replacing them would replay the
+  // round-entry fade and skip the selection lift.
+  await page.evaluate(() => { window.__ownCards = [...document.querySelectorAll('#app .player-hand > .card')]; });
+  const kept = () => page.evaluate(() => { const cards = [...document.querySelectorAll('#app .player-hand > .card')]; return cards.length === 4 && cards.every((card, index) => card === window.__ownCards[index]); });
   let metrics;
   for (const id of legal) {
     await press(page, page.locator(`#battle-card-player-${id}`), `select ${id}`);
+    assert(await kept(), `${page.size} select ${id}: own card nodes are patched in place`);
     metrics = await assertDecisionVisible(page, `select ${id}`, { announced, selected: id });
     for (let step = 0; step < 2; step++) { await press(page, page.locator('[data-action="pill-plus"]'), 'pill plus'); await assertDecisionVisible(page, `${id} pill+`, { announced, selected: id }); }
     await page.locator('#pill-slider').fill('3'); await frames(page);
@@ -246,6 +267,7 @@ async function exerciseDraft(page, { announced }) {
       await assertDecisionVisible(page, `${id} fury ${pressed}`, { announced, selected: id });
     }
   }
+  assert(await kept(), 'pill and Fury changes keep the card nodes');
   assert.deepEqual(metrics.ownOrder, match.player.hand, 'own cards keep dealt order');
   assert.deepEqual(metrics.opponentOrder, match.opponent.hand, 'opponent cards keep dealt order');
   const after = await raw(page);
@@ -278,8 +300,9 @@ async function inspect(page, selector, { keyboard = false, label }) {
 }
 
 /** Commit, then walk every reveal page: played cards stay visible with lastResult labels. */
-async function reveal(page, { round, playerCard, opponentCard }) {
-  await press(page, page.locator('[data-action="commit"]'), 'commit');
+async function reveal(page, { round, playerCard, opponentCard, keyboard = false }) {
+  if (keyboard) { await page.locator('#app [data-action="commit"]').focus(); await page.keyboard.press('Enter'); }
+  else await press(page, page.locator('[data-action="commit"]'), 'commit');
   await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
   const accepted = await saved(page);
   assert.equal(accepted.match.lastResult.round, round); assert.equal(accepted.aiMove, null, 'the resolved move is not kept after resolution');
@@ -316,9 +339,13 @@ async function reveal(page, { round, playerCard, opponentCard }) {
   return accepted;
 }
 
-async function nextRound(page) {
-  await press(page, page.locator('[data-action="next-round"]'), 'next round');
+/** Next by pointer or keyboard; focus lands on the new table's Commit, never <body>. */
+async function nextRound(page, { keyboard = false } = {}) {
+  if (keyboard) { await page.locator('.battle-reveal [data-action="next-round"]').focus(); await page.keyboard.press('Enter'); }
+  else await press(page, page.locator('[data-action="next-round"]'), 'next round');
   await page.locator('#app .battle-table[data-battle-phase="planning"]').waitFor(); await frames(page);
+  const focused = await page.evaluate(() => { const node = document.activeElement; return node?.closest('#app .battle-table') ? node.dataset.action : node?.tagName; });
+  assert.equal(focused, 'commit', `${page.size} ${keyboard ? 'keyboard' : 'pointer'} Next: focus returns to Commit`);
 }
 
 /** Round labels after Next: leader flipped, used marks carry the round, announcement only for a leading AI. */
@@ -379,15 +406,15 @@ try {
     await inspect(page, '#battle-center-player', { label: 'centre own card' });
     await inspect(page, '#battle-card-opponent-cuixian', { keyboard: true, label: 'opponent card by keyboard' });
     await shot(page, 'selected');
-    await reveal(page, { round: 1, playerCard: 'qingxiao', opponentCard: 'chiling' });
-    await nextRound(page);
+    await reveal(page, { round: 1, playerCard: 'qingxiao', opponentCard: 'chiling', keyboard: true });
+    await nextRound(page, { keyboard: true });
     next = await assertNextRound(page, { round: 2, used: { player: 'qingxiao', opponent: 'chiling' } });
     assert.equal(next.announced, null, 'player leads round 2: no carried-over announcement');
     await page.reload(); await page.locator('.game-lobby').waitFor();
     assert.equal(await resume(page), 0);
     await assertNextRound(page, { round: 2, used: { player: 'qingxiao', opponent: 'chiling' } });
     await release(page);
-    passed(`${tag}: opponent-led table announces the committed card in place and in the centre; inspect from lineup/centre (pointer and keyboard) restores focus, draft, saves and RNG; reveal → Next → reload`);
+    passed(`${tag}: opponent-led table announces the committed card in place and in the centre; inspect from lineup/centre (pointer and keyboard) restores focus, draft, saves and RNG; keyboard commit → reveal → Next returns focus to Commit → reload`);
 
     // Changing only the secret bid/Fury cannot change pre-reveal DOM, ARIA or announcements.
     const views = [];
@@ -475,6 +502,64 @@ try {
   assert.deepEqual(accepted.fast, accepted.normal); assert.deepEqual(accepted.reduced, accepted.normal);
   passed(`${motionSize.join('x')}: normal motion can be interrupted by reload and resumes the static accepted reveal; fast and reduced present it immediately with identical saves`);
 
+  // Full motion across rounds. A dialog page remembered from round 1 holds the
+  // winner word and gold until impact, like the heading and clash outcome; in
+  // the entered round, selecting a card keeps the nodes, so no entrance replay.
+  {
+    const page = await open('q0-opponent-leads-r1', { width: motionSize[0], height: motionSize[1], motion: 'no-preference', pace: 'normal' });
+    await resume(page);
+    assert.equal(await page.evaluate(() => document.body.dataset.motion), 'full');
+    await press(page, page.locator('[data-action="commit"]'), 'commit');
+    await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
+    await press(page, page.locator('.battle-reveal [data-viewport-action="module"][data-viewport-target="effects"]'), 'effects page');
+    await nextRound(page);
+    assert.match(await page.locator('#app main').getAttribute('class'), /\bbattle-turn-enter\b/);
+    await page.evaluate(() => Promise.all([...document.querySelectorAll('#app .player-hand > .card')].flatMap(card => card.getAnimations()).map(animation => animation.finished.catch(() => {}))));
+    await page.evaluate(() => { window.__ownCards = [...document.querySelectorAll('#app .player-hand > .card')]; });
+    await press(page, page.locator('#battle-card-player-cangjiao'), 'select cangjiao');
+    const replay = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#app .player-hand > .card')];
+      return { same: cards.every((card, index) => card === window.__ownCards[index]), running: cards.flatMap(card => card.getAnimations()).filter(animation => animation.animationName === 'battle-hand-arrive' && animation.playState === 'running').length };
+    });
+    assert.deepEqual(replay, { same: true, running: 0 }, 'selecting a card does not replay the round-entry fade');
+    await page.evaluate(() => {
+      const trace = window.stageTrace = [];
+      new MutationObserver(() => {
+        const modal = document.querySelector('.battle-reveal'), phase = modal?.dataset.phase;
+        if (!phase || trace.at(-1)?.phase === phase) return;
+        const winner = modal.querySelector('.reveal-pair-side[data-winner]'), loser = modal.querySelector('.reveal-pair-side:not([data-winner])');
+        trace.push({ phase, page: modal.querySelector('[data-viewport-module]:not([hidden])')?.dataset.viewportModule, pair: getComputedStyle(modal.querySelector('.reveal-played-pair')).display,
+          outcome: getComputedStyle(winner.querySelector('.reveal-pair-outcome')).visibility,
+          gold: getComputedStyle(winner.querySelector('b')).color !== getComputedStyle(loser.querySelector('b')).color });
+      }).observe(document.querySelector('#overlay-root'), { subtree: true, childList: true, attributes: true, attributeFilter: ['data-phase'] });
+    });
+    await press(page, page.locator('[data-action="commit"]'), 'commit round 2');
+    await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
+    const trace = await page.evaluate(() => window.stageTrace), at = phase => trace.find(entry => entry.phase === phase);
+    assert(at('bids') && at('impact') && at('complete'), `staged phases ${JSON.stringify(trace)}`);
+    assert.equal(at('bids').page, 'effects', 'the effects page is remembered across rounds');
+    assert.notEqual(at('bids').pair, 'none', 'the played pair shows on the effects page');
+    for (const phase of ['sealed', 'bids']) if (at(phase)) assert.deepEqual([at(phase).outcome, at(phase).gold], ['hidden', false], `${phase}: winner word and gold wait ${JSON.stringify(trace)}`);
+    for (const phase of ['impact', 'complete']) assert.deepEqual([at(phase).outcome, at(phase).gold], ['visible', true], `${phase}: winner word and gold shown ${JSON.stringify(trace)}`);
+    await release(page);
+  }
+  passed(`${motionSize.join('x')}: full motion keeps the winner word and gold hidden until impact on a remembered effects page; selection in an entered round does not replay the entrance fade`);
+
+  // Fit sweep: four-character names with ✧ in every state, all inputs hit-testable.
+  for (const [width, height] of sweepSizes) {
+    const page = await open('q0-long-names', { width, height });
+    await resume(page);
+    await assertDecisionVisible(page, 'long names', { announced: 'liuer', selected: 'tieshan' });
+    for (const id of LONG_HANDS.player) {
+      await press(page, page.locator(`#battle-card-player-${id}`), `select ${id}`);
+      await assertDecisionVisible(page, `long names select ${id}`, { announced: 'liuer', selected: id });
+    }
+    await press(page, page.locator('#battle-card-player-tieshan'), 'select tieshan');
+    await shot(page, 'long-names');
+    await release(page);
+  }
+  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced; every decision input inside the viewport and hit-testable; no page or table overflow`);
+
   // Finished overkill settles exactly once across Next and reload.
   const finished = FIXTURES['q0-overkill-finished'];
   const finalPage = await open('q0-overkill-finished', { width: selectedSizes[0][0], height: selectedSizes[0][1] });
@@ -505,7 +590,7 @@ try {
   await Promise.allSettled([...contexts].map(context => context.close()));
   const git = args => { try { return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim(); } catch { return null; } };
   const report = { ok: !failure, tool: 'tools/battle-table-smoke.mjs', source: { commit: git(['rev-parse', 'HEAD']), dirty: (git(['status', '--porcelain']) || '').split('\n').filter(Boolean) },
-    browser: { name: browserName, version: browser.version() }, sizes: selectedSizes.map(pair => pair.join('x')), motion: 'reduced by default; one normal, fast and reduced reveal pass', fixtures: Object.keys(FIXTURES),
+    browser: { name: browserName, version: browser.version() }, sizes: selectedSizes.map(pair => pair.join('x')), sweepSizes: sweepSizes.map(pair => pair.join('x')), motion: 'reduced by default; one normal, fast and reduced reveal pass', fixtures: Object.keys(FIXTURES),
     evidence: 'Headless loopback synthetic evidence; not physical iOS/Android or human review.', checks, screenshots, measurements, errors, ...(failure ? { error: failure } : {}) };
   await browser.close();
   await writeFile(`${output}battle-table-${browserName}${process.env.BATTLE_TABLE_SIZE ? `-${process.env.BATTLE_TABLE_SIZE}` : ''}.json`, JSON.stringify(report, null, 2) + '\n');

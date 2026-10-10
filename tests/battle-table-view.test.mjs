@@ -213,6 +213,11 @@ test('reveal markup and the dialog pair are labelled by the resolved round', () 
   const pair = revealPairMarkup(view);
   assert.match(pair, /<span class="reveal-pair-round">第 1 回合<\/span>/);
   assert.match(pair, /青霄/); assert.match(pair, /赤翎/); assert.match(pair, /暗置 2 丹 ＋ 怒擊/); assert.match(pair, /暗置 4 丹 ·/);
+  // The winner word has its own hook (staged until impact) and only on the winner's side.
+  const winner = view.center.winner, loser = winner === 'player' ? 'opponent' : 'player';
+  assert.equal((pair.match(/class="reveal-pair-outcome"/g) || []).length, 1);
+  assert.match(pair, new RegExp(`data-side="${winner}" data-winner><span class="reveal-pair-owner">[^<]*<span class="reveal-pair-outcome"> · 勝</span>`));
+  assert.doesNotMatch(pair, new RegExp(`data-side="${loser}" data-winner`));
   const html = battleTableMarkup(view, { art });
   assert.match(html, /data-battle-phase="reveal"/); assert.match(html, /第 1 \/ 4 回合/);
   assert.equal(tags(section(html, 'player-hand')).every(tag => attribute(tag, 'data-action') === 'inspect'), true, 'no draft selection during a reveal');

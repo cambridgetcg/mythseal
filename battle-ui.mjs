@@ -88,11 +88,15 @@ export function battleTableMarkup(view, { draft = {}, actionsHtml = '', eyebrow 
     + `<div class="battle-actions">${actionsHtml}</div></main>`;
 }
 
-/** Compact played pair that stays fixed while reveal resources/effects are explained. */
+/**
+ * Compact played pair that stays fixed while reveal resources/effects are explained.
+ * The winner word has its own hook so the staged reveal can hold it until impact,
+ * like the heading and the clash outcome.
+ */
 export function revealPairMarkup(view) {
   const face = side => {
     const entry = view.center[side];
-    return `<div class="reveal-pair-side" data-side="${side}"${view.center.winner === side ? ' data-winner' : ''}><span class="reveal-pair-owner">${OWNERS[side]}${view.center.winner === side ? ' · 勝' : ''}</span><b>${safe(entry.card.name)}</b><small>暗置 ${bounded(entry.pills)} 丹${entry.fury ? ' ＋ 怒擊' : ''} · 實際攻擊 ${bounded(entry.attack, 9999)}</small></div>`;
+    return `<div class="reveal-pair-side" data-side="${side}"${view.center.winner === side ? ' data-winner' : ''}><span class="reveal-pair-owner">${OWNERS[side]}${view.center.winner === side ? '<span class="reveal-pair-outcome"> · 勝</span>' : ''}</span><b>${safe(entry.card.name)}</b><small>暗置 ${bounded(entry.pills)} 丹${entry.fury ? ' ＋ 怒擊' : ''} · 實際攻擊 ${bounded(entry.attack, 9999)}</small></div>`;
   };
   return `<div class="reveal-played-pair" role="group" aria-label="第 ${bounded(view.round, 9)} 回合出戰：你 ${safe(view.center.player.card.name)}，對手 ${safe(view.center.opponent.card.name)}"><span class="reveal-pair-round">第 ${bounded(view.round, 9)} 回合</span>${face('player')}${face('opponent')}</div>`;
 }

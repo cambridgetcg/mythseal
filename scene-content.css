@@ -113,8 +113,8 @@
 .battle-mini-stars{padding:0 1px;color:#ecd59d;font-size:10px;line-height:15px;white-space:nowrap;text-shadow:0 1px 2px #000}
 .battle-mini-copy{position:absolute;left:5px;right:4px;bottom:3px;display:flex;flex-direction:column;gap:1px;min-width:0}
 .battle-mini-title,.battle-mini-skill{display:none}
-.battle-mini-name{display:block;font:500 13px/1.3 var(--serif);letter-spacing:1px;color:#f3eedd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px #000}
-.battle-mini-bonus{margin-left:2px;font-style:normal;font-size:10px;color:#c2e3be}
+.battle-mini-name{display:block;font:500 13px/1.3 var(--serif);letter-spacing:.5px;color:#f3eedd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px #000}
+.battle-mini-bonus{margin-left:1px;font-style:normal;font-size:10px;color:#c2e3be}
 .battle-table .battle-mini .card-stats{display:flex;align-items:baseline;gap:6px;margin:0}
 .battle-table .battle-mini .card-stat{gap:2px;font-size:10px;color:#cbd2c0}
 .battle-table .battle-mini .card-stat strong{font-size:14px;line-height:1.1;color:#f3eedd}
@@ -122,8 +122,10 @@
 .battle-table .battle-mini.is-used .card-art{filter:grayscale(.9) brightness(.42)}
 .battle-table .battle-mini.is-used .battle-mini-state{background:#1d2520f2;border-color:#cfd4c64d;color:#d3d8ca}
 .battle-table .battle-mini.is-used .battle-mini-name,.battle-table .battle-mini.is-used .card-stat strong{color:#d3d7c9}
-.battle-table .battle-mini.is-announced,.battle-table .battle-mini.is-played{border:2px solid #e9c97f;box-shadow:0 0 0 2px #e9c97f2e}
-.battle-table .battle-mini.is-selected{border:2px solid #f1d496;box-shadow:0 0 0 2px #d8bd8340,0 0 18px #dac27b1f}
+/* The second gold pixel is a ring outside the 1px border, so highlighting never
+   narrows the card's content: a four-character name with ✧ fits in every state. */
+.battle-table .battle-mini.is-announced,.battle-table .battle-mini.is-played{border-color:#e9c97f;box-shadow:0 0 0 1px #e9c97f,0 0 0 3px #e9c97f2e}
+.battle-table .battle-mini.is-selected{border-color:#f1d496;box-shadow:0 0 0 1px #f1d496,0 0 0 3px #d8bd8340,0 0 18px #dac27b1f}
 .battle-table .battle-mini:is(.is-announced,.is-played,.is-selected) .battle-mini-state{background:#ecd093;border-color:#ecd093;color:#1b1608;font-weight:600}
 .battle-table .battle-mini:focus-visible,.battle-table .battle-slot-card:focus-visible,.battle-table .battle-history:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .battle-table .battle-confrontation{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);align-items:stretch;gap:6px;min-height:0}
@@ -160,15 +162,47 @@
 .battle-table .battle-reveal-actions p{margin:0;font:13px var(--serif);letter-spacing:1px;color:#d6dac9}
 .battle-table .battle-reveal-actions .primary{min-height:46px;padding:0 16px;font-size:12px;gap:12px}
 @media(prefers-reduced-motion:no-preference){body[data-motion="full"]:not([data-page-hidden="true"]) .game-shell .battle-table .battle-mini.card.is-selected{transform:translateY(-3px);transition:transform 120ms ease-out,border-color 120ms ease-out,box-shadow 120ms ease-out}}
-/* Short landscape: lineups on the left, confrontation and move on the right. */
-@media(max-height:500px) and (min-width:601px){
+/* Short landscape, and landscape windows too narrow for the roomy table's
+   one-row move panel: lineups on the left, confrontation and move on the right. */
+@media(max-height:500px) and (min-width:601px),(min-width:601px) and (max-width:959px) and (orientation:landscape){
  .battle-table>[data-viewport-module="table"]{grid-template-columns:minmax(0,1.3fr) minmax(250px,1fr);grid-template-rows:auto 1fr 1fr;grid-template-areas:"status status" "opp center" "me actions";gap:6px 12px}
  .battle-table .battle-status{grid-area:status}.battle-table .battle-edge[data-side="opponent"]{grid-area:opp}.battle-table .battle-confrontation{grid-area:center;align-self:center}
  .battle-table .battle-edge[data-side="player"]{grid-area:me}.battle-table .battle-actions{grid-area:actions;align-self:end}
  .battle-table .battle-status .eyebrow{display:flex}
+ .battle-table .battle-slot-copy b{font-size:13px;letter-spacing:.5px}
+}
+@media(min-width:601px) and (max-width:959px) and (min-height:501px) and (orientation:landscape){
+ .battle-table>[data-viewport-module="table"]{grid-template-columns:minmax(0,1.1fr) minmax(250px,1fr)}
+ .battle-table .battle-edge[data-side="opponent"]{grid-template-rows:auto minmax(56px,160px)}
+ .battle-table .battle-edge[data-side="player"]{grid-template-rows:minmax(56px,160px) auto}
+}
+/* Portrait tablets (601-959 px wide): the phone's single column with taller
+   portraits, readable names and a two-row move panel. The roomy one-row panel
+   needs about 880 px, so it waits for 960 px. */
+@media(min-width:601px) and (max-width:959px) and (min-height:501px) and (orientation:portrait){
+ .battle-table>[data-viewport-module="table"]{gap:10px}
+ .battle-table .battle-status .eyebrow{display:flex}
+ .battle-table .battle-edge[data-side="opponent"]{grid-template-rows:auto minmax(56px,240px)}
+ .battle-table .battle-edge[data-side="player"]{grid-template-rows:minmax(56px,240px) auto}
+ .battle-table .battle-edge[data-side="player"] .battle-identity p{display:block}
+ .battle-table .battle-lineup{gap:10px}
+ .battle-mini-top{top:5px;left:5px;right:5px}
+ .battle-mini-state,.battle-mini-stars{font-size:11px;line-height:18px}
+ .battle-mini-state{padding:0 5px}
+ .battle-mini-copy{left:8px;right:7px;bottom:7px;gap:2px}
+ .battle-mini-title,.battle-mini-skill{display:block;font-size:10px;letter-spacing:.5px;color:#c9c8b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .battle-mini-name{font-size:18px;letter-spacing:1px}
+ .battle-table .battle-mini .card-stat strong{font-size:17px}
+ .battle-table .battle-confrontation{grid-template-columns:minmax(0,1fr) 36px minmax(0,1fr);gap:0 10px}
+ .battle-table .battle-slot{min-height:84px;padding:6px 10px}
+ .battle-table .battle-slot-card{grid-template-columns:44px minmax(0,1fr);gap:10px}
+ .battle-table .battle-slot-thumb{width:44px;height:58px}
+ .battle-table .battle-slot-copy b{font-size:17px}
+ .battle-table .battle-slot-copy small{font-size:11px}
+ .game-shell .battle-table .move-panel{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"pills pills pills" "fury attack commit";gap:8px;padding:8px}
 }
 /* Roomy screens: identity beside each row of larger portraits, one action row. */
-@media(min-width:601px) and (min-height:501px){
+@media(min-width:960px) and (min-height:501px){
  .battle-table>[data-viewport-module="table"]{gap:10px;grid-template-rows:auto 1fr auto 1.1fr auto}
  .battle-table .battle-status .eyebrow{display:flex}
  .battle-table .battle-status .mist-battle-place>div{display:block}
@@ -188,7 +222,8 @@
  .battle-table .battle-edge .battle-pill-tray{grid-template-columns:repeat(12,minmax(0,1fr))}
  .battle-table .battle-edge .pill-capsule{width:7px;height:13px}
  .battle-table .battle-edge .battle-resource-caption,.battle-table .battle-edge[data-side="opponent"] .battle-resource-caption{position:static;width:auto;height:auto;overflow:visible;clip:auto;white-space:normal;line-height:1.5}
- .battle-table .battle-mini.card{justify-self:center;width:auto;max-width:100%;height:100%;aspect-ratio:3/4}
+ /* 3:4 portraits; short rows widen just enough for a four-character name with ✧. */
+ .battle-table .battle-mini.card{justify-self:center;width:auto;min-width:min(100%,128px);max-width:100%;height:100%;aspect-ratio:3/4}
  .battle-mini-top{top:6px;left:6px;right:6px}
  .battle-mini-state,.battle-mini-stars{font-size:11px;line-height:18px}
  .battle-mini-state{padding:0 6px}
@@ -208,7 +243,9 @@
  .game-shell .battle-table .move-panel .attack-preview i{display:inline}
  .game-shell .battle-table .move-panel .attack-preview small{font-size:11px}
 }
-@media(min-width:601px) and (min-height:801px){
+/* Short roomy windows: rows near 120 px keep the name, stats and skill; the title yields. */
+@media(min-width:960px) and (min-height:501px) and (max-height:580px){.battle-mini-title{display:none}}
+@media(min-width:960px) and (min-height:801px){
  .battle-table .battle-edge .mist-resonance{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:8px 0 0}
  .battle-table .battle-edge .mist-resonance>div{gap:6px 10px}
  .battle-table .battle-edge :is(.mist-resonance-label,.mist-resonance>p,.mist-resonance-faction small){display:none}
@@ -223,7 +260,13 @@
 .reveal-pair-side[data-winner] b{color:#ecd093}
 .reveal-pair-side small{min-width:0;margin-left:auto;font-size:10px;color:#d2d7c7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .battle-reveal:has(.dialog-module-clash:not([hidden])) .reveal-played-pair{display:none}
-@media(prefers-reduced-motion:no-preference){body[data-motion="full"]:not([data-page-hidden="true"]) .battle-reveal[data-phase="sealed"] .reveal-played-pair{opacity:0;visibility:hidden}}
+@media(prefers-reduced-motion:no-preference){
+ body[data-motion="full"]:not([data-page-hidden="true"]) .battle-reveal[data-phase="sealed"] .reveal-played-pair{opacity:0;visibility:hidden}
+ /* Cards, bids and attacks are public at 'bids'; the winner word and gold wait
+    for 'impact' with the heading and clash outcome, on every dialog page. */
+ body[data-motion="full"]:not([data-page-hidden="true"]) .battle-reveal:is([data-phase="sealed"],[data-phase="bids"]) .reveal-pair-outcome{visibility:hidden}
+ body[data-motion="full"]:not([data-page-hidden="true"]) .battle-reveal:is([data-phase="sealed"],[data-phase="bids"]) .reveal-pair-side[data-winner] b{color:var(--paper)}
+}
 /* Short landscape: one-line pair; it carries the round, so the eyebrow yields. */
 @media(max-height:500px){
  .reveal-played-pair{grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto;gap:0 12px;padding:3px 8px}

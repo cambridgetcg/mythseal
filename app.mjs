@@ -216,9 +216,27 @@ function updateBattleDraft() {
   const table=app.querySelector('.battle-table[data-battle-phase="planning"]');
   if(!table)return;
   const focus=captureFocus(app),view=planningView();
-  table.querySelector('.player-hand').outerHTML=battleLineupMarkup(view,'player',{selected,art:battleArt});
-  table.querySelector('.battle-confrontation').outerHTML=battleConfrontationMarkup(view,{selected,art:battleArt});
+  // Patch, never replace: fresh card nodes would replay the round-entry fade and
+  // skip the selection lift.
+  patchMarkup(table.querySelector('.player-hand'),battleLineupMarkup(view,'player',{selected,art:battleArt}));
+  patchMarkup(table.querySelector('.battle-confrontation'),battleConfrontationMarkup(view,{selected,art:battleArt}));
   updateMovePanel();restoreFocus(app,focus);
+}
+/** Bring a rendered element in line with fresh markup, keeping every node whose
+ * tag and child count still match (with its animations, transitions and focus). */
+function patchMarkup(element,html) {
+  const template=document.createElement('template');template.innerHTML=html.trim();
+  const sync=(current,next)=>{
+    if(current.nodeType!==next.nodeType||current.nodeName!==next.nodeName)return current.replaceWith(next);
+    if(current.nodeType===Node.TEXT_NODE){if(current.data!==next.data)current.data=next.data;return;}
+    if(current.nodeType!==Node.ELEMENT_NODE)return;
+    for(const {name} of [...current.attributes])if(!next.hasAttribute(name))current.removeAttribute(name);
+    for(const {name,value} of [...next.attributes])if(current.getAttribute(name)!==value)current.setAttribute(name,value);
+    const before=[...current.childNodes],after=[...next.childNodes];
+    if(before.length!==after.length)return current.replaceChildren(...after);
+    before.forEach((child,index)=>sync(child,after[index]));
+  };
+  sync(element,template.content.firstElementChild);
 }
 
 function collectionMarkup() {
@@ -739,7 +757,12 @@ async function commitMove() {
     lastRoundPresentation=createRoundPresentation(before,match);
     persistBattle();playTone('commit');
     // The inert table behind the reveal switches to the lastResult view at once.
-    await recordFinishedMatch();render();resultModal({animate:true});
+    // Commit leaves with the planning table, so focus moves to the reveal table's
+    // own action first; the dialog records that as its origin instead of <body>.
+    const hadFocus=app.contains(document.activeElement);
+    await recordFinishedMatch();render();
+    if(hadFocus)app.querySelector('[data-action="show-result"]')?.focus({preventScroll:true});
+    resultModal({animate:true});
   }catch(error){busy=false;toast(error.message);}
 }
 async function recordFinishedMatch() {
@@ -1019,6 +1042,9 @@ document.addEventListener('click', event=>{
   if(action==='commit')return commitMove();
   if(action==='next-round'){
     if(match.status==='finished')return matchEndModal({celebrate:true});closeModal();prepareRound();battleEntering=true;render();
+    // The reveal table and its action are gone: keep keyboard and screen-reader
+    // players on the new table's Commit rather than dropping them to <body>.
+    if(!app.contains(document.activeElement))app.querySelector('.battle-table [data-action="commit"]')?.focus({preventScroll:true});
     const announced=permittedAnnouncement(match,aiMove,{revealPending});
     announce(`第 ${match.round} 回合開始。${announced?`對手亮出「${getCard(announced).name}」。`:'你持先手。'}`);return;
   }
