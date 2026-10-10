@@ -103,6 +103,129 @@ These additions are not yet in the public release described below.
 
 Preserve `shanhai.*` save namespaces and existing guest progress throughout the following phases. A local save or cloud backup must never become trusted currency, competitive XP, ownership or a mint claim merely because its owner signs in.
 
+## Experience quality track
+
+**Requested 2026-09-29 · planned work.** Bring the RXSG restoration's lessons in
+smoothness, bounded convenience and content depth into the existing Mythseal
+game. [Experience lessons](docs/EXPERIENCE-LESSONS.md) explains the evidence and
+player-facing choices; [Experience modules](docs/EXPERIENCE-MODULES.md) owns the
+proposed contracts, file seams and infrastructure. This track complements M1–M5;
+it neither reopens retired commercial work nor marks these features implemented.
+
+Source baseline is `22092fc` on `main`, which includes the game-lobby work.
+12/24-pack WX boxes, saved opening receipts, inheritance previews, per-copy
+history, campaign activities and comfort controls already exist in that source.
+Extend them instead of creating parallel implementations. Public v0.5.1 and
+hosted migrations remain separate release work.
+
+**Start with Q0 and Q1.** Q0 is a visible improvement independent of online
+services; Q1 defines the small persistence contract needed by later convenience
+features. Q4's catalogue audit can run alongside them. Do not wait for M2 or a
+new renderer to make local play clearer.
+
+### Q0 · Visible decisions and measured responsiveness
+
+- **Own:** the existing [battle-table plan](docs/BATTLE-LAYOUT-PLAN.md),
+  `battle-ui.mjs`, the battle slice of `scene-adapters.mjs`, relevant CSS and
+  focused viewport/browser tests. Coordinate shared `app.mjs` changes with Q1.
+- Keep both public four-card hands, announced confrontation, life/pills and
+  move controls visible together. Improve text/targets/crops with existing art;
+  preserve focus, drafts, fast/skip and reduced motion.
+- Record cold/warm loading and local input/render baselines separately, using
+  named synthetic fixtures/device profiles from the experience note.
+- **Exit:** simultaneous-visibility and real hit-test assertions pass for both
+  initiative states and reveal/resume; hidden bids remain private. Record a
+  before/after measurement and label any physical-device/human review still open.
+
+### Q1 · One local command and receipt boundary
+
+- **Own:** a small proposed command adapter around existing progression rules,
+  `profile-store.mjs` integration, receipt validation and the relevant save/cloud
+  compatibility tests. Agree the contract before Q2/Q3 write consumers.
+- Reuse save-first behavior; effects and a bounded receipt belong to the same
+  committed profile. Define command identity, relevant-state fingerprint,
+  duplicate result lookup, retention and failure states. Preserve WX receipts
+  and legacy save namespaces; no automatic acknowledgement on the player's behalf.
+- Require a real cross-tab writer guard for new batch/queue operations. The
+  current unlocked fallback is not sufficient evidence of cross-tab safety.
+- **Exit:** stale preview, duplicate submission, quota/storage refusal and
+  tab/reload interruption cannot lose a copy, spend twice or reroll a committed
+  outcome. Changed payload under the same identity is rejected. Any new profile
+  fields have versioned migration and compatible backup validation before release.
+
+### Q2 · Previewed care for selected companions
+
+- **Depends on:** Q1. **Own:** proposed pure care planner and its UI/tests;
+  call existing `getUpgradeCost`, `upgradeInstance`, `trainInstance` and copy
+  protection rules. Existing inheritance and WX boxes remain their own flows.
+- Select exact UIDs and a target, preview costs/reserves/blocked copies, then
+  confirm one bounded plan. Start with deterministic upgrades; add training
+  only with explicit daily-counter and stop semantics. Keep printings/history.
+- **Exit:** selected copies alone change, max-level copies cost nothing, pending
+  copies remain protected, stale/insufficient plans do not partially save, and
+  the result names actual spending and remaining balances. Pure rule, storage
+  failure and keyboard/touch flow checks cover the whole slice.
+
+### Q3 · A visible, optional care queue
+
+- **Depends on:** Q1/Q2. **Own:** proposed policy evaluator and queue panel;
+  one integration owner connects them to the command adapter.
+- Explicit targets, ordering, post-action reserve floors, per-action limits,
+  pause and waiting reasons. Start in the foreground with a small approved
+  upgrade queue. Paused per-copy rules override a collection-wide rule.
+- A hidden/closed app does not promise background work. Resume rechecks state
+  and time, presents the next plan and does not replay missed days. Expanding
+  auto-spend to training or consumables is a separate explicit policy choice.
+- **Exit:** two tabs cannot run the same step twice; pause prevents the next
+  step; caps, exhausted resources, stale state, day rollover and rejected writes
+  produce understandable states. No automatic selling, inheritance or battles.
+
+### Q4 · Content capabilities and one deeper encounter
+
+- **Own:** a small proposed read-only manifest over existing campaign/activity/
+  printing catalogues, its validator and a single reviewed content sample.
+  Coordinate with LZ/HL integration rather than replacing those set designs.
+- Declare playable/preview/planned status, dependencies, rules/content version,
+  entry cost, completion event, reward policy, resume support and evidence.
+  Trial one optional puzzle or encounter variation before adding more systems.
+- **Exit:** unavailable prerequisites have visible reasons; every advertised
+  playable route has a start → completion → receipt → return test. Preview
+  browsing leaves profile bytes unchanged; duplicate completion pays once.
+  Human difficulty review remains separate from strong-fixture completion tests.
+
+### Q5 · Fair agent practice interface
+
+- **Depends on:** Q1 and Q0's public presentation model. **Own:** proposed
+  redacted observation/command adapter, scenario runner and information-boundary
+  tests; reuse engine validation and the same local persistence path as the UI.
+- First support opt-in practice observation and legal move submission. Expose
+  capabilities, revision, permitted public state and a host-enforced action
+  budget; no raw profile, hidden move, bid range, future seed or storage handle.
+- **Exit:** forged/stale/illegal actions fail; reading cannot mutate state;
+  human and agent traces settle identically; tests prove unrevealed choices do
+  not affect the observation. Economy control needs its own player-approved
+  budget. Local practice is not adversarial anti-cheat; online agents await M2/M3.
+
+### Q6 · Portable evidence and release readiness
+
+- **Own:** reuse `tools/` browser/preview/build/deploy checks, a bounded benchmark
+  fixture/report and the existing [release](docs/HOSTING.md)/[validation](docs/VALIDATION.md)
+  records. Baseline/tooling work can begin now; each changed feature adds its
+  focused checks when ready. No new hosted service is a prerequisite.
+- Verify a clean Mac/Linux checkout's local play and isolated fixtures; exercise
+  Chromium/WebKit, poor/offline account access, hide/resume, old/new saves and
+  recovery. Physical iPhone/Android and native lifecycle work remain M5 evidence.
+- **Exit:** distinguish local rules, browser, CI, physical device and hosted
+  results. Public builds exclude design notes/test data and retain the coherent
+  hashed module graph. An eventual release preserves account bindings and
+  old/new backups under existing journey-v2/v3 rollout gates; this docs track
+  neither deploys nor applies hosted migrations.
+
+Assign one packet, one artifact owner and a separate reviewer. Include base/head
+SHA, implemented behavior, exact checks, open evidence gaps and migration/release
+impact in each handoff. Q2/Q3/Q5 share a contract, not permission for concurrent
+uncoordinated edits to `app.mjs`, profile schemas or cloud validators.
+
 ## Ordered delivery phases
 
 Each phase ends with reviewable behavior and recorded evidence. Split work by artifact ownership; agree API/schema contracts before parallel implementation. Local tests, CI, deployed API checks, browser behavior and physical-device checks are distinct results.
@@ -391,7 +514,11 @@ These are bounded starting points, not instructions to start every phase at once
 | Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
 | Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
 
-Start with portable operations and the contract for one authoritative battle, not a simultaneous rewrite of accounts, economy, UI and chain services. Record each finished slice in the current-state/evidence documents and advance this roadmap only when its acceptance criteria are demonstrated.
+For the newly requested experience work, start with [Q0/Q1](#experience-quality-track)
+and the independent Q4 catalogue audit. Portable operations and one authoritative
+battle contract remain the online track; local quality work need not wait for
+them. Record each finished slice in the owning current-state/evidence documents
+and advance this roadmap only when its acceptance criteria are demonstrated.
 
 ## Historical collectible research (no active launch objective)
 
