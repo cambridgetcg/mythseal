@@ -2,7 +2,7 @@
 
 一張卡，一段傳說。
 
-An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The public v0.5.1 release has 24 characters: 12 original 山海 characters and 12 interpretations of classical literary, historical and legendary figures. The current `codex/game-lobby` development branch has **39 rules characters, 29 WX-01 printings and 66 encounters**, plus separate 聊齋 and 紅樓 design previews. Illustrations, map, character writing and card balance are created for this game.
+An original Eastern fantasy card game inspired by the four-round card selection, concealed bids and faction synergies of 神魔令. The public v0.5.1 release has 24 characters: 12 original 山海 characters and 12 interpretations of classical literary, historical and legendary figures. Current `main` (PR #1, merged 2026-09-24 but not yet deployed) has **39 rules characters, 29 WX-01 printings and 66 encounters**, plus separate 聊齋 and 紅樓 design previews. Illustrations, map, character writing and card balance are created for this game.
 
 **Play [萬象契 · Mythseal](https://mythseal.com).** v0.5.1 is deployed on Cloudflare with email login enabled. The source repository remains private at `cambridgetcg/mythseal`. Exact public deployment revisions and live checks are recorded in [HOSTING.md](docs/HOSTING.md).
 
@@ -28,13 +28,12 @@ Clone the private repository with an authorized GitHub account:
 ```sh
 gh repo clone cambridgetcg/mythseal
 cd mythseal
-git switch codex/game-lobby
 python3 tools/serve.py --open
 ```
 
 The Python server works on macOS, Linux and Windows with Python 3 installed. On Windows, use `py` if that is your Python launcher.
 
-The current workspace on this Mac is `/Users/yuai/Projects/mythseal`. The explicit branch switch selects the latest development content. A fresh clone uses `mythseal`; the folder name does not define the brand or save format.
+A fresh clone (folder `mythseal`) starts on `main`, which holds the latest development content. Existing checkouts differ by machine (for example `shanhai-duel`); inspect the actual branch and uncommitted work before fetching or switching. The folder name does not define the brand or save format.
 
 ### Finder launcher on this Mac
 
