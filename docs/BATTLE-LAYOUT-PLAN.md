@@ -3,10 +3,13 @@
 Proposed 2026-09-23 after the owner could no longer see the opponent's played
 card and lineup while making a move after the viewport conversion.
 
-**Status 2026-10-11:** implemented on branch `q0/battle-table` (steps 1–4 below),
-with two rounds of review fixes; not yet merged or deployed. Headless
-Chromium/WebKit loopback checks pass; physical iOS/Android and human review
-remain open. See [Implementation record](#implementation-record-2026-10-10).
+**Status 2026-10-11:** implemented locally on branch `q0/battle-table` (steps 1–4
+below), with two rounds of review fixes. It is not merged, pushed or deployed;
+the last recorded public release is still v0.5.1. The final headless
+Chromium/WebKit loopback checks and before/after measurement ran on `80fb7a3`
+and are recorded in [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10).
+Physical iOS/Android devices and human review remain open. See also the
+[Implementation record](#implementation-record-2026-10-10).
 
 ## Finding and priority
 
@@ -153,7 +156,9 @@ rather than under the move controls.
 
 **Before/after** (`tools/battle-measure.mjs`, fixture
 `q0-arena-round1-opponent-leads`; before = `a53270d`, after = `a6badf0`; headless
-Playwright Chromium 153 and WebKit 26.6, loopback no-store server, normal pace):
+Playwright Chromium 153 and WebKit 26.6, loopback no-store server, normal pace).
+This is an interim measurement taken before the review fixes. The final one, on
+`80fb7a3`, is in [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10):
 
 | Measure | Before | After |
 | --- | --- | --- |
@@ -243,7 +248,8 @@ their list and that both resource panels are reached.
   results above come from a run with the overflow checks turned off.
 - Checks on `ed899af` with a clean tree against a loopback dev server:
   `node --test tests/*.test.mjs` 456/456; `tools/battle-table-smoke.mjs` 40/40 in
-  Chromium 154 and WebKit 26.6 (30 sweep sizes); `tools/viewport-smoke.mjs` 23/23
+  Chromium (system Google Chrome 154, which the smokes prefer when installed)
+  and WebKit 26.6 (30 sweep sizes); `tools/viewport-smoke.mjs` 23/23
   and `tools/battle-presentation-smoke.mjs` 6/6 in each engine; the rest of
   `npm run test:browser` and `tools/expansion-smoke.mjs` in Chromium. Synthetic
   headless evidence only.
@@ -261,5 +267,8 @@ when taller than 500 px (for example 601×500, 601×520 and 640×520). The compa
 88 px clash cards clip their
 own face text, as they did in short landscape. A full-motion reveal starts with
 the winner heading visible and fading out over 150 ms, because the heading's
-transition begins when the phase is first set; this predates Q0.
+transition begins when the phase is first set; this predates Q0. In the final
+measurement the first table paint after resume was 3–17 ms slower in four of
+five headless profiles; nobody has profiled why. Merging, a public build and a
+hosted release are separate steps that have not happened.
 

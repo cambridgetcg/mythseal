@@ -2,6 +2,114 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Q0 battle table · 2026-10-10
+
+Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not
+merged, pushed or deployed, and the last recorded public release is still
+v0.5.1; this entry includes no hosted check. The final checks below ran on
+2026-10-11 against source commit **`80fb7a3`** with a clean tree. A loopback
+`python3 tools/serve.py --port 4191` served that worktree (`Cache-Control:
+no-store`, uncompressed). The commit that adds this entry changes documentation
+only. All of this is synthetic headless evidence.
+
+Before Q0 the battle had four module tabs: 手牌, 落子, 對手 and 局勢. Now one 對局
+table keeps both public four-card hands, the announced confrontation, life and
+pills, and the move controls in view, and the reveal uses the same table.
+`battle-presentation.mjs` builds the public view. Its `permittedAnnouncement` is
+the only reader of the stored AI move: it returns a card ID or null and never
+reads the bid or Fury. No engine, reward, AI, save-schema or art change. The
+[battle-table plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
+records the design and two rounds of review fixes.
+
+- `node --test tests/*.test.mjs`: **456/456**, exit 0, on Node 26.0.0. The base
+  had 446. The new `tests/battle-table-view.test.mjs` adds 9: the gate, the view
+  whitelist, the RNG trap, hidden-bid invariance over 40 seeded matches, the
+  stale round, slots, used rounds and markup. `tests/viewport.test.mjs` adds 1
+  for the single unpaged battle module.
+- `GAME_URL=http://127.0.0.1:4191 npm run test:battle-table`: **40/40 in each
+  engine**, exit 0. Chromium is system Google Chrome 154.0.8037.98, which the
+  smokes prefer when it is installed. WebKit is Playwright's 26.6. The checks
+  cover simultaneous visibility with `elementFromPoint` hit tests after every
+  card, pill, slider and Fury input, in both initiative states and round 3. They
+  also check that different hidden bids give identical HTML, ARIA and announcer
+  output. The other checks are inspect focus, draft and save bytes, reveal pages
+  → Next → reload, Mist Gate, a legacy snapshot, motion and pace, and settlement
+  only once. A 30-size sweep runs from 1920×1080 down to 568×320.
+- `GAME_URL=… npm run test:viewport`: **23/23 in each engine**, exit 0, at
+  1440×900, 1280×720, 390×844, 360×740, 360×640 and 844×390.
+- `GAME_URL=… BROWSER=webkit node tools/battle-presentation-smoke.mjs`: **6/6**,
+  exit 0. The Chromium run is part of the next item.
+- `GAME_URL=… npm run test:browser`: all 14 Chromium suites pass, exit 0. Account
+  flows use intercepted fixture APIs; no email or hosted service is contacted.
+  `GAME_URL=… node tools/expansion-smoke.mjs` also passes in Chromium: 16
+  checks and 899 layout checks, exit 0.
+
+**Before/after.** Measured with `tools/battle-measure.mjs` on fixture
+`q0-arena-round1-opponent-leads` (sha256_16 `6894b11ff0e9b0e6`): arena round 1,
+both sides at 12 life and 12 pills, and the opponent leads with 焰心 announced
+and a hidden bid of 0 without Fury. Before is `a53270d`, which is `ced2aa4`'s
+game files plus the tool. After is `80fb7a3`. The selector strings are identical
+in both runs. Browsers are Playwright 1.63's bundled headless Chromium
+153.0.8010.12 and WebKit 26.6 on one Mac. Profiles are desktop 1440×900 at DPR 1
+with mouse clicks; phone 390×844 at DPR 3 with touch taps; and, in Chromium
+only, the phone again with CDP CPU throttling ×4. Each profile had 3 cold
+entries (new browser context) and 3 warm entries (same page navigated again),
+with full motion, normal pace and sound off.
+
+| Measure | Before `a53270d` | After `80fb7a3` |
+| --- | --- | --- |
+| One round, minimal: taps (view switches), all 5 browser/profile runs | 5 (0) | 5 (0) |
+| One round checking the opponent before choosing, after selecting and before Commit | 11 (6) | 5 (0) |
+| View changes made by the app in one round | 1 | 0 |
+| Steps with opponent 4/4, announcement, selected own card, pills and Commit all visible (minimal / checking round) | 0 of 5 / 0 of 8 | 5 of 5 / 8 of 8 |
+| Own cards visible at start, 390×844 | 2/4 | 4/4 |
+| Round-2 table after Next: own / opponent cards visible | 0/4 / 0/4 | 4/4 / 4/4 |
+| Core input → next paint p50/p95 ms, Chromium desktop · phone · phone CPU×4 | 16.0/16.8 · 32.6/33.4 · 32.3/35.7 | 15.8/17.9 · 32.7/33.5 · 31.9/34.6 |
+| Same, WebKit desktop · phone | 16/18 · 16/17 | 16/18 · 14/17 |
+| Core input handler p95 ms, Chromium desktop · phone · CPU×4; WebKit desktop · phone | 4.5 · 5.2 · 14.3; 4 · 4 | 1.6 · 1.9 · 6.7; 1 · 1 |
+| Inputs timed per profile (35 core plus tab/page taps) | 44 desktop, 46 phone | 35; no tabs or pages exist |
+| Long tasks / LoAF during inputs, Chromium | 0 / 0 | 0 / 0 |
+| Cold resume tap → first own card clickable p50 ms, Chromium desktop · phone · CPU×4 | 57 · 33.8 · 76.9 | 46 · 36.6 · 93.9 |
+| Same, WebKit desktop · phone (cold; warm phone) | 25 · 24 (12) | 31 · 33 (20) |
+| Cold lobby CTA usable p50 ms, Chromium desktop · phone · CPU×4; WebKit desktop · phone | 107.6 · 106.7 · 205; 222 · 147 | 108.5 · 87.8 · 177.1; 213 · 124 |
+| Commit → reveal complete; Next → decision-ready, all runs (ms) | 1113–1161; 29–63 | 1115.5–1178; 32–65 |
+| Transfer per entry, Chromium / WebKit | 7,996,394 / 11,936,212 B | 8,025,285 / 11,965,103 B |
+| Cold-entry long tasks, Chromium CPU×4 | 3 per entry, 210–216 ms in total | 3 per entry, 217–223 ms in total |
+
+- Steps and simultaneity improved as the plan intended, in every browser and
+  profile. Every accepted round still equals the engine's `resolveRound` result.
+- Input → next paint did not change beyond the roughly 16.7 ms frame step.
+  Chromium's emulated tap adds about one frame, so its phone figure is near
+  32 ms; WebKit's phone figure is 14–16 ms. Handler time fell, probably because
+  selecting a card no longer switches modules; this was not profiled. The
+  timed sample is now 35 inputs because the tab and page taps no longer exist.
+  The tool records them as skipped.
+- The first table paint after resume is slower in four of the five profiles: by
+  3–17 ms cold and up to 8 ms warm. Under Chromium CPU×4 the cold runs moved
+  from 76–81 ms to 93–95 ms, so the ranges do not overlap. Chromium desktop was
+  faster, 57 → 46 ms. The table now paints all eight portraits at once, which
+  may explain it; this was not profiled.
+- Q0 did not change the lobby's markup, yet the lobby timings moved by −28 to
+  +13 ms between the runs. That is mostly the noise at n = 3, so smaller
+  differences above are not meaningful.
+- WebKit's Next → decision-ready rose from 29–34 to 37–45 ms. Before, readiness
+  was detected on the move panel's pill +; after, it is detected on an own card.
+- Each entry transfers 28,891 more bytes: 14,480 of JavaScript and 14,409 of
+  CSS. Images are unchanged. WebKit still fetches `portraits.png` twice from the
+  no-store dev server, as before.
+
+The raw JSON is in ignored `test-results/battle-measure-{before,after}-{chromium,webkit}.json`,
+and the logs for the checks above were kept outside the repository.
+
+**Not covered.** Physical iOS or Android devices: the phone profiles emulate
+only viewport, DPR and touch. Human playtest, readability and search time. A
+hosted release: no build, deploy or `mythseal.com` check was made. Production
+caching, compression and CDN behavior. Sound. The WebKit expansion smoke was not
+rerun; the 2026-10-10 run stopped at a 43.08 px rewards-dialog tab at 360×740
+and 360×640, which also fails on `ced2aa4`. The plan's **Still open** list
+covers owner review of the new layouts and the remaining name/ellipsis clipping
+at a few narrow or short sizes.
+
 ## GitHub source checkpoint · 2026-09-24
 
 Before publishing the current development branch, reran **446 Node tests**,

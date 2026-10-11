@@ -136,10 +136,15 @@ new renderer to make local play clearer.
 - **Exit:** simultaneous-visibility and real hit-test assertions pass for both
   initiative states and reveal/resume; hidden bids remain private. Record a
   before/after measurement and label any physical-device/human review still open.
-- **Status 2026-10-10:** implemented on branch `q0/battle-table`, awaiting review;
-  checks and the before/after record are in the
-  [battle-table plan](docs/BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10).
-  Physical-device and human review remain open.
+- **Status 2026-10-11:** implemented locally on branch `q0/battle-table` (final
+  source `80fb7a3`), awaiting owner review. It is not merged, pushed or deployed;
+  the last recorded public release is still v0.5.1. Final headless checks and
+  the before/after measurement are in
+  [VALIDATION](docs/VALIDATION.md#q0-battle-table--2026-10-10). A checking round
+  now takes 5 taps instead of 11, and the opponent's cards stay visible with the
+  controls at every step. The
+  [battle-table plan](docs/BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
+  has the design record. Physical-device and human review remain open.
 
 ### Q1 · One local command and receipt boundary
 
@@ -311,9 +316,10 @@ player moments, first-encounter storyboard and implementation/validation seams.
 opponent cards/commitment while choosing a move. Follow the
 [battle-table layout plan](docs/BATTLE-LAYOUT-PLAN.md): persist four public enemy
 cards, current confrontation, own hand and move controls together; keep played
-cards visible through reveal details. A separate conversation mockup is available;
-the running game has not yet adopted this layout. Preserve hidden bids and add
-direct simultaneous-visibility assertions to the existing viewport checks.
+cards visible through reveal details. Preserve hidden bids and add direct
+simultaneous-visibility assertions to the existing viewport checks. *2026-10-11:*
+implemented locally as Q0 on branch `q0/battle-table` and not deployed; see the
+Q0 status above.
 
 **Carved map-piece study (2026-09-23):** [青玉行旅棋](docs/MAP-PIECE-PROTOTYPE.md)
 now provides a local CSS/SVG prototype across all maps: lift, follow each route

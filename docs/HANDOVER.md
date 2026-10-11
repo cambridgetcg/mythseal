@@ -1,6 +1,7 @@
 # Mythseal agent handover
 
-Start here when joining development. Updated **2026-09-29**. The last recorded
+Start here when joining development. Updated **2026-09-29**, with a local Q0
+checkpoint added on **2026-10-11**. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -35,6 +36,35 @@ A private repository still serves its approved JavaScript and artwork publicly.
 Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
+
+## Q0 battle-table checkpoint · 2026-10-11 (local only)
+
+Roadmap packet Q0 is implemented on the local branch **`q0/battle-table`**,
+started from `origin/main` `ced2aa4`. The final source commit is `80fb7a3`; the
+documentation commit that follows it adds this checkpoint. The branch is **not
+pushed, merged or deployed**. The last recorded public release is still
+**v0.5.1**, and no hosted check was made for this checkpoint.
+
+- **Changed:** the battle's 手牌/落子/對手/局勢 tabs are replaced by one 對局
+  table. Both public four-card hands, the announced confrontation, life and
+  pills, and the move controls stay visible together, and the reveal uses the
+  same table. `permittedAnnouncement` in `battle-presentation.mjs` is the only
+  reader of the stored AI move and never exposes its bid or Fury. No engine,
+  reward, AI, save-schema or art change.
+- **Checked on `80fb7a3`:** 456/456 Node tests; `npm run test:battle-table`
+  40/40 in Chromium and WebKit; viewport 23/23 and battle-presentation 6/6 in
+  both engines; the rest of `npm run test:browser` and the expansion smoke in
+  Chromium. All ran headless against a loopback server.
+- **Measured:** one round in which the player checks the opponent three times
+  takes 5 taps instead of 11. Input → next paint is unchanged, and the first
+  table paint after resume is 3–17 ms slower in four of five headless profiles.
+  [VALIDATION](VALIDATION.md#q0-battle-table--2026-10-10) has the table and
+  method.
+- **Open:** physical iOS/Android devices, human playtest, owner review of the
+  new phone, tablet and landscape layouts, the plan's remaining clipping notes,
+  and merge/build/release. The
+  [battle-table plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
+  lists them.
 
 ## Experience planning checkpoint · 2026-09-29
 
@@ -526,6 +556,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | WX-01 rules / collation / grants | `node --test tests/wx01-cards.test.mjs tests/wx01-pack.test.mjs tests/wx01-progression.test.mjs`; analytical checks in `tests/wx01-drop-model.test.mjs` |
 | Campaign / activity / rewards | `node --test tests/campaign-content.test.mjs tests/activity-engine.test.mjs tests/expansion-progression.test.mjs tests/profile-store.test.mjs` |
 | Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
+| Battle table / battle UI (Q0 branch) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |
