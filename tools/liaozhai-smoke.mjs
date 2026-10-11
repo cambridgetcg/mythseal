@@ -22,10 +22,11 @@ const expectedSample = [
   { cardId: 'yanchixia', treatment: 'base' },
   { cardId: 'niexiaoqian', treatment: 'aa' },
 ];
-// Bound special printings, written out independently of liaozhai-cards.mjs. 嬰寧 AA (unbound) is planned.
+// Bound special printings, written out independently of liaozhai-cards.mjs. All seven are bound; none is planned.
 const expectedSpecials = [
   { cardId: 'niexiaoqian', treatment: 'aa', printId: 'lz01-001-aa1', src: 'assets/lz01/xiaoqian-aa.png' },
   { cardId: 'niexiaoqian', treatment: 'treasure', printId: 'lz01-001-tr1', src: 'assets/lz01/xiaoqian-treasure.png' },
+  { cardId: 'yingning', treatment: 'aa', printId: 'lz01-004-aa1', src: 'assets/lz01/yingning-aa2.png' },
   { cardId: 'lupan', treatment: 'ink', printId: 'lz01-006-ink1', src: 'assets/lz01/lupan-ink.png' },
   { cardId: 'huapi', treatment: 'ink', printId: 'lz01-008-ink1', src: 'assets/lz01/huapi-ink.png' },
   { cardId: 'chenshi', treatment: 'aa', printId: 'lz01-009-aa1', src: 'assets/lz01/chenshi-aa.png' },
@@ -33,7 +34,7 @@ const expectedSpecials = [
 ];
 const specialsFor = id => expectedSpecials.filter(print => print.cardId === id);
 const printLabels = { base: '本畫 BASE', aa: '異畫 AA', ink: '墨卷 INK', treasure: '天工 TR' };
-const expectedProgress = '12 款本畫＋6 款特別畫作先行（異畫 3、墨卷 2、天工 1）；嬰寧異畫仍在規劃中。';
+const expectedProgress = '12 款本畫＋7 款特別畫作先行（異畫 4、墨卷 2、天工 1）。';
 await mkdir(output, { recursive: true });
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
 
@@ -244,8 +245,8 @@ try {
     await page.keyboard.press('Escape');
     await page.locator('#card-dialog[open]').waitFor({ state: 'hidden' });
     await focusIs(page, 'inspect', { cardId: 'chenshi', treatment: 'aa' });
-    assert.equal(await page.locator('#catalogue-grid .print-chip[data-card-id="yingning"]').count(), 0, 'Unbound 嬰寧 AA must not be offered');
-    passed(`${label}: twelve portraits, identical BASE/AA/TR hero stats, five stories, four factions, intersection, empty-state recovery and six special-printing links`);
+    assert.equal(await page.locator('#catalogue-grid .print-chip[data-card-id="yingning"][data-treatment="aa"]').count(), 1, 'The round-four 嬰寧 AA is offered once');
+    passed(`${label}: twelve portraits, identical BASE/AA/TR hero stats, five stories, four factions, intersection, empty-state recovery and seven special-printing links`);
 
     const inspectIds = width === 1440 ? await catalogueIds(page) : ['niexiaoqian', 'yingning', 'lupan', 'huapi', 'chenshi', 'wangliulang', 'xuyuren'];
     for (const id of inspectIds) {

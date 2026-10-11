@@ -159,6 +159,76 @@ rollout and C2PA checks were scratch scripts outside the repository.
 Physical phones, native Safari, the owner's art review and a new 嬰寧 AA prompt
 revision and generation remain open.
 
+**2026-10-11 round four · addendum.** Started from `864efe2` (the round-four
+嬰寧 AA prompt, SHA-256 `d0aafae839ce…`). Three candidates were generated from
+it, and two read-only reviews judged them, one for fidelity and safety and one
+for craft and card fit; the craft review rendered each on the card in the hero
+and the dialog at 1440 and 390 in Chromium and WebKit. Both picked candidate 2,
+which was bound as `assets/lz01/yingning-aa2.png`. The unbound first file,
+`assets/lz01/yingning-aa.png`, was removed from the tree with `git rm`; its
+bytes stay in Git history (`3c07dfe`) and at its archive path, and its
+provenance block is kept and marked superseded. Hashes, archive paths and
+reasons for all three candidates are in the
+[嬰寧 AA brief](ART-LZ01.md#lz01-004-aa1--嬰寧-aa--花間藏笑), and the bound file
+has its own
+[provenance block](ART-LZ01.md#lz01-004-aa1--嬰寧-aa--花間藏笑--round-four). No
+engine, catalogue, save, service or public-file change. The checks below ran on
+this commit's tree before it was committed.
+
+- The repository copy equals its archive original (`cmp`; SHA-256
+  `a87541f9…` on both, 1024×1536, 3,799,105 bytes). For all three round-four
+  candidates, an independent read of each rollout found one
+  `image_gen__imagegen` call whose prompt equals the brief byte for byte,
+  `transparent_background: false` as its only other argument, an identical
+  `revisedPrompt`, no model field, a `savedPath` equal to the archive file and
+  a base64 result that decodes to it; the agent's user message equals the
+  recorded sent text (SHA-256 `712045b6…`) and is text only. A read-only parse
+  of the bound PNG found the chunks `IHDR`, `caBX`, `IDAT` and `IEND` with
+  valid CRCs. Its C2PA manifest names `ChatGPT` / `gpt-image` (`c2pa.created`
+  2026-10-11T11:26:54Z) and records `c2pa.watermarked.unbound`, and its data
+  hash equals the file's SHA-256 without `caBX`. The five other 2026-10-11
+  files still `cmp` equal to their archive originals, and the removed file's
+  archive original still hashes to `ecf9df41…`.
+- Data: `lz01-004-aa1` moved from `LZ01_PLANNED_SPECIALS` to `LZ01_SPECIALS`
+  (between 小倩 TR and 陸判 INK, in card order) with `src` and `異畫 AA`;
+  `LZ01_PLANNED_SPECIALS` is now empty. Only `assets/lz01/yingning-aa2.png` was
+  added to `hosting/preview-assets.json`. The static count and meta description
+  in `liaozhai.html` now read 「12 款本畫＋7 款特別畫作先行（異畫 4、墨卷 2、天工
+  1）。」 and 「七款」, matching what `renderPrintProgress()` renders with no
+  planned printing.
+- `node --test tests/*.test.mjs`: **456/456**, exit 0, on Node 26.0.0. The LZ
+  content test now expects seven bound and no planned print IDs and ten image
+  paths, and checks the new file's header, preview-list membership, absence
+  from the public list and SHA-256 against ART-LZ01. It also now fails if a
+  row in the ART-LZ01 hash table names a file that is not in `assets/lz01/`;
+  the previous commit's table, which still listed `yingning-aa.png`, would fail
+  it.
+- Python (3.14.6): **9 tests OK**.
+- `npm run build`: **80 public files**, manifest `98028a3a…`, unchanged; no
+  `dist` path or file content mentions `lz01`, `liaozhai` or `yingning`.
+- The loopback `serve.py --port 4196` was stopped and restarted from this
+  worktree, because it reads the allowlist only at startup. Afterwards
+  `assets/lz01/yingning-aa2.png` returns 200 with the committed bytes,
+  `assets/lz01/yingning-aa.png` returns 404, and `assets/lz01/lupan-ink.png`
+  still returns 200.
+- `GAME_URL=http://127.0.0.1:4196 npm run test:liaozhai`: **14 groups per
+  engine** in Chromium and WebKit (Playwright 1.63.0), exit 0, 22 screenshots
+  each (two more than before, the 嬰寧 AA dialog at 1440×900 and 390×844), with
+  no errors and no forbidden requests. The smoke now lists seven catalogue
+  links in card order, expects the 嬰寧 AA chip once instead of never, checks
+  the new printing's own file, print ID and 異畫 label with unchanged stats, and
+  expects the new progress text.
+- Visual review: the binding session read the new dialog captures in both
+  engines at both widths. 嬰寧 laughs in the tree near the top and 王子服 stands
+  on the raised path with both hands open, both clear of 花間藏笑 and 嬰寧;
+  only grass, the bank and the stone steps sit under the lettering.
+
+Evidence (ignored): `test-results/lz01-r4-{unit,python,build,browser}.log`
+and `liaozhai-{chromium,webkit}-smoke.json` with their screenshots. The
+rollout and C2PA checks were scratch scripts outside the repository.
+Physical phones, native Safari and the owner's art review remain open; no
+special printing is still planned.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

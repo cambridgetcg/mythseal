@@ -28,14 +28,18 @@ generated with the built-in imagegen tool, with no reference images supplied.
 On 2026-10-11 six special printings were generated with the owner's approval:
 嬰寧, 陳氏 and 王六郎 AA, 畫皮之鬼 and 陸判 墨卷 INK, and 聶小倩 天工 TR. They were
 generated with Codex CLI's built-in imagegen tool (`image_gen__imagegen`), again
-with no reference images, and copied byte-for-byte. Five are bound in the
+with no reference images, and copied byte-for-byte. All six are bound in the
 preview; 陸判 INK (`assets/lz01/lupan-ink.png`) came from a third prompt, after
 two earlier prompts gave red marks that read as letters or numerals, and was
-checked on the card before binding. 嬰寧 AA was unbound the same day because the
-card's title and name are printed over 王子服; its file is kept unchanged and
-served by neither allowlist. Three candidates from its revised card-fit brief
-were reviewed and none was selected, so that slot is still planned.
-All ten images are preview-only and do not grant or change owned cards.
+checked on the card before binding. The first 嬰寧 AA was unbound the same day
+because the card's title and name are printed over 王子服, and none of three
+candidates from its revised card-fit brief was selected. A round-four prompt
+then gave `assets/lz01/yingning-aa2.png`, which keeps 王子服 above the card text
+and was checked on the card before binding; the unbound `yingning-aa.png` was
+removed from the tree (its bytes stay in Git history and the private archive).
+No special printing is still planned.
+All ten images in `assets/lz01/` are preview-only and do not grant or change
+owned cards.
 See [exact prompts, cell mappings and provenance](ART-LZ01.md) and the
 [set design](EXPANSION-LZ01.md). No exact image-model identifier was exposed:
 the tool results have no model field. Each of the ten files does embed a

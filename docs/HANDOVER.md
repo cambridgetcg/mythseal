@@ -229,6 +229,23 @@ preview now has thirteen paths in `hosting/preview-assets.json` (four code, nine
 images), still none in the public list. The 4196 loopback server was restarted
 from this worktree to reread the allowlist.
 
+**2026-10-11 round-four addendum:** 嬰寧 異畫 AA (`lz01-004-aa1`) is bound again,
+as `assets/lz01/yingning-aa2.png`: round four candidate 2 of 3 from a prompt that
+puts 王子服 on a raised path with his feet above 52% of the image height and both
+hands open and empty. It passed the card-fit check in the hero and the dialog at
+1440 and 390 in Chromium and WebKit (his feet at about 50.5%, about 96 image px
+above the title). All seven special works are bound, `LZ01_PLANNED_SPECIALS` is
+empty, and the preview shows all 19 of 19 printings; the rendered count is
+「12 款本畫＋7 款特別畫作先行（異畫 4、墨卷 2、天工 1）。」. The unbound first file,
+`yingning-aa.png`, was removed from the tree in the same commit (its bytes stay
+in Git history at `3c07dfe` and in the private archive); its provenance block
+is kept and marked superseded. The content test now also fails if the
+ART-LZ01 hash table names a file that is not in `assets/lz01/`. The LZ preview
+now has fourteen paths in `hosting/preview-assets.json` (four code, ten
+images), still none in the public list. The 4196 loopback server was restarted
+from this worktree to reread the allowlist. Physical phones, native Safari and
+the owner's art review remain open.
+
 Use `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` (or the server's actual
 loopback URL) for isolated Chromium/WebKit preview checks. `npm test` includes
 the content/dependency boundary checks. During this session the original game

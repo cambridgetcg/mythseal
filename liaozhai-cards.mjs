@@ -82,17 +82,16 @@ export const LZ01_TREATMENTS = freeze({
 export const LZ01_SPECIALS = freeze([
   { cardId: 'niexiaoqian', printId: 'lz01-001-aa1', treatment: 'aa', name: '聶小倩 · 燈前相守', title: '燈前相守', src: 'assets/lz01/xiaoqian-aa.png', label: '異畫 AA' },
   { cardId: 'niexiaoqian', printId: 'lz01-001-tr1', treatment: 'treasure', name: '聶小倩 · 歸燈', title: '歸燈', src: 'assets/lz01/xiaoqian-treasure.png', label: '天工 TR' },
+  { cardId: 'yingning', printId: 'lz01-004-aa1', treatment: 'aa', name: '嬰寧 · 花間藏笑', title: '花間藏笑', src: 'assets/lz01/yingning-aa2.png', label: '異畫 AA' },
   { cardId: 'lupan', printId: 'lz01-006-ink1', treatment: 'ink', name: '陸判 · 夜酌朱批', title: '夜酌朱批', src: 'assets/lz01/lupan-ink.png', label: '墨卷 INK' },
   { cardId: 'huapi', printId: 'lz01-008-ink1', treatment: 'ink', name: '畫皮之鬼 · 墨下另一面', title: '墨下另一面', src: 'assets/lz01/huapi-ink.png', label: '墨卷 INK' },
   { cardId: 'chenshi', printId: 'lz01-009-aa1', treatment: 'aa', name: '陳氏 · 仍有人守門', title: '仍有人守門', src: 'assets/lz01/chenshi-aa.png', label: '異畫 AA' },
   { cardId: 'wangliulang', printId: 'lz01-011-aa1', treatment: 'aa', name: '王六郎 · 留人間一岸', title: '留人間一岸', src: 'assets/lz01/liulang-aa.png', label: '異畫 AA' },
 ]);
-// Briefed in docs/ART-LZ01.md with no bound image, so no file is referenced. 嬰寧 AA was unbound
-// on 2026-10-11 because the card text covered 王子服, and no round-three candidate was selected;
-// its brief records why and what to regenerate.
-export const LZ01_PLANNED_SPECIALS = freeze([
-  { cardId: 'yingning', printId: 'lz01-004-aa1', treatment: 'aa', name: '嬰寧 · 花間藏笑', title: '花間藏笑' },
-]);
+// Printings briefed in docs/ART-LZ01.md with no bound image, so no file is referenced. Empty since
+// 2026-10-11, when the round-four 嬰寧 AA was bound as yingning-aa2.png (its first file, unbound for
+// card fit, was removed from the tree); the progress text names any entry added here again.
+export const LZ01_PLANNED_SPECIALS = freeze([]);
 export const LZ01_SAMPLE = freeze([
   { cardId: 'ningcaichen', treatment: 'base' },
   { cardId: 'yanchixia', treatment: 'base' },
