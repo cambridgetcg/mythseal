@@ -312,6 +312,8 @@
 .reveal-pair-side b{flex-shrink:0;font:500 14px var(--serif);letter-spacing:1px;color:var(--paper)}
 .reveal-pair-side[data-winner] b{color:#ecd093}
 .reveal-pair-side small{min-width:0;margin-left:auto;font-size:10px;color:#d2d7c7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* The actual attack decides the round, so it never yields; only the bid text may. */
+.reveal-pair-side .reveal-pair-attack{flex-shrink:0;margin-left:0;overflow:visible}
 .battle-reveal:has(.dialog-module-clash:not([hidden])) .reveal-played-pair{display:none}
 /* Beside the resource and effect pages the pair carries the round, the cards, bids
    and attacks and (from impact) the winner, so the eyebrow and the phase line

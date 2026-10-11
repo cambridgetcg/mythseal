@@ -120,3 +120,11 @@
  .scene-dialog .dialog-module-resources .viewport-pagination{display:none}
 }
 @media(max-width:600px){.scene-dialog .dialog-page-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scene-dialog .bag-passport-art,.scene-dialog .dialog-module-portrait>.card{width:140px}.scene-dialog .bag-passport-level{padding:0}.scene-dialog .dialog-module-portrait{gap:4px}.scene-dialog .dialog-compact-heading h2,.scene-dialog h2.dialog-compact-heading{font-size:21px}.scene-dialog .inheritance-target{grid-template-columns:92px minmax(0,1fr);gap:9px}.scene-dialog .inheritance-target-copy h3{font-size:20px}.scene-dialog .inheritance-target-copy p{font-size:10px}.scene-dialog .inheritance-target .inheritance-stats{font-size:10px}.scene-dialog .clash-card-frame{max-width:120px}.scene-dialog .battle-clash .card-name{font-size:20px;letter-spacing:1px}.scene-dialog .battle-clash .card-title,.scene-dialog .battle-clash .card-skill{font-size:7px}.scene-dialog .battle-clash .card-copy{left:9px;right:7px;bottom:9px}.scene-dialog .battle-clash .card-stat strong{font-size:18px}.scene-dialog .battle-clash .card-stats{gap:8px}.scene-dialog .battle-clash .card-top{left:9px;right:7px;font-size:8px}.scene-dialog .battle-clash .stars{font-size:6px;letter-spacing:0}.scene-dialog .clash-attack strong{font-size:20px}.scene-dialog .wx01-redeem-choice>.card{width:115px}.scene-dialog .wx01-redeem-choice h3{font-size:11px}.scene-dialog .dialog-fixed-actions{gap:5px}.scene-dialog .dialog-fixed-actions button{font-size:10px;letter-spacing:0;padding:7px 9px}}
+/* Short landscape shows one effect block per page in about 80–120 px, so each
+   side's notes share two columns: a block with four notes (skill, resonance, Fury
+   and recovery) still fits its page. */
+@media(max-height:500px){
+ .scene-dialog.battle-reveal .result-effects>div:not(.resolution){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px;align-content:start}
+ .scene-dialog.battle-reveal .result-effects>div:not(.resolution)>h4{grid-column:1/-1}
+ .scene-dialog.battle-reveal .result-effects>div:not(.resolution)>p{margin:1px 0}
+}

@@ -6,10 +6,14 @@
  * elementFromPoint hit tests; that secret AI bids/Fury never change pre-reveal
  * DOM/ARIA; that inspection keeps focus, draft, saves and RNG; and that reveal,
  * Next and reload keep round/card labels. Keyboard focus returns to Commit after
- * Next; selection patches the hand in place. A fit sweep adds tablet, phone
- * landscape and other window sizes with four-character names, then commits and
- * pages through every reveal page by tapping its pager. Headless engines only:
- * physical iOS/Android and human review are separate evidence.
+ * Next; selection patches the hand in place. Every decision pass also measures
+ * the Fury switch, the attack-estimate label, name/badge spacing and stacked
+ * rows. A fit sweep adds tablet, phone landscape and other window sizes with
+ * four-character names, then commits and pages through every reveal page by
+ * tapping its pager (each played-pair attack whole; one page where ced2aa4 had
+ * one), and checks the 危 mark at low life. Under full motion the backdrop is
+ * opaque from the first frame after Commit. Headless engines only: physical
+ * iOS/Android and human review are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] [BATTLE_TABLE_SIZE=360x640] node tools/battle-table-smoke.mjs
  * BATTLE_TABLE_SIZE limits the flows and the fit sweep to that one contract size.
  */
@@ -81,7 +85,9 @@ function fixtures() {
   assert.equal(r2.status, 'playing'); assert.equal(r2.round, 3); assert.equal(r2.initiative, 'opponent');
   const mist = table({ kind: 'expedition', nodeId: 'mist-gate', initiative: 'opponent', opponentName: '守渡弈者', opponentLevels: { chiling: 3 } });
   const legacy = table({ initiative: 'opponent' });
-  const long = table({ initiative: 'opponent', opponentName: LONGEST_NAME, hands: LONG_HANDS }), longMove = { cardId: 'liuer', pills: 3, fury: false };
+  // The hidden long-names bid is the reveal pair's worst case: the opponent wins
+  // ("對手 · 勝") with a four-character name, nine pills and Fury.
+  const long = table({ initiative: 'opponent', opponentName: LONGEST_NAME, hands: LONG_HANDS }), longMove = { cardId: 'liuer', pills: 9, fury: true };
   const lowLife = table({ initiative: 'opponent', playerHP: 2, opponentHP: 3 });
   const overkill = table({ initiative: 'opponent', opponentHP: 1 });
   const killing = { cardId: 'qingxiao', pills: 1, fury: true }, opener = { cardId: 'yanxin', pills: 0, fury: false };
@@ -386,7 +392,12 @@ async function reveal(page, { round, playerCard, opponentCard, keyboard = false,
       const doc = document.documentElement;
       const clipped = [modal, ...modal.querySelectorAll('[data-viewport-module],[data-viewport-list],.viewport-list-frame')].filter(visible)
         .filter(node => node.scrollHeight > node.clientHeight + 2 || node.scrollWidth > node.clientWidth + 2).map(node => `${node.className}:${node.clientHeight}/${node.scrollHeight}`);
-      return { clipped, pair: visible(pair) ? pair.textContent : null, round: modal.querySelector('.reveal-pair-round')?.textContent, eyebrow: modal.querySelector('.eyebrow,.mist-reveal-caption')?.textContent,
+      // Each side's actual attack is whole and inside its side; only the bid text may yield.
+      const attacks = visible(pair) ? [...pair.querySelectorAll('.reveal-pair-side')].map(side => {
+        const attack = side.querySelector('.reveal-pair-attack'), box = attack?.getBoundingClientRect(), frame = side.getBoundingClientRect();
+        return { side: side.dataset.side, text: attack?.textContent, whole: !!attack && attack.scrollWidth <= attack.clientWidth + 0.5 && box.left >= frame.left - 0.5 && box.right <= frame.right + 0.5 && side.scrollWidth <= side.clientWidth + 0.5 };
+      }) : null;
+      return { clipped, attacks, pair: visible(pair) ? pair.textContent : null, round: modal.querySelector('.reveal-pair-round')?.textContent, eyebrow: modal.querySelector('.eyebrow,.mist-reveal-caption')?.textContent,
         clash: visible(clash) ? [...clash.querySelectorAll('.clash-side')].map(side => `${side.dataset.side}:${side.querySelector('.card-name')?.textContent}`) : null,
         footer: { clear, inside: rect.bottom <= innerHeight + 0.5 && rect.top >= 0, height: rect.height }, scroll: doc.scrollHeight > innerHeight + 1 || doc.scrollWidth > innerWidth + 1 };
     });
@@ -394,6 +405,8 @@ async function reveal(page, { round, playerCard, opponentCard, keyboard = false,
     else {
       assert(view.pair?.includes(names.player) && view.pair.includes(names.opponent), `${page.size} ${tab}: played pair stays visible with effects ${JSON.stringify(view)}`);
       assert.equal(view.round, `第 ${round} 回合`);
+      const expected = ['player', 'opponent'].map(side => ({ side, text: `· 攻擊 ${accepted.match.lastResult[side].attack}`, whole: true }));
+      assert.deepEqual(view.attacks, expected, `${page.size} ${tab}: the pair shows each actual attack whole`);
     }
     assert(view.eyebrow?.includes(`${round}`), `${tab}: reveal labelled with round ${round}`);
     assert(view.footer.clear && view.footer.inside && view.footer.height >= 43.5, `${page.size} ${tab}: Next reachable ${JSON.stringify(view.footer)}`);
@@ -667,7 +680,7 @@ try {
     await assertLowLifeMark(low);
     await release(low);
   }
-  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced and clear of their state labels; every decision input inside the viewport and hit-testable, with a whole Fury switch and no overlapping rows; no page or table overflow; low life shows 危; the reveal's pages fit, every pager is tappable and both resource panels are reachable`);
+  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced and clear of their state labels; every decision input inside the viewport and hit-testable, with a whole Fury switch and no overlapping rows; no page or table overflow; low life shows 危; the reveal's pages fit, every pager is tappable, both resource panels are reachable and the pair shows each whole attack`);
 
   // Finished overkill settles exactly once across Next and reload.
   const finished = FIXTURES['q0-overkill-finished'];

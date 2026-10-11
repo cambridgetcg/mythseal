@@ -212,7 +212,9 @@ test('reveal markup and the dialog pair are labelled by the resolved round', () 
   const view = createRevealView(s1);
   const pair = revealPairMarkup(view);
   assert.match(pair, /<span class="reveal-pair-round">第 1 回合<\/span>/);
-  assert.match(pair, /青霄/); assert.match(pair, /赤翎/); assert.match(pair, /暗置 2 丹 ＋ 怒擊/); assert.match(pair, /暗置 4 丹 ·/);
+  assert.match(pair, /青霄/); assert.match(pair, /赤翎/); assert.match(pair, /暗置 2 丹 ＋ 怒擊<\/small>/); assert.match(pair, /暗置 4 丹<\/small>/);
+  // The actual attack has its own element so the bid text, never the attack, yields.
+  for (const side of ['player', 'opponent']) assert.match(pair, new RegExp(`data-side="${side}"[^>]*>(?:(?!data-side).)*<small class="reveal-pair-attack">· 攻擊 ${view.center[side].attack}</small></div>`));
   // The winner word has its own hook (staged until impact) and only on the winner's side.
   const winner = view.center.winner, loser = winner === 'player' ? 'opponent' : 'player';
   assert.equal((pair.match(/class="reveal-pair-outcome"/g) || []).length, 1);
