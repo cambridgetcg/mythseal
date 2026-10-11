@@ -10,7 +10,8 @@ import { clickViewportItem,revealViewportItem,viewportFrames } from './viewport-
 
 const browserName=process.env.BROWSER||'chromium';
 const output=fileURLToPath(new URL('../test-results/',import.meta.url));
-if(browserName==='webkit'&&!process.env.PLAYWRIGHT_BROWSERS_PATH)process.env.PLAYWRIGHT_BROWSERS_PATH=output+'webkit-runtime';
+// Like the other smokes: use the ignored local runtime only when it exists, else Playwright's default browser cache.
+if(browserName==='webkit'&&!process.env.PLAYWRIGHT_BROWSERS_PATH&&existsSync(output+'webkit-runtime'))process.env.PLAYWRIGHT_BROWSERS_PATH=output+'webkit-runtime';
 const engines=await import('playwright'),base=new URL(process.env.GAME_URL||'http://127.0.0.1:4177');
 assert(['localhost','127.0.0.1','[::1]'].includes(base.hostname));
 const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',now='2026-09-23T12:00:00.000Z';
