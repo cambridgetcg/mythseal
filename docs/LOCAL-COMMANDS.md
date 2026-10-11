@@ -2,15 +2,19 @@
 
 **Status:** proposed contract, implemented for one command (`care.upgrade`);
 owner review requested before Q2/Q3 consumers. Dated 2026-10-11 and written
-against `origin/main` `8afbabc`. It is implemented on the local branch
-`q1/local-commands`, which is not pushed, merged or deployed. It is not a release
-and changes no hosted service. [§18](#18-implementation-record-2026-10-11)
+against `origin/main` `8afbabc`. It is implemented on the branch
+`q1/local-commands`, which took in `origin/main` `b40c4d2` at `b527dc3` and is
+merged into `main` by PR #10; it is not deployed. It is not a release
+and changes no hosted service; the proposed v0.6.0
+([RELEASE-NEXT](RELEASE-NEXT.md)) would ship it as §15 decision 3 requires. [§18](#18-implementation-record-2026-10-11)
 records what was built, where it differs from the text below, and the checks.
 §18.4, §18.6 and §18.7 record the fixes made after each of three reviews,
 §18.9 those after the final review, and §18.10, §18.11 and §18.12 those after
 the three pre-merge reviews; this text now includes all of them. The last source
 commit is `38fa64f` (§18.12), which adds a test only; the last runtime change is
-`1afaf6b`. §18.8 records the final check of an earlier one, `334bc75`.
+`1afaf6b`. §18.8 records the final check of an earlier one, `334bc75`. The
+checks after the `b527dc3` merge are in
+[VALIDATION](VALIDATION.md#q1-integration-with-main--2026-10-11).
 
 - It refines the illustrative Q1 sketch in [EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q1--one-local-command-and-its-accepted-receipt). Where the two differ, this document is the proposal; §13 lists every deviation.
 - [ROADMAP](../ROADMAP.md#q1--one-local-command-and-receipt-boundary) owns priority and the exit criteria.

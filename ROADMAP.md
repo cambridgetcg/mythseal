@@ -136,8 +136,8 @@ new renderer to make local play clearer.
 - **Exit:** simultaneous-visibility and real hit-test assertions pass for both
   initiative states and reveal/resume; hidden bids remain private. Record a
   before/after measurement and label any physical-device/human review still open.
-- **Status 2026-10-11:** implemented locally on branch `q0/battle-table` (final
-  source `80fb7a3`), awaiting owner review. It is not merged, pushed or deployed;
+- **Status 2026-10-11:** implemented on branch `q0/battle-table` and merged into
+  `main` in PR #5 (`bca9ab4`), awaiting owner review. It is not deployed;
   the last recorded public release is still v0.5.1. Final headless checks and
   the before/after measurement are in
   [VALIDATION](docs/VALIDATION.md#q0-battle-table--2026-10-10). A checking round
@@ -161,10 +161,11 @@ new renderer to make local play clearer.
   tab/reload interruption cannot lose a copy, spend twice or reroll a committed
   outcome. Changed payload under the same identity is rejected. Any new profile
   fields have versioned migration and compatible backup validation before release.
-- **Status 2026-10-11:** implemented for one command on the local branch
+- **Status 2026-10-11:** implemented for one command on the branch
   `q1/local-commands` (from `8afbabc`; last source commit `38fa64f`, after three
-  review rounds, a final review and three pre-merge reviews). Local only: not
-  pushed, merged or deployed, and no hosted check. The backpack card page's
+  review rounds, a final review and three pre-merge reviews), which took in
+  `origin/main` `b40c4d2` at `b527dc3` and is merged into `main` by PR #10. Not
+  deployed, and no hosted check. The backpack card page's
   修練升級 commits through `local-commands.mjs` under the shared lock, with its
   receipt in the same profile write. Every writer under that lock goes through
   an IndexedDB read-after-write fence, and commands and restore refuse, writing
@@ -172,10 +173,14 @@ new renderer to make local play clearer.
   [LOCAL-COMMANDS](docs/LOCAL-COMMANDS.md) is the contract and records the
   deviations; the checks are in
   [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11), ending with
-  the third pre-merge review's fixes, with a test in `38fa64f`. **Owner
+  the third pre-merge review's fixes, with a test in `38fa64f`; the
+  [integration check](docs/VALIDATION.md#q1-integration-with-main--2026-10-11)
+  at `b527dc3` is the newest entry there. **Owner
   review of the contract is requested before any Q2/Q3 consumer is written;**
   its §15 decisions (restore rule, browsers without Web Locks, release
-  ordering, retention, copies awaiting WX review) remain open.
+  ordering, retention, copies awaiting WX review) remain open. The proposed
+  v0.6.0, which would be the first public v5 release, includes Q1
+  ([RELEASE-NEXT](docs/RELEASE-NEXT.md)).
 
 ### Q2 · Previewed care for selected companions
 
@@ -216,9 +221,10 @@ new renderer to make local play clearer.
   playable route has a start → completion → receipt → return test. Preview
   browsing leaves profile bytes unchanged; duplicate completion pays once.
   Human difficulty review remains separate from strong-fixture completion tests.
-- **Status 2026-10-11 · registry and audit done locally; exit not yet met.**
+- **Status 2026-10-11 · registry and audit done and merged; exit not yet met.**
   Branch `q4/content-registry` (from `origin/main` `8afbabc`, with `origin/main`
-  `daf18ed` merged in) is not merged into `main` or deployed.
+  `daf18ed` merged in) was merged into `main` in PR #9 (`b40c4d2`); it is not
+  deployed.
   `tools/content-registry.mjs` is tooling only; the public build is unchanged.
   It derives 150 entries (120 local-playable, 30 preview; no LZ-01
   special is planned since `art/lz01-specials-images` was merged into the

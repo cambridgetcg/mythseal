@@ -57,8 +57,8 @@ Q0 acceptance is the simultaneous-visibility and hidden-information matrix in
 ## Q1 · one local command and its accepted receipt
 
 **Status 2026-10-11:** the agreed contract is [LOCAL-COMMANDS](LOCAL-COMMANDS.md),
-implemented for one command (`care.upgrade`) on the local branch
-`q1/local-commands`. Where it differs from the illustrative sketch below, it
+implemented for one command (`care.upgrade`) on the branch
+`q1/local-commands` and merged into `main` by PR #10 (not deployed). Where it differs from the illustrative sketch below, it
 governs; its §13 lists the deviations. Owner review is requested before Q2/Q3
 consumers are written.
 
@@ -223,14 +223,14 @@ promoted through the existing pipeline. No dynamic remote code loading is needed
 Asset budgets, artwork provenance and release identities remain owned by
 [CONTENT-RELEASE-PIPELINE](CONTENT-RELEASE-PIPELINE.md) and the expansion documents.
 
-**Implemented locally 2026-10-11 (branch `q4/content-registry`, not merged or
-deployed).** The registry is `tools/content-registry.mjs`, not a root runtime
+**Implemented 2026-10-11 (branch `q4/content-registry`, merged into `main` in
+PR #9, `b40c4d2`; not deployed).** The registry is `tools/content-registry.mjs`, not a root runtime
 module. It is **tooling only** for two reasons. It describes the LZ-01/HL-01
 preview identities, so a served copy would have to import `liaozhai-cards.mjs`
 and `honglou-cards.mjs` into the public graph, which their isolation tests forbid,
 or duplicate their lists. And it reads the two allowlists and the LZ-01 docs,
-which a static browser module cannot. No runtime view consumes it yet, so the public
-build is unchanged at 80 files. A future runtime label view should take a public
+which a static browser module cannot. No runtime view consumes it yet, so it adds no
+file to the public build. A future runtime label view should take a public
 subset that the build generates, not import this file.
 
 - **Derived, not maintained:** encounters come from `progression.mjs:NODES`

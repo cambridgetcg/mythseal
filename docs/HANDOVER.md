@@ -1,9 +1,10 @@
 # Mythseal agent handover
 
-Start here when joining development. Updated **2026-09-29**, with local Q0
-and Q4 checkpoints and the LZ-01 special-art addenda (under
+Start here when joining development. Updated **2026-09-29**, with the Q0, Q4
+and Q1 checkpoints and the LZ-01 special-art addenda (under
 [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
-**2026-10-11**. The last recorded
+**2026-10-11**. Q0 and Q4 merged into `main` in PRs #5 and #9, and Q1 by
+PR #10; none of them is deployed. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -31,7 +32,7 @@ and paid acquisition are retired objectives; dated NFT designs are historical re
 | Public game | [mythseal.com](https://mythseal.com); apex returned HTTP 200 and `/release.json` still reported v0.5.1 `ea48558` on **2026-09-24**. HTTP/`www` → HTTPS apex is recorded release evidence from 2026-09-21 |
 | Last recorded public source | Tag `v0.5.1`, commit `ea485586d14032bc145a993749a49d5c343ff5f8`, deployed **2026-09-21**; later source commits do not imply deployment |
 | Recorded public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **2026-09-21 21:33:57 UTC** and again on **2026-09-24**; see [HOSTING.md](HOSTING.md) for the release receipt |
-| Public release boundary | That v0.5.1 snapshot has 19 allowlisted game assets plus generated metadata; the current source build has 80. Server source, docs, tests and credentials stay excluded |
+| Public release boundary | That v0.5.1 snapshot has 19 allowlisted game assets plus generated metadata; the current source build has 83 (80 before Q1 added three runtime modules). Server source, docs, tests and credentials stay excluded |
 | Owner workspace | Machine-specific: the 2026-09-24 checkpoint used `mythseal`; another existing checkout is named `shanhai-duel`. Resolve the actual checkout/branch before editing; neither directory name establishes current source or running-service state |
 
 A private repository still serves its approved JavaScript and artwork publicly.
@@ -41,12 +42,14 @@ contains no credentials. Resource identities and deployment receipts live in
 
 ## Q0 battle-table checkpoint · 2026-10-11 (local only)
 
-Roadmap packet Q0 is implemented on the local branch **`q0/battle-table`**,
+Roadmap packet Q0 is implemented on the branch **`q0/battle-table`**,
 started from `origin/main` `ced2aa4`. The last source commit is **`0482837`**,
 the end of a 2026-10-11 polish pass on top of the first checkpoint `80fb7a3`;
-the documentation commits after it record that pass. The branch is **not
-pushed, merged or deployed**. The last recorded public release is still
-**v0.5.1**, and no hosted check was made for this checkpoint.
+the documentation commits after it record that pass. **Status now:** merged
+into `main` in PR #5 (`bca9ab4`), whose last commit `307f9a8` also changes CSS
+(the prefixed and fallback backdrop rules under Open); not deployed. The last
+recorded public release is still **v0.5.1**, and no hosted check was made for
+this checkpoint.
 
 - **Changed:** the battle's 手牌/落子/對手/局勢 tabs are replaced by one 對局
   table. Both public four-card hands, the announced confrontation, life and
@@ -77,20 +80,20 @@ pushed, merged or deployed**. The last recorded public release is still
   new phone, tablet and landscape layouts; the live-region announcement that
   names the winner at Commit; a real-Safari check that the reveal's backdrop blur
   hides the resolved table (prefixed and fallback rules added 2026-10-11); portrait windows under about
-  540 px tall; the plan's remaining clipping notes; and merge/build/release.
+  540 px tall; the plan's remaining clipping notes; and build/release.
   The [battle-table plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
   lists them.
 
 ## Q4 content registry checkpoint · 2026-10-11 (local only)
 
-Roadmap packet Q4's registry and audit are on the local branch
+Roadmap packet Q4's registry and audit are on the branch
 **`q4/content-registry`**, started from `origin/main` `8afbabc`. Source
 commits: **`4265039`** (the registry), review fixes **`7291880`** and
 **`cf63bec`**, merge commit **`d1f0f91`** (adapts the registry and its tests to
 PR #8's LZ-01 specials), third-review fixes **`6bc784a`**, fourth-review
 fixes **`092f1fd`**, fifth-review fixes **`2d44071`** and sixth-review fixes **`2a04859`**. Merge commit `d606447` brings in `origin/main` `daf18ed`
-(PRs #6–#8, documentation only); the other commits change documentation only. The branch is not merged into
-`main`, pushed or deployed, and no hosted check was made.
+(PRs #6–#8, documentation only); the other commits change documentation only. **Status now:** merged into
+`main` in PR #9 (`b40c4d2`); not deployed, and no hosted check was made.
 
 - **What it is:** `tools/content-registry.mjs` (Node tooling, never served),
   `tests/content-registry.test.mjs` and `npm run audit:content`. From the content
@@ -163,23 +166,27 @@ fixes **`092f1fd`**, fifth-review fixes **`2d44071`** and sixth-review fixes **`
   join the listed blind spots. Checked: 476/476 Node tests, the audit (exit 0,
   no findings, registry unchanged) and an 80-file build; the preview smokes
   were not re-run (no served file changed).
-- **Merging into `main`:** `docs/README.md` now qualifies the Experience modules,
-  Roadmap, Handover and Validation rows for Q4. When the branch merges, update
-  the "not merged" status lines here, in ROADMAP, EXPERIENCE-MODULES and
-  VALIDATION, then those rows.
+- **Merged into `main` (PR #9, `b40c4d2`):** the status lines here, in ROADMAP
+  and EXPERIENCE-MODULES, and the `docs/README.md` rows now say so. The dated
+  VALIDATION entry is left as written; the
+  [Q1 integration entry](VALIDATION.md#q1-integration-with-main--2026-10-11)
+  notes the merge.
 - **Open:** feature views do not show unavailable reasons yet; there is no
   browser-level start → completion → receipt → return test; the
   deeper-encounter sample and human difficulty review are not started.
 
 ## Q1 local-commands checkpoint · 2026-10-11 (local only)
 
-Roadmap packet Q1 is implemented for one command on the local branch
+Roadmap packet Q1 is implemented for one command on the branch
 **`q1/local-commands`**, started from `origin/main` `8afbabc`. The last source
 commit is **`38fa64f`**, after three review rounds, a final review and three
-pre-merge reviews; it adds a test only, the last runtime change is `1afaf6b`, and
-the commit after it changes documentation only. The branch is
-**not pushed, merged or deployed**. The last recorded public release is still
-**v0.5.1**, and no hosted check was made.
+pre-merge reviews; it adds a test only, and the last runtime change is
+`1afaf6b`. Merge commit `b527dc3` brings in `origin/main` `b40c4d2` (PRs
+#6–#9); the other commits after `38fa64f` change documentation only.
+**Status now:** merged into `main` by PR #10; not deployed. The last recorded
+public release is still **v0.5.1**, and no hosted check was made. The proposed
+v0.6.0, which would be the first public v5 release, is planned to include it
+([RELEASE-NEXT](RELEASE-NEXT.md)).
 
 - **Changed:** the backpack card page's 修練升級 commits the request painted
   with the page through `local-commands.mjs` (`care.upgrade`), under
@@ -195,7 +202,10 @@ the commit after it changes documentation only. The branch is
   suites, `test:inheritance` and `test:wx01` at `1afaf6b`, whose code is the
   same. All exit 0, headless against the worktree's loopback server.
   [VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11) has
-  the latest receipt and each review round's checks.
+  each review round's checks. After the `b527dc3` merge: 530/530 Node tests,
+  `npm run audit:content` with no findings and an 83-file build; no browser
+  suite was re-run there
+  ([VALIDATION](VALIDATION.md#q1-integration-with-main--2026-10-11)).
 - **Review requested:** the owner's review of the
   [LOCAL-COMMANDS](LOCAL-COMMANDS.md) contract before any Q2 care plan or Q3
   queue is written on it, including its §15 decisions: the restore rule,
@@ -222,7 +232,7 @@ the commit after it changes documentation only. The branch is
     `tools/account-smoke.mjs` share with main's own smokes.
 - **Open:** separate browser processes, the Safari app, Firefox, physical
   devices, a real full disk or `QuotaExceededError`, a real cross-tab delivery
-  lag over 0.5 s, `npm run build`, deploy dry runs, and merge/release. Browser
+  lag over 0.5 s, deploy dry runs, and release. Browser
   checks need a server started after the Q1 modules exist, because
   `tools/serve.py` reads the allowlist once at startup.
 
@@ -827,12 +837,12 @@ reason to replay or reverse the existing migrations casually.
 - Preserve `shanhai.*` storage keys, legacy data and per-copy identity/history.
   A stale tab, rejected cloud restore or failed command must not overwrite a
   newer journey. Restore keeps a local recovery copy.
-- From branch `q1/local-commands`, a v5 profile may carry an optional,
+- Since Q1 (branch `q1/local-commands`, merged by PR #10), a v5 profile may carry an optional,
   device-local `commands` ledger ([LOCAL-COMMANDS](LOCAL-COMMANDS.md)): only
   `commitCommand` and restore may change it, backups never contain it, and a v5
   build from before Q1 refuses a save that has one, so release Q1 no later than
   the first public v5 build.
-- On that branch every writer under `PROFILE_LOCK` goes through the fenced lock
+- Since Q1, every writer under `PROFILE_LOCK` goes through the fenced lock
   in `profile-fence.mjs`: `localStorage` is only eventually consistent between
   tabs, so the next lock holder waits for a digest the previous one recorded in
   IndexedDB ([LOCAL-COMMANDS §10.1](LOCAL-COMMANDS.md#101-read-after-write-fence-added-after-review)).
