@@ -56,6 +56,12 @@ Q0 acceptance is the simultaneous-visibility and hidden-information matrix in
 
 ## Q1 · one local command and its accepted receipt
 
+**Status 2026-10-11:** the agreed contract is [LOCAL-COMMANDS](LOCAL-COMMANDS.md),
+implemented for one command (`care.upgrade`) on the local branch
+`q1/local-commands`. Where it differs from the illustrative sketch below, it
+governs; its §13 lists the deviations. Owner review is requested before Q2/Q3
+consumers are written.
+
 **Proposed `local-commands.mjs`** is an adapter around pure domain functions and
 the existing profile store. It does not put DOM, animation or network calls into
 `engine.mjs`/`progression.mjs`. Start with care commands; WX-01 receipts remain

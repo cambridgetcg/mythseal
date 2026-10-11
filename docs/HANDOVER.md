@@ -632,6 +632,11 @@ reason to replay or reverse the existing migrations casually.
 - Preserve `shanhai.*` storage keys, legacy data and per-copy identity/history.
   A stale tab, rejected cloud restore or failed command must not overwrite a
   newer journey. Restore keeps a local recovery copy.
+- From branch `q1/local-commands`, a v5 profile may carry an optional,
+  device-local `commands` ledger ([LOCAL-COMMANDS](LOCAL-COMMANDS.md)): only
+  `commitCommand` and restore may change it, backups never contain it, and a v5
+  build from before Q1 refuses a save that has one, so release Q1 no later than
+  the first public v5 build.
 - Keep private-backup writes revision-checked. **`PT409` is intentional**;
   replacing it with SQLSTATE `40001` caused PostgREST transaction retries.
   Ownership comes from `auth.uid()`; the account header only guards stale tabs.

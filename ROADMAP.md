@@ -161,6 +161,15 @@ new renderer to make local play clearer.
   tab/reload interruption cannot lose a copy, spend twice or reroll a committed
   outcome. Changed payload under the same identity is rejected. Any new profile
   fields have versioned migration and compatible backup validation before release.
+- **Status 2026-10-11:** implemented for one command on the local branch
+  `q1/local-commands` (from `8afbabc`), awaiting owner review. It is not pushed,
+  merged or deployed. The backpack card page's 修練升級 now commits through
+  `local-commands.mjs` under the shared lock, with its receipt in the same
+  profile write. [LOCAL-COMMANDS](docs/LOCAL-COMMANDS.md) is the contract and
+  records the deviations; the checks are in
+  [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11). Owner
+  decisions on restore, retention and release ordering remain open, and Q2/Q3
+  consumers wait for that review.
 
 ### Q2 · Previewed care for selected companions
 

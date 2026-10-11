@@ -2,6 +2,49 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Q1 local commands · 2026-10-11
+
+Local branch `q1/local-commands`, started from `origin/main` `8afbabc`. Source
+commits `762412b`, `d2111ab`, `c529206` and `8fe664c`; the commit that adds this
+entry changes documentation only. Not pushed, merged or deployed; the last
+recorded public release is still v0.5.1, and this entry includes no hosted
+check. All of it is synthetic headless evidence on Node 26.0.0.
+
+The backpack card page's 修練升級 now commits the request captured when the
+page was painted, through `local-commands.mjs`, under the shared
+`PROFILE_LOCK`, with the effects and a bounded receipt in one profile write.
+Profile v5 gains an optional, device-local `commands` ledger that backups never
+contain. [LOCAL-COMMANDS](LOCAL-COMMANDS.md) is the contract;
+its §18 lists where the implementation differs.
+
+- `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs && node --test tests/*.test.mjs`:
+  exit 0. The six files gave **92/92** and the full suite **485/485**; the base
+  had 456. The trees of `762412b` and `d2111ab` were also tested alone: 466/466
+  and 485/485.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+  `git diff --check 8afbabc..HEAD`: clean.
+- The worktree's existing server on 4193 started before the change, and
+  `tools/serve.py` reads the allowlist once at startup, so it returned 404 for
+  `local-commands.mjs`. It was left running. A separate
+  `python3 tools/serve.py --port 4197` served the worktree for the browser runs.
+- `GAME_URL=http://127.0.0.1:4197 npm run test:commands`: **7/7 groups in each
+  engine** (system Google Chrome 154.0.8037.98, Playwright WebKit 26.6), exit 0.
+  They cover one write per click with reload, three stale-page cases, two
+  dispatched clicks, two pages behind a held lock, a synthetic quota error and
+  missing Web Locks.
+- `GAME_URL=… npm run test:browser`: all 14 Chromium suites, exit 0.
+  `npm run test:battle-table`: **40/40 in each engine**. `npm run test:inheritance`
+  and `npm run test:wx01`: both engines, exit 0.
+- Negative control: a scratch probe (not committed) against `8afbabc` served
+  from a scratch copy. In Chromium, a card page still showing "修練至 Lv.2 ·
+  120 金幣", after another page had upgraded the copy, charged 240 more and
+  reached Lv.3. On this branch the same steps charged 120 and stopped at Lv.2.
+
+Not checked: physical devices, the Safari app, Firefox, two separate browser
+processes, a real `QuotaExceededError`, `npm run build`, deploy dry runs,
+`test:viewport`, `test:expansion`, `test:collection-display` and the literary
+preview suites.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not
