@@ -3,9 +3,9 @@
 Proposed 2026-09-23 after the owner could no longer see the opponent's played
 card and lineup while making a move after the viewport conversion.
 
-**Status 2026-10-11:** implemented locally on branch `q0/battle-table` (steps 1–4
-below), with four rounds of review fixes. It is not merged, pushed or deployed;
-the last recorded public release is still v0.5.1. The headless Chromium/WebKit
+**Status 2026-10-11:** implemented on branch `q0/battle-table` (steps 1–4
+below), with four rounds of review fixes, and merged into `main` in PR #5
+(`bca9ab4`). It is not deployed; the last recorded public release is still v0.5.1. The headless Chromium/WebKit
 loopback checks and before/after measurement ran on `80fb7a3` and are recorded
 in [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10); the third round's
 checks ran on `7762730` and the fourth round's on `0482837` (see the review
@@ -415,6 +415,6 @@ commit list and the final checks.
 - In the final measurement (on `80fb7a3`, not repeated after the polish) the
   first table paint after resume was 3–17 ms slower in four of five headless
   profiles; nobody has profiled why.
-- Merging, a public build and a hosted release are separate steps that have not
-  happened.
+- A public build and a hosted release are separate steps that have not
+  happened. Merging has: PR #5 (`bca9ab4`) took this work into `main`.
 

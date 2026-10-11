@@ -468,3 +468,35 @@ test('unknown or malformed capability lists cannot enable current journey writes
     assert(game.requests.every(request => request.method === 'GET'));
   }
 });
+
+test('N19 a ledger-only difference is not a local change, while restore confirmation still includes the ledger', async () => {
+  const receipt = seq => ({ seq, intent: { type: 'care.upgrade', uid: 'card-000001', toLevel: seq + 1 }, at: now,
+    result: { cardId: 'qingxiao', printId: 'legacy/qingxiao', fromLevel: seq, toLevel: seq + 1, fromXP: seq === 1 ? 0 : 80, toXP: seq === 1 ? 80 : 200, coins: 120 * seq, dust: 6 * seq, coinsAfter: 300, dustAfter: 8 } });
+  const ledger = count => ({ version: 1, nextSeq: count + 1, retiredBelow: 1, receipts: Array.from({ length: count }, (_, index) => receipt(index + 1)) });
+  const cloud = saved(1, 420), game = signedIn(cloud, [reply(saved(2, 420)), reply(saved(2, 420))]);
+  game.profile = { ...restoreSnapshot(cloud.backup.snapshot, { now }), commands: ledger(1) };
+  await game.controller.init();
+  assert.equal(game.controller.getState().localChanged, false, 'the ledger never enters a backup');
+  game.controller.markLocalChanged();
+  assert.equal(game.controller.getState().localChanged, false);
+  assert.equal(await game.controller.upload(), true);
+  const uploaded = game.requests.at(-1).parsedBody.snapshot;
+  assert.equal(Object.hasOwn(uploaded.profile, 'commands'), false);
+  assert.equal(game.profile.commands.nextSeq, 2, 'upload leaves the local ledger in place');
+
+  assert.equal(game.controller.setConfirmation('restore'), true);
+  const confirmed = game.controller.getState().confirmation.localFingerprint;
+  assert.equal(confirmed, fingerprintProfile(game.profile), 'confirmation fingerprints the full profile, ledger included');
+  game.profile = { ...game.profile, commands: ledger(2) }; // a command committed after confirmation
+  assert.equal(await game.controller.restore(), false);
+  assert.match(game.controller.getState().error, /此裝置的旅程已有變動/);
+  assert.equal(game.restores.length, 0);
+  assert.equal(game.profile.commands.nextSeq, 3);
+  game.profile = { ...game.profile, coins: 999 };
+  game.controller.markLocalChanged();
+  assert.equal(game.controller.getState().localChanged, true, 'real journey changes still count');
+  assert.equal(game.controller.setConfirmation('restore'), true);
+  assert.equal(await game.controller.restore(), true, 'an unchanged profile with a ledger restores');
+  assert.equal(game.restores.length, 1);
+  assert.equal(game.controller.getState().localChanged, false);
+});

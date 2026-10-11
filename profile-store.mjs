@@ -1,6 +1,7 @@
 /** Version-separated local persistence. Call save under shanhai-profile-v3 lock. */
 import { PROFILE_KEY, PROFILE_VERSION, createProfile, hydrateProfile } from './progression.mjs';
-import { fingerprintProfile, assertLegacyExpansionBoundary, SNAPSHOT_FORMAT, SNAPSHOT_VERSION, MAX_SNAPSHOT_CARDS } from './cloud-save.mjs';
+import { fingerprintProfile, assertLegacyExpansionBoundary, createSnapshot, SNAPSHOT_FORMAT, SNAPSHOT_VERSION, MAX_SNAPSHOT_CARDS } from './cloud-save.mjs';
+import { retireCommandLedger } from './command-ledger.mjs';
 import { LEGACY_CARD_IDS } from './engine.mjs';
 
 export const BATTLE_KEY = 'shanhai.battle.v5';
@@ -49,6 +50,22 @@ export function assertLocalProfile(profile) {
   return profile;
 }
 
+export const RESTORE_LEDGER_ERROR = '這份旅程備份未超過 4 MiB 上限，但加上此裝置的操作記錄後超過儲存上限；本機旅程及回復備份均未更改。';
+
+/** The profile a restore saves (docs/LOCAL-COMMANDS.md §11): the restored journey, plus the
+ * replaced lineage's retired command boundary when it had a ledger. Checked with the same
+ * rules as save, so a refusal comes before the recovery copy or the profile is touched. */
+export function restoredLocalProfile(current, restored) {
+  if (!Object.hasOwn(current, 'commands')) return assertLocalProfile(restored);
+  const next = { ...restored, commands: retireCommandLedger(current.commands) };
+  try { return assertLocalProfile(next); }
+  catch (error) {
+    // Name the ledger only when the backup alone would have fitted.
+    try { assertLocalProfile(restored); } catch { throw error; }
+    throw Error(RESTORE_LEDGER_ERROR);
+  }
+}
+
 export function createProfileStore({ storage, now = () => new Date() }) {
   const read = key => storage.getItem(key);
   function source() {
@@ -93,5 +110,27 @@ export function createProfileStore({ storage, now = () => new Date() }) {
     storage.setItem(PROFILE_KEY, JSON.stringify(profile));
     return profile;
   }
-  return { load, save };
+  /** Restore under PROFILE_LOCK (docs/LOCAL-COMMANDS.md §11). The recovery copy of `current`
+   * is written only after the replacement passes the save checks. A throwing profile write
+   * may still have landed (§7 step 11), so the profile is read again before anything is
+   * undone: the previous recovery copy comes back only while the replaced bytes are still
+   * stored; the restored bytes count as a restore that landed; anything else keeps the new
+   * copy, because the replaced journey may now exist nowhere else. */
+  function replace(current, restored, { savedAt }) {
+    const next = restoredLocalProfile(current, restored);
+    const recovery = JSON.stringify({ savedAt, snapshot: createSnapshot(current) });
+    const previous = read(RECOVERY_KEY), replaced = read(PROFILE_KEY);
+    storage.setItem(RECOVERY_KEY, recovery);
+    try { return save(next); }
+    catch (error) {
+      let stored;
+      try { stored = read(PROFILE_KEY); } catch { throw error; }
+      if (stored === JSON.stringify(next)) return next;
+      if (stored === replaced) {
+        try { if (previous === null) storage.removeItem(RECOVERY_KEY); else storage.setItem(RECOVERY_KEY, previous); } catch {}
+      }
+      throw error;
+    }
+  }
+  return { load, save, replace };
 }

@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createProfile, hydrateProfile, PROFILE_KEY, beginBattle, finishBattle, sellInstance, buyPack,
-  startActivity, advanceActivity, claimExpansionGrant, openWX01Ticket, acknowledgeWX01Receipt } from '../progression.mjs';
+  startActivity, advanceActivity, claimExpansionGrant, openWX01Ticket, acknowledgeWX01Receipt, claimLogin, upgradeInstance } from '../progression.mjs';
 import { createSnapshot, restoreSnapshot } from '../cloud-save.mjs';
 import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { mintInstance, setInstanceXP, syncCollection } from '../collection.mjs';
-import { createProfileStore, assertLocalProfile, BATTLE_KEY, PROFILE_LOCK } from '../profile-store.mjs';
+import { createProfileStore, assertLocalProfile, BATTLE_KEY, PROFILE_LOCK, RECOVERY_KEY, RESTORE_LEDGER_ERROR } from '../profile-store.mjs';
+import { nearEnvelopeProfile } from './support/profile-envelope.mjs';
 
 const now = '2026-09-21T12:00:00.000Z';
 const fresh = () => createProfile({ now });
@@ -20,12 +21,24 @@ function oldProfile(profile = fresh()) {
 function fixture(values = {}) {
   const data = new Map(Object.entries(values).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)]));
   const writes = [];
-  let failKey = null;
+  let failKey = null, land = null, unreadable = false;
   const storage = {
-    getItem: key => data.get(key) ?? null,
-    setItem(key, value) { if (key === failKey) throw new DOMException('Fixture quota', 'QuotaExceededError'); writes.push(key); data.set(key, value); },
+    getItem(key) { if (unreadable) throw new DOMException('Fixture read', 'SecurityError'); return data.get(key) ?? null; },
+    setItem(key, value) {
+      if (key === failKey) {
+        if (!land) throw new DOMException('Fixture quota', 'QuotaExceededError');
+        // A write that stored `land(value)` and then reported failure anyway.
+        writes.push(key); data.set(key, land(value));
+        throw new DOMException('Fixture write landed, then reported failure', 'UnknownError');
+      }
+      writes.push(key); data.set(key, value);
+    },
+    removeItem(key) { writes.push(`-${key}`); data.delete(key); },
   };
-  return { data, writes, storage, store: createProfileStore({ storage, now: () => now }), fail: key => { failKey = key; } };
+  return {
+    data, writes, storage, store: createProfileStore({ storage, now: () => now }),
+    fail: (key, landed = null) => { failKey = key; land = landed; }, blind: () => { unreadable = true; },
+  };
 }
 
 test('v3 migration preserves exact copies, XP, custody, counters and source bytes', () => {
@@ -239,4 +252,130 @@ test('earned grant and ticket commit atomically; quota failure preserves entitle
     p => { p.expansion.fireMountain.dry = 20; }, p => { p.expansion.fireMountain.weekly.claimed = []; },
     p => { p.expansion.grants.push({ id: grantId, kind: 'base', printId: 'wx01-005-ink1', source: 'fire-mountain' }); },
   ]) { const bad = structuredClone(restored); corrupt(bad); assert.throws(() => assertLocalProfile(bad)); }
+});
+
+const ledger = () => ({
+  version: 1, nextSeq: 2, retiredBelow: 1,
+  receipts: [{ seq: 1, intent: { type: 'care.upgrade', uid: 'card-000001', toLevel: 2 }, at: now,
+    result: { cardId: 'qingxiao', printId: 'legacy/qingxiao', fromLevel: 1, toLevel: 2, fromXP: 0, toXP: 80, coins: 120, dust: 6, coinsAfter: 1080, dustAfter: 14 } }],
+});
+
+test('N16 the optional command ledger: absent stays absent, present round-trips, legacy sources cannot carry it', () => {
+  const plain = fixture({ [PROFILE_KEY]: fresh() });
+  const loaded = plain.store.load();
+  assert.equal(Object.hasOwn(loaded, 'commands'), false, 'hydration never invents the ledger');
+  plain.store.save(claimLogin(loaded, now));
+  assert.equal(Object.hasOwn(JSON.parse(plain.data.get(PROFILE_KEY)), 'commands'), false, 'an unrelated action never adds it');
+
+  const upgraded = { ...upgradeInstance(fresh(), 'card-000001'), commands: ledger() };
+  const kept = fixture({ [PROFILE_KEY]: upgraded });
+  const restored = kept.store.load();
+  assert.deepEqual(restored.commands, ledger());
+  assert.deepEqual(restored, upgraded);
+  kept.store.save(restored);
+  assert.deepEqual(JSON.parse(kept.data.get(PROFILE_KEY)), upgraded, 'load then save keeps the ledger unchanged');
+  const tomorrowLoad = createProfileStore({ storage: kept.storage, now: () => '2026-09-22T12:00:00.000Z' }).load();
+  assert.deepEqual(tomorrowLoad.commands, ledger(), 'day rollover keeps it');
+
+  for (const [key, raw] of [['shanhai.profile.v4', v4Profile()], ['shanhai.profile.v3', oldProfile()]]) {
+    const f = fixture({ [key]: { ...raw, commands: ledger() } }), before = new Map(f.data);
+    assert.throws(() => f.store.load(), /不完整/, key);
+    assert.deepEqual(f.writes, []); assert.deepEqual(f.data, before);
+  }
+  const v2 = oldProfile(); v2.version = 2;
+  for (const field of ['instances', 'instanceSerial', 'deckSlots', 'activeDeckId', 'merchantVault', 'collectionVersion']) delete v2[field];
+  const migrated = fixture({ 'shanhai.profile.v2': { ...v2, commands: ledger() } });
+  const next = migrated.store.load();
+  assert.equal(Object.hasOwn(next, 'commands'), false, 'a migration never creates a ledger');
+  migrated.store.save(next);
+  assert.equal(Object.hasOwn(JSON.parse(migrated.data.get(PROFILE_KEY)), 'commands'), false);
+});
+
+test('N16 the 4 MiB envelope check counts the ledger before any write', () => {
+  const large = nearEnvelopeProfile(fresh(), { headroom: 40 });
+  assertLocalProfile(large);
+  const withLedger = { ...large, commands: ledger() };
+  assert.throws(() => assertLocalProfile(withLedger), /4 MiB/);
+  const f = fixture({ [PROFILE_KEY]: large }), bytes = f.data.get(PROFILE_KEY);
+  assert.throws(() => f.store.save(withLedger), /4 MiB/);
+  assert.deepEqual(f.writes, []); assert.equal(f.data.get(PROFILE_KEY), bytes);
+});
+
+test('N24 a restore is checked before its recovery copy is written; a refused or failed restore keeps the previous copy', () => {
+  const previous = JSON.stringify({ savedAt: now, snapshot: createSnapshot(fresh()) });
+  const current = { ...upgradeInstance(fresh(), 'card-000001'), commands: ledger() };
+  // A valid backup within the retired ledger's ~77 bytes of the 4 MiB limit.
+  const near = restoreSnapshot(createSnapshot(nearEnvelopeProfile(fresh(), { headroom: 40 })), { now });
+  assertLocalProfile(near);
+  {
+    const f = fixture({ [PROFILE_KEY]: current, [RECOVERY_KEY]: previous }), before = new Map(f.data);
+    assert.throws(() => f.store.replace(f.store.load(), near, { savedAt: now }), { message: RESTORE_LEDGER_ERROR });
+    assert.deepEqual(f.writes, []); assert.deepEqual(f.data, before, 'neither the journey nor the recovery copy changed');
+  }
+  {
+    const f = fixture({ [PROFILE_KEY]: fresh(), [RECOVERY_KEY]: previous }), replaced = f.store.load();
+    const next = f.store.replace(replaced, near, { savedAt: now });
+    assert.equal(Object.hasOwn(next, 'commands'), false, 'the same backup restores over a journey without a ledger');
+    assert.deepEqual(f.writes, [RECOVERY_KEY, PROFILE_KEY]);
+    assert.deepEqual(JSON.parse(f.data.get(RECOVERY_KEY)), { savedAt: now, snapshot: createSnapshot(replaced) });
+  }
+  {
+    const small = restoreSnapshot(createSnapshot(fresh()), { now });
+    const f = fixture({ [PROFILE_KEY]: current, [RECOVERY_KEY]: previous }), bytes = f.data.get(PROFILE_KEY);
+    f.fail(PROFILE_KEY);
+    assert.throws(() => f.store.replace(f.store.load(), small, { savedAt: now }), { name: 'QuotaExceededError' });
+    assert.equal(f.data.get(RECOVERY_KEY), previous, 'the previous recovery copy is put back');
+    assert.equal(f.data.get(PROFILE_KEY), bytes);
+    const g = fixture({ [PROFILE_KEY]: current });
+    g.fail(PROFILE_KEY);
+    assert.throws(() => g.store.replace(g.store.load(), small, { savedAt: now }), { name: 'QuotaExceededError' });
+    assert.equal(g.data.has(RECOVERY_KEY), false, 'no recovery copy is left claiming a restore happened');
+    const h = fixture({ [PROFILE_KEY]: current }), replaced = h.store.load();
+    const next = h.store.replace(replaced, small, { savedAt: now });
+    assert.deepEqual(next.commands, { version: 1, nextSeq: 3, retiredBelow: 3, receipts: [] }, 'a restore retires the replaced lineage');
+    assert.deepEqual(JSON.parse(h.data.get(PROFILE_KEY)), next);
+    assert.deepEqual(JSON.parse(h.data.get(RECOVERY_KEY)), { savedAt: now, snapshot: createSnapshot(replaced) });
+  }
+});
+
+test('N24 a restore whose profile write lands and then throws keeps the replaced journey recoverable', () => {
+  // The journey being replaced has progress, including a command receipt, that exists nowhere else.
+  const current = { ...upgradeInstance({ ...fresh(), coins: 49_880 }, 'card-000001'), commands: ledger() };
+  const older = JSON.stringify({ savedAt: '2026-01-01T00:00:00.000Z', snapshot: createSnapshot(fresh()) });
+  const restored = restoreSnapshot(createSnapshot({ ...fresh(), coins: 7 }), { now });
+  const keptCopy = replaced => ({ savedAt: now, snapshot: createSnapshot(replaced) });
+  for (const previous of [null, older]) {
+    const label = previous ? 'with an older recovery copy' : 'without a recovery copy';
+    {
+      // The restored bytes landed: the restore happened, and is reported as done.
+      const f = fixture({ [PROFILE_KEY]: current, ...(previous ? { [RECOVERY_KEY]: previous } : {}) }), replaced = f.store.load();
+      f.fail(PROFILE_KEY, value => value);
+      const next = f.store.replace(replaced, restored, { savedAt: now });
+      assert.equal(next.coins, 7, label);
+      assert.equal(f.data.get(PROFILE_KEY), JSON.stringify(next), `${label}: the restore landed`);
+      assert.deepEqual(JSON.parse(f.data.get(RECOVERY_KEY)), keptCopy(replaced), `${label}: the replaced journey keeps its recovery copy`);
+    }
+    {
+      // Other bytes landed: neither journey is stored whole, so the new copy stays.
+      const f = fixture({ [PROFILE_KEY]: current, ...(previous ? { [RECOVERY_KEY]: previous } : {}) }), replaced = f.store.load();
+      f.fail(PROFILE_KEY, value => value.slice(0, 64));
+      assert.throws(() => f.store.replace(replaced, restored, { savedAt: now }), { name: 'UnknownError' });
+      assert.deepEqual(JSON.parse(f.data.get(RECOVERY_KEY)), keptCopy(replaced), `${label}: unknown bytes keep the copy`);
+    }
+    {
+      // The re-read itself fails: nothing proves the replaced bytes survived, so the copy stays.
+      const f = fixture({ [PROFILE_KEY]: current, ...(previous ? { [RECOVERY_KEY]: previous } : {}) }), replaced = f.store.load();
+      f.fail(PROFILE_KEY, value => { f.blind(); return value; });
+      assert.throws(() => f.store.replace(replaced, restored, { savedAt: now }), { name: 'UnknownError' });
+      assert.deepEqual(JSON.parse(f.data.get(RECOVERY_KEY)), keptCopy(replaced), `${label}: an unreadable re-read keeps the copy`);
+    }
+    {
+      // Control: nothing landed, so the replaced bytes are still stored and the old copy comes back.
+      const f = fixture({ [PROFILE_KEY]: current, ...(previous ? { [RECOVERY_KEY]: previous } : {}) }), bytes = f.data.get(PROFILE_KEY);
+      f.fail(PROFILE_KEY);
+      assert.throws(() => f.store.replace(f.store.load(), restored, { savedAt: now }), { name: 'QuotaExceededError' });
+      assert.equal(f.data.get(PROFILE_KEY), bytes);
+      assert.equal(f.data.get(RECOVERY_KEY) ?? null, previous, `${label}: a write that never landed rolls the copy back`);
+    }
+  }
 });

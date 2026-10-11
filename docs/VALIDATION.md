@@ -2,6 +2,58 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Q1 integration with `main` · 2026-10-11
+
+Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings
+`origin/main` `b40c4d2` (PRs #6–#9) into `2ad6da9`; the commits after it change
+documentation only. No deployment, no hosted check and no network request.
+Node 26.0.0 on macOS.
+
+**Merge.** Git reported conflicts only in `docs/HANDOVER.md` and
+`docs/VALIDATION.md`, where both sides had added 2026-10-11 sections. Both
+sides' sections were kept whole: Q4 and LZ-01 first, then Q1. Checked
+afterwards:
+
+- Every other path in `b527dc3` equals the tree that `git merge-tree
+  --write-tree 2ad6da9 b40c4d2` produces, and neither conflicted file contains
+  a conflict marker.
+- Against `b40c4d2`, both files only gain lines (77 and 368). Against
+  `2ad6da9`, VALIDATION only gains lines (663), and HANDOVER loses only the
+  seven lines that `main` had itself replaced since `8afbabc` (two in its
+  opening paragraph and five in the LZ-01 preview notes).
+- Against `2ad6da9`, no public file changes; the merge adds PR #8's preview
+  files and PR #9's tooling.
+
+**Checks at `b527dc3`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **530/530** (Q1's 510 plus the 20
+  that PRs #8 and #9 added on `main`).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, **83 public files** (`main`'s 80 plus Q1's
+  `command-ledger.mjs`, `local-commands.mjs` and `profile-fence.mjs`),
+  74,389,154 B, manifest `10f594fc…4014`.
+- `git merge-base --is-ancestor 7a7d03e b527dc3`: exit 0, so the fence is in
+  the tree that PR #10 brings to `main`.
+
+**Documentation.** The commits after the merge add docs-index rows for
+[LOCAL-COMMANDS](LOCAL-COMMANDS.md) and [RELEASE-NEXT](RELEASE-NEXT.md), bring
+the status lines in ROADMAP, HANDOVER, EXPERIENCE-MODULES, LOCAL-COMMANDS,
+BATTLE-LAYOUT-PLAN and NAVIGATION up to the merges (Q0 in PR #5, `bca9ab4`;
+Q4 in PR #9, `b40c4d2`; Q1 by PR #10), and take Q1 into the v0.6.0 plan, whose
+§13 lists the plan's own checks. The dated entries below for Q4, Q1 (with its
+review rounds) and Q0 were written on their branches before those merges and
+are left as written. On those documentation commits: `git diff --check` is
+clean, and a local Markdown link and anchor check over `docs/*.md`,
+`ROADMAP.md` and `README.md` (scratch script approximating GitHub's heading
+slugs) finds every link target and anchor.
+
+Not run at `b527dc3`: any browser suite (`npm run test:commands` last passed
+at `38fa64f`, and `test:browser`, `test:inheritance` and `test:wx01` at
+`1afaf6b`, as recorded below; the merge changes no public file), the literary
+preview smokes for PR #8's files, deploy dry runs, the SQL harness and CI.
+
 ## Q4 content registry · 2026-10-11
 
 Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
@@ -664,6 +716,374 @@ and `liaozhai-{chromium,webkit}-smoke.json` with their screenshots. The
 rollout and C2PA checks were scratch scripts outside the repository.
 Physical phones, native Safari and the owner's art review remain open; no
 special printing is still planned.
+
+## Q1 local commands · 2026-10-11
+
+Local branch `q1/local-commands`, started from `origin/main` `8afbabc`. Source
+commits `762412b`, `d2111ab`, `c529206` and `8fe664c`; the commit that adds this
+entry changes documentation only. Not pushed, merged or deployed; the last
+recorded public release is still v0.5.1, and this entry includes no hosted
+check. All of it is synthetic headless evidence on Node 26.0.0.
+
+The backpack card page's 修練升級 now commits the request captured when the
+page was painted, through `local-commands.mjs`, under the shared
+`PROFILE_LOCK`, with the effects and a bounded receipt in one profile write.
+Profile v5 gains an optional, device-local `commands` ledger that backups never
+contain. [LOCAL-COMMANDS](LOCAL-COMMANDS.md) is the contract;
+its §18 lists where the implementation differs.
+
+- `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs && node --test tests/*.test.mjs`:
+  exit 0. The six files gave **92/92** and the full suite **485/485**; the base
+  had 456. The trees of `762412b` and `d2111ab` were also tested alone: 466/466
+  and 485/485.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+  `git diff --check 8afbabc..HEAD`: clean.
+- The worktree's existing server on 4193 started before the change, and
+  `tools/serve.py` reads the allowlist once at startup, so it returned 404 for
+  `local-commands.mjs`. It was left running. A separate
+  `python3 tools/serve.py --port 4197` served the worktree for the browser runs.
+- `GAME_URL=http://127.0.0.1:4197 npm run test:commands`: **7/7 groups in each
+  engine** (system Google Chrome 154.0.8037.98, Playwright WebKit 26.6), exit 0.
+  They cover one write per click with reload, three stale-page cases, two
+  dispatched clicks, two pages behind a held lock, a synthetic quota error and
+  missing Web Locks.
+- `GAME_URL=… npm run test:browser`: all 14 Chromium suites, exit 0.
+  `npm run test:battle-table`: **40/40 in each engine**. `npm run test:inheritance`
+  and `npm run test:wx01`: both engines, exit 0.
+- Negative control: a scratch probe (not committed) against `8afbabc` served
+  from a scratch copy. In Chromium, a card page still showing "修練至 Lv.2 ·
+  120 金幣", after another page had upgraded the copy, charged 240 more and
+  reached Lv.3. On this branch the same steps charged 120 and stopped at Lv.2.
+
+Not checked: physical devices, the Safari app, Firefox, two separate browser
+processes, a real `QuotaExceededError`, `npm run build`, deploy dry runs,
+`test:viewport`, `test:expansion`, `test:collection-display` and the literary
+preview suites.
+
+### Q1 review fixes · 2026-10-11
+
+Source commits `7a7d03e`, `19aa648` and `6f58d83` on the same branch fix the
+three defects a review of `b6410e9` reported; the commit that adds this entry
+changes documentation only. Still not pushed, merged or deployed, and no hosted
+check. Synthetic headless evidence on Node 26.0.0;
+[LOCAL-COMMANDS §18.4–18.5](LOCAL-COMMANDS.md#184-fixes-after-the-first-review-2026-10-11)
+has the detail.
+
+- **Cross-tab stale read (medium).** The next holder of the Web Lock could read
+  `localStorage` bytes from before the previous holder's write, so two tabs
+  could both report a fresh upgrade and one was overwritten. Every holder of
+  `PROFILE_LOCK` now goes through an IndexedDB read-after-write fence
+  (`profile-fence.mjs`); commands refuse as `rejected/unsynced` when it cannot
+  prove their bytes are current.
+- **Restore order (low).** A restore now checks the profile it will save before
+  writing the recovery copy, and puts the previous copy back if the save fails.
+- **Duplicate receipt (low).** A duplicate upgrade now names the accepted
+  receipt, for example Lv.1 → Lv.2 · 120 金幣 · 6 靈砂.
+
+Checks, against a separate `python3 tools/serve.py --port 4311`:
+
+- `node --test tests/*.test.mjs`: exit 0, **498/498**; each commit's contents
+  gave 496, 497 and 498. Python: 9 tests OK. `git diff --check b6410e9..HEAD`:
+  clean.
+- `npm run test:commands`: exit 0, **10/10 groups in each engine**, including B4
+  repeated at about 60 KB and the fence across two real pages (30/30 handoffs
+  current; the plain-lock control on the same run was stale in 30/30 Chromium
+  and 24/30 WebKit handoffs). A scratch copy with the plain lock restored for
+  commands failed the new B4 group. The reviewers' UI repros gave 0/10
+  violations each (5/10 before).
+- `npm run test:browser` (14 Chromium suites): exit 0, 4 min 53 s against 4 min
+  55 s for `b6410e9`. `test:inheritance`, `test:wx01`, `test:battle-table` and
+  `test:collection-display`: exit 0 in both engines; `test:viewport`: both
+  engines passed (WebKit on a re-run; the first stopped while the disk was full).
+- `test:expansion` fails in WebKit only, on a 43.08 px module tab at 360×740;
+  `b6410e9` fails identically. `test:map-piece` passed in Chromium; its WebKit
+  half needs a `test-results/webkit-runtime` this worktree lacks.
+- First lobby paint, median, `b6410e9` → fixes: Chromium 89 → 92 ms (first load)
+  and 56 → 67 ms (reload); WebKit 95 → 102 ms and 78 → 78 ms.
+
+Not checked: separate browser windows or processes, the Safari app, Firefox,
+physical devices, Node 22, `npm run build`, deploy dry runs, a real browser
+without IndexedDB or with IndexedDB refusing writes, and a real
+`QuotaExceededError`.
+
+### Q1 second review fixes · 2026-10-11
+
+Source commits `dac1e0a` and `a8db57c` on the same branch fix two of the three
+low-severity defects a second review of `37dad64` reported; the commit that
+adds this entry corrects the third, which was documentation, and adds its test.
+Still not pushed, merged or deployed, and no hosted check. Synthetic headless
+evidence on Node 26.0.0;
+[LOCAL-COMMANDS §18.6](LOCAL-COMMANDS.md#186-fixes-after-the-second-review-2026-10-11)
+has the detail.
+
+- **Restore write that lands, then throws.** A restore now re-reads the profile
+  before undoing anything, so the replaced journey keeps its recovery copy
+  unless its bytes are confirmed still stored.
+- **Fence guarantee for bypassing writers.** The contract now says a write that
+  bypasses the fence can still be lost until it reaches the next tab, and adds
+  the rule never to serve a pre-fence v5 build on an origin that has served Q1.
+- **Identity-conflict copy.** When another card's upgrade took the slot, the
+  refusal now says so, and says whether this card is unchanged.
+
+Checks, against a separate `python3 tools/serve.py --port 4341`:
+
+- `node --test tests/*.test.mjs`: exit 0, **501/501**; the two code commits'
+  exported trees gave 499 and 500. The new restore test and N26 fail against
+  `37dad64`. Python: 9 tests OK. `git diff --check`: clean.
+- `npm run test:commands`: exit 0, **10/10 groups in each engine** (fenced
+  handoffs 30/30 current; plain-lock control 29/30 Chromium and 18/30 WebKit
+  stale).
+- `account-smoke`, `profile-recovery-smoke` and `backpack-smoke` (Chromium):
+  exit 0 each.
+
+Not checked: the remaining `test:browser` suites and per-engine smokes (the disk
+was nearly full), a browser whose `setItem` lands and then throws, separate
+browser processes, the Safari app, Firefox, devices, `npm run build`, deploy dry
+runs and any hosted service.
+
+### Q1 third review fixes · 2026-10-11
+
+Source commits `5fdf5c5`, `c008010`, `323d27c` and `334bc75` on the same branch
+fix the four low-severity defects a third review of `14d0473` reported; the
+commit that adds this entry corrects the fourth, which was documentation. Still
+not pushed, merged or deployed, and no hosted check. Synthetic headless evidence
+on Node 26.0.0;
+[LOCAL-COMMANDS §18.7](LOCAL-COMMANDS.md#187-fixes-after-the-third-review-2026-10-11)
+has the detail.
+
+- **Restore in a lagging tab.** Restore now holds the fence strictly, like
+  commands: a tab that has not received another tab's commit refuses instead of
+  retiring the ledger and keeping a recovery copy from older bytes. It now also
+  refuses on an unsettled fence (a reload heals it) and without usable IndexedDB.
+- **Fence failure copy.** A full disk now gets the storage copy and a stall the
+  retry copy; only a browser without usable IndexedDB is told to change browsers.
+- **Same bytes again.** After its writing mark the fence checks the bytes again,
+  so a profile that went X → Y → X cannot hand a commit the older Y.
+- **`stale` row.** §9 now spells out the single stale message.
+
+Checks, against a separate `python3 tools/serve.py --port 4361`:
+
+- `node --test tests/*.test.mjs`: exit 0, **507/507**; the three code commits'
+  trees gave 503, 505 and 507. Seven of the new fence tests fail against
+  `14d0473`'s modules. Python: 9 tests OK. `git diff --check 14d0473..HEAD`:
+  clean.
+- `test:commands` (both halves run directly): exit 0, **11/11 groups in each
+  engine**, including the new B9 full-disk group, which times out against
+  `14d0473` (fenced handoffs 30/30 current; plain-lock control 16/30 Chromium
+  and 30/30 WebKit stale).
+- `npm run test:browser` (14 Chromium suites): exit 0 in 292 s. Its account smoke
+  adds a restore refused on an unsettled fence and completed after a reload; that
+  check times out against `c008010` (lenient restore). `test:wx01` and
+  `test:inheritance`: exit 0 in both engines.
+
+Not checked: a real full disk, a browser that blocks IndexedDB by its settings, a
+real delivery lag over 0.5 s, separate browser processes, the Safari app,
+Firefox, devices, the other per-engine smokes, `npm run build`, deploy dry runs
+and any hosted service.
+
+### Q1 final check · 2026-10-11
+
+Run at `0492242` on the same branch. The last source commit is `334bc75`;
+`0492242` and the commit that adds this entry change documentation only. Local
+only: not pushed, merged or deployed, the last recorded public release is still
+v0.5.1, and no hosted check was made. Synthetic headless evidence on Node
+26.0.0 on macOS, with Playwright 1.63.0 driving system Google Chrome
+154.0.8037.98 and WebKit 26.6;
+[LOCAL-COMMANDS §18.8](LOCAL-COMMANDS.md#188-final-check-2026-10-11) has the
+same record.
+
+- `node --test tests/*.test.mjs`: exit 0, **507/507**. The seven files in the
+  HANDOVER Q1 checks row: exit 0, 114/114.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: exit 0, 9 tests OK.
+  `git diff --check 8afbabc..HEAD`: exit 0, clean.
+- **Server.** The worktree's assigned server on 4193 was started at 09:31,
+  before the Q1 modules existed, and still returned 404 for
+  `local-commands.mjs`, `profile-fence.mjs` and `command-ledger.mjs`, so the
+  game cannot load from it. It was left running untouched. Browser runs used a
+  separate `python3 tools/serve.py --port 4381`, stopped afterwards.
+- `GAME_URL=http://127.0.0.1:4381 npm run test:browser`: exit 0, all 14
+  Chromium suites in 291 s.
+- `GAME_URL=http://127.0.0.1:4381 npm run test:commands`: exit 0, **11/11
+  groups in each engine** in 58 s. In B7 the fenced lock read the previous
+  write in 30/30 handoffs in both engines; the plain-lock control was stale in
+  29/30 (Chromium) and 27/30 (WebKit).
+- The 154 screenshots these runs wrote to the ignored `test-results/` were
+  deleted afterwards.
+
+Not checked in this run: `test:inheritance` and `test:wx01` (last run in both
+engines in the third-review checks above), `test:battle-table`,
+`test:viewport`, `test:expansion`, `test:collection-display`, `test:map-piece`
+and the literary previews; the account, backpack and recovery smokes in
+WebKit; separate browser processes, the Safari app, Firefox and physical
+devices; a real full disk, `QuotaExceededError` or cross-tab delivery lag over
+0.5 s; Node 22; `npm run build`, deploy dry runs and any hosted service. Owner
+review of the contract, including its §15 decisions, is requested before any
+Q2/Q3 consumer is written.
+
+### Q1 final review fixes · 2026-10-11
+
+Source commit `345f92f` on the same branch fixes the defect a final review of
+`7d32825` reported (twice); the commit that adds this entry corrects the
+contract's two quota statements and its §2 import list. Still not pushed,
+merged or deployed, and no hosted check. Synthetic headless evidence on Node
+26.0.0;
+[LOCAL-COMMANDS §18.9](LOCAL-COMMANDS.md#189-fixes-after-the-final-review-2026-10-11)
+has the detail.
+
+- **Recovery restore retry.** A local recovery restore that the strict fence
+  refuses keeps its dialog and now its draft, so pressing 復原本機旅程 again
+  restores once the fence passes instead of claiming the backup changed. A
+  retry still runs the backup and fingerprint checks; a press in flight is
+  ignored.
+- **Quota copy.** The contract now says a refused fence read or write gives the
+  quota copy, as the code and N29 do.
+
+Checks, against the worktree's own server on 4193 (restarted after the Q1
+modules existed; it returned 200 for `local-commands.mjs`):
+
+- `node --test tests/*.test.mjs`: exit 0, **507/507**. Python: 9 tests OK.
+  `git diff --check`: clean.
+- `npm run test:commands`: exit 0, **12/12 groups in each engine**, including
+  the new B10 (fenced handoffs 30/30 current; plain-lock control 29/30 Chromium
+  and 21/30 WebKit stale).
+- `npm run test:browser` (14 Chromium suites): exit 0 in 294 s; the account
+  smoke now presses again on an unsettled fence.
+- Against `7d32825` (a separate server on 4397, stopped afterwards), B10 times
+  out at the retry in both engines and the account smoke at its second press.
+
+Not checked: `test:inheritance`, `test:wx01` and the other per-engine smokes,
+the account smoke in WebKit, separate browser processes, the Safari app,
+Firefox, devices, a real full disk or delivery lag, Node 22, `npm run build`,
+deploy dry runs and any hosted service.
+
+### Q1 pre-merge review fixes · 2026-10-11
+
+Source commit `9390070` on the same branch fixes the defects a pre-merge review
+of `1ab3a19` reported; the commit that adds this entry changes documentation
+only. Still not pushed, merged or deployed, and no hosted check. Synthetic
+headless evidence on Node 26.0.0;
+[LOCAL-COMMANDS §18.10](LOCAL-COMMANDS.md#1810-fixes-after-the-pre-merge-review-2026-10-11)
+has the detail.
+
+- **Failed settle.** A lenient writer that finds the fence record `writing` or
+  malformed now waits its whole 0.5 s before writing. Before, it waited 0 s, so
+  after a commit whose settle failed, a tab still behind could write its older
+  bytes over the commit and record them as settled.
+- **B10.** The smoke now fails when the recovery dialog's in-flight guard is
+  missing: it asserts that a second press during the restore shows no refusal.
+- **Documents.** The contract's status header names the last source commit;
+  §11 and §15 require `npm run test:commands` for a release that includes Q1;
+  HANDOVER records the merge notes for `origin/main` `daf18ed`.
+
+Checks, against the worktree's own server on 4193 (running from this worktree;
+it returned 200 for the three Q1 modules):
+
+- `node --test tests/*.test.mjs`: exit 0, **508/508** (507 plus N31). Python: 9
+  tests OK. `git diff --check`: clean.
+- `npm run test:commands`: exit 0, **12/12 groups in each engine** (fenced
+  handoffs 30/30 current; plain-lock control 30/30 Chromium and 11/30 WebKit
+  stale).
+- `npm run test:browser` (14 Chromium suites): exit 0 in 294 s.
+  `npm run test:inheritance` and `npm run test:wx01`: exit 0 in both engines.
+- Negative controls: N31 fails against `1ab3a19`'s `profile-fence.mjs`, and B10
+  fails in both engines against a copy without the in-flight guard (a separate
+  server on 4421, stopped afterwards). The reviewers' Chromium repro at 712 KB
+  kept the upgrade in 3/3 rounds with the injected settle failure.
+- A trial `git merge-tree` onto `origin/main` `daf18ed` conflicts only in this
+  file.
+
+Not checked: the other per-engine smokes, the account smoke in WebKit, a real
+failed settle, separate browser processes, the Safari app, Firefox, devices, a
+real full disk or delivery lag, Node 22, `npm run build`, deploy dry runs, any
+hosted service and the merge itself.
+
+### Q1 second pre-merge review fixes · 2026-10-11
+
+Source commits `1afaf6b` and `0e1ef85` on the same branch fix the findings a
+second pre-merge review of `231ae4f` reported; the commit that adds this entry
+changes documentation only. Still not pushed, merged or deployed, and no hosted
+check. Synthetic headless evidence on Node 26.0.0;
+[LOCAL-COMMANDS §18.11](LOCAL-COMMANDS.md#1811-fixes-after-the-second-pre-merge-review-2026-10-11)
+has the detail.
+
+- **Full disk and a `writing` record.** A strict holder on a `writing` or
+  malformed fence record now writes the mark again before it refuses. When
+  IndexedDB refuses that write, the card page and a restore show the storage
+  copy instead of asking for a reload that cannot heal the record. Each lenient
+  write still waits 0.5 s while IndexedDB refuses writes, as it already did on
+  an out-of-date settled record; the contract now states that cost, and the
+  proposal to skip the wait was not taken.
+- **Reopened recovery dialog.** A dialog closed and opened again while its
+  restore waits for the lock keeps that restore's draft, so a press in it no
+  longer queues a second restore whose refusal replaced the success toast.
+- **Documents.** Both links to HANDOVER's merge notes now use the heading's
+  real anchor.
+
+Checks, against the worktree's own server on 4193 (running from this worktree;
+it returned 200 for the Q1 modules):
+
+- `node --test tests/*.test.mjs`: exit 0, **509/509** (508 plus N32). Python: 9
+  tests OK. `git diff --check`: clean.
+- `npm run test:commands` at `0e1ef85`: exit 0, **13/13 groups in each engine**
+  (fenced handoffs 30/30 current; plain-lock control 30/30 Chromium and 24/30
+  WebKit stale).
+- At `1afaf6b`: `npm run test:browser` (14 Chromium suites): exit 0 in 292 s.
+  `npm run test:inheritance` and `npm run test:wx01`: exit 0 in both engines.
+- Negative controls: N32 fails against `231ae4f`'s `profile-fence.mjs`; B9's
+  new case and B11 fail in both engines against `231ae4f`'s modules (a separate
+  server on 4437, stopped afterwards).
+- Every local Markdown anchor in the docs, ROADMAP and README resolves. A trial
+  `git merge-tree` onto `origin/main` `daf18ed` still conflicts only in this
+  file.
+
+Not checked: a real full disk, the other per-engine smokes, the account smoke
+in WebKit, separate browser processes, the Safari app, Firefox, devices, a real
+delivery lag, Node 22, `npm run build`, deploy dry runs, any hosted service and
+the merge itself.
+
+### Q1 third pre-merge review fixes · 2026-10-11
+
+A third pre-merge review of `231ae4f..2bcc15e` reported two low-severity
+findings, both in how the documents state the full-disk wait. Source commit
+`38fa64f` on the same branch adds a test only; no runtime code changed, and the
+commit that adds this entry changes documentation only. Still not pushed,
+merged or deployed, and no hosted check. Synthetic headless evidence on Node
+26.0.0;
+[LOCAL-COMMANDS §18.12](LOCAL-COMMANDS.md#1812-fixes-after-the-third-pre-merge-review-2026-10-11)
+has the detail.
+
+- **When the wait began.** §18.11 said the full-disk wait was not new per
+  action. Before `9390070`, a lenient write on a `writing` record waited 0 s,
+  also on a full disk, where the record cannot heal; `9390070` made each such
+  write wait 0.5 s while IndexedDB refuses writes. Only the out-of-date settled
+  case paid before. §18.11 now says so; the decision to keep the wait is
+  unchanged.
+- **Which writes wait.** "Every lenient write waits on a full disk" was too
+  broad: from a current settled record, lenient writes wait 0 s up to and
+  including the first that changes the profile, and only the writes after it
+  wait 0.5 s. §10.1 Limits and HANDOVER now name the two states that wait, and
+  a second N32 test pins the settled pattern. The entry above says "each
+  lenient write still waits 0.5 s"; it is left as written.
+
+Checks, against the worktree's own server on 4193 (running from this worktree;
+it returned 200 for the Q1 modules):
+
+- `node --test tests/*.test.mjs`: exit 0, **510/510** (509 plus the second N32
+  test). Python: 9 tests OK. `git diff --check`: clean.
+- `npm run test:commands` at `38fa64f`: exit 0, **13/13 groups in each engine**
+  (fenced handoffs 30/30 current; plain-lock control 30/30 Chromium and 21/30
+  WebKit stale).
+- A virtual-clock probe of the four `profile-fence.mjs` versions confirmed both
+  findings (a `writing` record: 0 s each at `1ab3a19`, 0.5 s each from
+  `9390070`). The new test passes against `1ab3a19`'s fence and fails against
+  a copy in which every lenient write on a settled record waits.
+- Every local Markdown anchor in the docs, ROADMAP and README resolves.
+
+Not checked: a real full disk; `test:browser`, `test:inheritance` and
+`test:wx01` (last run at `1afaf6b`, whose runtime code is unchanged); the other
+per-engine smokes, the account smoke in WebKit, separate browser processes, the
+Safari app, Firefox, devices, a real delivery lag, Node 22, `npm run build`,
+deploy dry runs, any hosted service and the merge itself.
 
 ## Q0 battle table · 2026-10-10
 

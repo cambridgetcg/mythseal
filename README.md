@@ -18,7 +18,8 @@ Gameplay still runs from editable browser-local saves; an account backup is not 
 map to [Q0–Q6 work packets](ROADMAP.md#experience-quality-track) and
 [module/infra design notes](docs/EXPERIENCE-MODULES.md): clearer decisions,
 previewed batch care, bounded automation, content capabilities and fair agent
-practice. These are plans built on the existing game, not new deployed features.
+practice. These began as plans built on the existing game. Q0, Q1 (one command)
+and Q4's content registry are now in `main`; none of the packets is deployed yet.
 
 The [fresh-clone toolkit check](docs/TOOLKIT.md) is a dated record (2026-09-21,
 updated 2026-09-22) of one clean setup: access verification, test evidence and
@@ -60,7 +61,7 @@ for the optional, narrowly scoped publishable-key binding.
 
 Developer service access and pinned backend/NFT/mobile toolkits are tracked in [CONNECTIONS.md](docs/CONNECTIONS.md). Use `npm run connect` for owner login and `npm run connections:check -- --live` for a credential-safe status report. Developer credentials and player email sessions are separate; the account implementation is documented in [ACCOUNTS.md](docs/ACCOUNTS.md).
 
-The current development build uses Node to produce 80 explicitly allowlisted game files in `dist`. Literary preview files remain outside that public bundle. A separately authorized release deploys the assets and server Worker with locally authenticated Wrangler:
+The current development build uses Node to produce 83 explicitly allowlisted game files in `dist`. Literary preview files remain outside that public bundle. A separately authorized release deploys the assets and server Worker with locally authenticated Wrangler:
 
 ```sh
 npm ci

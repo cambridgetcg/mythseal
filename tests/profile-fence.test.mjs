@@ -1,0 +1,615 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { createProfile, PROFILE_KEY } from '../progression.mjs';
+import { getActiveDeck, toggleInstanceLock } from '../collection.mjs';
+import { createProfileStore, RECOVERY_KEY } from '../profile-store.mjs';
+import { createSnapshot, restoreSnapshot, fingerprintProfile } from '../cloud-save.mjs';
+import { previewCommand, commitCommand, readCommandReceipt, COMMAND_MESSAGES } from '../local-commands.mjs';
+import {
+  createFencedLock, createIndexedDBFence, profileDigest, ProfileFenceError, FENCE_MESSAGES,
+  PROFILE_FENCE_DB, PROFILE_FENCE_STORE, PROFILE_FENCE_VERSION, FENCE_STRICT_MS, FENCE_LENIENT_MS,
+} from '../profile-fence.mjs';
+
+const now = '2026-09-21T12:00:00.000Z';
+const at = '2026-09-21T12:34:56.789Z';
+const clock = () => new Date(at);
+const UPGRADE = 'care.upgrade';
+function rich() { const profile = createProfile({ now }); profile.coins = 100_000; profile.dust = 10_000; return profile; }
+const spare = profile => profile.instances.filter(item => !getActiveDeck(profile).instanceIds.includes(item.uid)).map(item => item.uid);
+const levelOf = (profile, uid) => profile.instances.find(item => item.uid === uid).level;
+const WRITING = { v: PROFILE_FENCE_VERSION, state: 'writing' };
+
+/** One browser origin as two renderer processes see it. Each tab reads its own copy of
+ * localStorage; another tab's write reaches it `lag` ms later, or only on `deliver()`
+ * when lag is null. The fence store is coherent, as IndexedDB is, and the lock is one
+ * exclusive FIFO lock that is held until an async callback settles, like a Web Lock. */
+function origin(profile, { lag = 15 } = {}) {
+  const backend = new Map([[PROFILE_KEY, JSON.stringify(profile)]]), tabs = [], held = [];
+  let record = null;
+  const faults = { read: null, write: null };
+  const fenceLog = [];
+  const fence = {
+    async read() { await null; if (faults.read) throw faults.read; return record === null ? null : structuredClone(record); },
+    // faults.write(next) may return true (an UnknownError) or the error to throw.
+    async write(next) {
+      await null;
+      const fault = faults.write?.(next);
+      if (fault) throw fault === true ? new DOMException('Fixture fence write', 'UnknownError') : fault;
+      fenceLog.push(next?.state ?? null); record = next === null ? null : structuredClone(next);
+    },
+  };
+  let tail = Promise.resolve();
+  const lock = callback => { const run = tail.then(() => callback()); tail = run.catch(() => {}); return run; };
+  function tab() {
+    const cache = new Map(backend), counts = { get: 0, set: 0 };
+    const storage = {
+      getItem(key) { counts.get++; return cache.get(key) ?? null; },
+      setItem(key, value) {
+        counts.set++; cache.set(key, value); backend.set(key, value);
+        for (const other of tabs) {
+          if (other.cache === cache) continue;
+          const arrive = () => other.cache.set(key, value);
+          if (lag === null) held.push(arrive); else setTimeout(arrive, lag);
+        }
+      },
+    };
+    const self = {
+      cache, counts, storage, store: createProfileStore({ storage, now: () => now }),
+      fenced: (strict, budget) => createFencedLock({ request: lock, fence, read: () => storage.getItem(PROFILE_KEY), strict, budget }),
+    };
+    tabs.push(self); return self;
+  }
+  return {
+    tab, lock, fence, faults, fenceLog,
+    record: () => record, setRecord: next => { record = next; },
+    saved: () => JSON.parse(backend.get(PROFILE_KEY)), bytes: () => backend.get(PROFILE_KEY), stored: key => backend.get(key) ?? null,
+    pending: () => held.length, deliverOne: () => held.shift()?.(),
+    deliver: () => { while (held.length) held.shift()(); },
+  };
+}
+const commitIn = (tab, request, lock) => commitCommand(request, { store: tab.store, lock, now: clock });
+
+test('profileDigest is a stable change detector over stored text', () => {
+  const text = JSON.stringify(rich());
+  assert.equal(profileDigest(text), profileDigest(`${text}`));
+  assert.notEqual(profileDigest(text), profileDigest(text.replace('"coins":100000', '"coins":100001')));
+  assert.notEqual(profileDigest('ab'), profileDigest('ba'));
+  assert.notEqual(profileDigest(''), profileDigest(null));
+  assert.equal(profileDigest(null), 'absent');
+  assert.throws(() => profileDigest({}), TypeError);
+  assert.equal(FENCE_STRICT_MS > FENCE_LENIENT_MS, true);
+});
+
+test('N22 control: a plain lock lets the next tab decide on bytes from before the previous write', async () => {
+  // This is the reviewed defect, reproduced in the model so the fixed cases below mean something.
+  const base = rich(), [x, y] = spare(base);
+  {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    const qa = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, qb = previewCommand(b.store.load(), { type: UPGRADE, uid: x }).request;
+    const [ra, rb] = await Promise.all([commitIn(a, qa, o.lock), commitIn(b, qb, o.lock)]);
+    assert.deepEqual([ra.duplicate, rb.duplicate], [false, false], 'both tabs report a fresh commit');
+    assert.equal(a.counts.set + b.counts.set, 2, 'two whole-profile writes');
+  }
+  {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    const qa = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, qb = previewCommand(b.store.load(), { type: UPGRADE, uid: y }).request;
+    const [ra, rb] = await Promise.all([commitIn(a, qa, o.lock), commitIn(b, qb, o.lock)]);
+    assert.deepEqual([ra.status, rb.status], ['committed', 'committed']);
+    assert.deepEqual([levelOf(o.saved(), x), levelOf(o.saved(), y)], [1, 2], 'tab A was told its upgrade committed, but it was overwritten');
+  }
+  {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+    const [, lookup] = await Promise.all([commitIn(a, request, o.lock), readCommandReceipt(request, { store: b.store, lock: o.lock })]);
+    assert.equal(lookup.status, 'not-committed', 'the lookup answers "definitively" from old bytes');
+  }
+});
+
+test('N22 the fenced lock makes the next holder see the previous write: one commit, then duplicate or identity-conflict', async () => {
+  const base = rich(), [x, y] = spare(base);
+  {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    const qa = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, qb = previewCommand(b.store.load(), { type: UPGRADE, uid: x }).request;
+    const [ra, rb] = await Promise.all([commitIn(a, qa, a.fenced(true)), commitIn(b, qb, b.fenced(true))]);
+    assert.deepEqual([ra.status, ra.duplicate, rb.status, rb.duplicate], ['committed', false, 'committed', true]);
+    assert.deepEqual(rb.receipt, ra.receipt);
+    assert.equal(a.counts.set + b.counts.set, 1, 'one profile write');
+    assert.equal(o.saved().coins, base.coins - 120);
+    assert.deepEqual(o.record(), { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) });
+  }
+  {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    const qa = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, qb = previewCommand(b.store.load(), { type: UPGRADE, uid: y }).request;
+    assert.equal(qa.commandId, qb.commandId);
+    const [ra, rb] = await Promise.all([commitIn(a, qa, a.fenced(true)), commitIn(b, qb, b.fenced(true))]);
+    assert.equal(ra.status, 'committed');
+    assert.deepEqual([rb.status, rb.reason, rb.message], ['rejected', 'identity-conflict', COMMAND_MESSAGES['other-card']]);
+    assert.deepEqual([levelOf(o.saved(), x), levelOf(o.saved(), y)], [2, 1], 'the accepted upgrade stays');
+    assert.equal(o.saved().commands.receipts.length, 1); assert.equal(a.counts.set + b.counts.set, 1);
+  }
+  {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+    const [ra, lookup] = await Promise.all([commitIn(a, request, a.fenced(true)), readCommandReceipt(request, { store: b.store, lock: b.fenced(true) })]);
+    assert.equal(lookup.status, 'committed'); assert.deepEqual(lookup.receipt, ra.receipt);
+    assert.equal(b.counts.set, 0, 'a lookup never writes the profile');
+  }
+});
+
+test('N22 lenient writers wait for the previous write too, so a plain save no longer drops it', async () => {
+  const base = rich();
+  const gain = (tab, coins) => () => { const profile = tab.store.load(); profile.coins += coins; tab.store.save(profile); };
+  {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    await o.lock(gain(a, 5)); await o.lock(gain(b, 7));
+    assert.equal(o.saved().coins, base.coins + 7, 'control: the second plain writer overwrote the first');
+  }
+  {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    await Promise.all([a.fenced(false)(gain(a, 5)), b.fenced(false)(gain(b, 7))]);
+    assert.equal(o.saved().coins, base.coins + 12);
+    assert.equal(o.record().digest, profileDigest(o.bytes()));
+  }
+  {
+    // A commit after a lenient write still sees it.
+    const o = origin(base), a = o.tab(), b = o.tab(), [x] = spare(base);
+    const request = previewCommand(b.store.load(), { type: UPGRADE, uid: x }).request;
+    const [, result] = await Promise.all([a.fenced(false)(gain(a, 5)), commitIn(b, request, b.fenced(true))]);
+    assert.equal(result.status, 'committed');
+    assert.equal(o.saved().coins, base.coins + 5 - 120);
+  }
+});
+
+test('N23 a strict holder that cannot prove its bytes are current refuses before deciding; nothing is written', async () => {
+  const base = rich(), [x, y] = spare(base);
+  const o = origin(base, { lag: null }), a = o.tab(), b = o.tab();
+  const qa = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, qb = previewCommand(b.store.load(), { type: UPGRADE, uid: y }).request;
+  assert.equal((await commitIn(a, qa, a.fenced(true))).status, 'committed');
+  const bytes = o.bytes();
+  const refused = await commitIn(b, qb, b.fenced(true, 20));
+  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES.unsynced]);
+  assert.equal(b.counts.set, 0); assert.equal(o.bytes(), bytes);
+  const lookup = await readCommandReceipt(qa, { store: b.store, lock: b.fenced(true, 20) });
+  assert.deepEqual([lookup.status, lookup.message], ['unavailable', FENCE_MESSAGES.unsynced], 'never "not-committed" from old bytes');
+  o.deliver();
+  const retried = await commitIn(b, qb, b.fenced(true, 20));
+  assert.deepEqual([retried.status, retried.reason], ['rejected', 'identity-conflict'], 'once the write arrives, the real answer');
+  assert.equal(levelOf(o.saved(), x), 2);
+});
+
+test('N23 a holder that died between mark and settle leaves "writing": strict refuses, a lenient write heals it', async () => {
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  a.store.save(a.store.load()); // canonical bytes, so the healing save below is byte-identical
+  o.setRecord(WRITING);
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  const writes = a.counts.set, refused = await commitIn(a, request, a.fenced(true));
+  assert.deepEqual([refused.status, refused.reason], ['rejected', 'unsynced']); assert.equal(a.counts.set, writes);
+  const untouched = o.bytes();
+  await a.fenced(false)(() => a.store.save(a.store.load()));
+  assert.equal(o.bytes(), untouched, 'like the startup save, it wrote identical bytes');
+  assert.deepEqual(o.record(), { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(untouched) });
+  assert.equal((await commitIn(a, request, a.fenced(true))).status, 'committed');
+  for (const malformed of [{ v: 2, state: 'settled', digest: 'x' }, { v: 1, state: 'settled' }, 'settled', []]) {
+    o.setRecord(malformed);
+    const result = await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true));
+    assert.equal(result.reason, 'unsynced', JSON.stringify(malformed));
+  }
+});
+
+test('N23 without IndexedDB a strict holder refuses with the no-lock copy and reads nothing; lenient holders go on', async () => {
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  o.faults.read = new ProfileFenceError('missing'); a.counts.get = 0;
+  const refused = await commitIn(a, request, a.fenced(true));
+  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES['no-lock']]);
+  assert.deepEqual(a.counts, { get: 0, set: 0 }, 'the profile is neither read nor written');
+  await a.fenced(false)(() => { const profile = a.store.load(); profile.coins += 1; a.store.save(profile); });
+  assert.equal(o.saved().coins, base.coins + 1); assert.deepEqual(o.fenceLog, [], 'nothing recorded without a fence');
+  o.faults.read = null; o.faults.write = () => true;
+  const markFailed = await commitIn(a, request, a.fenced(true));
+  assert.equal(markFailed.reason, 'unsynced', 'a strict holder that cannot mark refuses too');
+  assert.equal(o.saved().coins, base.coins + 1);
+  // The no-IndexedDB adapter rejects the same way.
+  await assert.rejects(createIndexedDBFence(undefined).read(), { name: 'ProfileFenceError', code: 'missing' });
+  o.faults.write = null;
+  const lock = createFencedLock({ request: o.lock, fence: createIndexedDBFence(undefined), read: () => a.storage.getItem(PROFILE_KEY), strict: true });
+  const noIndexedDB = await commitIn(a, request, lock);
+  assert.deepEqual([noIndexedDB.reason, noIndexedDB.message], ['unsynced', COMMAND_MESSAGES['no-lock']]);
+});
+
+test('N23 a failed settle keeps the real result and leaves "writing" for strict holders to refuse', async () => {
+  const base = rich(), [x, y] = spare(base), o = origin(base), a = o.tab();
+  o.faults.write = next => next?.state === 'settled';
+  const first = await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true));
+  assert.deepEqual([first.status, first.duplicate], ['committed', false]);
+  assert.deepEqual(o.record(), WRITING);
+  o.faults.write = null;
+  const next = await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: y }).request, a.fenced(true));
+  assert.equal(next.reason, 'unsynced');
+  assert.equal(levelOf(o.saved(), y), 1);
+});
+
+test('N23 a lenient holder that could not catch up records only its own write, never its old bytes', async () => {
+  const base = rich(), o = origin(base, { lag: null }), a = o.tab(), b = o.tab();
+  await a.fenced(false)(() => { const profile = a.store.load(); profile.coins += 5; a.store.save(profile); });
+  const recorded = o.record();
+  await assert.rejects(b.fenced(false, 20)(() => { throw Error('refused before writing'); }), /refused before writing/);
+  assert.deepEqual(o.record(), recorded, 'the earlier record is put back');
+  await b.fenced(false, 20)(() => { const profile = b.store.load(); profile.dust += 1; b.store.save(profile); });
+  assert.equal(o.record().digest, profileDigest(o.bytes()), 'its own write becomes the record');
+  assert.equal(o.saved().coins, base.coins, 'past the budget it proceeds as before the fence');
+});
+
+test('N23 a stalled fence counts as unavailable and releases the lock instead of holding it', async () => {
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  const stalled = { read: () => new Promise(() => {}), write: () => new Promise(() => {}) };
+  const lock = strict => createFencedLock({ request: o.lock, fence: stalled, read: () => a.storage.getItem(PROFILE_KEY), strict, ioBudget: 20 });
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  await assert.rejects(lock(true)(() => {}), { name: 'ProfileFenceError', code: 'unavailable', message: FENCE_MESSAGES.unavailable });
+  const refused = await commitIn(a, request, lock(true));
+  // A stall can pass: the player is told to retry, not to change browsers (§9).
+  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES.unsynced]);
+  await lock(false)(() => { const profile = a.store.load(); profile.coins += 1; a.store.save(profile); });
+  assert.equal(o.saved().coins, base.coins + 1, 'a lenient writer still saves');
+  assert.equal(await o.lock(() => 'free'), 'free', 'the lock was released');
+});
+
+test('N27 a writer that bypasses the fence is refused only once its bytes arrive; before that it can be lost (§10.1 limit)', async () => {
+  // A pre-fence v5 build (or a devtools edit) writes under the plain PROFILE_LOCK and records nothing.
+  const base = rich(), [x] = spare(base);
+  async function bypassThenCommit({ arrived }) {
+    const o = origin(base, { lag: null }), old = o.tab(), fresh = o.tab();
+    await fresh.fenced(false)(() => fresh.store.save(fresh.store.load())); // the startup save records the fence
+    const request = previewCommand(fresh.store.load(), { type: UPGRADE, uid: x }).request;
+    await o.lock(() => { const profile = old.store.load(); profile.coins += 5000; old.store.save(profile); });
+    assert.equal(o.saved().coins, base.coins + 5000);
+    if (arrived) o.deliver();
+    return { o, fresh, request, result: await commitIn(fresh, request, fresh.fenced(true, 20)) };
+  }
+  {
+    const { o, fresh, request, result } = await bypassThenCommit({ arrived: true });
+    assert.deepEqual([result.status, result.reason], ['rejected', 'unsynced'], 'its bytes reached this tab: the strict holder refuses');
+    assert.equal(o.saved().coins, base.coins + 5000);
+    await fresh.fenced(false)(() => fresh.store.save(fresh.store.load())); // a reload's save records it
+    assert.equal((await commitIn(fresh, request, fresh.fenced(true, 20))).status, 'committed');
+    assert.equal(o.saved().coins, base.coins + 5000 - 120, 'and the bypassing write is kept');
+  }
+  {
+    const { o, result } = await bypassThenCommit({ arrived: false });
+    assert.deepEqual([result.status, result.duplicate], ['committed', false], 'its bytes had not arrived: the old record still matches');
+    assert.equal(o.saved().coins, base.coins - 120, 'the bypassing write is overwritten, as before the fence');
+  }
+});
+
+const lockOf = (profile, uid) => profile.instances.find(item => item.uid === uid).locked;
+/** Tab A takes canonical bytes X, then locks y and unlocks it: two lenient writes that end on
+ * X again. Tab B still shows the first X and has received neither write. */
+async function backToSameBytes() {
+  const base = rich(), [x, y] = spare(base);
+  const o = origin(base, { lag: null }), a = o.tab(), b = o.tab();
+  await a.fenced(false)(() => a.store.save(a.store.load()));
+  o.deliver();
+  const X = o.bytes();
+  for (let turn = 0; turn < 2; turn++) await a.fenced(false)(() => a.store.save(toggleInstanceLock(a.store.load(), y)));
+  assert.equal(o.bytes(), X, 'the bytes are X again');
+  assert.equal(o.pending(), 2, 'tab B has received neither write');
+  assert.equal(lockOf(o.saved(), y), false);
+  return { base, x, y, o, a, b, X, recorded: o.record() };
+}
+
+test('N28 equal bytes are not proof that every write arrived: a strict holder refuses when the older write lands during its mark', async () => {
+  const { x, y, o, b, X, recorded } = await backToSameBytes();
+  const request = previewCommand(b.store.load(), { type: UPGRADE, uid: x }).request;
+  // B matches X at once; the older write (y locked) reaches it while the writing mark is in flight.
+  o.faults.write = next => { if (next?.state === 'writing') o.deliverOne(); return false; };
+  const refused = await commitIn(b, request, b.fenced(true, 20));
+  o.faults.write = null;
+  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES.unsynced]);
+  assert.equal(b.counts.set, 0); assert.equal(o.bytes(), X, 'the unlock is kept');
+  assert.deepEqual(o.record(), recorded, 'the record is put back, not left "writing"');
+  o.deliver();
+  const retried = await commitIn(b, request, b.fenced(true, 20));
+  assert.deepEqual([retried.status, retried.duplicate], ['committed', false], 'once every write has arrived it commits');
+  assert.deepEqual([levelOf(o.saved(), x), lockOf(o.saved(), y)], [2, false]);
+});
+
+test('N28 a lenient holder that sees the older write land during its mark waits again, so it writes on the latest bytes', async () => {
+  const { base, y, o, b } = await backToSameBytes();
+  o.faults.write = next => { if (next?.state === 'writing') { o.deliverOne(); setTimeout(o.deliver, 5); } return false; };
+  await b.fenced(false, 500)(() => { const profile = b.store.load(); profile.coins += 7; b.store.save(profile); });
+  o.faults.write = null;
+  assert.equal(o.saved().coins, base.coins + 7);
+  assert.equal(lockOf(o.saved(), y), false, 'the unlock is kept');
+  assert.equal(o.record().digest, profileDigest(o.bytes()));
+});
+
+test('N29 a fence failure names its cause: no IndexedDB says change browsers, a full disk asks for space, anything else asks for a retry', async () => {
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  await a.fenced(false)(() => a.store.save(a.store.load()));
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  const bytes = o.bytes();
+  const cases = [
+    ['read', new ProfileFenceError('missing'), 'missing', 'no-lock'],
+    ['read', new DOMException('Denied', 'SecurityError'), 'missing', 'no-lock'],
+    ['read', new DOMException('Full', 'QuotaExceededError'), 'quota', 'quota'],
+    ['read', new DOMException('Broken', 'UnknownError'), 'unavailable', 'unsynced'],
+    ['writing', new DOMException('Full', 'QuotaExceededError'), 'quota', 'quota'],
+    ['writing', new DOMException('Full', 'NS_ERROR_DOM_QUOTA_REACHED'), 'quota', 'quota'],
+    ['writing', new DOMException('Aborted', 'AbortError'), 'unavailable', 'unsynced'],
+  ];
+  for (const [where, error, code, copy] of cases) {
+    const label = `${where} ${error.name}`;
+    o.faults.read = where === 'read' ? error : null;
+    o.faults.write = next => where === 'writing' && next?.state === 'writing' && error;
+    await assert.rejects(a.fenced(true)(() => assert.fail('the callback ran')), { name: 'ProfileFenceError', code, message: FENCE_MESSAGES[code] }, label);
+    const refused = await commitIn(a, request, a.fenced(true));
+    assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES[copy]], label);
+    const lookup = await readCommandReceipt(request, { store: a.store, lock: a.fenced(true) });
+    assert.deepEqual([lookup.status, lookup.message], ['unavailable', FENCE_MESSAGES[code]], label);
+    assert.equal(o.bytes(), bytes, label);
+  }
+  o.faults.read = null; o.faults.write = null;
+  assert.equal((await commitIn(a, request, a.fenced(true))).status, 'committed');
+});
+
+test('N29 with the IndexedDB adapter on a full disk, an upgrade asks for space, not another browser; once space returns it commits', async () => {
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  const options = {}, fence = createIndexedDBFence(fakeIndexedDB(options));
+  const lock = strict => createFencedLock({ request: o.lock, fence, read: () => a.storage.getItem(PROFILE_KEY), strict });
+  await lock(false)(() => a.store.save(a.store.load())); // the startup save records the fence
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  options.refuseWrites = 'QuotaExceededError';
+  const refused = await commitIn(a, request, lock(true));
+  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES.quota]);
+  assert.equal(levelOf(o.saved(), x), 1);
+  await lock(false)(() => { const profile = a.store.load(); profile.dust += 1; a.store.save(profile); });
+  assert.equal(o.saved().dust, base.dust + 1, 'a lenient writer still saves to localStorage');
+  options.refuseWrites = null;
+  await lock(false)(() => a.store.save(a.store.load())); // a reload's startup save records it
+  const fresh = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  assert.equal((await commitIn(a, fresh, lock(true))).status, 'committed', 'the same browser commits: it was never the problem');
+});
+
+/** The body of app.mjs restoreLocalProfile's lock callback, without its DOM state. */
+function restoreIn(tab, snapshot, expectedFingerprint, lock) {
+  const restored = restoreSnapshot(snapshot, { now });
+  return lock(() => {
+    const current = tab.store.load();
+    if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
+    return tab.store.replace(current, restored, { savedAt: at });
+  });
+}
+
+test('N30 restore holds the fence strictly: a tab behind another tab\'s commit refuses, so the commit and the expiry of older quotes both hold', async () => {
+  const base = rich(), [x, y, z] = spare(base), backup = createSnapshot(base);
+  // Tabs A and B are in sync at nextSeq 2. B confirms a restore; A then commits cmd-2 and
+  // previews cmd-3, and neither write has reached B.
+  async function lagging(strict) {
+    const o = origin(base, { lag: null }), a = o.tab(), b = o.tab();
+    assert.equal((await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: z }).request, a.fenced(true))).status, 'committed');
+    o.deliver();
+    const expected = fingerprintProfile(b.store.load());
+    assert.equal((await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true))).status, 'committed');
+    const quote = previewCommand(a.store.load(), { type: UPGRADE, uid: y }).request;
+    assert.equal(quote.commandId, 'cmd-3');
+    return { o, a, b, quote, restore: () => restoreIn(b, backup, expected, b.fenced(strict, 20)) };
+  }
+  {
+    // Control: the lenient lock restore used before decides on B's old view.
+    const { o, a, quote, restore } = await lagging(false);
+    await restore();
+    assert.deepEqual(o.saved().commands, { version: 1, nextSeq: 3, retiredBelow: 3, receipts: [] }, 'retired from the old view');
+    assert.equal(levelOf(JSON.parse(o.stored(RECOVERY_KEY)).snapshot.profile, x), 1, "the recovery copy misses A's commit");
+    o.deliver();
+    const late = await commitIn(a, quote, a.fenced(true));
+    assert.deepEqual([late.status, late.duplicate], ['committed', false], 'a quote from before the restore commits after it');
+  }
+  {
+    const { o, a, b, quote, restore } = await lagging(true);
+    const bytes = o.bytes();
+    await assert.rejects(restore(), { name: 'ProfileFenceError', code: 'unsynced', message: FENCE_MESSAGES.unsynced });
+    assert.equal(o.bytes(), bytes); assert.equal(o.stored(RECOVERY_KEY), null, 'no recovery copy is written');
+    assert.equal(levelOf(o.saved(), x), 2, "A's commit is kept");
+    o.deliver();
+    await assert.rejects(restore(), /本機旅程剛有更新/, 'once it arrives, the confirmation is out of date (§12)');
+    await restoreIn(b, backup, fingerprintProfile(b.store.load()), b.fenced(true, 20));
+    assert.deepEqual(o.saved().commands, { version: 1, nextSeq: 4, retiredBelow: 4, receipts: [] });
+    assert.equal(levelOf(JSON.parse(o.stored(RECOVERY_KEY)).snapshot.profile, x), 2, 'the recovery copy holds the latest journey');
+    o.deliver();
+    const late = await commitIn(a, quote, a.fenced(true));
+    assert.deepEqual([late.status, late.reason], ['rejected', 'expired'], 'every ID from before the restore is expired (§11)');
+  }
+});
+
+test('N30 app.mjs restores under the strict fenced lock, as commands do', async () => {
+  const source = await readFile(new URL('../app.mjs', import.meta.url), 'utf8');
+  const start = source.indexOf('async function restoreLocalProfile('), end = source.indexOf('function recoveryMarkup(');
+  assert(start > 0 && end > start);
+  const restore = source.slice(start, end);
+  assert.match(restore, /const lock = profileLock\(\);/);
+  assert.doesNotMatch(restore, /writerLock\(\)/);
+  assert.match(source, /const profileLock=\(\)=>fencedLock\(true\);/);
+});
+
+test('N31 a lenient writer that finds a failed settle\'s "writing" record waits its whole budget, so a tab behind keeps the commit or restore', async () => {
+  // Tab A's strict write lands but its settle fails once (an aborted IndexedDB transaction),
+  // leaving "writing". Tab B, 15 ms behind, has a lenient write queued right behind it.
+  const base = rich(), [x] = spare(base), backup = createSnapshot({ ...base, coins: 777 });
+  const failSettleOnce = o => { let armed = true; o.faults.write = next => { if (armed && next?.state === 'settled') { armed = false; return true; } return false; }; };
+  const bump = tab => () => { const profile = tab.store.load(); profile.dust += 1; tab.store.save(profile); };
+  async function behind(budget, strictWrite) {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    failSettleOnce(o);
+    const [result] = await Promise.all([strictWrite(a), b.fenced(false, budget)(bump(b))]);
+    return { o, result };
+  }
+  const commit = a => commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true));
+  const restore = a => restoreIn(a, backup, fingerprintProfile(a.store.load()), a.fenced(true));
+  const recoveryCoins = o => JSON.parse(o.stored(RECOVERY_KEY)).snapshot.profile.coins;
+  {
+    // Control: with no wait (a zero budget), the heal writes B's older bytes over both.
+    const committed = await behind(0, commit);
+    assert.equal(committed.result.status, 'committed');
+    assert.deepEqual([levelOf(committed.o.saved(), x), committed.o.saved().commands, committed.o.saved().coins], [1, undefined, base.coins], 'the reported upgrade is gone');
+    assert.equal(committed.o.record().state, 'settled', 'and nothing refuses afterwards');
+    const restored = await behind(0, restore);
+    assert.deepEqual([restored.o.saved().coins, recoveryCoins(restored.o)], [base.coins, base.coins], 'the restored journey exists nowhere');
+  }
+  {
+    const { o, result } = await behind(FENCE_LENIENT_MS, commit);
+    assert.deepEqual([result.status, result.duplicate], ['committed', false]);
+    const saved = o.saved();
+    assert.deepEqual([levelOf(saved, x), saved.commands?.receipts.length, saved.coins, saved.dust], [2, 1, base.coins - 120, base.dust - 6 + 1], 'the commit and the lenient write both hold');
+    assert.deepEqual(o.record(), { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) });
+  }
+  {
+    const { o } = await behind(FENCE_LENIENT_MS, restore);
+    assert.deepEqual([o.saved().coins, o.saved().dust], [777, base.dust + 1], 'the restored journey and the lenient write both hold');
+    assert.equal(recoveryCoins(o), base.coins, 'the recovery copy holds the replaced journey');
+    assert.equal(o.record().digest, profileDigest(o.bytes()));
+  }
+});
+
+test('N32 a "writing" record that IndexedDB cannot heal names its cause, never a reload; lenient writes wait their budget each time until it heals', async () => {
+  // The disk filled between a holder's two fence writes (§10.1): the record stays "writing",
+  // and no reload heals it while IndexedDB refuses writes.
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  a.store.save(a.store.load());
+  const backup = createSnapshot({ ...base, coins: 777 }), bytes = o.bytes();
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  const cases = [
+    [new DOMException('Full', 'QuotaExceededError'), 'quota', 'quota'],
+    [new DOMException('Full', 'NS_ERROR_DOM_QUOTA_REACHED'), 'quota', 'quota'],
+    [new DOMException('Denied', 'SecurityError'), 'missing', 'no-lock'],
+    [new DOMException('Aborted', 'AbortError'), 'unavailable', 'unsynced'],
+    [null, 'unsettled', 'unsynced'], // IndexedDB accepts writes: a reload can heal it
+  ];
+  for (const [error, code, copy] of cases) {
+    const label = error?.name ?? 'writes accepted';
+    o.setRecord(WRITING); o.faults.write = () => error;
+    await assert.rejects(a.fenced(true)(() => assert.fail('the callback ran')), { name: 'ProfileFenceError', code, message: FENCE_MESSAGES[code] }, label);
+    const refused = await commitIn(a, request, a.fenced(true));
+    assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES[copy]], label);
+    const lookup = await readCommandReceipt(request, { store: a.store, lock: a.fenced(true) });
+    assert.deepEqual([lookup.status, lookup.message], ['unavailable', FENCE_MESSAGES[code]], label);
+    await assert.rejects(restoreIn(a, backup, fingerprintProfile(a.store.load()), a.fenced(true)), { name: 'ProfileFenceError', code, message: FENCE_MESSAGES[code] }, label);
+    assert.equal(o.bytes(), bytes, label); assert.equal(o.stored(RECOVERY_KEY), null, label);
+    assert.deepEqual(o.record(), WRITING, `${label}: the record is unchanged`);
+  }
+  o.faults.write = null; o.setRecord({ v: 2, state: 'settled', digest: 'x' });
+  await assert.rejects(a.fenced(true)(() => assert.fail('the callback ran')), { code: 'unsettled' });
+  assert.deepEqual(o.record(), WRITING, 'a malformed record becomes the mark that every holder already treats it as');
+
+  // The real adapter, whose refused transaction aborts with the quota error.
+  const options = {}, fence = createIndexedDBFence(fakeIndexedDB(options));
+  const adapter = createFencedLock({ request: o.lock, fence, read: () => a.storage.getItem(PROFILE_KEY), strict: true });
+  await fence.write(WRITING); options.refuseWrites = 'QuotaExceededError';
+  await assert.rejects(adapter(() => assert.fail('the callback ran')), { name: 'ProfileFenceError', code: 'quota' });
+  options.refuseWrites = null;
+  await assert.rejects(adapter(() => assert.fail('the callback ran')), { name: 'ProfileFenceError', code: 'unsettled' });
+
+  // Lenient holders (each page load's startup save, each economy action) cannot heal it
+  // either, so each one waits its whole budget until IndexedDB accepts writes (§10.1 Limits).
+  const slept = [];
+  const lenient = createFencedLock({ request: o.lock, fence: o.fence, read: () => a.storage.getItem(PROFILE_KEY), strict: false, sleep: async ms => { slept.push(ms); } });
+  const bump = () => { const profile = a.store.load(); profile.dust += 1; a.store.save(profile); };
+  o.setRecord(WRITING); o.faults.write = () => new DOMException('Full', 'QuotaExceededError');
+  for (let index = 0; index < 3; index++) await lenient(bump);
+  assert.equal(o.saved().dust, base.dust + 3, 'lenient writers still save');
+  assert.deepEqual(slept, [FENCE_LENIENT_MS, FENCE_LENIENT_MS, FENCE_LENIENT_MS]);
+  assert.deepEqual(o.record(), WRITING);
+  o.faults.write = null; slept.length = 0;
+  await lenient(bump); await lenient(bump);
+  assert.deepEqual(slept, [FENCE_LENIENT_MS], 'the first write once space returns heals it; the next waits for nothing');
+  assert.deepEqual(o.record(), { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) });
+  assert.equal((await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true))).status, 'committed');
+});
+
+test('N32 on a full disk a settled record keeps its digest: lenient writes wait for nothing until one changes the profile, then each waits its budget', async () => {
+  // §10.1 Limits: which lenient writes pay the full-disk wait when the record is settled, not
+  // "writing". A virtual clock counts the time each one waits.
+  const base = rich(), o = origin(base), a = o.tab();
+  let elapsed = 0; const waits = [];
+  const lenient = createFencedLock({ request: o.lock, fence: o.fence, read: () => a.storage.getItem(PROFILE_KEY), strict: false, sleep: async ms => { elapsed += ms; }, clock: () => elapsed });
+  const waited = async change => { const start = elapsed; await lenient(change); waits.push(elapsed - start >= FENCE_LENIENT_MS ? 'budget' : elapsed - start); };
+  const same = () => a.store.save(a.store.load()); // a startup save that writes back the same text
+  const bump = () => { const profile = a.store.load(); profile.dust += 1; a.store.save(profile); };
+  await waited(same);
+  const current = { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) };
+  assert.deepEqual(o.record(), current);
+  o.faults.write = () => new DOMException('Full', 'QuotaExceededError'); waits.length = 0;
+  for (const change of [same, same, bump, bump, bump, same]) await waited(change);
+  assert.deepEqual(waits, [0, 0, 0, 'budget', 'budget', 'budget'], 'the first change waits for nothing; every lenient write after it waits its budget');
+  assert.equal(o.saved().dust, base.dust + 3, 'lenient writers still save');
+  assert.deepEqual(o.record(), current, 'nothing is recorded, so the digest is out of date');
+  o.faults.write = null; waits.length = 0;
+  await waited(bump); await waited(same);
+  assert.deepEqual(waits, ['budget', 0], 'the first write once space returns heals it; the next waits for nothing');
+  assert.deepEqual(o.record(), { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) });
+});
+
+/** A small in-memory IndexedDB: one database, one object store, async events. While
+ * `options.refuseWrites` names a DOMException, every readwrite transaction aborts with it
+ * and stores nothing, as a full disk does; it is read per transaction, so it can change. */
+function fakeIndexedDB(options = {}) {
+  const { failOpen = false, abort = false } = options;
+  const databases = new Map(), opened = [];
+  const fire = (target, type, extra = {}) => queueMicrotask(() => { Object.assign(target, extra); target[`on${type}`]?.(); });
+  return {
+    opened,
+    open(name, version) {
+      const request = {};
+      opened.push([name, version]);
+      setTimeout(() => {
+        if (failOpen) return fire(request, 'error', { error: new DOMException('Denied', 'SecurityError') });
+        let entry = databases.get(name);
+        const upgrade = !entry || entry.version < version;
+        entry ??= { version, stores: new Map() };
+        databases.set(name, entry); entry.version = version;
+        const db = {
+          objectStoreNames: { contains: store => entry.stores.has(store) },
+          createObjectStore: store => entry.stores.set(store, new Map()),
+          transaction(store, mode) {
+            const records = entry.stores.get(store), transaction = { mode };
+            const refused = mode === 'readwrite' && options.refuseWrites ? new DOMException('Fixture refusal', options.refuseWrites) : null;
+            transaction.objectStore = () => ({
+              get: key => { const r = {}; fire(r, 'success', { result: structuredClone(records.get(key)) }); return r; },
+              put: (value, key) => { const r = {}; if (mode !== 'readwrite') throw Error('read only'); if (!refused) records.set(key, structuredClone(value)); fire(r, 'success', { result: key }); return r; },
+              delete: key => { const r = {}; if (!refused) records.delete(key); fire(r, 'success', { result: undefined }); return r; },
+            });
+            const failure = abort ? new DOMException('Aborted', 'AbortError') : refused;
+            setTimeout(() => failure ? fire(transaction, 'abort', { error: failure }) : fire(transaction, 'complete'));
+            return transaction;
+          },
+        };
+        request.result = db;
+        if (upgrade) request.onupgradeneeded?.();
+        fire(request, 'success');
+      });
+      return request;
+    },
+  };
+}
+
+test('N23 the IndexedDB adapter keeps one record per profile key and fails closed', async () => {
+  const factory = fakeIndexedDB(), fence = createIndexedDBFence(factory);
+  assert.equal(await fence.read(), null);
+  await fence.write({ v: 1, state: 'settled', digest: '3:abc' });
+  assert.deepEqual(await fence.read(), { v: 1, state: 'settled', digest: '3:abc' });
+  const gaveUp = new AbortController(); gaveUp.abort();
+  await assert.rejects(fence.write({ v: 1, state: 'writing' }, { signal: gaveUp.signal }), { name: 'ProfileFenceError', code: 'unavailable' });
+  assert.deepEqual(await fence.read(), { v: 1, state: 'settled', digest: '3:abc' }, 'an abandoned write never starts');
+  await fence.write(null);
+  assert.equal(await fence.read(), null);
+  assert.deepEqual(factory.opened, [[PROFILE_FENCE_DB, PROFILE_FENCE_VERSION]], 'one connection is reused');
+  const other = createIndexedDBFence(factory, { key: 'other' });
+  assert.equal(await other.read(), null, 'records are keyed');
+  await fence.write({ v: 1, state: 'writing' });
+  assert.deepEqual(await createIndexedDBFence(factory, { key: PROFILE_KEY }).read(), { v: 1, state: 'writing' }, 'the default key is the profile key');
+  assert.equal(PROFILE_FENCE_STORE, 'fence');
+  await assert.rejects(createIndexedDBFence(fakeIndexedDB({ failOpen: true })).read(), { name: 'SecurityError' });
+  await assert.rejects(createIndexedDBFence(fakeIndexedDB({ abort: true })).write({ v: 1, state: 'writing' }), { name: 'AbortError' });
+  const throwing = createIndexedDBFence({ open() { throw new DOMException('Blocked', 'SecurityError'); } });
+  await assert.rejects(throwing.read(), { name: 'SecurityError' });
+});

@@ -80,8 +80,8 @@ card art and rules remain accessible through detail modules.
   pills in the header and split hand, move, opponent and notes into separate
   modules, which hid the opponent while the player chose a move. The Q0
   [battle-table revision](BATTLE-LAYOUT-PLAN.md) replaces those modules with one
-  對局 table that keeps the decision inputs visible together. As of 2026-10-11
-  Q0 exists only on the local branch `q0/battle-table` and is not deployed.
+  對局 table that keeps the decision inputs visible together. Q0 merged into
+  `main` in PR #5 (`bca9ab4`) on 2026-10-11 and is not deployed.
 - **藏卡:** cards, filters and arrangement; expanded characters also have a
   printing selector. Decks separate saved slots, draft positions, available
   copies and saving. The codex separates discovery cards from search tools.

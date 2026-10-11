@@ -1,6 +1,6 @@
 import { CARDS, LEGACY_CARDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, previewMove, resolveRound, hasFactionBonus, getBattleCard } from './engine.mjs';
 
-import { PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, refreshDaily, claimLogin, claimTask, claimWeeklyTask, buyPack, buyCard, sellInstance, buybackInstance, getInstanceSale, upgradeCard, trainCard, beginBattle, finishBattle, abandonBattle, claimArenaChest, isNodeUnlocked } from './progression.mjs';
+import { PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, refreshDaily, claimLogin, claimTask, claimWeeklyTask, buyPack, buyCard, sellInstance, buybackInstance, getInstanceSale, trainCard, beginBattle, finishBattle, abandonBattle, claimArenaChest, isNodeUnlocked } from './progression.mjs';
 import { activityMarkup, activitySupplyMarkup, expansionRewardsMarkup } from './expansion-ui.mjs';
 import { startActivity, advanceActivity, abandonActivity, getPendingBattleOptions, claimExpansionGrant, openWX01Ticket } from './progression.mjs';
 import { WORLDS, getWorldForNode, nextNodeInWorld } from './stories.mjs';
@@ -18,8 +18,11 @@ import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConf
 import { createRoundPresentation, paintRoundResources, permittedAnnouncement, createPlanningView, createRevealView } from './battle-presentation.mjs';
 import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
-import { createSnapshot, restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
+import { restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
 import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './profile-store.mjs';
+import { previewCommand, commitCommand, readCommandReceipt, duplicateMessage, COMMAND_MESSAGES } from './local-commands.mjs';
+import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
+import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
@@ -38,6 +41,18 @@ const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const profileStore=createProfileStore({storage:localStorage});
 const loadProfile=()=>profileStore.load();
+// localStorage is only eventually consistent between tabs, even for the next holder of the
+// Web Lock. Each holder waits for the bytes the previous holder recorded in the IndexedDB
+// fence (docs/LOCAL-COMMANDS.md §10.1). Read at call time so a browser that loses Web Locks
+// refuses instead of throwing.
+const profileFence=createIndexedDBFence((()=>{try{return globalThis.indexedDB;}catch{return null;}})(),{key:PROFILE_KEY});
+const fencedLock=strict=>navigator.locks?createFencedLock({request:fn=>navigator.locks.request(PROFILE_LOCK,fn),fence:profileFence,read:()=>localStorage.getItem(PROFILE_KEY),strict}):null;
+// Adapter commands require the lock and a fence proving the bytes are current; no unlocked path.
+// Restore holds it strictly too (§11): it retires the ledger and keeps a recovery copy of the
+// journey it replaces, so it decides on the latest bytes or refuses.
+const profileLock=()=>fencedLock(true);
+// Every other writer under PROFILE_LOCK: waits briefly, then proceeds as before; its write heals the fence.
+const writerLock=()=>fencedLock(false);
 let profile=loadProfile(), startupReady=false;
 let collectionSet='all', sourceFilter='all', codexStatus='all', selectedPack='wx01', codexDetailId=null;
 const classicsDeck=['kongzi','qingxiao','wukong','guanyu','lindaiyu','shuangli','cangjiao','cuixian'];
@@ -54,6 +69,8 @@ let experience, experienceReturn=null, packOpening=null;
 experience=createExperienceController({storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},document,window,onPreferencesChange:applyExperiencePreferences});
 applyExperiencePreferences(experience.getPreferences());
 let recoveryDraft=null;
+// The care.upgrade request captured when the card page was painted; a click commits exactly this.
+let passportQuote=null;
 let inheritanceView=null;
 // Navigation drafts never create, settle or replace a persisted encounter.
 let preparation=null, preparationReturn=null, accountReturn='home', modalKind=null, modalOrigin=null;
@@ -96,33 +113,43 @@ function syncExperienceScene() {
 function syncProfile(next){profile=next;}
 async function transact(change,onSaved){
   const apply=()=>{
-    const result=change(loadProfile()), next=result.profile||result;
+    const loaded=loadProfile(), ledger=commandLedgerJSON(loaded);
+    const result=change(loaded), next=result.profile||result;
+    // Only commitCommand and restore may change the command ledger.
+    assertLedgerUnchanged(ledger,next);
     profileStore.save(next);
     syncProfile(next);account.markLocalChanged();if(onSaved)onSaved(result);return result;
   };
-  return navigator.locks ? navigator.locks.request(PROFILE_LOCK,apply) : apply();
+  // Without Web Locks this fallback is same tab only; not cross-tab serialization.
+  // It keeps today's unwrapped single actions working. Adapter commands, and any new
+  // batch/queue operation, go through commitCommand, which refuses without the lock.
+  const lock=writerLock();
+  return lock ? lock(apply) : apply();
 }
 async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = () => true } = {}) {
   const restored = restoreSnapshot(snapshot);
-  if (!navigator.locks) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
-  return navigator.locks.request(PROFILE_LOCK, () => {
+  // Strict: a tab still behind another tab's commit would retire the ledger below a quote
+  // minted after it, and replace a journey that no recovery copy holds.
+  const lock = profileLock();
+  if (!lock) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
+  return lock(() => {
     const current = loadProfile();
     if (!isCurrent()) throw Error('登入狀態已改變，未有恢復旅程。');
     if (economyBusy || current.pending || current.expansion.fireMountain.run) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');
     if (current.wx01.receipt) throw Error('請先查看並確認已入藏的西行畫作，再恢復旅程。');
     if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
-    // Preserve a complete, validated local recovery copy before replacing anything.
-    localStorage.setItem(RECOVERY_KEY, JSON.stringify({ savedAt: new Date().toISOString(), snapshot: createSnapshot(current) }));
-    profileStore.save(restored);
+    // Checks the replacement (with the replaced lineage's retired command boundary) first,
+    // then keeps a validated recovery copy of `current`, then saves; a refusal changes neither.
+    const next = profileStore.replace(current, restored, { savedAt: new Date().toISOString() });
     packOpening?.destroy();packOpening=null;
     localStorage.removeItem(BATTLE_KEY);
-    syncProfile(restored);
+    syncProfile(next);passportQuote=null;
     match=null;encounter=null;selected=null;busy=false;recorded=false;revealPending=false;lastReward=null;lastRoundPresentation=null;battleEntering=false;
     deckDraftReady=false;selectedNode=profile.location||NODES[0].id;
     preparation=null;preparationReturn=null;screenScroll.clear();worldSelections.clear();worldScrollPositions.clear();worldPieces.clear();questTab='daily';
     trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
     bagView={tab:'cards',layout:'groups',expandedCardId:null,printId:'all',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};bagGroupReturn=null;
-    return restored;
+    return next;
   });
 }
 function recoveryMarkup() {
@@ -523,8 +550,52 @@ function preferredInstance(reference){
   return active?.instanceIds.map(uid=>getInstance(profile,uid)).find(i=>i.cardId===reference)||getPreferredInstance(profile,reference);
 }
 function showInstance(reference){
-  try{const item=preferredInstance(reference);if(!item)throw Error('這張卡暫時不在行囊。');modal(instanceMarkup(profile,item.uid,cardMarkup),'instance-modal');}
-  catch(error){toast(error.message);}
+  try{
+    const item=preferredInstance(reference);if(!item)throw Error('這張卡暫時不在行囊。');
+    // Same profile object for the painted cost and the captured request.
+    passportQuote=previewCommand(profile,{type:'care.upgrade',uid:item.uid});
+    modal(instanceMarkup(profile,item.uid,cardMarkup),'instance-modal');
+  }
+  catch(error){passportQuote=null;toast(error.message);}
+}
+/** care.upgrade through local-commands.mjs: one locked write of effects plus receipt. */
+async function runUpgrade(uid){
+  if(economyBusy)return;
+  const quote=passportQuote;
+  if(quote?.selectedUids?.[0]===uid&&!quote.request)return toast(quote.blockers[0]?.message||COMMAND_MESSAGES.invalid);
+  if(quote?.request?.intent.uid!==uid){
+    try{syncProfile(loadProfile());}catch(error){return toast(error.message);}
+    showInstance(uid);return toast(COMMAND_MESSAGES.stale);
+  }
+  const lock=profileLock();
+  if(!lock)return toast(COMMAND_MESSAGES['no-lock']);
+  economyBusy=true;
+  const button=overlay.querySelector('[data-action="instance-upgrade"]');
+  if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
+  try{
+    let result=await commitCommand(quote.request,{store:profileStore,lock});
+    if(result.status==='unknown'){
+      toast(result.message);
+      // One lookup of the same request; never resubmit or mint a new ID for it.
+      const lookup=await readCommandReceipt(quote.request,{store:profileStore,lock:profileLock()});
+      if(lookup.status==='committed')result={status:'committed',duplicate:false,receipt:lookup.receipt,profile:loadProfile()};
+      else result={...result,message:lookup.status==='not-committed'?COMMAND_MESSAGES['not-committed']:result.message};
+    }
+    if(result.status==='committed'){
+      syncProfile(result.profile);
+      if(!result.duplicate)account.markLocalChanged();
+      render();showInstance(uid);
+      toast(result.duplicate?duplicateMessage(result.receipt):COMMAND_MESSAGES.committed);playTone('select');
+      return;
+    }
+    try{syncProfile(loadProfile());render();showInstance(uid);}catch(error){return toast(error.message);}
+    toast(result.message||COMMAND_MESSAGES['write-failed']);
+  }catch(error){toast(error.message||COMMAND_MESSAGES['write-failed']);}
+  finally{
+    economyBusy=false;
+    const retry=overlay.querySelector('[data-action="instance-upgrade"][aria-busy="true"]');
+    if(retry){retry.disabled=false;retry.removeAttribute('aria-busy');}
+  }
 }
 function openBagGroup(cardId,{fromCodex=false}={}) {
   try {
@@ -909,14 +980,20 @@ document.addEventListener('click', event=>{
   if(action==='restore-recovery'){
     if(profile.pending||economyBusy)return toast('請先完成或放棄未完對局。');
     const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
-    recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
+    // A dialog reopened while a restore is in flight keeps that restore's draft, so a press in
+    // it is ignored too, not queued as a second restore that is refused after the first lands.
+    if(!recoveryDraft?.restoring)recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
     modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>');return;
   }
   if(action==='confirm-restore-recovery'){
     const saved=read(RECOVERY_KEY,null),draft=recoveryDraft;
+    if(draft?.restoring)return;
     if(!draft||saved?.savedAt!==draft.savedAt)return toast('回復備份已更新，請重新查看。');
-    recoveryDraft=null;
-    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>toast(error.message));return;
+    // A refusal changes nothing and leaves this dialog open, so the draft stays for a press
+    // again: after a fence refusal that asks for a retry, it restores once the fence passes,
+    // and every retry runs the backup and fingerprint checks again (docs/LOCAL-COMMANDS.md §11).
+    draft.restoring=true;
+    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(recoveryDraft===draft)recoveryDraft=null;closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>{draft.restoring=false;toast(error.message);});return;
   }
   if(action==='bag-tab')return switchCardsTab(id);
   if(action==='bag-card')return openBagGroup(id,{fromCodex:true});
@@ -1014,8 +1091,9 @@ document.addEventListener('click', event=>{
   if(action==='claim-weekly-task')return economy(p=>claimWeeklyTask(p,id),'週課已成，獎勵已收入行囊。');
   if(action==='arena-chest')return economy(p=>claimArenaChest(p),'三戰之約已成，寶箱已開啟。');
   if(action==='daily-train')return economy(p=>trainCard(p,id),'這張卡的修練提升了！');
-  if(action==='upgrade'){const instance=preferredInstance(id);if(instance)showInstance(instance.uid);return;}
-  if(action==='upgrade-card'||action==='instance-upgrade')return economy(p=>upgradeCard(p,id),'此卡修練完成，另一張副本的等級不變。',()=>showInstance(id));
+  // upgrade-card names a cardId; it opens that card's page instead of spending directly.
+  if(action==='upgrade'||action==='upgrade-card'){const instance=preferredInstance(id);if(instance)showInstance(instance.uid);return;}
+  if(action==='instance-upgrade')return runUpgrade(id);
   if(action==='buy-card')return economy(p=>buyCard(p,id),`已購入一張${getCard(id).name}。`);
   if(action==='sell-card'){navigate('bag');bagView.query=getCard(id).name;render();return;}
   if(action==='buy-pack'){if(loadProfile().wx01.receipt)return showPackReceipt(true);const packSet=button.dataset.set||selectedPack;return economy(p=>buyPack(p,{set:packSet}),'',result=>{
