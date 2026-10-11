@@ -1,6 +1,6 @@
 # Mythseal hosting
 
-Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). **v0.5.1 is deployed with email login enabled**, following verified Resend/Supabase setup and the owner's successful mailbox/local-browser test. Deployment receipts below distinguish actual live versions from source changes.
+Site: [mythseal.com](https://mythseal.com). Source: [private cambridgetcg/mythseal](https://github.com/cambridgetcg/mythseal). **v0.5.1 is deployed with email login enabled**, following verified Resend/Supabase setup and the owner's successful mailbox/local-browser test. Deployment receipts below distinguish actual live versions from source changes. The proposed next release (v0.6.0, not yet deployed or migrated) is planned in [RELEASE-NEXT.md](RELEASE-NEXT.md).
 
 ## Topology and public boundary
 
