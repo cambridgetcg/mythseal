@@ -539,7 +539,18 @@ try {
     const page = await open('q0-opponent-leads-r1', { width: motionSize[0], height: motionSize[1], motion: 'no-preference', pace: 'normal' });
     await resume(page);
     assert.equal(await page.evaluate(() => document.body.dataset.motion), 'full');
+    // The table behind already shows the resolved round, so the backdrop covers it
+    // from the first frame after Commit; only the sealed dialog fades in.
+    await page.evaluate(() => document.addEventListener('click', event => {
+      if (!event.target.closest?.('[data-action="commit"]')) return;
+      requestAnimationFrame(() => {
+        const backdrop = document.querySelector('.modal-backdrop'), dialog = document.querySelector('.battle-reveal');
+        window.__firstRevealFrame = { phase: dialog?.dataset.phase, backdrop: backdrop && getComputedStyle(backdrop).opacity };
+      });
+    }, { capture: true, once: true }));
     await press(page, page.locator('[data-action="commit"]'), 'commit');
+    const firstFrame = await page.evaluate(() => window.__firstRevealFrame);
+    assert(['sealed', 'bids'].includes(firstFrame?.phase) && firstFrame.backdrop === '1', `first frame after Commit, before impact: the backdrop is already opaque over the resolved table ${JSON.stringify(firstFrame)}`);
     await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
     await press(page, page.locator('.battle-reveal [data-viewport-action="module"][data-viewport-target="effects"]'), 'effects page');
     await nextRound(page);
@@ -573,7 +584,7 @@ try {
     for (const phase of ['impact', 'complete']) assert.deepEqual([at(phase).outcome, at(phase).gold], ['visible', true], `${phase}: winner word and gold shown ${JSON.stringify(trace)}`);
     await release(page);
   }
-  passed(`${motionSize.join('x')}: full motion keeps the winner word and gold hidden until impact on a remembered effects page; selection in an entered round does not replay the entrance fade`);
+  passed(`${motionSize.join('x')}: full motion covers the resolved table with an opaque backdrop from the first frame after Commit, keeps the winner word and gold hidden until impact on a remembered effects page; selection in an entered round does not replay the entrance fade`);
 
   // Fit sweep: four-character names with ✧ in every state, all inputs hit-testable.
   for (const [width, height] of sweepSizes) {

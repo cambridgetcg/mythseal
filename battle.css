@@ -86,6 +86,10 @@
 .battle-reveal-footer>.modal-actions{margin:0;justify-content:center}
 .battle-reveal-footer>.battle-reveal-controls{margin-top:4px;padding-top:1px;border-top:0}
 .battle-reveal[data-reveal-state="complete"] .battle-resources,.battle-reveal[data-reveal-state="complete"] [data-hp-meter],.battle-reveal[data-reveal-state="complete"] .pill-capsule{transition:none!important}
+/* The inert table behind a round result already shows that round resolved, so its
+   backdrop dims and blurs it from the first frame; only the sealed dialog fades in. */
+.modal-backdrop:has(>.battle-reveal){animation:none}
+.modal-backdrop>.battle-reveal{animation:fade-in .2s}
 .battle-table .pill-control button{width:44px;height:44px;min-width:44px;min-height:44px}
 .battle-table .fury-toggle{min-height:44px}
 .battle-table .move-panel .primary{min-height:46px}
