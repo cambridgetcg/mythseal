@@ -5,7 +5,9 @@ the vocabulary that follows. The documents own the details; this index only
 helps you find the right one. It does not change release state.
 
 Last organized **2026-10-11** against `main` at `8afbabc`: 40 other Markdown
-documents, one JSON snapshot and the archived `history/` folder.
+documents, one JSON snapshot and the archived `history/` folder. On
+`q4/content-registry`, the two LZ-01 rows were later brought up to `main`'s PR #8
+merge (`daf18ed`).
 
 ## Status vocabulary
 
@@ -45,8 +47,8 @@ contract.
 | [Project overview](../README.md) | Play, run locally, feature summary, browser checks and the project map | `mixed` · its save notes describe profile v3/v4; `main` uses v5 |
 | [Working instructions](../AGENTS.md) | Repository conventions, authority limits and what every agent must preserve | `current` |
 | [Contributing](../CONTRIBUTING.md) | Setup, module boundaries, proportionate checks and what stays out of Git | `current` |
-| [Agent handover](HANDOVER.md) | Architecture, infrastructure and access map, fresh checkout, checks, release and the handoff template | `current`, with dated checkpoints; its Q0 checkpoint predates the PR #5 merge |
-| [Roadmap](../ROADMAP.md) | Shipped baseline, Q0–Q6 experience track, M1–M7 phases and bounded tasks with acceptance criteria | `mixed`; its Q0 status predates the PR #5 merge |
+| [Agent handover](HANDOVER.md) | Architecture, infrastructure and access map, fresh checkout, checks, release and the handoff template | `current`, with dated checkpoints; its Q0 checkpoint predates the PR #5 merge, and its Q4 content-registry checkpoint was written on the unmerged `q4/content-registry` branch |
+| [Roadmap](../ROADMAP.md) | Shipped baseline, Q0–Q6 experience track, M1–M7 phases and bounded tasks with acceptance criteria | `mixed`; its Q0 status predates the PR #5 merge, and its Q4 status (registry and audit done, exit not met) was written on the unmerged `q4/content-registry` branch |
 | [Pull request template](../.github/pull_request_template.md) | The problem, validation and save/ownership/platform impact each PR states | `current` |
 
 **Q0 has merged.** The battle table merged into `main` in PR #5 (`bca9ab4`); no
@@ -81,7 +83,7 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 
 | Document | What it covers | Status |
 | --- | --- | --- |
-| [LZ-01 聊齋・燈下有靈](EXPANSION-LZ01.md) | Twelve-character candidate design and the `/liaozhai.html` preview | `preview` · 2026-09-23, updated 2026-10-10 |
+| [LZ-01 聊齋・燈下有靈](EXPANSION-LZ01.md) | Twelve-character candidate design and the `/liaozhai.html` preview | `preview` · 2026-09-23, updated 2026-10-11 (all 19 printings bound, PR #8) |
 | [HL-01 紅樓・風月入夢](EXPANSION-HL01.md) | Eight-card 海棠詩社 design and the `/honglou.html` preview | `preview` · 2026-09-23 |
 | [Literary booster programme](BOOSTER-SERIES.md) | Pack types, editorial direction and first stat sketches for literary sets (中文) | `proposal · 2026-09-23` |
 
@@ -92,7 +94,7 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 | Document | What it covers | Status |
 | --- | --- | --- |
 | [Experience lessons](EXPERIENCE-LESSONS.md) | Lessons from the RXSG restoration, turned into player-facing decisions | `proposal · 2026-09-29` |
-| [Experience modules](EXPERIENCE-MODULES.md) | Proposed Q0–Q6 module contracts, existing seams and infrastructure | `proposal · 2026-09-29`; Q0 since implemented (see the battle table above) |
+| [Experience modules](EXPERIENCE-MODULES.md) | Proposed Q0–Q6 module contracts, existing seams and infrastructure | `proposal · 2026-09-29`; Q0 since implemented (see the battle table above); Q4's content registry and audit implemented as tooling only (`tools/content-registry.mjs`, `npm run audit:content`, never served), with its [registry states](EXPERIENCE-MODULES.md#q4-registry-states) |
 
 ## Accounts, operations and evidence
 
@@ -100,7 +102,7 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 | --- | --- | --- |
 | [Accounts and private backups](ACCOUNTS.md) | 旅程閣 sign-in, backup contents, the session and storage boundary, and email setup | `current` · live in v0.5.1 (snapshot v1); `main`'s snapshot v2/v3 need hosted migrations that the [handover](HANDOVER.md#playable-local-wx-01-and-guarded-saves) records as not applied |
 | [Hosting, releases and rollback](HOSTING.md) | Public boundary, build and deploy procedure, rollback and exact deployment receipts | `current` procedure, with dated receipts; its "19 runtime files" is the v0.5.1 count (`main`'s allowlist has 80) |
-| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0 entry predates the PR #5 merge |
+| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0 entry predates the PR #5 merge, and its Q4 content-registry entry records checks on the unmerged `q4/content-registry` branch |
 | [Developer connections](CONNECTIONS.md) | Service identities, verified access, credential locations and remaining setup | `record · 2026-09-21`, rechecked 2026-09-22 |
 | [Fresh-clone toolkit check](TOOLKIT.md) | One fresh clone's setup, access rechecks and local test receipts | `record · 2026-09-21`, updated 2026-09-22 |
 | [Account API contract](../server/README.md) | Worker routes, cookies, bindings and the database access boundary | `current` |
@@ -140,7 +142,7 @@ explain the earlier thinking; none is an instruction to mint or sell.
 | [WX-01 production artwork](ART-WX01.md) | Prompts for four base atlases and ten special illustrations | `record · 2026-09-22` |
 | [西行 special-print studies](ART-EXPANSION.md) | Three Wukong studies (異畫, 墨卷, 天工) shown in `atelier.html`, also reused unchanged for the WX-01 Wukong AA, INK and TR printings | `record · 2026-09-22` |
 | [HL-01 art studies](ART-HL01.md) | Prompts and integrity notes for the 紅樓 preview art | `record · 2026-09-23` |
-| [LZ-01 art studies](ART-LZ01.md) | Prompts for the 聊齋 preview art, plus six briefs for special prints not yet generated | `record · 2026-09-23`; briefs 2026-10-10 |
+| [LZ-01 art studies](ART-LZ01.md) | Prompts for the 聊齋 preview art, the briefs for its six later special prints and their provenance; all seven specials are bound | `record · 2026-09-23`; briefs 2026-10-10; specials generated and bound 2026-10-11 (PR #8) |
 
 ## Research and naming
 

@@ -2,6 +2,440 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Q4 content registry · 2026-10-11
+
+Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
+commit **`4265039`** adds `tools/content-registry.mjs`,
+`tests/content-registry.test.mjs` and the `npm run audit:content` script. Review
+fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
+(below). Five later commits also change source: merge commit **`d1f0f91`**
+adapts the registry and its tests to PR #8's LZ-01 specials, **`6bc784a`**
+fixes a third review's findings, **`092f1fd`** a fourth's, **`2d44071`** a
+fifth's, and **`2a04859`** a sixth's. Merge commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
+the remaining commits change documentation only; each source step below lists the checks run on it. The branch is not
+merged into `main`, pushed or deployed, and there was no hosted check. The
+registry's own commits change no game runtime, save schema, content, art or
+allowlist file; the PR #8 merge brought in that branch's LZ-01 content, art and
+preview-allowlist changes. Design and scope are in
+[EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q4--content-registry-and-honest-capability-visibility);
+statuses and capability states are defined in
+[Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states).
+
+- `node --test tests/*.test.mjs`: **473/473**, exit 0, Node 26.0.0, at
+  `cf63bec`. The base has 456; `4265039` added 9, `7291880` added 4 and
+  `cf63bec` adds 4.
+- **Second review fixes in `cf63bec`** (all tooling metadata; no player, save
+  or build effect):
+  - The asset walker missed CSS `@import "x.css"` (only `@import url(...)` was
+    followed), non-image `assets/` literals such as `new Audio('assets/sfx/…mp3')`,
+    `.gif`, `srcset` and `<video>`/`<audio>` sources. In a scratch copy, adding
+    either load left the audit, the build and all 469 tests passing. The walker
+    now follows those and the other load forms listed in EXPERIENCE-MODULES; the
+    current tree's references are byte-for-byte the same as before. A path built
+    at runtime is still invisible to it.
+  - Every campaign encounter listed `claimExpansionGrant`, though 39 of 48
+    first clears bank no grant, and no encounter or the activity listed
+    `openWX01Ticket`, though six volume finals and the weekly fire-mountain
+    clears bank tickets. Reward rules are now per node and checked against what
+    each clear actually banks.
+  - Legacy acquisition omitted the 16 starter and welcome copies that
+    `createProfile` mints and the v2 save migration in `hydrateProfile`. Both
+    are listed and checked against a new journey and three v2 migrations.
+  - Preview printings said "preview pages never write a profile", but the
+    preview-allowlisted `playtest.html` writes coins and a gift marker. The
+    reason now names the serving pages (`liaozhai.html`, `honglou.html`) and
+    whether they load `profile-store.mjs`.
+  - A test that called `t.skip()` in its body still counted as evidence. A body
+    that calls its context's `skip()`/`todo()`, even conditionally, and a
+    declaration inside a block comment or a string no longer count.
+  - Mutation check in scratch copies (APFS clones, deleted afterwards): removing
+    the volume-final ticket, the weekly ticket or the campaign-final AA from
+    `progression.mjs`; a `t.skip()` evidence body, a plain `@import` or an
+    unlisted `new Audio(...)`; and reverting each of the seven tool changes, each
+    made `node --test tests/content-registry.test.mjs` exit 1 (13 of 13). The
+    three source-drift mutants also made `node tools/content-registry.mjs`
+    exit 1. Before this commit, the ticket removals failed only
+    `tests/expansion-progression.test.mjs`.
+- **Review fixes in `7291880`:**
+  - The dead-reference check skipped `unlock.rule` and the references inside
+    backup limits, so renaming `isNodeUnlocked`, `assertLegacyExpansionBoundary`
+    or either cloud-save limit test left the audit at exit 0. It now resolves
+    every reference-shaped string in an entry; limits hold `{ text, references }`,
+    and prose that embeds a reference is its own finding. In a scratch copy,
+    renaming `isNodeUnlocked`, `assertLegacyExpansionBoundary` and the activity
+    limit test, and skipping one evidence test, made `node tools/content-registry.mjs`
+    exit 1 with four `dead-reference` findings. The suite injects each of these,
+    and the other limit test's rename, as a separate case.
+  - A test disabled with `{ skip }` still counted as evidence. Skip/todo options
+    and `//`-commented declarations no longer resolve; a test hidden behind
+    `if (false)` still cannot be detected statically.
+  - Acquisition omitted the westward story AA gift, the campaign-final AA choice
+    and the fire-mountain first-clear BASE. They are listed now, and a test plays
+    every story and expansion grant route on every WX-01 printing and requires an
+    exact match with the listed routes.
+  - `loadContentSources(root)` redirected file reads but not the content modules.
+    It now takes no root and throws if given one.
+  - Mutation check in scratch copies: removing any of the three new grant routes,
+    reverting the reference collection, the skip handling, the embedded-reference
+    check or the root guard, or deleting a fault case, each made
+    `node --test tests/content-registry.test.mjs` fail (8 of 8 mutations).
+- `node tools/content-registry.mjs`: exit 0, `findings: []`. It derives 150
+  entries: encounters 6 original, 12 story and 48 campaign; one activity; 24
+  legacy, 29 WX-01, 19 LZ-01 and 11 HL-01 printings. Statuses are 120
+  local-playable, 24 preview and 6 planned.
+- **Rules-level routes:** all 68 advertised encounter routes (66 owned, plus
+  borrowed decks on `echo-1-7` and `echo-6-7`) start, complete and pay their
+  first clear once. Each rejects a duplicate completion and unlocks the next
+  node, which was locked before. Both fire-mountain routes complete twice with
+  one first-clear grant. These checks call `progression.mjs` directly, not the
+  browser UI.
+- **Backup:** a v3 cloud snapshot round trip keeps all 66 clears, the activity
+  record and grants, and one copy of each of the 53 ownable printings.
+- **Fault injection:** each of the 27 finding codes fires on an injected fault,
+  and a test fails if a code in the source has no case. 23 codes fire on a
+  deliberately broken copy of the sources, for example a dropped public map, a
+  leaked LZ-01 atlas, an unknown card or illegal authored deck, a dangling,
+  circular or second root prerequisite, a printing with absent or missing art, a
+  wrong activity drop, a bound planned special, checklist or brief drift, an
+  unlisted import, a preview import and a renamed or skipped referenced test or
+  rule. The other 4 guard the registry's own shape (an owned-copy `uid`, a
+  server-authority claim, a missing reason, an embedded reference), which the
+  current derivation does not produce, so their cases alter a built registry. Before
+  `7291880` only 10 of the then 26 codes had an asserted case.
+- `npm run build`: exit 0, 80 public files, the same allowlist as the base
+  (re-run at `cf63bec`, unchanged).
+- **Audit result:** nothing inconsistent in current content. All 60 authored
+  opponent decks are legal, so `app.mjs:opponentDeck` never silently falls back to
+  its random legacy deck. Every allowlisted file is used, nothing a served page
+  loads through a statically visible reference is unlisted, and no preview file
+  reaches the public graph.
+- **Observations, not fixed:** the six original encounters have no authored
+  opponent deck; `app.mjs:opponentDeck` shuffles the legacy roster with
+  `Math.random`, so that choice is not injectable. `engine.mjs` declares no rules
+  version. The registry reports both instead of inventing values. The audit
+  requires a reason only for an `unavailable` capability; `not-applicable`
+  reasons are checked by the test suite for today's entries, not by
+  `npm run audit:content`.
+- **Documentation finish (later on 2026-10-11).** These commits add
+  [Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states), the ROADMAP
+  status and a shorter handover note. Their game, test and tool files are
+  identical to `cf63bec`'s. Checks on that tree:
+  - `node --test tests/*.test.mjs`: **473/473**, exit 0, 0 skipped, Node 26.0.0.
+  - `node tools/content-registry.mjs`: exit 0, `findings: []`. By capability:
+    `preview` 77 available, 67 not-applicable, 6 unavailable; `local-playable`
+    120 available, 30 unavailable; `local-owned` 53 available, 67
+    not-applicable, 30 unavailable; `backup-compatible` 120 available, 30
+    unavailable; `server-authoritative` 150 unavailable. No capability is
+    `inconsistent`.
+  - `npm run build`: exit 0, 80 public files.
+  - `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai` and
+    `npm run test:honglou` (loopback `tools/serve.py`, this worktree): each exit
+    0, 14/14 checks in Chromium (system Google Chrome 154.0.8037.98) and 14/14
+    in WebKit (Playwright 1.63.0, WebKit 26.6). Each smoke seeds
+    `shanhai.profile.v5`, `shanhai.profile.v3`, `shanhai.battle.v5` and a
+    session key, then checks they stay unread and unchanged, with no cookie,
+    storage API, API or external call and no asset error. This is the ROADMAP
+    exit "preview browsing leaves profile bytes unchanged" for those two pages.
+    These pages are unchanged since `8afbabc`, so the check is a re-run, not a
+    new feature check. `playtest.html` is a preview-allowlisted supply page that
+    writes coins and a gift marker by design, and it serves no preview printing.
+  - **Merge simulation with `art/lz01-specials-images` (`3f8851b`):** a
+    `git clone --shared` in the scratch directory, then
+    `git merge --no-commit --no-ff` into `f33c35b`. The only conflict was this
+    file. `node tools/content-registry.mjs` exited 1 with a `SyntaxError`
+    (`liaozhai-cards.mjs` no longer exports `LZ01_AA`), and
+    `tests/content-registry.test.mjs` failed to load for the same reason. With
+    the import pointed at `LZ01_SPECIALS`, the audit reported `checklist-mismatch`
+    for `lz01-006-ink1`, because ART-LZ01's "Pending specials briefs" heading is
+    now "Specials briefs · 2026-10-10". With the parser also accepting that
+    heading, the audit exited 0 with 120 local-playable, 29 preview and 1
+    planned. With the test file's import adapted the same way, 3 of its 17
+    tests still failed, all on today's pinned LZ-01 state. Nothing from the
+    simulation was committed, and the clone was deleted.
+    The whole suite was not run on the merged tree.
+- **Merge of `art/lz01-specials-images` (PR #8 at `35ab891`) · 2026-10-11.**
+  Merge commit **`d1f0f91`** (`git merge --no-ff`). Conflicts were this file
+  and the HANDOVER intro; both sides were kept. The registry now imports
+  `LZ01_SPECIALS` and `LZ01_PLANNED_SPECIALS`, parses the renamed
+  "Specials briefs · 2026-10-10" section (`parseSpecialsBriefs`), audits
+  `LZ01_PLANNED_SPECIALS` against the checklist's planned rows, and names a
+  missing briefs section when a planned special lacks a brief. No new finding
+  code was added (still 27). The tests derive the LZ-01 preview/planned split
+  from `liaozhai-cards.mjs` (only the 19-printing set size stays pinned), and a
+  planned 畫皮之鬼 INK rebuilt from its bound printing carries the planned-path
+  fault cases. Checks on `d1f0f91`, Node 26.0.0:
+  - `node --test tests/*.test.mjs`: **474/474**, exit 0, 0 skipped (473 before
+    the merge, plus one registry test for the rebuilt planned state).
+  - `npm run audit:content`: exit 0, `findings: []`. 150 entries: 120
+    local-playable and **30 preview** (19 LZ-01: 12 BASE, 4 AA, 2 INK, 1 TR;
+    11 HL-01), **none planned**. By capability: `preview` 83 available, 67
+    not-applicable; `local-playable` 120 available, 30 unavailable;
+    `local-owned` 53 available, 67 not-applicable, 30 unavailable;
+    `backup-compatible` 120 available, 30 unavailable; `server-authoritative`
+    150 unavailable. No capability is `inconsistent`.
+  - Mutation check (working file restored byte-for-byte afterwards): matching
+    the old "Pending specials briefs" heading, dropping either direction of the
+    `LZ01_PLANNED_SPECIALS` check, or dropping the missing-section message each
+    made `node --test tests/content-registry.test.mjs` exit 1 (4 of 4).
+  - `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai`: exit 0, 14/14
+    checks in Chromium (system Google Chrome 154.0.8037.98) and 14/14 in WebKit
+    (Playwright 1.63.0), including the seven special-printing links and seeded
+    saves left unread and unchanged. The loopback `tools/serve.py` for this
+    worktree was restarted first, because it reads the allowlist only at
+    startup.
+  - `npm run build`: exit 0, 80 public files (the preview art stays out of the
+    public build).
+- **Not run:** `npm run test:browser`, `npm run test:honglou` after the merge
+  and the WebKit suites other than the LZ-01 preview smokes. The merge brings
+  the LZ-01 preview's runtime changes, which only `test:liaozhai` exercised
+  here; no game runtime file changed. Also not run: CI, any hosted or deployed
+  check, and any physical-device or human review.
+- **Third review fixes in `6bc784a` · 2026-10-11** (tooling metadata only; no
+  player, save or build effect). Each gap was first reproduced with
+  `cc285b5`'s tool in an APFS-clone scratch copy: every fault below left
+  `auditContent` with no findings.
+  - A cited test nested in `describe.skip(...)` still resolved as running
+    evidence: wrapping the `progression.test.mjs` test that six entries cite
+    left the audit at exit 0 while `node --test` reported 48 tests and 0
+    skipped. A test inside a skipped outer test did the same. A cited test must
+    now be a top-level `test(...)` (bracket depth 0 in the masked source).
+  - `test('…', function () { this.skip(); })` resolved, because only a named
+    first parameter was treated as the context. `this` in a `function`
+    callback now counts as the context.
+  - A code reference matched raw source, so renaming `isNodeUnlocked` while
+    leaving `// … export function isNodeUnlocked(…)` in a comment (or the text
+    in a string) hid 66 dead references. Code references now match masked
+    source; all 27 still resolve.
+  - All four westward story encounters listed `claimWX01StoryPrint`, but they
+    unlock in a chain and the gift opens only when all four are cleared, so
+    the first clears of `west-flower-mountain`, `west-yellow-wind` and
+    `west-flaming-mountain` throw 通過西行首卷四處地點後可領取異畫。 Only
+    `west-spirit-mountain` lists it now (the same last-clear derivation as the
+    campaign-final grant). The reward-rules test now plays the story gift as
+    well as grants and tickets, and the story-gift test checks that the
+    acquisition route names all four gate nodes.
+  - A bound special's brief file was never audited: pointing the 嬰寧 AA brief
+    back at the removed `yingning-aa.png` left the audit at exit 0. The audit
+    now reports `checklist-mismatch` when a bound special's brief names a file
+    other than its binding (still 27 finding codes).
+  - Regression cases: unit cases in the reference test, and four new
+    source-fault cases (`describe.skip` wrapper, `this.skip()`, a definition
+    left in a comment, a stale brief file) in
+    `tests/content-registry.test.mjs`. The test count is unchanged (474);
+    the story-gift test is renamed. The two original repros (the
+    `describe.skip` wrapper and the stale 嬰寧 AA brief) now make
+    `node tools/content-registry.mjs` exit 1 in a scratch copy.
+  - Mutation check in an APFS-clone scratch copy (deleted afterwards):
+    reverting each of the five fixes made
+    `node --test tests/content-registry.test.mjs` exit 1 (5 of 5).
+- **Merge of `origin/main` `daf18ed` · 2026-10-11.** Merge commit `d606447`
+  (`git merge --no-ff`, no conflicts; the local `origin/main` ref, not
+  re-fetched). It brings PRs #6 and #7 (the docs index `docs/README.md`,
+  `CONTRIBUTING.md`, `docs/RELEASE-NEXT.md` and guide edits) and main's PR #8
+  merge of the same `35ab891`; no source, test, hosting or allowlist file
+  changed. The index's Experience modules, Roadmap, Handover and Validation rows
+  now carry Q4 qualifiers. Checks on `d606447`, Node 26.0.0:
+  - `node --test tests/*.test.mjs`: **474/474**, exit 0, 0 skipped.
+  - `npm run audit:content`: exit 0, `findings: []`; 120 local-playable and 30
+    preview, by capability unchanged from `d1f0f91`.
+  - `npm run build`: exit 0, 80 public files.
+  - `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai` and
+    `npm run test:honglou`: each exit 0, 14/14 checks in Chromium (system
+    Google Chrome 154.0.8037.98) and 14/14 in WebKit (Playwright 1.63.0), no
+    errors or forbidden requests. The loopback `tools/serve.py` for this
+    worktree was not restarted: it started after both allowlists last changed.
+  - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
+    check and human review. `docs/RELEASE-NEXT.md` (from PR #7) has no row in
+    `docs/README.md` on `main` either; that index gap is left to its owner.
+- **Fourth review fixes in `092f1fd` · 2026-10-11** (tooling and documentation
+  only; no player, save, content, art, allowlist or build effect). Each gap was first
+  reproduced on `65c4593` by the reviewers; after the fix, each original repro
+  was re-run in an APFS-clone scratch copy (deleted afterwards).
+  - Evidence reading failed open. Only an object-literal options argument was
+    read, so options held in a variable, a conditional or a spread were never
+    inspected, and option keys were matched in masked code, so a quoted
+    `{ 'skip': … }` or computed `['skip']` key was invisible; the body check
+    needed `ctx.skip(` and missed `t.skip?.()` and `t['skip']()`. Node 26
+    reports each of these skipped. Repro: `const pending = { skip: 'awaiting
+    balance review' };` passed to the `wx01-progression.test.mjs` test that 13
+    WX-01 special printings cite left the audit at exit 0 while `node --test`
+    reported 21 tests, 1 skipped. Now options must be an object literal whose own
+    keys are read from the source (a `skip`/`todo` key passes only with the
+    literal value `false`; a spread, computed or unparseable key fails), the
+    callback must be written inline (a missing or named callback fails), and any
+    access to the context's `skip`/`todo`, or any computed member of the
+    context other than a plain string naming something else, fails. The same
+    repro now exits 1 with `dead-reference` (cited by 13 entries).
+  - Checklist columns: a bound special's character and treatment were never
+    compared with its binding, and a planned entry took its treatment from the
+    docs label. Relabelling `lz01-009-aa1` as 王六郎 / AA and `lz01-006-ink1` as
+    陸判 / TR left the audit clean; it now reports two `checklist-mismatch`
+    findings. Character, treatment and working title are compared with
+    `LZ01_SPECIALS` or `LZ01_PLANNED_SPECIALS`, and a planned entry's treatment
+    comes from the module. The planned character check now compares the name
+    without its parenthesised source note instead of a prefix.
+  - Removing `src` from the bound 畫皮之鬼 INK made the audit throw `TypeError`
+    in `fileKind` and the registry test file fail as one load error. A preview
+    printing without `src`, a world without `map` and an activity without `map`
+    are now `capability-inconsistent` findings; that repro exits 1 with four
+    findings, and the registry tests report individually (15 of 19 pass, as the
+    tree is then inconsistent).
+  - The CLI compared `resolve(argv[1])` with the loader's symlink-resolved
+    `import.meta.url`, so a run through a symlinked path printed nothing and
+    exited 0. Both sides now go through `realpathSync`; a run through a symlink
+    to the worktree (and through `/tmp`) printed the same 861 bytes as the
+    physical path. `tools/build.mjs` and `tools/deploy.mjs` keep the old idiom;
+    there, doing nothing is visible rather than a false pass.
+  - Docs: the Q4 lines that said "all six" LZ-01 specials now say seven (小倩 AA
+    was bound on 2026-09-23, before PR #8 bound six more), and the docs index's
+    LZ-01 rows no longer say the special art is not yet generated.
+  - Regression cases: 21 unit cases in the reference test; eleven source-fault
+    cases (options in a variable, a quoted `skip` key, `t.skip?.()`; a special,
+    an HL-01 AA, a world and the activity without an art or map path; bound
+    character, treatment and title drift, and planned treatment drift); a
+    planned-treatment assertion; and one new test that runs the CLI through a
+    symlinked checkout. Still 27 finding codes.
+  - Mutation check in the clone: reverting each of ten parts of the fix (the
+    unreadable-options rule, reading option keys from source, the any-access
+    context rule, the computed-member rule, bound and planned column checks,
+    the planned treatment source, the preview `src` and world `map` guards and
+    the realpath guard) made `node --test tests/content-registry.test.mjs`
+    exit 1 (10 of 10).
+  - Checks on `092f1fd`, Node 26.0.0: `node --test tests/*.test.mjs` **475/475**,
+    exit 0, 0 skipped (474 plus the symlink CLI test). `npm run audit:content`
+    exit 0, `findings: []`, 120 local-playable and 30 preview, by capability
+    unchanged from `d1f0f91`. `npm run build` exit 0, 80 public files.
+    `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai` and
+    `npm run test:honglou`: each exit 0, 14/14 checks in Chromium (system
+    Google Chrome 154.0.8037.98) and 14/14 in WebKit (Playwright 1.63.0), no
+    errors or forbidden requests; the loopback server was not restarted (no
+    allowlist changed).
+  - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
+    check and human review.
+- **Fifth review fixes in `2d44071` · 2026-10-11** (tooling and documentation only; no
+  player, save, content, art, allowlist or build effect). The reviewers
+  reproduced each gap on `2edc2d9`; after the fix, each original repro was
+  re-run in process or through the CLI in an APFS-clone scratch copy (deleted
+  afterwards).
+  - `{ expectFailure }` options: Node 26.0.0 accepts `expectFailure` and
+    reports a throwing body under it as a pass (`ok 27 - … # EXPECTED
+    FAILURE`; pass 49, fail 0, skipped 0, todo 0), but the options reader
+    rejected only `skip` and `todo` keys. Marking the `progression.test.mjs`
+    test that six entries cite `{ expectFailure: … }`, with `assert.fail` as
+    its first line, left `node tools/content-registry.mjs` at exit 0. Option
+    keys are now an allowlist taken from Node 26's runner: `timeout`,
+    `concurrency`, `only`, `plan` and `signal` pass; `skip`, `todo` and
+    `expectFailure` pass only with the literal value `false`; any other key
+    fails closed. The repro now exits 1 with `dead-reference` (cited by 6
+    entries). CI runs Node 22 (`.github/workflows/ci.yml`); the review found no
+    `expectFailure` in Node 22's test-runner docs, so the gap concerns local
+    Node 26 runs. No Node 22 run was made here.
+  - Subtests: a cited test whose checks sat in `t.test('…', { skip: … }, fn)`
+    still resolved, while Node reported the outer test ok and the subtest
+    skipped. A subtest is now read by the same rules as a top-level test,
+    recursively; `t.test` stored, bound, called through `.call` or a computed
+    key, or given a title that may be options or a callback, fails. No current
+    test uses subtests.
+  - Context forms: `(t).skip()`, `(this).skip()` and
+    `const { skip } = t; skip.call(t)` resolved, although Node reports each
+    test skipped. Grouping parentheses around the context are now read through,
+    and a body that destructures its context fails, as a destructured first
+    parameter already did.
+  - Duplicate rows: the audit indexed checklist and brief rows by printId, so
+    only the last row for a printing was compared. A stale `lz01-004-aa1` row
+    naming 陸判 / INK and the removed `yingning-aa.png`, placed above the live
+    row, left the audit at exit 0 (placed below it, four findings); a stale
+    brief row above the live one did the same. A printId in more than one
+    checklist or brief row is now a `checklist-mismatch` finding wherever the
+    row sits; both repros exit 1.
+  - `contentDigest`: a preview special hashed its base card's record, so
+    retitling 小倩 TR in the module, checklist and brief kept its digest, and
+    editing the base card changed every special's. Each preview entry now
+    hashes its own authored record (the card for a BASE preview, the special's
+    record otherwise). All 30 LZ-01/HL-01 preview digests change value once;
+    nothing compares digests across runs.
+  - Numbering: 小倩 TR renamed `lz01-004-tr1` (嬰寧's number) in the module,
+    checklist and brief audited clean, though `tests/liaozhai-content.test.mjs`
+    failed. The audit now checks a bound special's number against its
+    `cardId`; `planned-card-mismatch` is renamed `card-number-mismatch` and
+    covers bound and planned specials (still 27 finding codes). The repro now
+    exits 1 with that finding.
+  - Docs: HANDOVER's Q4 "Checked" bullet said VALIDATION holds "all three
+    review rounds"; it now says every review round.
+  - Regression cases: 31 unit assertions in the reference test; seven
+    source-fault cases (`{ expectFailure }`, a skipped subtest, `(t).skip()`,
+    a destructured `skip`, a stale checklist row, a stale brief row and a
+    bound special numbered for another character); and one new digest test.
+  - Mutation check in the clone: reverting each of nine parts of the fix (the
+    option allowlist, `expectFailure` as a skipping key, subtest reading, the
+    computed `test` member, grouping parentheses, the destructuring rule,
+    duplicate rows, the own-record digest and the bound number check) made
+    `node --test tests/content-registry.test.mjs` exit 1 (9 of 9).
+  - Checks on `2d44071`, Node 26.0.0: `node --test tests/*.test.mjs` **476/476**,
+    exit 0, 0 skipped (475 plus the digest test). `npm run audit:content` exit
+    0, `findings: []`, 120 local-playable and 30 preview; apart from
+    `contentDigest`, every entry and the summary match `2edc2d9`'s output.
+    `npm run build` exit 0, 80 public files.
+    `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai` and
+    `npm run test:honglou`: each exit 0, 14/14 checks in Chromium (system
+    Google Chrome 154.0.8037.98) and 14/14 in WebKit (Playwright 1.63.0), no
+    errors or forbidden requests; the loopback server was not restarted (no
+    allowlist changed).
+  - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
+    check and human review. Still unseen by the reader: a file-level hook that
+    skips (`beforeEach(t => t.skip())`), which Node 26 counts as a skipped
+    test; the docs now list it beside the other blind spots.
+- **Sixth review fixes in `2a04859` · 2026-10-11** (tooling and documentation only; no
+  player, save, content, art, allowlist or build effect). The reviewers
+  reproduced each gap on `ce1b30f` with Node 26.0.0 in APFS clones (deleted
+  afterwards); two of the three findings named the same gap. After the fix,
+  each repro was re-run in process and through the CLI in an APFS-clone
+  scratch copy (deleted afterwards).
+  - Subtests declared through the runner: the fifth-review fix read only
+    subtests made through the context (`t.test`), and did not read a callback
+    without a parameter at all. Node 26 attaches the runner's own `test()`,
+    `test.skip()`, `it()` or `describe()`, called while a test runs, to that
+    test as a subtest. Rewriting the `progression.test.mjs` test that six
+    entries cite as `async () => { await test('checks', { skip: 'awaiting
+    review' }, () => { assert.fail(…); … }); }` gave `node --test` tests 50,
+    pass 49, fail 0, skipped 1 with the outer test ok, and
+    `node tools/content-registry.mjs` exit 0 with `findings: []`; the same
+    rewrite with `t.test` already gave `dead-reference`. Calls to `test`, `it`, `describe` and
+    `suite` (and their `.only`) in a cited test's body or any subtest's body are
+    now read as subtests by the same rules, recursively, with or without a
+    context parameter; their `.skip`, `.todo` and `.expectFailure`, any other
+    member, and any other use of the four names (stored, passed on, a local of
+    the same name) fail. The repro now exits 1 with `dead-reference` (cited by
+    6 entries). Still unseen, and now listed with the other blind spots: the
+    runner's functions imported under other names (`import { test as check }`,
+    a default or namespace import, the bare `skip` export).
+  - Grouped context after a statement head: grouping parentheses around the
+    context were kept whenever a `)` came before them, as for a call, so
+    `if (slow) (t).skip()`, the same after `while (…)` or `for (…)`,
+    `(this).skip()`, `(t)['skip']()` and `(t).test('c', { skip: true }, …)` in
+    that position still resolved. With the cited test's header rewritten to
+    `t => { if (true) (t).skip('disabled'); return;`, `node --test` reported
+    the test skipped (pass 48, skipped 1) and the audit exited 0 with
+    `findings: []`. A `)` that closes an `if`, `while`, `for`, `for await` or
+    `with` head, or one this reader cannot match, now leaves the `(t)` after it
+    a grouping; `g(a)(t)` and `if (slow) f(t)` keep their call parentheses. The
+    repro now exits 1 with `dead-reference`.
+  - Regression cases: 19 unit assertions in the reference test and two
+    source-fault cases (the cited test's checks moved into a skipped
+    `test('checks', …)` subtest of a callback without a parameter, and
+    `if (true) (t).skip()`).
+  - Mutation check: reverting the runner-subtest scan, the statement-head
+    rule, or all of `tools/content-registry.mjs` to `ce1b30f` made
+    `node --test tests/content-registry.test.mjs` exit 1 (3 of 3).
+  - Checks on `2a04859`, Node 26.0.0: `node --test tests/*.test.mjs` **476/476**,
+    exit 0, 0 skipped (the new cases sit inside existing tests).
+    `npm run audit:content` exit 0, `findings: []`, 120 local-playable and 30
+    preview; the built registry is byte-identical to `ce1b30f`'s.
+    `npm run build` exit 0, 80 public files.
+  - Not run: the LZ-01/HL-01 preview smokes (no page, allowlist or served file
+    changed), `npm run test:browser`, the other WebKit suites, CI (Node 22),
+    any hosted check and human review.
+
 ## LZ-01 special printings · 2026-10-11
 
 Local branch `art/lz01-specials-images`, started from `origin/main` `8afbabc`.
