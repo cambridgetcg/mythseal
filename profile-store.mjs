@@ -50,6 +50,15 @@ export function assertLocalProfile(profile) {
   return profile;
 }
 
+/** Player copy for the checks every restore makes under the lock (§11): cloud restore, local
+ * recovery and file import share them, so each refuses in the same states with zero writes. */
+export const RESTORE_MESSAGES = Object.freeze({
+  account: '登入狀態已改變，未有恢復旅程。',
+  unfinished: '請先完成或放棄未完對局，再恢復旅程；本機旅程未有更改。',
+  receipt: '請先查看並確認已入藏的西行畫作，再恢復旅程。',
+  changed: '本機旅程剛有更新，請重新查看後再恢復。',
+});
+
 export const RESTORE_LEDGER_ERROR = '這份旅程備份未超過 4 MiB 上限，但加上此裝置的操作記錄後超過儲存上限；本機旅程及回復備份均未更改。';
 
 /** The profile a restore saves (docs/LOCAL-COMMANDS.md §11): the restored journey, plus the
@@ -68,6 +77,11 @@ export function restoredLocalProfile(current, restored) {
 
 export function createProfileStore({ storage, now = () => new Date() }) {
   const read = key => storage.getItem(key);
+  /** Whether any journey (v5, a legacy namespace or the v1 deck/stats) is stored. When none
+   * is, load() starts a new journey; the app then offers a restore (docs/LOCAL-COMMANDS.md §11). */
+  function hasJourney() {
+    return [PROFILE_KEY, ...sources.map(candidate => candidate.profile), 'shanhai.deck.v1', 'shanhai.stats.v1'].some(key => read(key) !== null);
+  }
   function source() {
     for (const candidate of sources) {
       const text = read(candidate.profile);
@@ -132,5 +146,18 @@ export function createProfileStore({ storage, now = () => new Date() }) {
       throw error;
     }
   }
-  return { load, save, replace };
+  /** The restore every path shares (cloud restore, local recovery, file import), run inside
+   * the strict fenced lock: load the latest journey, refuse while a battle, an activity or
+   * an unacknowledged WX receipt is open or when the confirmed fingerprint no longer
+   * matches, and only then replace (recovery copy first, one profile write). A refusal
+   * writes nothing. */
+  function restore(restored, { expectedFingerprint, savedAt, busy = false, isCurrent = () => true }) {
+    const current = load();
+    if (!isCurrent()) throw Error(RESTORE_MESSAGES.account);
+    if (busy || current.pending || current.expansion.fireMountain.run) throw Error(RESTORE_MESSAGES.unfinished);
+    if (current.wx01.receipt) throw Error(RESTORE_MESSAGES.receipt);
+    if (fingerprintProfile(current) !== expectedFingerprint) throw Error(RESTORE_MESSAGES.changed);
+    return replace(current, restored, { savedAt });
+  }
+  return { load, save, replace, restore, hasJourney };
 }

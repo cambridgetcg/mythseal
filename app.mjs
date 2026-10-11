@@ -133,14 +133,11 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
   const lock = profileLock();
   if (!lock) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
   return lock(() => {
-    const current = loadProfile();
-    if (!isCurrent()) throw Error('登入狀態已改變，未有恢復旅程。');
-    if (economyBusy || current.pending || current.expansion.fireMountain.run) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');
-    if (current.wx01.receipt) throw Error('請先查看並確認已入藏的西行畫作，再恢復旅程。');
-    if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
-    // Checks the replacement (with the replaced lineage's retired command boundary) first,
-    // then keeps a validated recovery copy of `current`, then saves; a refusal changes neither.
-    const next = profileStore.replace(current, restored, { savedAt: new Date().toISOString() });
+    // Cloud restore, local recovery and file import share this: it loads the latest journey,
+    // refuses an unfinished battle, an unacknowledged WX receipt or a changed journey, checks
+    // the replacement (with the replaced lineage's retired command boundary), then keeps a
+    // validated recovery copy of the current journey and saves; a refusal changes neither.
+    const next = profileStore.restore(restored, { expectedFingerprint, busy: economyBusy, isCurrent, savedAt: new Date().toISOString() });
     packOpening?.destroy();packOpening=null;
     localStorage.removeItem(BATTLE_KEY);
     syncProfile(next);passportQuote=null;
