@@ -83,8 +83,8 @@ pushed, merged or deployed**. The last recorded public release is still
 
 Roadmap packet Q1 is implemented for one command on the local branch
 **`q1/local-commands`**, started from `origin/main` `8afbabc`. The last source
-commit is **`9390070`**, after three review rounds, a final review and a
-pre-merge review; the commit after it changes documentation only. The branch is
+commit is **`0e1ef85`**, after three review rounds, a final review and two
+pre-merge reviews; the commit after it changes documentation only. The branch is
 **not pushed, merged or deployed**. The last recorded public release is still
 **v0.5.1**, and no hosted check was made.
 
@@ -97,12 +97,12 @@ pre-merge review; the commit after it changes documentation only. The branch is
   the snapshot format, the Worker and the SQL are unchanged. Every writer under
   the lock goes through the IndexedDB fence in `profile-fence.mjs` (invariants
   below).
-- **Checked:** at `9390070`, 508/508 Node tests, the 14 Chromium
-  `npm run test:browser` suites, and `npm run test:commands` 12/12 groups in
-  Chromium and WebKit, all exit 0, headless against the worktree's loopback
-  server.
-  [VALIDATION](VALIDATION.md#q1-pre-merge-review-fixes--2026-10-11) has the latest
-  receipt and each review round's checks.
+- **Checked:** 509/509 Node tests and `npm run test:commands` 13/13 groups in
+  Chromium and WebKit at `0e1ef85`; the 14 Chromium `npm run test:browser`
+  suites, `test:inheritance` and `test:wx01` at `1afaf6b`, whose code is the
+  same. All exit 0, headless against the worktree's loopback server.
+  [VALIDATION](VALIDATION.md#q1-second-pre-merge-review-fixes--2026-10-11) has
+  the latest receipt and each review round's checks.
 - **Review requested:** the owner's review of the
   [LOCAL-COMMANDS](LOCAL-COMMANDS.md) contract before any Q2 care plan or Q3
   queue is written on it, including its §15 decisions: the restore rule,
@@ -121,7 +121,7 @@ pre-merge review; the commit after it changes documentation only. The branch is
     for one command (its §18), owner review requested. The Experience modules
     row's "Q0 since implemented" should name Q1 too.
   - Add `npm run test:commands` to `docs/RELEASE-NEXT.md` §10 step 3 (or name
-    it in A8): `test:browser` does not run it, and its B2–B10 are the only
+    it in A8): `test:browser` does not run it, and its B2–B11 are the only
     browser checks of the fence's edge cases and the only WebKit checks of the
     command path ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact)).
     That plan's A2 move to `dist/r/<hash>/` must also handle in-page module
@@ -698,11 +698,14 @@ reason to replay or reverse the existing migrations casually.
   IndexedDB ([LOCAL-COMMANDS §10.1](LOCAL-COMMANDS.md#101-read-after-write-fence-added-after-review)).
   Commands and restore hold it strictly and refuse rather than decide on bytes
   the fence cannot prove current; `transact` and the playtest supply page wait
-  briefly and then write as before. A writer that bypasses it (a devtools
-  edit, or a pre-fence v5 build such as `8afbabc` on the same origin) makes
-  upgrades refuse only once its bytes reach that tab; before then an upgrade
-  can decide on older bytes and overwrite it, as before the fence. Never serve
-  a pre-fence v5 build on an origin that has served Q1.
+  briefly and then write as before. While IndexedDB refuses fence writes (a
+  full disk), every such write waits its 0.5 s, page loads included, and a
+  strict refusal on a `writing` record asks for space rather than a reload. A
+  writer that bypasses the fence (a devtools edit, or a pre-fence v5 build such
+  as `8afbabc` on the same origin) makes upgrades refuse only once its bytes
+  reach that tab; before then an upgrade can decide on older bytes and
+  overwrite it, as before the fence. Never serve a pre-fence v5 build on an
+  origin that has served Q1.
 - Keep private-backup writes revision-checked. **`PT409` is intentional**;
   replacing it with SQLSTATE `40001` caused PostgREST transaction retries.
   Ownership comes from `auth.uid()`; the account header only guards stale tabs.

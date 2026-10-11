@@ -282,6 +282,50 @@ failed settle, separate browser processes, the Safari app, Firefox, devices, a
 real full disk or delivery lag, Node 22, `npm run build`, deploy dry runs, any
 hosted service and the merge itself.
 
+### Q1 second pre-merge review fixes · 2026-10-11
+
+Source commits `1afaf6b` and `0e1ef85` on the same branch fix the findings a
+second pre-merge review of `231ae4f` reported; the commit that adds this entry
+changes documentation only. Still not pushed, merged or deployed, and no hosted
+check. Synthetic headless evidence on Node 26.0.0;
+[LOCAL-COMMANDS §18.11](LOCAL-COMMANDS.md#1811-fixes-after-the-second-pre-merge-review-2026-10-11)
+has the detail.
+
+- **Full disk and a `writing` record.** A strict holder on a `writing` or
+  malformed fence record now writes the mark again before it refuses. When
+  IndexedDB refuses that write, the card page and a restore show the storage
+  copy instead of asking for a reload that cannot heal the record. Each lenient
+  write still waits 0.5 s while IndexedDB refuses writes, as it already did on
+  an out-of-date settled record; the contract now states that cost, and the
+  proposal to skip the wait was not taken.
+- **Reopened recovery dialog.** A dialog closed and opened again while its
+  restore waits for the lock keeps that restore's draft, so a press in it no
+  longer queues a second restore whose refusal replaced the success toast.
+- **Documents.** Both links to HANDOVER's merge notes now use the heading's
+  real anchor.
+
+Checks, against the worktree's own server on 4193 (running from this worktree;
+it returned 200 for the Q1 modules):
+
+- `node --test tests/*.test.mjs`: exit 0, **509/509** (508 plus N32). Python: 9
+  tests OK. `git diff --check`: clean.
+- `npm run test:commands` at `0e1ef85`: exit 0, **13/13 groups in each engine**
+  (fenced handoffs 30/30 current; plain-lock control 30/30 Chromium and 24/30
+  WebKit stale).
+- At `1afaf6b`: `npm run test:browser` (14 Chromium suites): exit 0 in 292 s.
+  `npm run test:inheritance` and `npm run test:wx01`: exit 0 in both engines.
+- Negative controls: N32 fails against `231ae4f`'s `profile-fence.mjs`; B9's
+  new case and B11 fail in both engines against `231ae4f`'s modules (a separate
+  server on 4437, stopped afterwards).
+- Every local Markdown anchor in the docs, ROADMAP and README resolves. A trial
+  `git merge-tree` onto `origin/main` `daf18ed` still conflicts only in this
+  file.
+
+Not checked: a real full disk, the other per-engine smokes, the account smoke
+in WebKit, separate browser processes, the Safari app, Firefox, devices, a real
+delivery lag, Node 22, `npm run build`, deploy dry runs, any hosted service and
+the merge itself.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not
