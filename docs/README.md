@@ -7,7 +7,10 @@ helps you find the right one. It does not change release state.
 Last organized **2026-10-11** against `main` at `8afbabc`: 40 other Markdown
 documents, one JSON snapshot and the archived `history/` folder. On
 `q4/content-registry`, the two LZ-01 rows were later brought up to `main`'s PR #8
-merge (`daf18ed`).
+merge (`daf18ed`). On `q1/local-commands`, after `main` `b40c4d2` was merged in
+(`b527dc3`), the index gained rows for the release plan and the Q1 contract (42
+other Markdown documents) and its Q0, Q1 and Q4 qualifiers were brought up to
+the merges of PRs #5 and #9 and to PR #10, which merges that branch.
 
 ## Status vocabulary
 
@@ -36,6 +39,7 @@ contract.
 | Which checks fit my change? | [Checks matched to the change](HANDOVER.md#checks-matched-to-the-change) |
 | What should I work on next? | [Next tasks for separate agents](../ROADMAP.md#next-tasks-suitable-for-separate-agents) and the [experience quality track](../ROADMAP.md#experience-quality-track) |
 | What is deployed? | [HOSTING.md](HOSTING.md) release receipts |
+| What would the next release involve? | [RELEASE-NEXT.md](RELEASE-NEXT.md), the proposed v0.6.0 plan |
 | Which checks actually ran, and on what? | [VALIDATION.md](VALIDATION.md) |
 | Which save and backup formats does `main` use? | [Guarded saves](HANDOVER.md#playable-local-wx-01-and-guarded-saves) and the [save and settlement contract](CAMPAIGN-AND-EVENTS.md#save-and-settlement-contract) |
 | Who owns which source file? | [Code ownership map](HANDOVER.md#code-ownership-map) |
@@ -47,15 +51,19 @@ contract.
 | [Project overview](../README.md) | Play, run locally, feature summary, browser checks and the project map | `mixed` · its save notes describe profile v3/v4; `main` uses v5 |
 | [Working instructions](../AGENTS.md) | Repository conventions, authority limits and what every agent must preserve | `current` |
 | [Contributing](../CONTRIBUTING.md) | Setup, module boundaries, proportionate checks and what stays out of Git | `current` |
-| [Agent handover](HANDOVER.md) | Architecture, infrastructure and access map, fresh checkout, checks, release and the handoff template | `current`, with dated checkpoints; its Q0 checkpoint predates the PR #5 merge, and its Q4 content-registry checkpoint was written on the unmerged `q4/content-registry` branch |
-| [Roadmap](../ROADMAP.md) | Shipped baseline, Q0–Q6 experience track, M1–M7 phases and bounded tasks with acceptance criteria | `mixed`; its Q0 status predates the PR #5 merge, and its Q4 status (registry and audit done, exit not met) was written on the unmerged `q4/content-registry` branch |
+| [Agent handover](HANDOVER.md) | Architecture, infrastructure and access map, fresh checkout, checks, release and the handoff template | `current`, with dated checkpoints; its Q0, Q4 and Q1 checkpoints were written on their branches, and their status lines now record the merges (PRs #5 and #9, and PR #10 for Q1) |
+| [Roadmap](../ROADMAP.md) | Shipped baseline, Q0–Q6 experience track, M1–M7 phases and bounded tasks with acceptance criteria | `mixed`; its Q0, Q1 and Q4 statuses record the merges (PRs #5 and #9, and PR #10 for Q1); Q1's contract awaits owner review, and Q4's exit is not met (registry and audit done) |
 | [Pull request template](../.github/pull_request_template.md) | The problem, validation and save/ownership/platform impact each PR states | `current` |
 
-**Q0 has merged.** The battle table merged into `main` in PR #5 (`bca9ab4`); no
-deployment of it is recorded. The Q0 status text in the handover, the roadmap,
-the validation log and the battle-table plan was written before that merge and
-still calls the branch unmerged. The handover's note that
-documentation-navigation PR #2 "remains independent" also predates this index.
+**Q0, Q4 and Q1 have merged.** The battle table merged into `main` in PR #5
+(`bca9ab4`), the content registry in PR #9 (`b40c4d2`), and the local-commands
+work by PR #10; no deployment of any of them is recorded. The status lines in
+the handover, the roadmap, the battle-table plan, the experience modules and
+the local-commands contract say so. The validation log's dated Q0, Q4 and Q1
+entries were written before those merges and are left as written; its
+[Q1 integration entry](VALIDATION.md#q1-integration-with-main--2026-10-11)
+notes this. The handover's note that documentation-navigation PR #2 "remains
+independent" also predates this index.
 
 ## Game rules and systems
 
@@ -75,7 +83,7 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 | Document | What it covers | Status |
 | --- | --- | --- |
 | [Game lobby and navigation](NAVIGATION.md) | Five destinations, return paths, the encounter loop, viewport scenes and checks | `current` · main only |
-| [Battle table visibility](BATTLE-LAYOUT-PLAN.md) | Q0's single battle table: the 2026-09-23 plan and the 2026-10-10/11 implementation record | `current` · main only; merged in PR #5 (`bca9ab4`), though its status line predates the merge |
+| [Battle table visibility](BATTLE-LAYOUT-PLAN.md) | Q0's single battle table: the 2026-09-23 plan and the 2026-10-10/11 implementation record | `current` · main only; merged in PR #5 (`bca9ab4`) |
 | [Immersion and game feel](IMMERSION.md) | Creative direction; Mist Gate and the life, pill and clash presentation; further ideas to playtest | `mixed` · 2026-09-22 |
 | [Map-piece prototype](MAP-PIECE-PROTOTYPE.md) | 青玉行旅棋 map movement, comfort boundaries and the studio handoff; placeholder art | `current` · main only; 2026-09-23 |
 
@@ -83,7 +91,7 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 
 | Document | What it covers | Status |
 | --- | --- | --- |
-| [LZ-01 聊齋・燈下有靈](EXPANSION-LZ01.md) | Twelve-character candidate design and the `/liaozhai.html` preview | `preview` · 2026-09-23, updated 2026-10-11 (all 19 printings bound, PR #8) |
+| [LZ-01 聊齋・燈下有靈](EXPANSION-LZ01.md) | Twelve-character candidate design and the `/liaozhai.html` preview | `preview` · 2026-09-23, updated 2026-10-11 (all 19 printings bound; merged in PR #8, `daf18ed`) |
 | [HL-01 紅樓・風月入夢](EXPANSION-HL01.md) | Eight-card 海棠詩社 design and the `/honglou.html` preview | `preview` · 2026-09-23 |
 | [Literary booster programme](BOOSTER-SERIES.md) | Pack types, editorial direction and first stat sketches for literary sets (中文) | `proposal · 2026-09-23` |
 
@@ -94,15 +102,17 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 | Document | What it covers | Status |
 | --- | --- | --- |
 | [Experience lessons](EXPERIENCE-LESSONS.md) | Lessons from the RXSG restoration, turned into player-facing decisions | `proposal · 2026-09-29` |
-| [Experience modules](EXPERIENCE-MODULES.md) | Proposed Q0–Q6 module contracts, existing seams and infrastructure | `proposal · 2026-09-29`; Q0 since implemented (see the battle table above); Q4's content registry and audit implemented as tooling only (`tools/content-registry.mjs`, `npm run audit:content`, never served), with its [registry states](EXPERIENCE-MODULES.md#q4-registry-states) |
+| [Experience modules](EXPERIENCE-MODULES.md) | Proposed Q0–Q6 module contracts, existing seams and infrastructure | `proposal · 2026-09-29`; Q0 since implemented and merged (PR #5; see the battle table above); Q1 implemented for one command, with [LOCAL-COMMANDS](LOCAL-COMMANDS.md) as its contract (merged by PR #10); Q4's content registry and audit implemented as tooling only (`tools/content-registry.mjs`, `npm run audit:content`, never served; merged in PR #9), with its [registry states](EXPERIENCE-MODULES.md#q4-registry-states) |
+| [Local commands · Q1 contract](LOCAL-COMMANDS.md) | One previewed command with a receipt (the card page's 修練升級), the device-local `commands` ledger in the v5 profile, the IndexedDB fence for every writer under the profile lock, and the release rules: ship Q1 in or before the first public v5 release and never serve a pre-fence v5 build after it | `proposal · 2026-10-11` · main only; implemented for one command (its [§18](LOCAL-COMMANDS.md#18-implementation-record-2026-10-11)) and merged by PR #10; owner review of the contract requested before Q2/Q3 consumers |
 
 ## Accounts, operations and evidence
 
 | Document | What it covers | Status |
 | --- | --- | --- |
 | [Accounts and private backups](ACCOUNTS.md) | 旅程閣 sign-in, backup contents, the session and storage boundary, and email setup | `current` · live in v0.5.1 (snapshot v1); `main`'s snapshot v2/v3 need hosted migrations that the [handover](HANDOVER.md#playable-local-wx-01-and-guarded-saves) records as not applied |
-| [Hosting, releases and rollback](HOSTING.md) | Public boundary, build and deploy procedure, rollback and exact deployment receipts | `current` procedure, with dated receipts; its "19 runtime files" is the v0.5.1 count (`main`'s allowlist has 80) |
-| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0 entry predates the PR #5 merge, and its Q4 content-registry entry records checks on the unmerged `q4/content-registry` branch |
+| [Hosting, releases and rollback](HOSTING.md) | Public boundary, build and deploy procedure, rollback and exact deployment receipts | `current` procedure, with dated receipts; its "19 runtime files" is the v0.5.1 count (`main`'s allowlist has 83 since Q1, 80 before) |
+| [Next release plan · v0.6.0](RELEASE-NEXT.md) | The proposed v0.6.0: scope (including Q1), release gates, ordered checklist, data safety, staging options, rollback, payload budget and owner decisions | `proposal · 2026-10-11`, revised for Q1 the same day; nothing in it is deployed, migrated or provisioned |
+| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0, Q4 and Q1 entries record checks on their branches before PRs #5 and #9 and PR #10 merged them, and its newest entry records the Q1 integration with `main` `b40c4d2` |
 | [Developer connections](CONNECTIONS.md) | Service identities, verified access, credential locations and remaining setup | `record · 2026-09-21`, rechecked 2026-09-22 |
 | [Fresh-clone toolkit check](TOOLKIT.md) | One fresh clone's setup, access rechecks and local test receipts | `record · 2026-09-21`, updated 2026-09-22 |
 | [Account API contract](../server/README.md) | Worker routes, cookies, bindings and the database access boundary | `current` |
@@ -142,7 +152,7 @@ explain the earlier thinking; none is an instruction to mint or sell.
 | [WX-01 production artwork](ART-WX01.md) | Prompts for four base atlases and ten special illustrations | `record · 2026-09-22` |
 | [西行 special-print studies](ART-EXPANSION.md) | Three Wukong studies (異畫, 墨卷, 天工) shown in `atelier.html`, also reused unchanged for the WX-01 Wukong AA, INK and TR printings | `record · 2026-09-22` |
 | [HL-01 art studies](ART-HL01.md) | Prompts and integrity notes for the 紅樓 preview art | `record · 2026-09-23` |
-| [LZ-01 art studies](ART-LZ01.md) | Prompts for the 聊齋 preview art, the briefs for its six later special prints and their provenance; all seven specials are bound | `record · 2026-09-23`; briefs 2026-10-10; specials generated and bound 2026-10-11 (PR #8) |
+| [LZ-01 art studies](ART-LZ01.md) | Prompts for the 聊齋 preview art, the briefs for its six later special prints and their provenance; all seven specials are bound | `record · 2026-09-23`; briefs 2026-10-10; specials generated and bound 2026-10-11 (merged in PR #8, `daf18ed`; preview allowlist only) |
 
 ## Research and naming
 
