@@ -41,7 +41,15 @@ release PR on top (B1). Never build or deploy `8afbabc`, or any other v5
 commit on `main` from before PR #10: those are v5 builds without Q1's fence (§6). A
 candidate qualifies only if `git merge-base --is-ancestor 7a7d03e <commit>`
 exits 0 (`7a7d03e` adds the fence; [cmd] it exits 0 for `b527dc3` and 1 for
-`8afbabc` and `b40c4d2`).
+`8afbabc` and `b40c4d2`). That check needs **PR #10 to land as a merge
+commit**, as PRs #1 and #3–#9 did ([cmd] `git log --first-parent
+--format='%h %p' origin/main`: each has two parents). A squash or rebase merge
+gives the fence a new SHA, so `7a7d03e` never becomes an ancestor of `main`, and
+every check of it in this plan (G9, A8, B1, C1, §6, §8, §11) would stop a build
+that does contain the fence and call it pre-fence. If PR #10 lands any other
+way, replace `7a7d03e` in those checks, before Phase A, with the commit that
+brought the fence into `main`: `git log --diff-filter=A --format=%h main --
+profile-fence.mjs` names it ([cmd] it prints `7a7d03e` for `b527dc3`).
 
 **Why Q1 is in this release.** Live v0.5.1 keeps its journey in
 `shanhai.profile.v3` (`git show v0.5.1:progression.mjs` lines 15-16), and `main`
@@ -75,9 +83,10 @@ the LZ-01 specials briefs (PR #4) were already in `8afbabc`. Since then:
   device-local `commands` ledger inside the v5 profile that backups never
   contain, and an IndexedDB read-after-write fence for every writer under the
   profile lock ([LOCAL-COMMANDS](LOCAL-COMMANDS.md); [HANDOVER.md:178-239](HANDOVER.md)).
-  `PROFILE_VERSION`, the snapshot format, the Worker's routes and validator,
-  the SQL and the journey flags are unchanged
-  ([LOCAL-COMMANDS §12](LOCAL-COMMANDS.md#12-backup-validation-impact)).
+  `PROFILE_VERSION`, the snapshot format, the Worker's routes and validator
+  verdicts, the SQL and the journey flags are unchanged
+  ([LOCAL-COMMANDS §12](LOCAL-COMMANDS.md#12-backup-validation-impact)); the
+  Worker bundle does gain Q1 code (§2).
 - Journey **v3** cloud backup (profile v5) on the hosted database and Worker.
 - The release gates that [HANDOVER.md](HANDOVER.md) already sets: hosted v2/v3
   migrations, Worker/client flags, a coherent versioned module graph,
@@ -112,7 +121,7 @@ at `8afbabc`, are kept in brackets.
 | Cloud snapshot | v1: 512 KiB, 2,000 copies | v3: 4 MiB, 10,000 copies; v1 is still accepted. The ledger never enters a backup | `cloud-save.mjs:9-13`, `:177-192`; `server/account-api.mjs:5-6` |
 | Hosted migrations | `20260921210000`, `20260921210100` applied | plus `20260922210000` (v2) and `20260923000000` (v3), **not applied** | [HANDOVER.md:787-791](HANDOVER.md); [ACCOUNTS.md:12](ACCOUNTS.md) |
 | Deploy helper | v0.5.1's tracked `tools/deploy.mjs` was 15 lines, with no identity, secret or `--keep-vars` checks | Hosted preflight plus `--keep-vars` (`tools/deploy.mjs:63-84`, `:93-97`). It has only stub-test evidence | [cmd] `git show v0.5.1:tools/deploy.mjs` |
-| Worker bundle | (unknown) | Not re-measured at `b527dc3` (the Q1 revision ran no Wrangler command) [`Total Upload: 906.25 KiB / gzip: 188.52 KiB`]. The Worker imports `cloud-save.mjs` (`server/account-api.mjs:2`), which Q1 changed outside `validateSnapshot` | [cmd] `npm run preview -- --dry-run` exit 0 at `8afbabc` |
+| Worker bundle | (unknown) | Not re-measured at `b527dc3` (the Q1 revision ran no Wrangler command) [`Total Upload: 906.25 KiB / gzip: 188.52 KiB`]. The Worker imports `cloud-save.mjs` (`server/account-api.mjs:2`) and, through it, `progression.mjs` (`cloud-save.mjs:2`), which since Q1 imports `command-ledger.mjs` (`progression.mjs:11`), so the bundle now contains Q1 code. Q1 also changed `hydrateProfile` (`progression.mjs:250`), which the validator runs (`cloud-save.mjs:159`). Verdicts are unchanged: `validateProfile`'s exact-key check rejects a `commands` key first (`cloud-save.mjs:113`; `tests/cloud-save.test.mjs:405-411`; [LOCAL-COMMANDS §2](LOCAL-COMMANDS.md#2-files-in-the-pr)) | [cmd] `npm run preview -- --dry-run` exit 0 at `8afbabc` |
 
 The delta from v0.5.1 to `b527dc3` covers 127 commits (115 non-merge)
 [61 and 56 at `8afbabc`]. Of the 83 allowlisted runtime files, 76 changed: 64
@@ -219,13 +228,27 @@ Repeat visits become cheap either way.
 `npm run preview` (loopback), with `hosting/.dev.vars` **absent**. The preview
 config names the hosted Supabase URL (`hosting/wrangler.preview.jsonc:20`) and
 loads that file when it exists (`tools/preview.mjs:61-63`). Without the file,
-Phase A has no hosted access. Some smokes also import runtime modules inside
-the page by their path at the site root: Q1's `tools/command-smoke.mjs:258`
-and `:291` and `tools/account-smoke.mjs:280` (`/profile-fence.mjs`),
-and `tools/collection-display-smoke.mjs:248-249` (`./profile-store.mjs`,
-`./collection.mjs`). After the move to `r/<hash>/` those paths no longer
-exist, so A2 must either keep them resolvable or point the smokes at the
-current `r/<hash>/`, and `test:commands` must pass afterwards.
+Phase A has no hosted access. Nine smokes also import runtime modules inside
+the page (`page.evaluate`) by their path at the site root. Each opens the page
+at `GAME_URL`'s root, so a relative `./engine.mjs` resolves to `/engine.mjs`
+([cmd] `grep -n "import('[./]" tools/*.mjs`: 16 sites; `tools/` is unchanged
+since `b527dc3`):
+- `/profile-fence.mjs`: Q1's `tools/command-smoke.mjs:258`, `:291`, `:294`,
+  `:339`, `:340`, `:386` and `:390`, and `tools/account-smoke.mjs:280`;
+- `./engine.mjs`: `tools/journey-smoke.mjs:70`, `tools/navigation-smoke.mjs:80`,
+  `tools/immersion-smoke.mjs:106`, `tools/stories-smoke.mjs:105` and
+  `tools/expansion-smoke.mjs:77`;
+- `./collection.mjs` and `./profile-store.mjs`:
+  `tools/wx01-presentation-smoke.mjs:172` and
+  `tools/collection-display-smoke.mjs:248-249`.
+
+After the move to `r/<hash>/` those paths no longer exist, so A2 must either
+keep them resolvable or point every one of them at the current `r/<hash>/`;
+re-run the grep to find them. `journey-smoke.mjs` matters most: C2 runs it
+against production, where its 404 would look like a failed deploy. Afterwards
+`test:browser` (which includes C2's `smoke.mjs` and `journey-smoke.mjs`),
+`test:commands`, `test:expansion` and the other §10 step 3 suites must pass
+against that preview.
 *Rollback:* `git revert`. The owner may instead waive G3 in writing for this
 release and accept the mixed-load risk.
 
@@ -944,6 +967,24 @@ disables cloud upload for new clients, so the owner decides.
       usable IndexedDB (§15 decision 2; [LOCAL-COMMANDS §9](LOCAL-COMMANDS.md#9-failure-states)),
       where v0.5.1's upgrade fell back to an unlocked write
       (`git show v0.5.1:app.mjs` line 54).
+    - Cloud restore and local recovery restore now hold the strict fenced
+      lock (`app.mjs:53`, `:129-135`; reached from `account-client.mjs:255`
+      and `app.mjs:996`). They therefore refuse in a browser with Web Locks but
+      no usable IndexedDB, on a full disk that refuses the fence write, and
+      while the fence says `writing` (a reload heals that while IndexedDB
+      accepts writes). v0.5.1's restore needed only Web Locks
+      (`git show v0.5.1:app.mjs` lines 58-59). A refusal changes nothing
+      ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact),
+      "Cost"). This is the release's main restore path (§1, C3), though few
+      browsers have Web Locks without usable IndexedDB (for example Firefox
+      96–114 private windows, **UNVERIFIED**).
+    - Every other write under the profile lock, each page load's startup save
+      included, now also reads and writes the IndexedDB fence. It waits up to
+      0.5 s when its tab is behind or the record says `writing` (longer only
+      if IndexedDB stalls), and on a full disk it can wait that long on every
+      write until IndexedDB accepts writes again
+      ([LOCAL-COMMANDS §10.1](LOCAL-COMMANDS.md#101-read-after-write-fence-added-after-review)
+      Limits; §18.5 measured 0–11 ms more to the first lobby paint).
     - The `commands` ledger format then exists in players' saves.
     - The owner also accepts the forward-only rule (§6): after release, deploy
       or roll back the apex only to v0.5.1 or to a version that contains
@@ -981,6 +1022,9 @@ disables cloud upload for new clients, so the owner decides.
 | Q1: v0.5.1 storage, the `git grep` of tag `v0.5.1` quoted in §6; `git show v0.5.1:app.mjs`, `v0.5.1:progression.mjs` | runtime writes only the v3 profile, battle and recovery keys (`app.mjs` lines 51, 65-67, 89, 91, 541); no IndexedDB anywhere (§6) |
 | Q1: citation re-check, scratch script mapping every `path:line` from `8afbabc` through `git diff -U0`, then reading each target | 31 citations had drifted (in HANDOVER, ROADMAP, `progression.mjs`, `profile-store.mjs`, `account-client.mjs` and `app.mjs`) and now point at the same content; every other one already did |
 | Q1: loopback guards, grep of `tools/*smoke*.mjs` at `b527dc3` | 17 of 22 scripts throw on a non-loopback `GAME_URL`, including `command-smoke.mjs`; `smoke.mjs`, `journey-smoke.mjs`, `classics-smoke.mjs`, `backpack-smoke.mjs` and `map-piece-smoke.mjs` have none. Correction to the row above: `expansion-smoke.mjs` also throws at `8afbabc` (line 18), so that count was 16 of 21 |
+| Q1 review: `grep -n "import('[./]" tools/*.mjs` (A2); source as at `b527dc3` | exit 0; 16 in-page imports by site-root path in 9 smokes, all listed in A2 |
+| Q1 review: `git log --first-parent --format='%h %p' origin/main`; `git log --diff-filter=A --format=%h b527dc3 -- profile-fence.mjs` (§1) | PRs #1 and #3–#9 each landed as a two-parent merge commit; `7a7d03e` |
+| Q1 review: the Worker entry bundled with the repo's esbuild 0.28.1 into a scratch file (`--bundle`, `@supabase/supabase-js` external), metafile read; source as at `b527dc3` (§2) | exit 0; `command-ledger.mjs` is in the bundle (3,772 B in output). Not a Wrangler measurement |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no

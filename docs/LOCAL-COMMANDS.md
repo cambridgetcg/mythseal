@@ -522,7 +522,7 @@ Test IDs refer to the [test matrix](#appendix--test-matrix): N is a Node test, B
 ## 15. Owner decisions
 
 1. **Restore rule.** This contract retires only a lineage that has a ledger. The alternative, "always retire", closes the gap in §13 item 2. It costs the `account-smoke` `deepEqual` update and makes every restored profile Q1-only.
-2. **Browsers without Web Locks.** On Safari below 15.4, Firefox below 96 and insecure origins, the card-page upgrade is lost, as inheritance and restore already are.
+2. **Browsers without Web Locks.** On Safari below 15.4, Firefox below 96 and insecure origins, the card-page upgrade is lost, as inheritance and restore already are. The fence adds a second requirement: the upgrade, cloud restore and local recovery restore also refuse in a browser without usable IndexedDB, on a full disk that refuses the fence write, and while the fence says `writing`. Before Q1, restore needed only Web Locks (§10.1, §11 "Cost").
 3. **Release ordering.** Ship Q1 in or before the first public v5 release, and never serve a pre-fence v5 build on an origin after Q1 (§11). A release that includes Q1 also runs `npm run test:commands` in both engines (§11).
 4. **Retention.** Confirm that 32 receipts is enough.
 5. **Copies awaiting WX review.** Upgrading a copy that sits in an unacknowledged WX receipt stays allowed in Q1. Q2 decides whether to block it.
