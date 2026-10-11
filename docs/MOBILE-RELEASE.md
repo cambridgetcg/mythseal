@@ -52,6 +52,28 @@ TestFlight/Play beta → M7 App Store/Google Play launch**. The ordinary-card mo
 game can progress independently of collectible issuance. Launch dates, supported
 devices/OS versions, territories and monetization remain open decisions.
 
+## Browser save durability (D2) · 2026-10-12
+
+Research, not measured here: WebKit deletes all script-writable storage of a
+site after seven days of Safari use without interaction with that site
+(webkit.org/blog/10218; MDN, 2026-01-05), and iOS 26 home-screen web apps keep
+storage separate from Safari. A browser or home-screen player can therefore
+lose a journey that lives only in `localStorage`.
+
+Packet D2 (branch `d2/save-durability`, not merged or deployed) adds
+`platform.mjs`, the seam the M5.2 native adapter extends: `requestPersistence()`
+asks `navigator.storage.persist()` once, after the first win or first pack
+opening, and at launch when the game runs as an installed web app;
+`exportJourney()` and `importJourney(file)` move the journey export out and back
+in through the strict restore. 旅程閣 shows the last backup's date and the
+browser's answer; a new journey offers a restore. A native build can replace
+those three functions (durable native storage, a share sheet, a file picker)
+without changing the journey format.
+[LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
+has the rules and checks. **UNVERIFIED:** eviction and `persist()` answers on a
+real iPhone, in Safari or in a home-screen app; physical-device storage checks
+remain part of M5.1–M5.2.
+
 ## Packaging route
 
 **Existing working direction: validate a Capacitor mobile build before considering a full UI rebuild.** Keep `engine.mjs`, `collection.mjs` and `progression.mjs` reusable, with platform adapters around storage, lifecycle and identity. The repository already has pinned Capacitor development tooling/configuration and an allowlisted `dist` build; native iOS/Android projects are not generated. Trial those bundled assets with the storage/lifecycle work above. [Capacitor installation guide](https://capacitorjs.com/docs/getting-started).

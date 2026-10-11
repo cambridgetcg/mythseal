@@ -4,7 +4,8 @@ Start here when joining development. Updated **2026-09-29**, with the Q0, Q4
 and Q1 checkpoints and the LZ-01 special-art addenda (under
 [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
 **2026-10-11**. Q0 and Q4 merged into `main` in PRs #5 and #9, and Q1 by
-PR #10; none of them is deployed. The last recorded
+PR #10; none of them is deployed. The D2 save-durability checkpoint was added
+on **2026-10-12** from its own branch, not merged. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -237,6 +238,52 @@ v0.6.0, which would be the first public v5 release, is planned to include it
   lag over 0.5 s, deploy dry runs, and release. Browser
   checks need a server started after the Q1 modules exist, because
   `tools/serve.py` reads the allowlist once at startup.
+
+## D2 save-durability checkpoint · 2026-10-12 (local only)
+
+Packet **D2 · saves never vanish silently**, approved by the owner on
+2026-10-11 for the v0.6.0 scope, is implemented on the branch
+**`d2/save-durability`** from `origin/main` `7712a7b`. **Status:** not merged,
+pushed or deployed; no hosted service was called. Built alongside D1 (Back
+model) and N1 (mobile shell CSS) in sibling worktrees; D1 also edits `app.mjs`.
+
+- **Changed:** 匯入旅程備份 in the 旅程閣 tools imports the journey export
+  (only that format; oversize, unparsable, old or future, unfinished,
+  inconsistent and invalid files are refused before anything is written) and
+  applies it through `restoreLocalProfile`, the strict fenced restore that cloud
+  restore and local recovery use: recovery copy first, the replaced command
+  lineage retired, one profile write, nothing on refusal. Those checks now live
+  in `profile-store.mjs` `store.restore`. The 旅程閣 tools show the date of this
+  device's last export or cloud backup and the browser's answer to
+  `navigator.storage.persist()`, which is asked once, at the first win or first
+  pack opening, or at launch as an installed web app; never on an ordinary load.
+  A guest gets one low-key lobby strip after each of those milestones, at most
+  once ever. A journey this device has just started, because no journey key
+  existed, shows 有舊旅程？由備份還原 until dismissed, restored or its first battle.
+  New allowlisted files: `platform.mjs` (the seam M5.2's native adapter extends),
+  `save-status.mjs` (device-local record `shanhai.saves.v1`), `save-ui.mjs`,
+  `saves.css`. `PROFILE_VERSION`, the snapshot format, the Worker, the SQL and
+  the journey flags are unchanged.
+- **Checked:** the Node suite, `npm run audit:content`, `npm run build`,
+  `npm run test:saves` in Chromium and WebKit, `npm run test:commands` in both,
+  and the 14 Chromium `npm run test:browser` suites, headless against this
+  worktree's server on port 4202
+  ([VALIDATION](VALIDATION.md#d2-save-durability--2026-10-12)).
+- **UNVERIFIED:** real iPhone seven-day eviction, iOS home-screen storage
+  isolation and real `persist()` answers (the smoke uses a spy). Not run: the
+  account smoke in WebKit (it is Chromium-only), devices, deploy dry runs, CI.
+- **Open:** importing a v0.5.1 (v3) export, which is refused today, belongs with
+  the owner's stranded-v3 decision in the v0.6.0 plan; LOCAL-COMMANDS §15
+  decision 1 still applies to the import.
+  [LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
+  own the rules.
+- **Merge notes:** `app.mjs` changes are localised: imports, the `saves` record
+  next to `profileStore`, `restoreLocalProfile`'s lock body, one block after
+  `recoveryMarkup`, `homeMarkup`, the 旅程閣 page's tools in `render`, one line
+  each in `recordFinishedMatch`, `showPackReceipt` and the legacy `buy-pack`
+  modal, the click handler's export/import/notice actions, `account-upload`, and
+  the startup `saves.launch`. Add `npm run test:saves` beside `test:commands` in
+  the release checks, and the new files to `docs/README.md`.
 
 ## Experience planning checkpoint · 2026-09-29
 
@@ -777,6 +824,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
 | Battle table / battle UI (Q0, PR #5) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
 | Local commands / profile fence (Q1, PR #10) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
+| Save durability: export, file import, save status, persistence (D2) | `node --test tests/save-durability.test.mjs tests/profile-store.test.mjs tests/profile-fence.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:saves` (Chromium, then WebKit); `tools/account-smoke.mjs` for cloud and local recovery restore, which share `store.restore` |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |
@@ -860,6 +908,12 @@ reason to replay or reverse the existing migrations casually.
   reach that tab; before then an upgrade can decide on older bytes and
   overwrite it, as before the fence. Never serve a pre-fence v5 build on an
   origin that has served Q1.
+- Since D2 (branch `d2/save-durability`), cloud restore, local recovery and the
+  file import share one strict restore (`restoreLocalProfile` →
+  `store.restore`); a new restore path must use it rather than write the
+  profile itself. The device-local `shanhai.saves.v1` record (backup time,
+  persistence answer, prompts, restore offer) is never journey data: keep it out
+  of the profile, exports, backups and the recovery-originals export.
 - Keep private-backup writes revision-checked. **`PT409` is intentional**;
   replacing it with SQLSTATE `40001` caused PostgREST transaction retries.
   Ownership comes from `auth.uid()`; the account header only guards stale tabs.

@@ -518,6 +518,17 @@ M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
 
+**D2 · saves never vanish silently, status 2026-10-12:** approved for the
+v0.6.0 scope and implemented on the branch `d2/save-durability` (from `main`
+`7712a7b`); not merged or deployed. A journey export can now be imported through
+the strict restore, 旅程閣 shows the last backup's date and the browser's answer to
+a one-time persistent-storage request, guests get one backup prompt per milestone,
+and a new journey offers a restore. `platform.mjs` is the storage seam M5.2's
+native adapter extends. Headless Chromium and WebKit checks pass
+([VALIDATION](docs/VALIDATION.md#d2-save-durability--2026-10-12)); real iPhone
+eviction and `persist()` behaviour are UNVERIFIED
+([LOCAL-COMMANDS §19](docs/LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
+
 ### Retired collectible launch phases
 
 The former M6/M7 collectible rehearsal and commercial production-edition track

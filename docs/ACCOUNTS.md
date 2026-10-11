@@ -48,6 +48,19 @@ Clearing site data removes local progress and recovery copies. Origins are
 separate: `mythseal.com`, localhost and different local ports do not share saves.
 The footer's **匯出旅程備份** remains available for independent local exports.
 
+**Local source after v0.5.1 (D2, 2026-10-12; not merged or deployed).** The
+旅程閣 tools add **匯入旅程備份**, which restores a 匯出旅程備份 file through the
+same strict restore as **恢復雲端旅程** (recovery copy first, nothing written on
+refusal), and a status line with the date of this device's last export or
+successful **備份此裝置**, recorded on this device only. The unfinished-battle
+refusal of every restore now reads 請先完成或放棄未完對局，再恢復旅程；本機旅程未有更改。
+On a journey this device has just started, the lobby offers 有舊旅程？由備份還原; when
+旅程閣 already knows the player is signed in it adds 雲端旅程, which opens this
+restore confirmation. Nothing is uploaded or restored without the player's
+confirmation, and the lobby sends no account request of its own.
+[LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
+own the rules.
+
 ## What a backup contains
 
 The versioned envelope is

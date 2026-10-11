@@ -126,6 +126,26 @@ respects sound/motion preferences. `adventure-ui.mjs` owns its markup and separa
 **路程** module. `npm run test:map-piece` checks the six-size map flow in both
 engines, including rapid reversals and keyboard focus across modules.
 
+## Save notices on the lobby · 2026-10-12 (D2)
+
+Branch `d2/save-durability`, not merged or deployed. One compact strip above the
+lobby, in the place the WX-receipt and activity resume strip uses (that strip
+wins when both apply), never a dialog and never in a battle:
+
+- **有舊旅程？由備份還原** on a journey this device has just started because no
+  journey key existed: **備份檔** opens the file import, and **雲端旅程** appears
+  when 旅程閣 already knows the player is signed in. It closes when dismissed,
+  after a restore or when a battle finishes.
+- **首勝已記 · 留份備份？** and **新卡入藏 · 留份備份？** after the first win and the
+  first pack opening, for a guest who has not backed up since: **匯出備份** and
+  **旅程閣**. Each appears at most once ever and stays for that page until
+  dismissed or a backup is made.
+
+The 旅程閣 tools add **匯入旅程備份** and a status line (上次備份, 長期保存) beside
+**匯出旅程備份**. Rules and checks:
+[LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12);
+`npm run test:saves` covers the strip at 390 px in Chromium and WebKit.
+
 ## Checks
 
 Run `npm test`, `python3 -m unittest discover -s tests -p '*_test.py'`, and

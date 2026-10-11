@@ -2,6 +2,81 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## D2 save durability · 2026-10-12
+
+Branch `d2/save-durability`, from `origin/main` `7712a7b`. Source commits
+**`36d7d84`** (the restore checks move into `profile-store.mjs` `store.restore`),
+**`52d731a`** (`platform.mjs`, `save-status.mjs`, `save-ui.mjs`, `saves.css`, the
+`app.mjs` wiring and `tests/save-durability.test.mjs`) and **`aaf5e9e`**
+(`tools/save-durability-smoke.mjs` and `npm run test:saves`); the commit after
+them changes documentation only. Not merged, pushed or deployed. No hosted
+service, no network request outside loopback; the cloud option was checked
+against intercepted fixture APIs only. Design and rules:
+[LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12).
+
+**Environment.** macOS 26.6.2, Node 26.0.0, Python 3 (`tools/serve.py`),
+Playwright 1.63.0 with Google Chrome 154.0.8037.98 (Chromium suites) and
+Playwright's WebKit (user agent Safari 26.6), headless, against this worktree's
+`python3 tools/serve.py --port 4202` on `127.0.0.1:4202`, started after the new
+files were allowlisted. Synthetic saves only.
+
+**Checks** (each on the tree of `aaf5e9e`, whose runtime equals `52d731a`'s; the
+documentation commit changes no checked file):
+
+- `node --test tests/*.test.mjs`: exit 0, **542/542** (main's 530, plus 11 in
+  `tests/save-durability.test.mjs` and 1 in `tests/hosting.test.mjs`).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, `findings: []`. An earlier draft named two
+  actions `confirm-import` and `journey-import`; the registry's asset walker read
+  the quoted text after the word `import` as a module path and reported two
+  `public-graph-unlisted` findings, so they are `import-confirm` and
+  `import-review`.
+- `npm run build`: exit 0, **87 public files** (main's 83 plus `platform.mjs`,
+  `save-status.mjs`, `save-ui.mjs` and `saves.css`), 74,415,733 B, manifest
+  `77ab3a00…6796`. `dist/` was deleted afterwards.
+- `GAME_URL=http://127.0.0.1:4202 npm run test:saves`: exit 0, **8/8 groups in
+  Chromium and 8/8 in WebKit**: S1a export in the existing format and the status
+  date; S1b clear site data → restore offer → import restores an identical
+  journey fingerprint, the new journey kept as the recovery copy; S2a declining
+  the confirmation and six refused files (oversize, unparsable, future version,
+  tampered, mid-battle, a cloud snapshot) leave every journey byte unchanged;
+  S2b a `writing` fence refuses at the confirmation; S2c dismissing the offer
+  changes no profile byte and it stays dismissed; S2d an unfinished battle
+  refuses before the file picker opens; S3 each guest prompt appears once per
+  milestone and `persist()` (a spy) runs once, after the first win, never on
+  load; S4 signed in (fixture API), the offer's 雲端旅程 leads into the existing
+  cloud restore, and a cloud backup becomes the last backup.
+- `GAME_URL=http://127.0.0.1:4202 npm run test:commands`: exit 0, 13/13 groups
+  in Chromium and 13/13 in WebKit.
+- `GAME_URL=http://127.0.0.1:4202 npm run test:browser`: exit 0, all **14
+  Chromium suites**, the account smoke included (91 `PASS` lines). None of them
+  was changed; several start from a new journey or win battles, which now put
+  the restore offer or a backup prompt on the lobby.
+- `git diff --check`: clean.
+- **Negative controls** (each edit reverted, and `git status` checked clean
+  afterwards): removing the canonical-day check from `platform.mjs` made the
+  refused-files test of `tests/save-durability.test.mjs` fail (10/11), and asking at every
+  milestone in `save-status.mjs` made the `persist()` spy test fail (10/11).
+  Without `saves.battleFinished` in `app.mjs`, `tools/save-durability-smoke.mjs`
+  passed S1a–S2d in Chromium and timed out at S3 waiting for the first-win
+  prompt. The two Node controls were made while the first `test:browser` run
+  was in progress, for a few seconds each; that run passed, and the run recorded
+  above was repeated afterwards on the clean tree.
+- Visual check at 360×640 and 390×844 (Chromium, screenshots read and deleted):
+  the lobby strip fits one line with 44 px targets, and the continue button and
+  the dock still receive their own clicks; the import confirmation shows both
+  journeys and the recovery note on one dialog page.
+
+**Not run or not verified:** real iPhone seven-day eviction, iOS 26 home-screen
+storage isolation and real `persist()` answers (all **UNVERIFIED**; the smoke
+replaces `persist()` with a spy and headless engines ask no person); the
+account smoke in WebKit (`tools/account-smoke.mjs` launches Chromium only);
+`test:inheritance`, `test:wx01`, `test:battle-table`, `test:viewport`,
+`test:expansion`, `test:collection-display`, `test:map-piece` and the literary
+preview suites; separate browser processes; the Safari app, Firefox and
+physical devices; Node 22; deploy dry runs, the SQL harness, CI and any hosted
+service.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings
