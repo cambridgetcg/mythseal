@@ -31,7 +31,17 @@ compositions; see [the set design](EXPANSION-LZ01.md) for primary-text anchors.
 | `assets/lz01/liulang-aa.png` | 王六郎 · 留人間一岸 — full scene AA (`lz01-011-aa1`, 2026-10-11) |
 
 Atlas cells use an exact 2×2 grid in reading order. All ten selected files are
-**1024×1536 PNG**, copied byte-for-byte from the tool's private image archive.
+**1024×1536 PNG**, recorded as copied byte-for-byte from the generating tool's
+private image archive. For the six 2026-10-11 files this was checked: `cmp`
+against each recorded archive original reports no difference. The four
+2026-09-23 files (the three atlases and 小倩 AA) were added in `e61d60a`, which
+reached this machine's clone by a fetch. No archive path was recorded for them,
+and none of their originals is on this machine: on 2026-10-11 there was no
+2026-09-23 folder under `~/.codex/sessions/`, and a search of the home folder by
+their exact byte sizes found only copies in mythseal checkouts. Their copy
+cannot be compared with an original here. What can be checked is their
+embedded C2PA data hash: it still matches each file's bytes outside the `caBX`
+chunk (see [below](#embedded-content-credentials-c2pa)).
 The three atlases contain twelve 512×768 cells. Visual inspection confirmed
 the reading order, complete faces, clean grid boundaries and absence of baked
 card text. The atlases and 小倩 AA are detailed, cinematic painted-realism
@@ -59,8 +69,12 @@ ten files total about 29.1 MiB (30,496,404 bytes). The nine bound files
 (26,844,301 bytes) are in the preview allowlist; `yingning-aa.png` has been
 unbound since the 2026-10-11 card-fit review (see
 [its brief](#lz01-004-aa1--嬰寧-aa--花間藏笑)) and is in neither list. No image
-compression, crop rewriting or image editing was performed. Original generated
-files remain in the private local archive; none was deleted. Before a hosted
+compression, crop rewriting or image editing was performed. The originals of the
+six 2026-10-11 files remain at their recorded paths under
+`~/.codex/generated_images/` on this machine; none was deleted. Whether the
+originals of the four 2026-09-23 files are still retained cannot be checked
+here, because their archive path was never recorded and they are not on this
+machine (see above). Before a hosted
 rollout, measure transfers and decode memory and generate suitable derivatives
 while retaining these originals and their hashes.
 
@@ -250,9 +264,13 @@ unbound file can then be removed, because its bytes stay in Git history (commit
   low figure, because the cover crop leaves only about 7% of vertical slack.
   Before binding, view the candidate on the card in the dialog at 1440 and 390
   widths. The five prompts sent on 2026-10-11 asked only for a quiet bottom
-  fifth. In the four still bound every face and the drawn action clear the
-  text block (in 陳氏 AA only the faceless Daoist's lower robe sits behind the
-  title and name); 嬰寧 AA did not and was unbound. The two round-three
+  fifth. In the four still bound every face, hand and the drawn action clear
+  the text block, but two figures reach behind the lettering lower down: in
+  陳氏 AA the faceless Daoist's lower robe and the lower half of his wooden
+  sword sit behind the title and name, and in 畫皮之鬼 INK the ghost's lower
+  robe sits behind 鬼 under the paper shade. These are recorded as caveats on
+  each file's Card fit line, not as passes. 嬰寧 AA did not clear the text block
+  and was unbound. The two round-three
   prompts below include this rule. In the 陸判 INK candidate bound from one of
   them, every face, hand and the brush sit above about 55%, and only props, the
   lower drafts and the strike's tail sit under the paper shade, clear of the
@@ -736,7 +754,17 @@ fit in the app. The browser smoke described in [VALIDATION](VALIDATION.md)
 captured each printing on the card, but only a later card-fit review measured
 figure positions against the card text. It unbound 嬰寧 AA the same day (see
 [its brief](#lz01-004-aa1--嬰寧-aa--花間藏笑)); the block below stays as the
-record of that file, which is kept in the repository. The credential lines were added after a
+record of that file, which is kept in the repository. Each block also has
+a Card fit line, added after binding. For 嬰寧 AA it repeats that review's
+measurement. For the four still bound, that review recorded only the summary in
+the [card-fit rule](#rules-shared-by-all-six-prompts), so the session fixing a
+later provenance review measured them on 2026-10-11: a read-only Playwright
+probe against the loopback preview opened each printing in the dialog at
+1440x900 and 390x844 in Chromium and WebKit, converted the title and name glyph
+boxes into shares of the image's height and width, and drew those boxes over
+the original image. Figure positions on those lines were read from that overlay
+by eye, to about one percentage point. Two of the four have a caveat rather than
+a pass. The credential lines were added after a
 provenance review found the embedded C2PA manifests (see
 [above](#embedded-content-credentials-c2pa)). A sixth block, for 陸判 INK,
 follows the five. It was generated later that day from the round-three prompt,
@@ -763,6 +791,7 @@ Dimensions and byte size: 1024x1536, 3,652,103 bytes
 Selected: candidate 3 of 3
 Binding: bound in 3c07dfe; unbound on 2026-10-11 after the card-fit review (王子服 sits under the card's title and name); the file is kept unchanged in the repository
 Visual review: Two read-only reviews (fidelity and safety; craft and consistency) zoomed the faces, hut windows, dim corner and bottom fifth. No text, pseudo-glyphs, seals, signature or visible watermark (the C2PA record notes an invisible one); fully clothed, non-sexual, no gore; no fox features, touching, fall or plum blossom; 王子服's hands are empty. 嬰寧 leans out of the tree laughing, one hand on a branch and one on the trunk, close to losing her balance (「狂笑欲墮」); 王子服 on the path raises a hand and calls up to her (「勿爾，墮矣」). Bottom fifth: grass and petals. Accepted caveats: a small stone lantern with a Japanese-garden shape stands in the dim left corner and a tiny gold oval ornament hangs on the hut; at card size 王子服 can read as waving rather than alarmed; the blossom looks like cherry (the text names no species); her face is rounder and her hair looser than in BASE; the pastel spring palette is lighter than the BASE atlases. The craft review preferred candidate 2 (closer BASE face, but 王子服 stands lower, in the card's text zone); the fidelity review preferred this one, which was selected. Neither review measured the card; the later card-fit review found this candidate's 王子服 in the text zone too.
+Card fit: fails. Measured after binding by the card-fit review that unbound it: 王子服, the second figure of the drawn moment, stands at about 59-76% of the image height; in the dialog at 1440 and 390, in Chromium and WebKit, his face sits between the title 花間藏笑 and the name 嬰寧 and his robe is behind 寧. Hence the unbinding on the Binding line above.
 Allowlist: hosting/preview-assets.json only while bound (preview-only; absent from hosting/public-assets.json); since the unbinding, in neither list
 Rejected candidates: candidate 1 158f841c6b63d324ca192709429dde569109549065bc677e51bf88b733f94db3 (~/.codex/generated_images/01a12a31-fc29-7123-b24b-a944b04f8eb9/exec-782e6bed-df10-4fb1-8458-27a15b5f4ba3.png); candidate 2 d833070023c3b631900602d46bb1f8f986fd0b91c40eff18763a05529720ad5e (~/.codex/generated_images/01a12a33-69c6-7bf2-b75a-9d540b2af1d6/exec-86fa2f70-74a1-48d9-ba43-09c9bd7f1fac.png); same prompt, kept in the private archive, not committed
 ```
@@ -796,6 +825,7 @@ SHA-256 of the repository copy: 5dd7d6e52d058bd2ae6cc0bbfbbbafada766d5722d7b0fb4
 Dimensions and byte size: 1024x1536, 2,898,837 bytes
 Selected: candidate 1 of 3
 Visual review: Both reviews zoomed each red door hanging at native size: blank, no strokes. No gore, corpse, wound or monster; the gourd and skin stay out of sight in closed cloth bags. The Daoist is seen in three-quarter back view with no face, holds a plain wooden sword low and carries a tied cloth bag; he has no fly whisk. 陳氏, fully clothed in sage green and linen, kneels on the threshold stone with hands joined and torso inclined, her tear-marked face lifted toward him; the lamp burns just inside the door edge. Caveats: rain is still falling and the distant roofs look snow-dusted where the brief says after rain; her face reads younger (mid-twenties) and rounder than BASE; her head tilts back in supplication instead of inclining in the bow, so the bow reads only in part; the Daoist's feet reach into the bottom fifth. Both reviews picked this candidate, the only one whose Daoist holds the plain wooden sword low.
+Card fit: caveat, not a full pass. Checked after binding (see the note above these blocks). The title spans about 57-64% of the image height (8-33% of the width) and the name about 62-75% (8-33%). 陳氏 clears both: her face sits at about 38-43% and her joined hands at about 49-53%; her kneeling robe reaches about 67%, but at about 52-86% of the width, right of the lettering. The lamp (about 49-56%) and the door are clear too. The Daoist's head (seen from behind, no face) is at about 12-22% and his hand on the sword at about 50-54%, but his lower robe (about 5-39% of the width) and the lower half of his wooden sword (from his hand down to its tip at about 75%, between about 35% and 17% of the width) sit behind the title and name. The card-fit review that unbound 嬰寧 AA kept this file bound with that overlap; the owner's art review is still open.
 Allowlist: hosting/preview-assets.json only (preview-only; absent from hosting/public-assets.json)
 Rejected candidates: candidate 2 cdbca70f46647ebbe593e045f8bb30cd19a64bc1e236ee903c7e702dd16ffd2e (~/.codex/generated_images/01a12a33-8db7-7673-9e06-01579fe3a405/exec-0f9a96a0-144b-4d80-a042-f0fcf495dfd3.png); candidate 3 958f73ad73d0b8b2373568660537cd84f446febe9261e18aae0286e694614d7f (~/.codex/generated_images/01a12a35-23fe-7651-a515-8003767deccc/exec-d488387d-aa71-4c6d-874c-bc4cc1abbe66.png); same prompt, kept in the private archive, not committed
 ```
@@ -829,6 +859,7 @@ SHA-256 of the repository copy: 277b2a156a073f9f9b1d8808051521ed7c41bb6a6c424b48
 Dimensions and byte size: 1024x1536, 3,371,102 bytes
 Selected: candidate 2 of 3
 Visual review: Both reviews zoomed the infant, mother, 六郎's face, village, gate, boats and bottom fifth. No text, glyphs or seals (the gate lintel is plain at 4x); fully clothed, non-sexual; no drowning, struggle, wine, cups, 許 or other figure, and the moored boat is empty. 六郎 stands knee-deep and translucent in bright noon shallows, hands open and lowered, his gaze on the mother and child; the mother sits small and side-on on the bank with her face lowered in profile; the infant lies on a cloth, limbs free, crying; the footpath climbs to the village. Bottom fifth: stones and ripples. Caveats: his grin is warmer than the brief's quiet wistfulness; he has a topknot and stubble where BASE shows long loose hair and a clean-shaven face; the noon render is lighter and more watercolour than the dark BASE atlases; a faint arch bridge sits at the far left. The craft review preferred candidate 1 (closer BASE face, but a busier bottom fifth and a softer costume-drama face); the fidelity review preferred this one, which was selected.
+Card fit: passes. Checked after binding (see the note above these blocks). The title spans about 57-64% of the image height (8-33% of the width) and the name about 62-75% (8-46%). 六郎's face sits at about 15-20% and his open hands at about 39-44%, and his figure ends at the waterline at about 52%. The mother's head is at about 36-41% and her seated figure ends at about 54%; the infant lies at about 46-53%; both are at about 62-98% of the width. Under the lettering there is only river water, plus the left edge of a bank rock (about 38-46% of the width, from about 56%) under the end of the name.
 Allowlist: hosting/preview-assets.json only (preview-only; absent from hosting/public-assets.json)
 Rejected candidates: candidate 1 e7e08867f3f54f491e0411d0c01632fdc66c157c3ab01ae67adf77773ff5e00b (~/.codex/generated_images/01a12a31-f57b-7e70-824a-4a95d768a534/exec-f43461d6-e224-4543-8854-c9c1985b2daa.png); candidate 3 61b074c0658473ea31d29d2ee137507df604ee725a2cf7f9f65503c5b94a0e2a (~/.codex/generated_images/01a12a35-2594-7e12-b51c-21fc8f3f8af2/exec-41e93cf6-f96d-43c2-85df-6a14f9344a6c.png); same prompt, kept in the private archive, not committed
 ```
@@ -862,6 +893,7 @@ SHA-256 of the repository copy: 024f9d4be198a89d6ef6bba5c8529c44bc95160bb245c151
 Dimensions and byte size: 1024x1536, 2,826,793 bytes
 Selected: candidate 3 of 3
 Visual review: A real ink-wash treatment on ivory paper, not a greyscale filter. The ghost is still in its own shape: a pale jade face wash, saw-like teeth bared, eyes lowered, calm; both hands lift the sheet high to one side like a garment, keeping the face clear; the sheet is blank silk with soft grey washes (no face, mask, skin texture or anatomy); the brush lies on the seat beside the ink stone; the room is seen past a lattice and nobody else is present. Fully clothed in ivory and indigo with the BASE bun and hairpin; no gore or attack. Accepted deviations, not edited (the copy must stay byte-identical): a sprig of vermilion plum blossom on a stand at the right edge (about x 900-1000, y 320-560) adds colour outside the brief's face-wash-and-brush-tip rule; the brush tip shows jade without the vermilion touch; two book spines carry illegible dark smudges (checked at 8x, not glyph-shaped); the wide grin runs toward the cheek; the seat reads as a settee rather than a low couch (榻); the window framing is weaker than in the other candidates. Both reviews picked this candidate; candidate 2 read as a decayed corpse face, against the set's uncanny-not-horror direction.
+Card fit: caveat, not a full pass. Checked after binding (see the note above these blocks). The title spans about 57-64% of the image height (8-33% of the width) and the name about 62-75% (8-58%), over the 墨卷 paper shade (about 70% opaque from about 55.6% down). The ghost's face sits at about 16-22%, its hands at about 7-9% and 26-28%, and the lifted sheet starts at about 8%; all clear the text. Its lower robe, though, runs down to about 76% at about 42-73% of the width, so it sits behind 鬼, the name's last glyph, softened by the shade; the sheet's lower folds lie right of the name. The couch with the ink stone (about 21-30% of the width, 56-58% of the height) and the tossed brush (to about 38%, at about 58%) sits at the top of the title line at 390 and just above it at 1440, also under the shade. The card-fit review that unbound 嬰寧 AA kept this file bound and named no overlap for it; the owner's art review is still open.
 Allowlist: hosting/preview-assets.json only (preview-only; absent from hosting/public-assets.json)
 Rejected candidates: candidate 1 6dbd49df55581846ef70ededce914ec1fcb972a363a0655233ee40eaf8d00239 (~/.codex/generated_images/01a12a31-fb61-7070-8283-d931d6818948/exec-1c3e0aa4-a2dc-4972-9b7b-9aa027d4b76e.png); candidate 2 71c6b1c4c0ea49bc159cb29efb9f04c7d3f3aefd6728d931d916df20dd51b9bf (~/.codex/generated_images/01a12a33-3275-7b01-8fb0-836427afc1bf/exec-1ebe59e7-71b0-43ac-b188-059e2af07b06.png); same prompt, kept in the private archive, not committed
 ```
@@ -895,6 +927,7 @@ SHA-256 of the repository copy: 646a9fcd789907f645c3c6087c27881537ca3d87305099ed
 Dimensions and byte size: 1024x1536, 2,803,511 bytes
 Selected: candidate 1 of 3
 Visual review: Both reviews zoomed the scroll, screens, books, brush pots, lantern and bottom fifth. No text, pseudo-glyphs, seals or numbers; fully clothed with an opaque under-robe; no fox features, night creature or sword bag; identity close to the BASE cell (face, hair, jade pin, ivory and mist-blue robes). The only light is one candle; the open scroll is wide and blank; there is exactly one small crimson knot; every layer is inside the room, with no card border; the bottom fifth is the calmest of the three. Open caveats: the text's moment 「就燭誦經」 is only half met, because she rests her chin on her hand and looks toward the viewer instead of reading or reciting from the scroll (all three candidates share this pose); a full moon and night sky show through the window where the brief says dusk; the candle sits near the left edge, so it is not the visual heart, and no concentric gold-leaf arcs surround it; the whole outer robe is sheer, not only the sleeves; an unexplained lace cloth lies on a side cabinet at bottom left. The craft review preferred candidate 2 (a stronger face, candle and scroll triangle, but two crimson knots and a second lamp); the fidelity review preferred this one, which was selected, and suggested a re-roll with lowered eyes, lips parted as if reciting and both hands at the scroll.
+Card fit: passes. Checked after binding (see the note above these blocks). Inside the 天工 border the title spans about 57-64% of the image height (6-17% of the width) and the name about 63-76% (6-46%). 小倩's face sits at about 23-33% and the hand at her chin at about 30-34%; her other hand rests on the scroll at about 55-58% (49-58% of the width), and her robe ends at the desk at about 55-58%, right of and above the lettering. The candle flame (about 40-45%) is clear. Only props sit near the text: the lacquer box behind 歸燈, the candle holder's base (about 18-28% of the width, down to about 61%) beside 歸燈, the scroll's left roller (about 32-38%, 59-61%) and a jade dish (about 28-42%, 62-65%) just above 小倩.
 Allowlist: hosting/preview-assets.json only (preview-only; absent from hosting/public-assets.json)
 Rejected candidates: candidate 2 0f52f022e4d5594f85e6dfc6000fe5a1bd8af369d25bfe9f420c6b124097831e (~/.codex/generated_images/01a12a33-9004-7b20-afa6-b647eeb35ee1/exec-8ea572ee-15ae-46d9-8fe2-fe36a77aeb17.png); candidate 3 e2e374226e2d325ec12d438abf09b33420ea370c1132a12367afb5972a59f218 (~/.codex/generated_images/01a12a35-09b4-72c2-999b-d1d5f665b25f/exec-818a753b-18d7-4d96-a35b-dcd7fc19012b.png); same prompt, kept in the private archive, not committed
 ```
