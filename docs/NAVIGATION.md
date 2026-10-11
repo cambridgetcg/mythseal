@@ -126,12 +126,81 @@ respects sound/motion preferences. `adventure-ui.mjs` owns its markup and separa
 **路程** module. `npm run test:map-piece` checks the six-size map flow in both
 engines, including rapid reversals and keyboard focus across modules.
 
+### Mobile shell
+
+Roadmap packet N1, implemented locally on 2026-10-11 on the branch
+`n1/mobile-shell` (from `main` `7712a7b`); not merged or deployed. The evidence
+is browser emulation ([VALIDATION](VALIDATION.md#n1-mobile-shell--2026-10-11));
+physical phones remain [M5.1 items](MOBILE-RELEASE.md#m51-phone-checklist).
+
+- **Safe areas.** `index.html` uses `viewport-fit=cover`; zoom stays enabled
+  (no `maximum-scale` or `user-scalable=no`). `styles.css` reads
+  `env(safe-area-inset-*)` once, into `--safe-area-inset-top`, `-right`,
+  `-bottom` and `-left` on `:root`, and derives `--safe-viewport-height`
+  (`100dvh` less the top and bottom insets). Every other rule uses these
+  properties, never `env()`, so a native shell can override the four on
+  `document.documentElement` and the whole shell follows. Capacitor 8.5.2's
+  SystemBars plugin, with `insetsHandling: 'css'`, injects
+  `--safe-area-inset-*` variables on Android
+  (`node_modules/@capacitor/core/system-bars.md`); whether its values win over
+  the `:root` defaults depends on how it injects them, which is untried here
+  (no native project exists).
+  - `#app` is padded by the top, right and left insets: the header, scene, dock
+    and battle sit inside the safe area while the background fills the screen.
+    The dock and the battle screen keep `max(gap, bottom inset)` below them, in
+    short landscape too, and the landscape cards tabs sit below the top inset.
+  - `.modal-backdrop` has a transparent border as wide as each inset, so
+    dialogs and sheets stay out of the bands while the dim and blur still cover
+    them. Dialog heights and the market's card sizes subtract from
+    `--safe-viewport-height`; the pack-opening and inheritance footers no longer
+    add the bottom inset a second time. The toast sits above the bottom inset.
+- **Narrow widths.** `body` lost its 340px minimum, which widened the page by
+  38px at 302px and 20px at 320px (WebKit) and made Chromium lay out at 340px.
+  The header is a size container: narrower than 330px (a narrow phone, or side
+  insets) it keeps the 萬象契 mark as a 44px target with its label and hides the
+  brand words, so wallet, account and settings still fit.
+- **Focus zoom and touch.** On a coarse pointer, inputs, selects and textareas
+  compute 16px (they were 10–14px; iOS Safari zooms on focus below 16px). A fine
+  pointer keeps the desktop sizes. Buttons, links, form controls, labels and
+  tabs use `touch-action: manipulation` (no double-tap zoom; pinch zoom stays).
+  `html` and `body` use `overscroll-behavior: none`, since the game never
+  scrolls the document (no pull-to-refresh or rubber band); dialogs use
+  `contain`. Card art (`.card-art`, `.card-shade`, `.inheritance-material-art`)
+  has `-webkit-touch-callout: none` and `user-select: none`; text stays
+  selectable as before.
+- **Landscape.** On short landscape screens (`max-height: 500px` and
+  `min-width: 701px`) the arena's four tabs sit two by two, as the world rail
+  already did, so 來日 clears the dock: in iPhone 15 landscape (734×343) the
+  one-column rail needed 194px in a 188px row, so 來日 ran 6px past the row and
+  3px into the dock. Module tabs have a 44px minimum width; WebKit had left the
+  rewards dialog's 異聞 tab at 43.08px at 360px wide.
+- **Names.** The ambience and effects sliders carry `aria-label` 環境聲音量 and
+  落子音效音量; both had an empty accessible name.
+
+`tools/shell-smoke.mjs` (`GAME_URL=… npm run test:shell`; Chromium as a Pixel 7
+on installed Chrome, then WebKit as an iPhone 15) checks every rendered input,
+select and textarea for 16px on the coarse pointer, both slider names,
+horizontal fit at 302, 320, 360, 393, 412 and 734px wide on the lobby, settings
+dialog, collection, market, 旅程閣, arena and battle, every interactive control
+against 48/44/34/44px (top, right, bottom, left) overrides of the custom
+properties on the phone viewport and at 844×390, and the arena's controls
+against the dock at 844×390, 734×343 and 844×390 with those insets.
+`tests/mobile-shell.test.mjs` holds the static guards that CI runs. With zero
+insets and a fine pointer the desktop renders as before; the 2026-10-11 record
+compares screenshots.
+
+Limits: below about 600px of usable height (320×568, or a phone with the
+48/34px test insets) some scenes have more content than their frame, and the
+viewport controller flags it (`data-viewport-overflow`; the smoke prints these
+as `NOTE` lines without failing). Vertical fit under 640px was not part of N1.
+
 ## Checks
 
 Run `npm test`, `python3 -m unittest discover -s tests -p '*_test.py'`, and
 `npm run build`. Against a running loopback server, run
 `GAME_URL=http://127.0.0.1:4177 npm run test:browser` and `npm run test:viewport`.
 The latter runs the six-size viewport matrix in Chrome and WebKit.
+`npm run test:shell` runs the mobile-shell checks above in both engines.
 
 The added `tools/navigation-smoke.mjs` exercises preparation without mutations,
 exact-copy deck changes and return, pending-match continuity, card detail

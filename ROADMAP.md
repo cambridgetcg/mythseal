@@ -517,6 +517,15 @@ M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 **Current status:** the shared lobby and navigation pass desktop/phone Chrome
 emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
+**N1 mobile shell (2026-10-11, branch `n1/mobile-shell`, not merged or
+deployed; owner-approved for v0.6.0 scope):** safe-area insets under
+`viewport-fit=cover` as overridable custom properties, 16px text entry on touch
+screens (no iOS focus zoom), no horizontal overflow from 302 to 734px wide, the
+arena's 來日 clear of the dock in landscape, named volume sliders, and the two
+WebKit failures RELEASE-NEXT A6 named (the 43.08px rewards tab and the
+map-piece launch). Checked in Chromium and WebKit emulation (`npm run
+test:shell`, [NAVIGATION](docs/NAVIGATION.md#mobile-shell)); the physical-phone
+items are open in the [M5.1 checklist](docs/MOBILE-RELEASE.md#m51-phone-checklist).
 
 ### Retired collectible launch phases
 

@@ -2,6 +2,110 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## N1 mobile shell · 2026-10-11
+
+Branch `n1/mobile-shell`, started from `origin/main` `7712a7b`; roadmap
+packet N1, which the owner approved on 2026-10-11 for the v0.6.0 release
+scope. Source commits **`623273d`** (safe areas, narrow widths, focus zoom,
+touch), **`42d1285`** (the arena's tabs two by two in short landscape),
+**`79fc4a4`** (44px module tabs: the WebKit rewards tab), **`9185563`** (slider
+names, the only `app.mjs` change), **`f8c2134`** (map-piece WebKit launch) and
+**`484854b`** (the shell smoke and static tests); the documentation commit
+after them changes no served file. Not merged, pushed or deployed; no hosted
+check, no service call and no third-party request. Design:
+[NAVIGATION · Mobile shell](NAVIGATION.md#mobile-shell).
+
+Environment: macOS 26.6.2, Node 26.0.0, Python 3.14.6, Playwright 1.63.0 with
+WebKit 26.6 from Playwright's default cache (`webkit-2359`; this worktree has
+no `test-results/webkit-runtime`), installed Google Chrome 154.0.8037.98 for
+Chromium. All browser runs were headless against `python3 tools/serve.py
+--port 4203`, started from this worktree before any edit (no allowlist
+changed, so it was not restarted). Phones are Playwright device emulation
+(Pixel 7 in Chromium, iPhone 15 in WebKit), not physical devices.
+
+**Before the change** (`7712a7b`'s served files):
+- Scratch probe with the Pixel 7 / iPhone 15 descriptors: at 302 and 320px wide
+  Chromium laid the page out 340px wide (`innerWidth` 340), and WebKit kept a
+  302/320px viewport with a 340px `scrollWidth` (38px and 20px sideways
+  overflow), from `body{min-width:340px}`. In iPhone 15 landscape (734×343)
+  the arena's 來日 tab was at y 249–293 and the dock started at y 290; at
+  844×390 they did not touch.
+- `SHELL_AUDIT=1 GAME_URL=http://127.0.0.1:4203 node tools/shell-smoke.mjs`
+  (Chromium, the smoke as first written): both volume sliders had an empty
+  accessible name (`- slider: "0.35"`); 14 inputs/selects computed 10–14px
+  (the settings selects 10px, the collection search and deck name 12px, the
+  email field and pill slider 14px, the rest 11px); then the run stopped at
+  302×640, where clicking a 旅程閣 (`account-open`) control timed out because
+  the overflowing header intercepted the pointer.
+- Two desktop screenshot sets captured from this tree were byte-identical to
+  each other, so the comparison below is deterministic.
+
+**During the change:**
+- With the first CSS commit's rules but not yet `79fc4a4`,
+  `BROWSER=webkit VIEWPORT_SIZE=360x740 node tools/expansion-smoke.mjs` failed
+  exactly as RELEASE-NEXT A6 recorded: `360x740/rewards/grants`, control
+  `module`, width 43.078125. The tab is 異聞: WebKit fitted all five rewards
+  tabs on one 314px line at their content widths, while Chromium wrapped the
+  fifth tab and grew the rest (異聞 60.3px). With `min-width:44px` WebKit gives
+  it 44.28px.
+- `BROWSER=webkit PLAYWRIGHT_BROWSERS_PATH=<worktree>/test-results/webkit-runtime
+  node tools/map-piece-smoke.mjs`, which is what the old line 13 forced when the
+  variable was unset: exit 1, `browserType.launch: Executable doesn't exist at
+  …/test-results/webkit-runtime/webkit-2359/pw_run.sh`, before any check. A
+  harness fault: the script set that path whether or not the folder existed.
+  After `f8c2134`, with the variable unset: exit 0.
+- Measured in WebKit at `42d1285`'s CSS: the short-landscape arena grid rows are
+  `44px 188px` at 734×343 and `44px 156px` at 844×390 with the 48/34px test
+  insets; the two-by-two tab rail is 93px tall.
+
+**Checks** ran at `f8a9391`. The branch was then rebuilt from `623273d` only to
+correct one commit message (the arena commit's overlap figure); `484854b` has
+the same tree (`4869c73`), so every result below applies to it unchanged.
+
+| Command | Result |
+| --- | --- |
+| `node --test tests/*.test.mjs` | exit 0, **535/535** (530 before, plus 5 in `tests/mobile-shell.test.mjs`) |
+| `npm run audit:content` | exit 0, 150 entries (120 `local-playable`, 30 `preview`), no findings |
+| `npm run build` | exit 0, **83 public files** (no new runtime file), manifest `4a33b0ef…f7cf`; `dist/` deleted afterwards |
+| `git diff --check` | clean |
+| `GAME_URL=http://127.0.0.1:4203 npm run test:shell` | exit 0 (37 s): 13/13 checks in Chromium, then 13/13 in WebKit |
+| `… npm run test:viewport` | exit 0 (573 s): 23/23 in each engine |
+| `… npm run test:battle-table` | exit 0 (305 s): 40/40 in each engine |
+| `… npm run test:expansion` | exit 0 (250 s): 16/16 in each engine, all six sizes in one run (899 and 892 layout checks); RELEASE-NEXT §12 item 13 needs no waiver if N1 merges |
+| `… npm run test:map-piece` | exit 0 (67 s): 8/8 in each engine, WebKit launched from Playwright's cache |
+| `… npm run test:browser` | exit 0 (376 s): all 14 Chromium suites |
+| `… npm run test:commands` | exit 0 (91 s): 13/13 groups in each engine |
+| `… npm run test:inheritance` | exit 0 (80 s): 9/9 in each engine |
+| `… npm run test:collection-display` | exit 0 (53 s): 10/10 in each engine |
+| `… npm run test:wx01` | exit 0 (216 s): wx01-presentation, profile-recovery and wx01-box in each engine, 54 PASS lines |
+| `python3 -m unittest discover -s tests -p '*_test.py'` | 9 tests OK |
+
+The required suites ran from 23:18:58 to 23:45:46 UTC on 2026-10-11, the last
+four (not required; they cover the card page, inheritance, the collection and
+WX-01 boxes, whose dialogs and inputs N1 restyled) from 23:46:33 to 23:53:53.
+`test:shell` also printed, without failing, where the viewport controller
+flags content taller than its frame (`data-viewport-overflow`): at 320×568
+the collection's card list and the arena; with the 48/44/34/44px insets, the
+collection on the phone viewport (and the arena on the iPhone 15), and the
+collection, market, 旅程閣 and arena at 844×390. Vertical fit under about 600px
+of usable height was not part of N1 and is left open.
+
+**Desktop:** 28 PNG screenshots (Chromium and WebKit; 1440×900 and 1280×720;
+lobby, collection, market, arena, settings dialog, 旅程閣 and a battle; a
+synthetic save, fixed clock and random source) were taken from `7712a7b`
+before any edit and again after: on the working tree that became the source
+commits, and at `f8a9391`. All 28 SHA-256 hashes matched both times. Three
+were also inspected by eye; all were deleted afterwards.
+
+Not run: physical iPhone or Android devices (real `env()` insets, iOS focus
+zoom, pull-to-refresh and rubber band, long press, rotation; listed in the
+[M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist)); a Capacitor build or
+SystemBars override (no native project); the Safari app and Firefox;
+`npm run test:liaozhai` and `npm run test:honglou` (their pages load none of
+the changed stylesheets); a browser check of the local `playtest.html`, which
+loads `styles.css`; `npm run preview -- --dry-run`, deploy dry runs, the SQL
+harness and CI.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

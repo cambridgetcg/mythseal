@@ -3,7 +3,7 @@
 Start here when joining development. Updated **2026-09-29**, with the Q0, Q4
 and Q1 checkpoints and the LZ-01 special-art addenda (under
 [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
-**2026-10-11**. Q0 and Q4 merged into `main` in PRs #5 and #9, and Q1 by
+**2026-10-11**; on the `n1/mobile-shell` branch, also the N1 checkpoint. Q0 and Q4 merged into `main` in PRs #5 and #9, and Q1 by
 PR #10; none of them is deployed. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
@@ -39,6 +39,49 @@ A private repository still serves its approved JavaScript and artwork publicly.
 Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
+
+## N1 mobile shell checkpoint · 2026-10-11 (local only)
+
+Roadmap packet N1 (mobile shell polish), which the owner approved on 2026-10-11
+for the v0.6.0 release scope, is implemented on the branch
+**`n1/mobile-shell`**, started from `origin/main` `7712a7b`. Source commits:
+`623273d`, `42d1285`, `79fc4a4`, `9185563`, `f8c2134` and `484854b`; the
+documentation commit after them changes no served file. **Status:** not merged,
+pushed or deployed; no hosted check. It was built alongside D1 (Back model) and
+D2 (save durability) in sibling worktrees from the same base; both edit
+`app.mjs` logic, and N1's only `app.mjs` change is two `aria-label` attributes
+in `experienceSettingsModal`.
+
+- **Changed** ([NAVIGATION · Mobile shell](NAVIGATION.md#mobile-shell)):
+  `viewport-fit=cover`; the safe-area insets read once into overridable
+  `--safe-area-inset-*` properties and used by the shell, dock, dialogs and
+  landscape sides; no 340px body minimum (302px phones no longer get a wider
+  page); 16px text entry on coarse pointers (no iOS focus zoom); touch-action,
+  overscroll and card-art callout rules; the arena's tabs two by two in short
+  landscape, so 來日 clears the dock; 44px minimum module tabs; named volume
+  sliders. No engine, save, reward, profile, Worker, SQL, allowlist or
+  journey-flag change; the build still has 83 public files.
+- **RELEASE-NEXT A6 (for whoever integrates that plan):** both WebKit failures
+  are fixed here. The rewards dialog's `module` tab (異聞) is at least 44px, so
+  WebKit `test:expansion` passes at every size in one run and §12 item 13 needs
+  no waiver once N1 merges. The `test:map-piece` WebKit launch failure was a
+  test-harness fault: `tools/map-piece-smoke.mjs` forced
+  `PLAYWRIGHT_BROWSERS_PATH` to the ignored `test-results/webkit-runtime` even
+  when that folder did not exist; it now checks first, as the other smokes do.
+  `npm run test:shell` is a new suite for §10 step 3 and A8.
+- **Checked** ([VALIDATION](VALIDATION.md#n1-mobile-shell--2026-10-11)): 535/535
+  Node tests, the content audit, an 83-file build, and `test:shell`,
+  `test:viewport`, `test:battle-table`, `test:expansion`, `test:map-piece`,
+  `test:commands`, `test:inheritance`, `test:collection-display` and
+  `test:wx01` in Chromium and WebKit, plus the 14 Chromium `test:browser`
+  suites, all exit 0. 28 desktop screenshots at 1440×900 and 1280×720 are
+  byte-identical to `7712a7b`'s.
+- **Open:** every physical-phone item in the
+  [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist) (real notch and home
+  indicator, iOS focus zoom, pull-to-refresh, long press, rotation), a native
+  shell overriding the inset properties, vertical fit under about 600px of
+  usable height (the viewport controller flags overflow there), and CI still
+  has no browser job.
 
 ## Q0 battle-table checkpoint · 2026-10-11 (local only)
 
@@ -776,6 +819,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Campaign / activity / rewards | `node --test tests/campaign-content.test.mjs tests/activity-engine.test.mjs tests/expansion-progression.test.mjs tests/profile-store.test.mjs` |
 | Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
 | Battle table / battle UI (Q0, PR #5) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
+| Mobile shell / safe areas / touch (N1) | `node --test tests/mobile-shell.test.mjs`; `GAME_URL=… npm run test:shell` (Chromium as a Pixel 7, then WebKit as an iPhone 15); `npm run test:viewport` and `npm run test:expansion` for scene layout. Desktop changes need a before/after screenshot comparison; emulation is not a physical-phone check |
 | Local commands / profile fence (Q1, PR #10) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
