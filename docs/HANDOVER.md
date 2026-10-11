@@ -79,6 +79,41 @@ pushed, merged or deployed**. The last recorded public release is still
   The [battle-table plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
   lists them.
 
+## Q1 local-commands checkpoint · 2026-10-11 (local only)
+
+Roadmap packet Q1 is implemented for one command on the local branch
+**`q1/local-commands`**, started from `origin/main` `8afbabc`. The last source
+commit is **`334bc75`**, after three review rounds; the commits after it change
+documentation only. The branch is **not pushed, merged or deployed**. The last
+recorded public release is still **v0.5.1**, and no hosted check was made.
+
+- **Changed:** the backpack card page's 修練升級 commits the request painted
+  with the page through `local-commands.mjs` (`care.upgrade`), under
+  `PROFILE_LOCK`, with its effects and a bounded receipt in one profile write.
+  A stale page is refused, or shown the receipt already accepted, instead of
+  being charged the next level's price. Profile v5 gains an optional,
+  device-local `commands` ledger that backups never contain. `PROFILE_VERSION`,
+  the snapshot format, the Worker and the SQL are unchanged. Every writer under
+  the lock goes through the IndexedDB fence in `profile-fence.mjs` (invariants
+  below).
+- **Checked:** at `0492242` (code equal to `334bc75`), 507/507 Node tests,
+  the 14 Chromium `npm run test:browser` suites, and `npm run test:commands`
+  11/11 groups in Chromium and WebKit, all exit 0, headless against a separate
+  loopback server.
+  [VALIDATION](VALIDATION.md#q1-final-check--2026-10-11) has the final receipt
+  and each review round's checks.
+- **Review requested:** the owner's review of the
+  [LOCAL-COMMANDS](LOCAL-COMMANDS.md) contract before any Q2 care plan or Q3
+  queue is written on it, including its §15 decisions: the restore rule,
+  browsers without Web Locks, release ordering (Q1 no later than the first
+  public v5 build, and never a pre-fence v5 build on an origin after it),
+  32 retained receipts, and copies awaiting WX review.
+- **Open:** separate browser processes, the Safari app, Firefox, physical
+  devices, a real full disk or `QuotaExceededError`, a real cross-tab delivery
+  lag over 0.5 s, `npm run build`, deploy dry runs, and merge/release. Browser
+  checks need a server started after the Q1 modules exist, because
+  `tools/serve.py` reads the allowlist once at startup.
+
 ## Experience planning checkpoint · 2026-09-29
 
 The fetched default branch now contains PR #1 at merge commit `22092fc`; start
@@ -570,6 +605,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Campaign / activity / rewards | `node --test tests/campaign-content.test.mjs tests/activity-engine.test.mjs tests/expansion-progression.test.mjs tests/profile-store.test.mjs` |
 | Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
 | Battle table / battle UI (Q0 branch) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
+| Local commands / profile fence (Q1 branch) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |

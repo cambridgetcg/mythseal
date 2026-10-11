@@ -166,6 +166,45 @@ real delivery lag over 0.5 s, separate browser processes, the Safari app,
 Firefox, devices, the other per-engine smokes, `npm run build`, deploy dry runs
 and any hosted service.
 
+### Q1 final check · 2026-10-11
+
+Run at `0492242` on the same branch. The last source commit is `334bc75`;
+`0492242` and the commit that adds this entry change documentation only. Local
+only: not pushed, merged or deployed, the last recorded public release is still
+v0.5.1, and no hosted check was made. Synthetic headless evidence on Node
+26.0.0 on macOS, with Playwright 1.63.0 driving system Google Chrome
+154.0.8037.98 and WebKit 26.6;
+[LOCAL-COMMANDS §18.8](LOCAL-COMMANDS.md#188-final-check-2026-10-11) has the
+same record.
+
+- `node --test tests/*.test.mjs`: exit 0, **507/507**. The seven files in the
+  HANDOVER Q1 checks row: exit 0, 114/114.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: exit 0, 9 tests OK.
+  `git diff --check 8afbabc..HEAD`: exit 0, clean.
+- **Server.** The worktree's assigned server on 4193 was started at 09:31,
+  before the Q1 modules existed, and still returned 404 for
+  `local-commands.mjs`, `profile-fence.mjs` and `command-ledger.mjs`, so the
+  game cannot load from it. It was left running untouched. Browser runs used a
+  separate `python3 tools/serve.py --port 4381`, stopped afterwards.
+- `GAME_URL=http://127.0.0.1:4381 npm run test:browser`: exit 0, all 14
+  Chromium suites in 291 s.
+- `GAME_URL=http://127.0.0.1:4381 npm run test:commands`: exit 0, **11/11
+  groups in each engine** in 58 s. In B7 the fenced lock read the previous
+  write in 30/30 handoffs in both engines; the plain-lock control was stale in
+  29/30 (Chromium) and 27/30 (WebKit).
+- The 154 screenshots these runs wrote to the ignored `test-results/` were
+  deleted afterwards.
+
+Not checked in this run: `test:inheritance` and `test:wx01` (last run in both
+engines in the third-review checks above), `test:battle-table`,
+`test:viewport`, `test:expansion`, `test:collection-display`, `test:map-piece`
+and the literary previews; the account, backpack and recovery smokes in
+WebKit; separate browser processes, the Safari app, Firefox and physical
+devices; a real full disk, `QuotaExceededError` or cross-tab delivery lag over
+0.5 s; Node 22; `npm run build`, deploy dry runs and any hosted service. Owner
+review of the contract, including its §15 decisions, is requested before any
+Q2/Q3 consumer is written.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

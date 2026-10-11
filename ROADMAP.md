@@ -162,16 +162,19 @@ new renderer to make local play clearer.
   outcome. Changed payload under the same identity is rejected. Any new profile
   fields have versioned migration and compatible backup validation before release.
 - **Status 2026-10-11:** implemented for one command on the local branch
-  `q1/local-commands` (from `8afbabc`), awaiting owner review. It is not pushed,
-  merged or deployed. The backpack card page's 修練升級 now commits through
-  `local-commands.mjs` under the shared lock, with its receipt in the same
-  profile write. [LOCAL-COMMANDS](docs/LOCAL-COMMANDS.md) is the contract and
+  `q1/local-commands` (from `8afbabc`; last source commit `334bc75`, after three
+  review rounds). Local only: not pushed, merged or deployed, and no hosted
+  check. The backpack card page's 修練升級 commits through `local-commands.mjs`
+  under the shared lock, with its receipt in the same profile write. Every
+  writer under that lock goes through an IndexedDB read-after-write fence, and
+  commands and restore refuse, writing nothing, when it cannot prove their bytes
+  are current. [LOCAL-COMMANDS](docs/LOCAL-COMMANDS.md) is the contract and
   records the deviations; the checks are in
-  [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11). After the
-  first review, the shared lock is paired with an IndexedDB read-after-write
-  fence, restore checks its result before keeping a recovery copy, and a
-  duplicate names its receipt. Owner decisions on restore, retention and
-  release ordering remain open, and Q2/Q3 consumers wait for that review.
+  [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11), ending with the
+  final check of `334bc75`. **Owner review of the contract is requested before
+  any Q2/Q3 consumer is written;** its §15 decisions (restore rule, browsers
+  without Web Locks, release ordering, retention, copies awaiting WX review)
+  remain open.
 
 ### Q2 · Previewed care for selected companions
 

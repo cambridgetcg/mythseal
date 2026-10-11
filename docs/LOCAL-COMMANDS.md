@@ -6,8 +6,9 @@ against `origin/main` `8afbabc`. It is implemented on the local branch
 `q1/local-commands`, which is not pushed, merged or deployed. It is not a release
 and changes no hosted service. [§18](#18-implementation-record-2026-10-11)
 records what was built, where it differs from the text below, and the checks;
-§18.4 records the fixes made after the first review and §18.6 those after the
-second; this text now includes both.
+§18.4, §18.6 and §18.7 record the fixes made after each of three reviews, and
+this text now includes all of them. §18.8 records the final check of the last
+source commit, `334bc75`.
 
 - It refines the illustrative Q1 sketch in [EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q1--one-local-command-and-its-accepted-receipt). Where the two differ, this document is the proposal; §13 lists every deviation.
 - [ROADMAP](../ROADMAP.md#q1--one-local-command-and-receipt-boundary) owns priority and the exit criteria.
@@ -75,7 +76,7 @@ Line numbers in this section refer to `8afbabc`.
 | `hosting/public-assets.json` | Add `command-ledger.mjs` and `local-commands.mjs`. This is also needed locally, because `tools/serve.py` serves only allowlisted files. |
 | Tests | New: `tests/command-ledger.test.mjs` and `tests/local-commands.test.mjs`. Extended: profile-store, cloud-save, account-client and hosting tests. See the test matrix. |
 | `tools/command-smoke.mjs` (new), npm `test:commands` | Runs Chromium, then WebKit (`BROWSER=webkit`), with synthetic saves and an explicit loopback `GAME_URL`. It is modelled on `tools/inheritance-smoke.mjs`. `backpack-smoke` and `classics-smoke` launch Chromium only. |
-| Docs | Adds this file. Also: an EXPERIENCE-MODULES Q1 pointer, a ROADMAP Q1 status line, a VALIDATION receipt and one HANDOVER sentence about `commands`. |
+| Docs | Adds this file. Also: an EXPERIENCE-MODULES Q1 pointer, a ROADMAP Q1 status line, a dated VALIDATION receipt for each round, and in HANDOVER a Q1 checkpoint, a checks row and the `commands` and fence invariants. |
 
 **Not touched:** `engine.mjs`, `collection.mjs`, `inheritance.mjs`, `wx01-state.mjs`, `backpack-ui.mjs`, `adventure-ui.mjs`, `bootstrap.mjs`, `server/`, `supabase/`, the `PROFILE_LOCK` name and every `shanhai.*` namespace.
 
@@ -358,7 +359,7 @@ Disabled buttons and `economyBusy` only shape the experience. Correctness comes 
 3. **Single actions that are not wrapped keep `transact`'s unlocked fallback in this PR.** These are claims, packs and boxes, the market, sale and buyback, lock toggles, decks, leader, battles, activity, `daily-train` and WX acknowledgement.
    - A comment at `transact` labels the fallback "same tab only; not cross-tab serialization".
    - Wrapping an action later switches only that action.
-4. **These already refuse without locks and are unchanged:** inheritance, cloud restore, local recovery restore and the playtest supply page.
+4. **These already refuse without locks, and still do:** inheritance, cloud restore, local recovery restore and the playtest supply page. Since the third review, both restores also need the fence (item 8, §11).
 5. **The wrapped card-page upgrade now requires a lock.** Only browsers without Web Locks are affected. `127.0.0.1` loopback and the HTTPS public site are secure contexts.
 6. **Same tab.** `runUpgrade` sets and respects `economyBusy`. It therefore takes turns with the existing economy actions, and `restoreLocalProfile` (which refuses while `economyBusy` is set) cannot interleave with it.
 7. **Only two writers may change the ledger:** `commitCommand` and `restoreLocalProfile`.
@@ -572,7 +573,8 @@ Branch `q1/local-commands`, from `8afbabc`. Not pushed, merged or deployed.
 | `c008010` | After the third review: the fence checks the bytes again after its writing mark (X → Y → X); N28 |
 | `323d27c` | After the third review: `restoreLocalProfile` holds the strict fenced lock; N30; the unsettled-fence restore check in `tools/account-smoke.mjs` |
 | `334bc75` | After the third review: smoke B9 (a full disk refusing the fence write) |
-| The commit that adds §18.7 | After the third review: §3, §7, §9 (the `stale` row spelled out), §10, §10.1, §11, §12, the test matrix and HANDOVER |
+| `0492242` | After the third review: §3, §7, §9 (the `stale` row spelled out), §10, §10.1, §11, §12, the test matrix and HANDOVER |
+| The commit that adds §18.8 | Documentation only: the final check, its VALIDATION entry, the ROADMAP status line and the HANDOVER checkpoint |
 
 The public allowlist now has 83 files (82, plus `profile-fence.mjs` after review).
 
@@ -730,6 +732,17 @@ A third review of `14d0473` reported four low-severity defects, and a second rev
 
 **Not checked:** a real full disk (every quota case is synthetic); a browser that blocks IndexedDB by its settings; a real delivery lag over 0.5 s; separate browser processes; the Safari app, Firefox and devices; the account smoke in WebKit (it runs only in Chromium); `test:battle-table`, `test:viewport`, `test:expansion`, `test:collection-display`, `test:map-piece`, `test:atelier`, `test:liaozhai` and `test:honglou`; `npm run build`, deploy dry runs and any hosted service.
 
+### 18.8 Final check (2026-10-11)
+
+Run at `0492242`, whose code equals the last source commit `334bc75`; no code changed after it. Node 26.0.0 on macOS; headless; synthetic data only. [VALIDATION](VALIDATION.md#q1-final-check--2026-10-11) has the same receipt.
+
+- `node --test tests/*.test.mjs`: exit 0, **507/507**. `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK. `git diff --check 8afbabc..HEAD`: clean.
+- The worktree's server on 4193 still returned 404 for the three Q1 modules and was left untouched; browser runs used a separate `python3 tools/serve.py --port 4381`, stopped afterwards.
+- `GAME_URL=http://127.0.0.1:4381 npm run test:browser`: exit 0, all 14 Chromium suites (system Google Chrome 154.0.8037.98) in 291 s.
+- `GAME_URL=http://127.0.0.1:4381 npm run test:commands`: exit 0, **11/11 groups in each engine** (Chromium, then Playwright WebKit 26.6). In B7 the fenced lock read the previous write in 30/30 handoffs in both engines; the plain-lock control was stale in 29/30 (Chromium) and 27/30 (WebKit).
+
+**Not checked in this run:** the other per-engine smokes (`test:inheritance` and `test:wx01` last ran in §18.7), separate browser processes, the Safari app, Firefox, devices, a real full disk or delivery lag, Node 22, `npm run build`, deploy dry runs and any hosted service. The §15 owner decisions remain open, and owner review of this contract is requested before any Q2/Q3 consumer is written.
+
 ## Appendix · test matrix
 
 Where each row is implemented. The `N` rows are Node tests and the `B` rows browser smoke groups.
@@ -776,4 +789,4 @@ Where each row is implemented. The `N` rows are Node tests and the `B` rows brow
 | B8 | A `writing` record or an edit outside the lock refuses the upgrade with no write; a reload heals the fence and the upgrade commits, keeping the edit | `tools/command-smoke.mjs` |
 | B9 | IndexedDB refusing the fence write with a synthetic `QuotaExceededError` refuses the upgrade with the quota copy, never the `no-lock` copy, and no write; it commits once writes work again | `tools/command-smoke.mjs` |
 | A1 | A `writing` record refuses a local recovery restore with 上次儲存未能完整確認… and nothing changed; after a reload heals the fence the restore completes (Chromium) | `tools/account-smoke.mjs` |
-| R1 | Regressions: the Node suite, `test:browser`, `test:inheritance`, `test:wx01`, `test:battle-table` and `test:commands` | §18.3 |
+| R1 | Regressions: the Node suite, `test:browser`, `test:inheritance`, `test:wx01`, `test:battle-table` and `test:commands` | §18.3, §18.5, §18.6, §18.7 and §18.8 |
