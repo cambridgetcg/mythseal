@@ -319,24 +319,27 @@ function cardArt(ctx, cardIds) {
 const prerequisiteOf = (nodes, index) => Object.hasOwn(nodes[index], 'requiresNode') ? nodes[index].requiresNode : nodes[index - 1]?.id ?? null;
 
 /**
- * Campaign encounters whose first clear can be the one that completes the campaign
- * (bankCampaignMilestones then banks CAMPAIGN_FINAL_GRANT): those that no campaign
- * encounter has in its prerequisite chain, so they can be cleared last.
+ * Of the encounters `ids`, those that none of them has in its prerequisite chain, so
+ * their first clear can be the last of the group. A reward that opens only once the
+ * whole group is cleared can open on these clears and on no other.
  */
-function campaignFinalNodeIds(content) {
+function lastClearable(content, ids) {
   const requires = new Map(content.NODES.map((node, index) => [node.id, prerequisiteOf(content.NODES, index)]));
   const earlier = new Set();
-  for (const node of content.CAMPAIGN_NODES) {
+  for (const id of ids) {
     const seen = new Set();
-    for (let current = requires.get(node.id); current != null && !seen.has(current); current = requires.get(current)) { seen.add(current); earlier.add(current); }
+    for (let current = requires.get(id); current != null && !seen.has(current); current = requires.get(current)) { seen.add(current); earlier.add(current); }
   }
-  return content.CAMPAIGN_NODES.map(node => node.id).filter(id => !earlier.has(id));
+  return ids.filter(id => !earlier.has(id));
 }
 
 function encounterEntries(ctx) {
   const { content } = ctx;
   const storyIds = new Set(content.STORY_NODES.map(node => node.id)), campaignIds = new Set(content.CAMPAIGN_NODES.map(node => node.id));
-  const storyGiftNodes = new Set(storyGiftNodeIds(content)), finalNodes = new Set(campaignFinalNodeIds(content));
+  // grantWX01Choice opens the story gift once every westward story node is cleared, and
+  // bankCampaignMilestones banks CAMPAIGN_FINAL_GRANT on the clear that completes the campaign.
+  const storyGiftNodes = new Set(lastClearable(content, storyGiftNodeIds(content)));
+  const finalNodes = new Set(lastClearable(content, content.CAMPAIGN_NODES.map(node => node.id)));
   return content.NODES.map((node, index) => {
     const group = campaignIds.has(node.id) ? 'campaign' : storyIds.has(node.id) ? 'story' : 'original';
     const sourceModule = { campaign: 'campaign-content.mjs', story: 'stories.mjs', original: 'progression.mjs' }[group];
@@ -438,7 +441,10 @@ function activityEntries(ctx) {
   }];
 }
 
-/** Encounters whose clears open the WX-01 story gift (progression.mjs:grantWX01Choice, kind 'story'). */
+/**
+ * Encounters that must all be cleared before the WX-01 story gift opens
+ * (progression.mjs:grantWX01Choice, kind 'story'). Only the one cleared last opens it.
+ */
 function storyGiftNodeIds(content) {
   return content.STORY_NODES.filter(node => node.worldId === STORY_GIFT_WORLD).map(node => node.id);
 }
@@ -657,22 +663,35 @@ function closingBracket(code, open) {
   return code.length;
 }
 
+/** Brackets opened and not yet closed before `index` in masked code; 0 is the module's top level. */
+function bracketDepth(code, index) {
+  let depth = 0;
+  for (let at = 0; at < index; at++) {
+    if (code[at] === '(' || code[at] === '[' || code[at] === '{') depth++;
+    else if (code[at] === ')' || code[at] === ']' || code[at] === '}') depth--;
+  }
+  return depth;
+}
+
 /**
  * Does `source` declare a top-level `test('<title>', ...)` that the runner will
- * execute? These do not count: a `test.skip`/`test.todo` call, `{ skip }`/`{ todo }`
- * options (unless literally `false`), a declaration inside a comment or string, and
- * a test whose body calls its context's `skip()` or `todo()` anywhere, even
- * conditionally, since the runner may then report it skipped. A test hidden behind
- * runtime control flow around the declaration (`if (false) test(...)`) or skipped
- * through an indirect call cannot be seen from the text; the runner's own test and
- * skip counts show it.
+ * execute? These do not count: a declaration nested in any bracket (a `describe`
+ * or `suite` callback, which `.skip` or `{ skip }` can switch off without counting
+ * the test as skipped; another test's body; a block or function), a
+ * `test.skip`/`test.todo` call, `{ skip }`/`{ todo }` options (unless literally
+ * `false`), a declaration inside a comment or string, and a test whose body calls
+ * its context's `skip()` or `todo()` anywhere, even conditionally, since the runner
+ * may then report it skipped. The context is the callback's first parameter, and
+ * `this` in a `function` callback. A test hidden behind runtime control flow
+ * without brackets (`if (false) test(...)`) or skipped through an indirect call
+ * cannot be seen from the text; the runner's own test and skip counts show it.
  */
 function declaresRunningTest(source, title) {
   const code = maskCode(source);
   for (const quote of ["'", '"', '`']) {
     const call = `test(${quote}${title}${quote}`;
     for (let at = source.indexOf(call); at >= 0; at = source.indexOf(call, at + 1)) {
-      if (/[\w$.]/.test(source[at - 1] ?? '') || !code.startsWith('test(', at)) continue;
+      if (/[\w$.]/.test(source[at - 1] ?? '') || !code.startsWith('test(', at) || bracketDepth(code, at) !== 0) continue;
       const end = closingBracket(code, at + 4);
       let rest = at + call.length;
       const options = /^\s*,\s*(?=\{)/.exec(code.slice(rest, end));
@@ -681,23 +700,26 @@ function declaresRunningTest(source, title) {
         if (/\b(?:skip|todo)\b(?!\s*:\s*false\b)/.test(code.slice(open, close + 1))) continue;
         rest = close + 1;
       }
-      const callback = /^\s*,\s*(?:async\s+)?(?:function\b\s*\*?\s*[\w$]*\s*\(\s*([A-Za-z_$][\w$]*)|\(\s*([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*)\s*=>)/.exec(code.slice(rest, end));
-      const context = callback && (callback[1] ?? callback[2] ?? callback[3]);
-      if (context && new RegExp(`(?<![\\w$.])${context.replace(/\$/g, '\\$')}\\s*(?:\\?\\.|\\.)\\s*(?:skip|todo)\\s*\\(`).test(code.slice(rest, end))) continue;
+      const callback = /^\s*,\s*(?:async\s+)?(?:(function)\b\s*\*?\s*[\w$]*\s*\(\s*([A-Za-z_$][\w$]*)?|\(\s*([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*)\s*=>)/.exec(code.slice(rest, end));
+      const contexts = callback ? [callback[2] ?? callback[3] ?? callback[4], callback[1] && 'this'].filter(Boolean) : [];
+      if (contexts.length && new RegExp(`(?<![\\w$.])(?:${contexts.map(name => name.replace(/\$/g, '\\$')).join('|')})\\s*(?:\\?\\.|\\.)\\s*(?:skip|todo)\\s*\\(`).test(code.slice(rest, end))) continue;
       return true;
     }
   }
   return false;
 }
 
-/** Does `file.mjs:name` (or `tests/file › title`) still name real code or a real, running test? */
+/**
+ * Does `file.mjs:name` (or `tests/file › title`) still name real code or a real, running test?
+ * A code reference must be defined in code: a definition left in a comment or a string does not count.
+ */
 export function resolveReference(reference, readText) {
   try {
     const test = TEST_REFERENCE.exec(reference);
     if (test) return declaresRunningTest(readText(test[1]), test[2]);
     const code = CODE_REFERENCE.exec(reference);
     if (!code) return false;
-    const source = readText(code[1]), name = code[2];
+    const source = maskCode(readText(code[1])), name = code[2];
     return new RegExp(`(?:\\bfunction\\s+${name}\\s*\\(|\\b(?:const|let)\\s+${name}\\s*=|\\bexport\\s*\\{[^}]*\\b${name}\\b)`).test(source);
   } catch { return false; }
 }
@@ -768,11 +790,15 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
     const boundBase = bound.filter(entry => entry.treatment === 'base').map(entry => entry.printId);
     if (JSON.stringify(boundBase) !== JSON.stringify(checklist.baseRange)) add('checklist-mismatch', null, `BASE checklist ${checklist.baseRange.join(',')} differs from liaozhai-cards.mjs ${boundBase.join(',')}`);
     const rows = new Map(checklist.rows.map(row => [row.printId, row]));
+    const briefed = new Map((briefs ?? []).map(row => [row.printId, row]));
     for (const entry of bound.filter(item => item.treatment !== 'base')) {
       const row = rows.get(entry.printId);
       if (!row) add('checklist-mismatch', entry.id, 'bound special printing is missing from the checklist');
       else if (row.planned) add('planned-bound', entry.id, 'checklist still says "Planned · no image" for a printing liaozhai-cards.mjs binds');
       else if (row.image !== entry.assets[0]) add('checklist-mismatch', entry.id, `checklist image ${row.image} differs from bound ${entry.assets[0]}`);
+      // A brief that outlives its generation names the file that was bound, never a superseded or proposed one.
+      const brief = briefed.get(entry.printId);
+      if (brief && brief.proposedFile !== entry.assets[0]) add('checklist-mismatch', entry.id, `docs/ART-LZ01.md brief file ${brief.proposedFile ?? '(none)'} differs from bound ${entry.assets[0]}`);
     }
     for (const row of checklist.rows) {
       if (!row.planned && !bound.some(entry => entry.printId === row.printId)) add('checklist-mismatch', `print:${row.printId}`, 'checklist marks this special available but nothing binds it');
@@ -784,7 +810,7 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
     const plannedInModule = new Set(ctx.content.LZ01_PLANNED_SPECIALS.map(print => print.printId));
     for (const id of plannedInModule) if (!plannedRows.has(id)) add('checklist-mismatch', `print:${id}`, 'liaozhai-cards.mjs LZ01_PLANNED_SPECIALS lists a printing the checklist does not mark planned');
     for (const id of plannedRows) if (!plannedInModule.has(id)) add('checklist-mismatch', `print:${id}`, 'checklist marks this printing planned but liaozhai-cards.mjs LZ01_PLANNED_SPECIALS omits it');
-    // A brief may outlive its generation (then it describes a bound printing); a planned special may not lack one.
+    // A brief may outlive its generation (then it describes a bound printing, checked above); a planned special may not lack one.
     for (const row of briefs ?? []) if (!rows.has(row.printId)) add('checklist-mismatch', `print:${row.printId}`, 'docs/ART-LZ01.md briefs a printing the checklist does not list');
     for (const entry of planned) {
       const row = rows.get(entry.printId), card = ctx.content.LZ01_CARDS.find(item => item.id === entry.cardId);

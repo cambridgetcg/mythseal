@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { buildContentRegistry, auditContent, loadContentSources, resolveReference, localReferences, CAPABILITIES, GRANT_RULES, START_RULES } from '../tools/content-registry.mjs';
 import { createProfile, hydrateProfile, beginBattle, finishBattle, startActivity, advanceActivity, isNodeUnlocked, claimWX01StoryPrint, claimExpansionGrant, NODES } from '../progression.mjs';
 import { LEGACY_CARD_IDS } from '../engine.mjs';
-import { nextNodeInWorld } from '../stories.mjs';
+import { nextNodeInWorld, STORY_NODES } from '../stories.mjs';
 import { mintInstance } from '../collection.mjs';
 import { createSnapshot, restoreSnapshot } from '../cloud-save.mjs';
 import { LZ01_CARDS, LZ01_SPECIALS, LZ01_PLANNED_SPECIALS } from '../liaozhai-cards.mjs';
@@ -105,6 +105,7 @@ test('capabilities separate preview from playable, state every unavailable reaso
   ], 'an AA lists the story gift and the campaign-final choice as well as packs and seals');
   assert.deepEqual(entry('print:wx01-015-base').acquisition.filter(route => route.grant).map(route => route.grant), ['activity-*:stage-2:loot', 'fire-mountain:first-clear']);
   assert.deepEqual(entry('encounter:west-spirit-mountain').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:claimWX01StoryPrint']);
+  assert.deepEqual(entry('encounter:west-flaming-mountain').rules.reward, ['progression.mjs:finishBattle'], 'an earlier westward clear cannot open the story gift');
   assert.deepEqual(entry('encounter:echo-1-3').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:bankCampaignMilestones'], 'a clear that banks nothing lists no claim');
   assert.deepEqual(entry('encounter:echo-1-8').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:bankCampaignMilestones', 'progression.mjs:openWX01Ticket']);
   assert.deepEqual(entry('encounter:echo-6-8').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:bankCampaignMilestones', 'progression.mjs:claimExpansionGrant', 'progression.mjs:openWX01Ticket']);
@@ -218,6 +219,16 @@ const SOURCE_FAULTS = [
     const start = text.indexOf(`test('${evidenceTitle}', `), end = text.indexOf('\n});\n', start) + 5;
     return `${text.slice(0, start)}/* disabled\n${text.slice(start, end)}*/\n${text.slice(end)}`;
   }), ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test nested in describe.skip, which the runner does not count as skipped', rewrite('tests/progression.test.mjs', text => {
+    const start = text.indexOf(`test('${evidenceTitle}', `), end = text.indexOf('\n});\n', start) + 5;
+    return `import { describe } from 'node:test';\n${text.slice(0, start)}describe.skip('disabled group', () => {\n${text.slice(start, end)}});\n${text.slice(end)}`;
+  }), ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test skipped with this.skip() in a function body', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', () => {`, `test('${evidenceTitle}', function () { this.skip('disabled'); return;`)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['a renamed unlock rule whose old definition survives in a comment', rewrite('progression.mjs', text => `${text.replaceAll('isNodeUnlocked', 'isStageOpen')}\n// Renamed from: export function isNodeUnlocked(profile, nodeId)\n`),
+    ['dead-reference'], /progression\.mjs:isNodeUnlocked no longer resolves \(cited by 66 entries\)/],
+  ['a bound special whose brief still names its superseded file', { docs: { ...sources.docs, lz01Briefs: sources.docs.lz01Briefs.replace(/^(\| `lz01-004-aa1` \|(?:[^|\n]*\|){2} )`assets\/lz01\/yingning-aa2\.png`/m, '$1`assets/lz01/yingning-aa.png`') } },
+    ['checklist-mismatch'], /docs\/ART-LZ01\.md brief file assets\/lz01\/yingning-aa\.png differs from bound assets\/lz01\/yingning-aa2\.png/],
 ];
 /** [label, how the registry is altered after derivation, codes that must fire, a message one finding must match] */
 const REGISTRY_FAULTS = [
@@ -282,6 +293,21 @@ test('rule, resume and evidence references must name real code or real tests', (
   assert(runs("test('a sample', { timeout: 50, plan: { at: 1 } }, () => {});"), 'nested option objects still run');
   assert.equal(runs("test('a sample', { timeout: { at: 1 }, skip: true }, () => {});"), false);
   assert.equal(runs("test(`a sample`, () => {}); // `test('a sample'` is quoted here"), true);
+  assert.equal(runs("describe.skip('group', () => {\n  test('a sample', () => {});\n});"), false, 'a skipped suite hides the test from the skip count, so a nested test is not evidence');
+  assert.equal(runs("suite('group', { skip: true }, () => { test('a sample', () => {}); });"), false);
+  assert.equal(runs("test('outer', { skip: true }, () => { test('a sample', () => {}); });"), false, 'a test nested in a skipped test is not evidence');
+  assert.equal(runs("if (process.env.SLOW) { test('a sample', () => {}); }"), false, 'a test declared inside a block may never be declared');
+  assert(runs("describe('group', () => {});\ntest('a sample', () => {});"), 'a top-level test after a suite still counts');
+  assert.equal(runs("test('a sample', function () { this.skip('disabled'); });"), false, 'a function callback\'s context is `this`');
+  assert.equal(runs("test('a sample', async function () { this.todo(); });"), false);
+  assert.equal(runs("test('a sample', function (t) { if (slow) this?.skip(); });"), false);
+  assert(runs("test('a sample', function () { assert.ok(this.name); });"), 'a function callback that never skips still counts');
+  assert(runs("test('a sample', () => { subject.this.skip(); });"), 'only the context itself skipping counts');
+  const defines = text => resolveReference('sample.mjs:gone', () => text);
+  assert(defines('export function gone() {}') && defines('const gone = () => 1;') && defines('function other() {}\nexport { other, gone };'));
+  assert.equal(defines('// Renamed from: export function gone(profile) {}'), false, 'a definition left in a comment is not code');
+  assert.equal(defines('/* function gone() {} */'), false);
+  assert.equal(defines('const note = "function gone(";'), false, 'a definition quoted in a string is not code');
 });
 
 test('the asset walker follows every statically visible load form', () => {
@@ -410,26 +436,31 @@ test('acquisition lists exactly the printings a new journey and a v2 save migrat
 });
 
 test('reward rules name exactly the grant and ticket claims each clear can bank', () => {
-  const claim = 'progression.mjs:claimExpansionGrant', ticket = 'progression.mjs:openWX01Ticket';
+  const claim = 'progression.mjs:claimExpansionGrant', ticket = 'progression.mjs:openWX01Ticket', gift = 'progression.mjs:claimWX01StoryPrint';
   const encounters = registry.entries.filter(item => item.kind === 'encounter');
-  /** Clear encounters in this order; what each first clear banks. */
+  const aa = PRINTINGS.find(print => print.setId === 'wx01' && print.treatment === 'aa');
+  const giftOpen = profile => { try { claimWX01StoryPrint(structuredClone(profile), aa.id, { now }); return true; } catch { return false; } };
+  /** Clear encounters in this order; what each first clear banks or opens. */
   const clearAll = order => {
-    let profile = createProfile({ now });
+    let profile = createProfile({ now }), open = giftOpen(profile);
     const banked = new Map();
     for (const item of order) {
       const grants = profile.expansion.grants.length, tickets = profile.expansion.tickets;
       profile = play(profile, item.nodeId, 'owned').settled.profile;
-      banked.set(item.nodeId, { [claim]: profile.expansion.grants.length > grants, [ticket]: profile.expansion.tickets > tickets });
+      const opened = !open && giftOpen(profile);
+      open ||= opened;
+      banked.set(item.nodeId, { [claim]: profile.expansion.grants.length > grants, [ticket]: profile.expansion.tickets > tickets, [gift]: opened });
     }
     return banked;
   };
   const inOrder = clearAll(encounters);
-  const lists = { [claim]: [], [ticket]: [] }, banks = { [claim]: [], [ticket]: [] };
+  const lists = { [claim]: [], [ticket]: [], [gift]: [] }, banks = { [claim]: [], [ticket]: [], [gift]: [] };
   for (const item of encounters) {
-    for (const rule of [claim, ticket]) {
+    for (const rule of [claim, ticket, gift]) {
       let banked = inOrder.get(item.nodeId)[rule];
-      // Another campaign end would bank the final grant only when cleared last; try that order too.
-      if (!banked && rule === claim && item.rules.reward.includes(rule)) {
+      // A reward that opens when a whole group is cleared (the campaign-final grant, the story gift)
+      // could open on another member's clear only if that member were cleared last; try that order too.
+      if (!banked && rule !== ticket && item.rules.reward.includes(rule)) {
         try { banked = clearAll([...encounters.filter(other => other !== item), item]).get(item.nodeId)[rule]; } catch { banked = false; }
       }
       if (banked) banks[rule].push(item.nodeId);
@@ -438,8 +469,10 @@ test('reward rules name exactly the grant and ticket claims each clear can bank'
   }
   assert.deepEqual(lists[claim], banks[claim], 'an encounter lists claimExpansionGrant exactly when its clear banks a grant');
   assert.deepEqual(lists[ticket], banks[ticket], 'an encounter lists openWX01Ticket exactly when its clear banks a ticket');
+  assert.deepEqual(lists[gift], banks[gift], 'an encounter lists claimWX01StoryPrint exactly when its first clear opens the story gift');
   assert.deepEqual(banks[claim], ['echo-1-1', 'echo-1-2', 'echo-1-4', 'echo-1-6', 'echo-2-8', 'echo-3-8', 'echo-4-8', 'echo-5-8', 'echo-6-8']);
   assert.deepEqual(banks[ticket], ['echo-1-8', 'echo-2-8', 'echo-3-8', 'echo-4-8', 'echo-5-8', 'echo-6-8']);
+  assert.deepEqual(banks[gift], ['west-spirit-mountain']);
 
   const activity = entry('activity:fire-mountain');
   let profile = createProfile({ now }); profile.cleared = [activity.unlock.requires];
@@ -462,13 +495,15 @@ test('a preview printing\'s ownership reason follows the pages that serve it', (
     'collection.mjs only mints printing-catalogue.mjs printings. liaozhai.html loads the profile store (profile-store.mjs) but cannot mint this printing.');
 });
 
-test('the story gift opens only after the encounters that list it as a reward', () => {
-  const gift = registry.entries.filter(item => item.kind === 'encounter' && item.rules.reward.includes('progression.mjs:claimWX01StoryPrint')).map(item => item.nodeId);
-  assert.equal(gift.length, 4);
+test('the story gift opens only after every encounter its acquisition route names', () => {
+  const gate = STORY_NODES.filter(node => node.worldId === 'westward').map(node => node.id);
+  assert.equal(gate.length, 4);
   const aa = PRINTINGS.find(print => print.setId === 'wx01' && print.treatment === 'aa');
+  const route = entry(`print:${aa.id}`).acquisition.find(item => item.rule === 'progression.mjs:claimWX01StoryPrint');
+  assert(route.detail.endsWith(`after clearing ${gate.join(', ')}`), route.detail);
   const after = cleared => { const profile = createProfile({ now }); profile.cleared = cleared; return profile; };
-  assert.equal(claimWX01StoryPrint(after(gift), aa.id, { now }).cards[0].printId, aa.id);
-  for (const id of gift) assert.throws(() => claimWX01StoryPrint(after(gift.filter(other => other !== id)), aa.id, { now }), /通過西行首卷四處地點/, `${id} gates the gift`);
+  assert.equal(claimWX01StoryPrint(after(gate), aa.id, { now }).cards[0].printId, aa.id);
+  for (const id of gate) assert.throws(() => claimWX01StoryPrint(after(gate.filter(other => other !== id)), aa.id, { now }), /通過西行首卷四處地點/, `${id} gates the gift`);
 });
 
 test('a backup round trip keeps every playable clear, the activity record and every ownable printing', () => {

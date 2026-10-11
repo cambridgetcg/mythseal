@@ -251,10 +251,14 @@ subset that the build generates, not import this file.
   (merchant buyback, a v3+ save, a backup restore) mints nothing and is not listed.
 - **Reward rules are per entry:** an encounter lists `claimExpansionGrant` only if
   its first clear can bank a grant (a reward character, or the campaign's last
-  node), and `openWX01Ticket` only if it banks a ticket (the six volume finals).
-  The activity lists both, for its first-clear grant and weekly tickets. A test
-  clears every encounter and wins a run, and the lists must match exactly what
-  each clear banks.
+  node), `openWX01Ticket` only if it banks a ticket (the six volume finals), and
+  `claimWX01StoryPrint` only if its first clear can open the westward story gift.
+  The gift opens once all four westward nodes are cleared, and they unlock in a
+  chain, so only `west-spirit-mountain` lists it; the gift's acquisition route
+  still names all four. The activity lists `claimExpansionGrant` and
+  `openWX01Ticket`, for its first-clear grant and weekly tickets. A test clears
+  every encounter and wins a run, and the lists must match exactly what each
+  clear banks or opens.
 - **Capabilities and status:** each entry carries all five capabilities, each in
   one of four states, and its status is computed from them.
   [Q4 registry states](#q4-registry-states) below defines both and lists today's
@@ -263,13 +267,18 @@ subset that the build generates, not import this file.
   are `file.mjs:function` references. Evidence names `tests/file › title`, and a
   capability limit keeps its references beside its prose (`{ text, references }`).
   The audit resolves every reference-shaped string anywhere in an entry, so no
-  field escapes it, and it rejects prose that embeds a reference. A test counts only
-  if it runs: `test.skip`, `{ skip }`/`{ todo }` options, a declaration inside a
-  `//` or block comment or a string, and a body that calls its context's `skip()`
-  or `todo()` (even conditionally) do not resolve. A test hidden behind runtime
-  control flow around its declaration, such as `if (false) test(...)`, or skipped
-  through an indirect call cannot be seen statically; the runner's skip count
-  shows it.
+  field escapes it, and it rejects prose that embeds a reference. A code reference
+  resolves only to a definition in code, not one left in a comment or a string. A
+  test counts only if it is a top-level `test(...)` that runs. These do not
+  resolve: a declaration nested in any bracket (inside `describe`/`suite`, whose
+  `.skip` or `{ skip }` drops the test without counting it as skipped, another
+  test, a block or a function), `test.skip`, `{ skip }`/`{ todo }` options, a
+  declaration inside a `//` or block comment or a string, and a body that calls
+  its context's `skip()` or `todo()` (even conditionally). The context is the
+  callback's first parameter, or `this` in a `function` callback. A test hidden
+  behind bracketless runtime control flow, such as `if (false) test(...)`, or
+  skipped through an indirect call cannot be seen statically; only the runner's
+  test count (which drops) or skip count shows it.
   `cardId`, `printId` and the absent `uid` stay distinct. Only
   `FIRE_MOUNTAIN.version` exists as a declared content version, and no rules
   version exists. `contentDigest` (SHA-256 of each authored record) detects
@@ -287,8 +296,9 @@ subset that the build generates, not import this file.
   reaching the public build and a planned special that is bound, allowlisted or
   present while its checklist row still says "no image". They also cover drift
   between the LZ-01 checklist, its briefs and `LZ01_PLANNED_SPECIALS` (the list
-  `liaozhai.html` prints as still planned), and a dead rule or evidence
-  reference. Every one of the 27 finding codes has an injected-fault case, and a
+  `liaozhai.html` prints as still planned), including a bound special whose brief
+  still names a different file than the one `LZ01_SPECIALS` binds, and a dead
+  rule or evidence reference. Every one of the 27 finding codes has an injected-fault case, and a
   test fails if a new code lacks one. Four codes guard the registry's own shape
   (an owned-copy `uid`, a server-authority claim, a missing reason and an
   embedded reference); the current derivation does not produce them, so their
