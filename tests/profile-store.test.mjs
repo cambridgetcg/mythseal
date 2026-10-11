@@ -5,7 +5,7 @@ import { createProfile, hydrateProfile, PROFILE_KEY, beginBattle, finishBattle, 
 import { createSnapshot, restoreSnapshot } from '../cloud-save.mjs';
 import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { mintInstance, setInstanceXP, syncCollection } from '../collection.mjs';
-import { createProfileStore, assertLocalProfile, BATTLE_KEY, PROFILE_LOCK } from '../profile-store.mjs';
+import { createProfileStore, assertLocalProfile, BATTLE_KEY, PROFILE_LOCK, RECOVERY_KEY, RESTORE_LEDGER_ERROR } from '../profile-store.mjs';
 import { nearEnvelopeProfile } from './support/profile-envelope.mjs';
 
 const now = '2026-09-21T12:00:00.000Z';
@@ -25,6 +25,7 @@ function fixture(values = {}) {
   const storage = {
     getItem: key => data.get(key) ?? null,
     setItem(key, value) { if (key === failKey) throw new DOMException('Fixture quota', 'QuotaExceededError'); writes.push(key); data.set(key, value); },
+    removeItem(key) { writes.push(`-${key}`); data.delete(key); },
   };
   return { data, writes, storage, store: createProfileStore({ storage, now: () => now }), fail: key => { failKey = key; } };
 }
@@ -287,4 +288,41 @@ test('N16 the 4 MiB envelope check counts the ledger before any write', () => {
   const f = fixture({ [PROFILE_KEY]: large }), bytes = f.data.get(PROFILE_KEY);
   assert.throws(() => f.store.save(withLedger), /4 MiB/);
   assert.deepEqual(f.writes, []); assert.equal(f.data.get(PROFILE_KEY), bytes);
+});
+
+test('N24 a restore is checked before its recovery copy is written; a refused or failed restore keeps the previous copy', () => {
+  const previous = JSON.stringify({ savedAt: now, snapshot: createSnapshot(fresh()) });
+  const current = { ...upgradeInstance(fresh(), 'card-000001'), commands: ledger() };
+  // A valid backup within the retired ledger's ~77 bytes of the 4 MiB limit.
+  const near = restoreSnapshot(createSnapshot(nearEnvelopeProfile(fresh(), { headroom: 40 })), { now });
+  assertLocalProfile(near);
+  {
+    const f = fixture({ [PROFILE_KEY]: current, [RECOVERY_KEY]: previous }), before = new Map(f.data);
+    assert.throws(() => f.store.replace(f.store.load(), near, { savedAt: now }), { message: RESTORE_LEDGER_ERROR });
+    assert.deepEqual(f.writes, []); assert.deepEqual(f.data, before, 'neither the journey nor the recovery copy changed');
+  }
+  {
+    const f = fixture({ [PROFILE_KEY]: fresh(), [RECOVERY_KEY]: previous }), replaced = f.store.load();
+    const next = f.store.replace(replaced, near, { savedAt: now });
+    assert.equal(Object.hasOwn(next, 'commands'), false, 'the same backup restores over a journey without a ledger');
+    assert.deepEqual(f.writes, [RECOVERY_KEY, PROFILE_KEY]);
+    assert.deepEqual(JSON.parse(f.data.get(RECOVERY_KEY)), { savedAt: now, snapshot: createSnapshot(replaced) });
+  }
+  {
+    const small = restoreSnapshot(createSnapshot(fresh()), { now });
+    const f = fixture({ [PROFILE_KEY]: current, [RECOVERY_KEY]: previous }), bytes = f.data.get(PROFILE_KEY);
+    f.fail(PROFILE_KEY);
+    assert.throws(() => f.store.replace(f.store.load(), small, { savedAt: now }), { name: 'QuotaExceededError' });
+    assert.equal(f.data.get(RECOVERY_KEY), previous, 'the previous recovery copy is put back');
+    assert.equal(f.data.get(PROFILE_KEY), bytes);
+    const g = fixture({ [PROFILE_KEY]: current });
+    g.fail(PROFILE_KEY);
+    assert.throws(() => g.store.replace(g.store.load(), small, { savedAt: now }), { name: 'QuotaExceededError' });
+    assert.equal(g.data.has(RECOVERY_KEY), false, 'no recovery copy is left claiming a restore happened');
+    const h = fixture({ [PROFILE_KEY]: current }), replaced = h.store.load();
+    const next = h.store.replace(replaced, small, { savedAt: now });
+    assert.deepEqual(next.commands, { version: 1, nextSeq: 3, retiredBelow: 3, receipts: [] }, 'a restore retires the replaced lineage');
+    assert.deepEqual(JSON.parse(h.data.get(PROFILE_KEY)), next);
+    assert.deepEqual(JSON.parse(h.data.get(RECOVERY_KEY)), { savedAt: now, snapshot: createSnapshot(replaced) });
+  }
 });

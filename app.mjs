@@ -18,11 +18,11 @@ import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConf
 import { createRoundPresentation, paintRoundResources, permittedAnnouncement, createPlanningView, createRevealView } from './battle-presentation.mjs';
 import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
-import { createSnapshot, restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
+import { restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
 import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './profile-store.mjs';
 import { previewCommand, commitCommand, readCommandReceipt, COMMAND_MESSAGES } from './local-commands.mjs';
 import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
-import { commandLedgerJSON, assertLedgerUnchanged, retireCommandLedger } from './command-ledger.mjs';
+import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
@@ -134,11 +134,9 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
     if (economyBusy || current.pending || current.expansion.fireMountain.run) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');
     if (current.wx01.receipt) throw Error('請先查看並確認已入藏的西行畫作，再恢復旅程。');
     if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
-    // Preserve a complete, validated local recovery copy before replacing anything.
-    localStorage.setItem(RECOVERY_KEY, JSON.stringify({ savedAt: new Date().toISOString(), snapshot: createSnapshot(current) }));
-    // Retire the replaced lineage's command boundary so no earlier preview can commit.
-    const next = Object.hasOwn(current, 'commands') ? { ...restored, commands: retireCommandLedger(current.commands) } : restored;
-    profileStore.save(next);
+    // Checks the replacement (with the replaced lineage's retired command boundary) first,
+    // then keeps a validated recovery copy of `current`, then saves; a refusal changes neither.
+    const next = profileStore.replace(current, restored, { savedAt: new Date().toISOString() });
     packOpening?.destroy();packOpening=null;
     localStorage.removeItem(BATTLE_KEY);
     syncProfile(next);passportQuote=null;
