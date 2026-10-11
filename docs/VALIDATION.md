@@ -113,10 +113,11 @@ for different hidden bids and Fury) still pass.
   measurement last ran on `80fb7a3`.
 - **Still open**, detailed in the
   [plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10): the
-  live-region announcement names the winner at Commit; where `backdrop-filter`
-  is not drawn (headless WebKit, and Safari releases that need the `-webkit-`
-  prefix) the resolved table behind the reveal is only dimmed, so its result
-  stays readable during 'sealed' and 'bids'; portrait windows under about
+  live-region announcement names the winner at Commit; where the backdrop blur
+  is not drawn the resolved table behind the reveal is only dimmed, so its
+  result stays readable during 'sealed' and 'bids' (seen in headless WebKit;
+  the `-webkit-` prefix and an opaque no-support fallback were added later on
+  2026-10-11, and real Safari is unchecked); portrait windows under about
   540 px tall, and the selected card's full-motion lift at 540–549 px; three
   技能與共鳴 pages where `ced2aa4` had two at 375×553 and 360×560; and the
   device, owner-review and clipping notes from before.

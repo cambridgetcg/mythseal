@@ -378,12 +378,13 @@ commit list and the final checks.
   rewards-dialog tab width.
 - The round result's live-region announcement still names the winner at
   Commit, before the visual staging.
-- The reveal hides the resolved table behind it only where `backdrop-filter`
-  is drawn. `styles.css` has only the unprefixed property, so headless WebKit,
-  and Safari releases that need the `-webkit-` prefix, only dim the table under
-  the 75 % backdrop: 此回合勝, the damage and the new life and pills stay
-  readable during 'sealed' and 'bids'. Browsers without `:has()` fall back to
-  the old backdrop fade. Real Safari was not checked.
+- The reveal hides the resolved table behind it with the backdrop blur. Since
+  2026-10-11 `styles.css` also sets `-webkit-backdrop-filter` for Safari
+  releases that need the prefix, and `battle.css` makes the reveal backdrop
+  nearly opaque where neither property is supported. Headless WebKit reports
+  support but does not draw the blur, so 此回合勝, the damage and the new life
+  and pills stay readable there during 'sealed' and 'bids'. Browsers without
+  `:has()` fall back to the old backdrop fade. Real Safari was not checked.
 - Portrait windows under about 540 px tall are not supported: the table rows
   overlap by up to about 11 px there, would also need vertical slot labels,
   and the reveal's clash page already overflows at 390×520 and 360×530. At

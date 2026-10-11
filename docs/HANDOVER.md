@@ -73,8 +73,8 @@ pushed, merged or deployed**. The last recorded public release is still
   method.
 - **Open:** physical iOS/Android devices, human playtest, owner review of the
   new phone, tablet and landscape layouts; the live-region announcement that
-  names the winner at Commit; the resolved table that stays readable behind the
-  reveal where `backdrop-filter` is not drawn; portrait windows under about
+  names the winner at Commit; a real-Safari check that the reveal's backdrop blur
+  hides the resolved table (prefixed and fallback rules added 2026-10-11); portrait windows under about
   540 px tall; the plan's remaining clipping notes; and merge/build/release.
   The [battle-table plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
   lists them.

@@ -89,6 +89,8 @@
 /* The inert table behind a round result already shows that round resolved, so its
    backdrop dims and blurs it from the first frame; only the sealed dialog fades in. */
 .modal-backdrop:has(>.battle-reveal){animation:none}
+/* Without a drawn blur, the resolved table would stay readable behind the staged reveal. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.modal-backdrop:has(>.battle-reveal){background:#020805f5}}
 .modal-backdrop>.battle-reveal{animation:fade-in .2s}
 .battle-table .pill-control button{width:44px;height:44px;min-width:44px;min-height:44px}
 .battle-table .fury-toggle{min-height:44px}
