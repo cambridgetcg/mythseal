@@ -26,7 +26,7 @@ function sessionHistory(state = null) {
  * A model app: the view changes the way app.mjs's own functions change it, and
  * counts settlements, which Back must never cause.
  */
-function harness({ state = null, canPush = () => true, initial = view() } = {}) {
+function harness({ state = null, canPush = () => true, initial = view(), now = () => 0 } = {}) {
   const session = sessionHistory(state), microtasks = [];
   const app = { view: structuredClone(initial), settlements: 0, decisions: [] };
   const apply = decision => {
@@ -46,7 +46,7 @@ function harness({ state = null, canPush = () => true, initial = view() } = {}) 
     depth: () => navLayers(app.view).length,
     back: () => apply(backDecision(app.view)),
     signature: () => navSignature(app.view),
-    canPush, schedule: callback => microtasks.push(callback),
+    canPush, now, schedule: callback => microtasks.push(callback),
   });
   /** Run queued reconciliations, then deliver queued traversals one at a time. */
   function settle() {
@@ -362,4 +362,25 @@ test('N16 a seeded walk of 30 mixed steps keeps history.length ≤ initial + 4 a
     h.back();
     assert.equal(h.session.log.left, 1);
   }
+});
+
+test('N17 a traversal of ours that never lands is given up after the stall window, so pushes resume', () => {
+  let clock = 0;
+  const h = started({ now: () => clock });
+  h.user(v => { v.screen = 'bag'; v.bagGroup = true; });
+  h.nav.noteInput(); h.app.view.bagGroup = false; h.nav.queue(); h.microtasks();
+  assert.deepEqual(h.session.queued, [-1]);
+  h.session.queued.length = 0; // the browser dropped it and no popstate follows
+  clock = 1000;
+  h.user(v => { v.modal = modal('quests'); });
+  assert.equal(h.nav.state.pending, 1, 'still waiting inside the window');
+  clock = 5000;
+  h.user(() => {});
+  assert.equal(h.nav.state.pending, null);
+  // Recovered from the entry the page is really on (depth 2), then reconciled to 2 layers.
+  assert.equal(depthOnEntry(h), 2);
+  assert.equal(h.layers(), 2);
+  h.back();
+  assert.equal(h.app.view.modal, null);
+  assert.equal(h.session.log.left, 0);
 });

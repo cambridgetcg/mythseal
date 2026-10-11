@@ -105,10 +105,11 @@ const randomId = () => {
  * Each entry's state: { v, sid, abs, depth, layers }. `abs` counts this tab's game
  * entries from the first one, across reloads, so the root can leave in one Back.
  */
-export function createNavHistory({ history, depth, back, signature = () => '', canPush = () => true, schedule = callback => queueMicrotask(callback), sessionId = randomId() }) {
+export const NAV_STALL_MS = 3000;
+export function createNavHistory({ history, depth, back, signature = () => '', canPush = () => true, schedule = callback => queueMicrotask(callback), now = () => Date.now(), sessionId = randomId() }) {
   // abs: the entry we are on; base: this load's root entry; top: our highest entry still in
-  // the list; pending: where our own traversal lands, from `origin`.
-  let started = false, abs = 0, base = 0, top = 0, pending = null, origin = 0, written = null, queued = false, inputTurn = false;
+  // the list; pending: where our own traversal lands, from `origin`, started at `pendingAt`.
+  let started = false, abs = 0, base = 0, top = 0, pending = null, origin = 0, pendingAt = 0, written = null, queued = false, inputTurn = false;
   const sid = sessionId;
   const entry = at => ({ [NAV_STATE_KEY]: { v: NAV_STATE_VERSION, sid, abs: at, depth: at - base, layers: signature() } });
   const write = (method, at) => {
@@ -117,11 +118,20 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
   };
   function go(delta) {
     if (!delta) return;
-    origin = abs; pending = abs + delta;
+    origin = abs; pending = abs + delta; pendingAt = now();
     history.go(delta);
+  }
+  /** A same-document walk lands within milliseconds. One that never fired popstate (the
+   * browser dropped it) must not block every later push: read where the page really is. */
+  function recoverStall() {
+    if (pending === null || now() - pendingAt < NAV_STALL_MS) return;
+    const current = readNavState(history.state);
+    pending = null;
+    if (current && current.sid === sid) abs = current.abs;
   }
   function sync() {
     queued = false;
+    recoverStall();
     if (!started || pending !== null) return;
     const want = base + depth();
     if (want < abs) return go(want - abs);
