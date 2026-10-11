@@ -20,7 +20,7 @@ import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
 import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './profile-store.mjs';
-import { previewCommand, commitCommand, readCommandReceipt, COMMAND_MESSAGES } from './local-commands.mjs';
+import { previewCommand, commitCommand, readCommandReceipt, duplicateMessage, COMMAND_MESSAGES } from './local-commands.mjs';
 import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
@@ -581,7 +581,7 @@ async function runUpgrade(uid){
       syncProfile(result.profile);
       if(!result.duplicate)account.markLocalChanged();
       render();showInstance(uid);
-      toast(result.duplicate?COMMAND_MESSAGES.duplicate:COMMAND_MESSAGES.committed);playTone('select');
+      toast(result.duplicate?duplicateMessage(result.receipt):COMMAND_MESSAGES.committed);playTone('select');
       return;
     }
     try{syncProfile(loadProfile());render();showInstance(uid);}catch(error){return toast(error.message);}

@@ -21,7 +21,7 @@ const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Conte
 const now = '2026-09-22T12:00:00.000Z';
 const contexts = new Set(), checks = [], errors = [];
 const COMMITTED = '此卡修練完成', DUPLICATE = '這次修練早已入帳', CHANGED = '卡牌剛有變動', QUOTA = '儲存空間不足', NO_LOCK = '請用支援安全儲存的新版瀏覽器修練';
-const UNSYNCED = COMMAND_MESSAGES.unsynced;
+const UNSYNCED = COMMAND_MESSAGES.unsynced, FIRST_RECEIPT = '已入帳的修練：Lv.1 → Lv.2 · 120 金幣 · 6 靈砂';
 const read = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROFILE_KEY);
 const raw = page => page.evaluate(key => localStorage.getItem(key), PROFILE_KEY);
 const writes = page => page.evaluate(() => window.commandSmokeWrites);
@@ -139,7 +139,10 @@ try {
     const before = await read(first);
     await press(first, upgradeButton(first, target), COMMITTED);
     const after = await read(first), secondWrites = await writes(second);
+    const fromDuplicate = await toastCount(second);
     await press(second, upgradeButton(second, target), DUPLICATE);
+    assert((await toastsSince(second, fromDuplicate)).some(text => text.includes(FIRST_RECEIPT)), 'the duplicate names the accepted receipt');
+    assert((await second.locator('#announcer').textContent()).includes(FIRST_RECEIPT), 'screen readers hear the receipt too');
     assert.deepEqual(await read(second), after, 'the stale card page spends nothing');
     assert.equal(await writes(second), secondWrites);
     assert.equal(after.coins, before.coins - 120);
@@ -201,6 +204,7 @@ try {
     const messages = [...await toastsSince(first, fromFirst), ...await toastsSince(second, fromSecond)];
     assert.equal(messages.filter(text => text.includes(COMMITTED)).length, 1, messages.join(' | '));
     assert.equal(messages.filter(text => text.includes(DUPLICATE)).length, 1, messages.join(' | '));
+    assert(messages.some(text => text.includes(DUPLICATE) && text.includes(FIRST_RECEIPT)), messages.join(' | '));
     const saved = await read(first);
     assert.equal(card(saved, target).level, 2); assert.equal(saved.coins, before.coins - 120);
     assert.equal(await writes(first) + await writes(second), beforeWrites + 1);
@@ -237,7 +241,8 @@ try {
     const bad = outcomes.filter(outcome => outcome.committed !== 1 || outcome.answered !== 1 || outcome.writes !== 1 || outcome.spent !== 120
       || outcome.upgraded.length !== 1 || outcome.receipts.length !== 1 || outcome.receipts[0] !== outcome.upgraded[0]);
     assert.deepEqual(bad, [], JSON.stringify(bad, null, 1));
-    passed(`B4 at ${outcomes[0].bytes} B saved, ${rounds} rounds per case: the same copy commits once and the other page gets a duplicate; sibling copies in one slot commit once and the other page is told the card changed`);
+    assert(outcomes.filter(outcome => outcome.variant === 'same').every(outcome => outcome.messages.some(text => text.includes(FIRST_RECEIPT))));
+    passed(`B4 at ${outcomes[0].bytes} B saved, ${rounds} rounds per case: the same copy commits once and the other page gets the receipt; sibling copies in one slot commit once and the other page is told the card changed`);
   }
 
   {

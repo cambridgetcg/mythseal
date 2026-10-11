@@ -14,7 +14,7 @@ import { previewInheritance, inheritInstances } from '../inheritance.mjs';
 import { claimPlaytestSupply } from '../playtest-supply.mjs';
 import { createProfileStore, assertLocalProfile } from '../profile-store.mjs';
 import { createSnapshot, restoreSnapshot } from '../cloud-save.mjs';
-import { previewCommand, commitCommand, readCommandReceipt, COMMAND_MESSAGES } from '../local-commands.mjs';
+import { previewCommand, commitCommand, readCommandReceipt, receiptSummary, duplicateMessage, COMMAND_MESSAGES } from '../local-commands.mjs';
 import { MAX_COMMAND_SEQ, retireCommandLedger, commandLedgerJSON, assertLedgerUnchanged } from '../command-ledger.mjs';
 import { nearEnvelopeProfile } from './support/profile-envelope.mjs';
 
@@ -163,6 +163,23 @@ test('N5 a duplicate returns the original receipt without a write, even after th
   h.clear(); const afterMax = await commit(h, request);
   assert.equal(afterMax.status, 'committed'); assert.equal(afterMax.duplicate, true);
   assert.deepEqual(afterMax.receipt, first.receipt); assert.equal(h.writes(), 0); assert.deepEqual(balances(), spent);
+});
+
+test('N25 a duplicate names the accepted receipt: its real levels and costs, not the stale page\'s quote', async () => {
+  const base = rich(), uid = outsideDeck(base), h = harness(base);
+  const { request } = quote(h, uid), first = await commit(h, request);
+  edit(h, profile => setInstanceXP(profile, uid, 200)); // later progress elsewhere; the quote is now stale
+  const again = await commit(h, request);
+  assert.equal(again.duplicate, true);
+  assert.equal(receiptSummary(again.receipt), 'Lv.1 → Lv.2 · 120 金幣 · 6 靈砂');
+  assert.equal(duplicateMessage(again.receipt), `${COMMAND_MESSAGES.duplicate}已入帳的修練：Lv.1 → Lv.2 · 120 金幣 · 6 靈砂。`);
+  assert.ok(duplicateMessage(again.receipt).startsWith(COMMAND_MESSAGES.duplicate));
+  assert.deepEqual(again.receipt, first.receipt);
+  const second = await commit(h, quote(h, uid).request);
+  assert.equal(receiptSummary(second.receipt), 'Lv.3 → Lv.4 · 360 金幣 · 18 靈砂');
+  for (const missing of [null, undefined, {}, { result: null }]) {
+    assert.equal(receiptSummary(missing), ''); assert.equal(duplicateMessage(missing), COMMAND_MESSAGES.duplicate);
+  }
 });
 
 test('N6 a changed payload under the same identity is rejected; malformed requests never read storage', async () => {

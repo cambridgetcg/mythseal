@@ -41,6 +41,17 @@ const rejected = (reason, message = COMMAND_MESSAGES[reason]) => ({ status: 'rej
 const unknown = commandId => ({ status: 'unknown', commandId, message: COMMAND_MESSAGES.unknown });
 const isQuota = error => ['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'].includes(error?.name);
 const ledgerOf = profile => Object.hasOwn(profile, 'commands') ? profile.commands : emptyCommandLedger();
+/** The accepted receipt's real levels and costs, as stored; never the preview's. */
+export function receiptSummary(receipt) {
+  const result = receipt?.result;
+  if (!isRecord(result)) return '';
+  return `Lv.${result.fromLevel} → Lv.${result.toLevel} · ${result.coins} 金幣 · ${result.dust} 靈砂`;
+}
+/** A duplicate names the upgrade that was accepted (§9), so a stale page learns what happened. */
+export function duplicateMessage(receipt) {
+  const summary = receiptSummary(receipt);
+  return summary ? `${COMMAND_MESSAGES.duplicate}已入帳的修練：${summary}。` : COMMAND_MESSAGES.duplicate;
+}
 function deepFreeze(value) {
   if (value && typeof value === 'object') { Object.values(value).forEach(deepFreeze); Object.freeze(value); }
   return value;
