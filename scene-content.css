@@ -313,6 +313,11 @@
 .reveal-pair-side[data-winner] b{color:#ecd093}
 .reveal-pair-side small{min-width:0;margin-left:auto;font-size:10px;color:#d2d7c7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .battle-reveal:has(.dialog-module-clash:not([hidden])) .reveal-played-pair{display:none}
+/* Beside the resource and effect pages the pair carries the round, the cards, bids
+   and attacks and (from impact) the winner, so the eyebrow and the phase line
+   yield there at every size; the clash page keeps both. Both panels then share one
+   page at 1440×900 and 360×740, as before the pair existed. */
+.scene-dialog.battle-reveal:has(.dialog-module-clash[hidden])>:is(.eyebrow,.mist-reveal-caption,.dialog-reveal-status){display:none}
 @media(prefers-reduced-motion:no-preference){
  body[data-motion="full"]:not([data-page-hidden="true"]) .battle-reveal[data-phase="sealed"] .reveal-played-pair{opacity:0;visibility:hidden}
  /* Cards, bids and attacks are public at 'bids'; the winner word and gold wait
@@ -320,13 +325,10 @@
  body[data-motion="full"]:not([data-page-hidden="true"]) .battle-reveal:is([data-phase="sealed"],[data-phase="bids"]) .reveal-pair-outcome{visibility:hidden}
  body[data-motion="full"]:not([data-page-hidden="true"]) .battle-reveal:is([data-phase="sealed"],[data-phase="bids"]) .reveal-pair-side[data-winner] b{color:var(--paper)}
 }
-/* Short landscape: one-line pair. Beside the resource and effect pages it carries
-   the round, the cards, bids and attacks and (from impact) the winner, so the
-   eyebrow and the phase line yield there; the clash page keeps both. Both panels
-   and each effect block then fit 360 px tall windows. */
+/* Short landscape: one-line pair, so both panels and each effect block fit 360 px
+   tall windows. */
 @media(max-height:500px){
  .reveal-played-pair{grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto;gap:0 12px;padding:3px 8px}
  .reveal-pair-round{grid-row:auto}
- .scene-dialog.battle-reveal:has(.dialog-module-clash[hidden])>:is(.eyebrow,.mist-reveal-caption,.dialog-reveal-status){display:none}
  .scene-dialog.battle-reveal .battle-resources.compact .battle-resource-caption{min-height:0}
 }

@@ -41,6 +41,11 @@ const selectedSizes = process.env.BATTLE_TABLE_SIZE ? sizes.filter(pair => pair.
 // and phone landscape (640x360, and 600 px wide or narrower: 568x320, 600x400,
 // 560x420, 600x540).
 const SWEEP = [[601, 800], [700, 800], [744, 1133], [768, 1024], [800, 600], [820, 1180], [834, 1194], [906, 700], [960, 540], [1024, 600], [1024, 768], [1280, 620], [1366, 768], [1920, 1080], [375, 667], [375, 553], [360, 560], [360, 540], [412, 915], [667, 375], [740, 360], [640, 360], [568, 320], [600, 400], [560, 420], [600, 540]];
+// Reveal pages that fit on one page beside the played pair, as they did on ced2aa4:
+// 生命與仙丹 and 技能與共鳴 at these sizes for every fixture, and at 360x640 the
+// opponent-led opening's 技能與共鳴 (longer effect notes take two pages there).
+const ONE_PAGE_SIZES = ['1440x900', '1920x1080', '390x844', '360x740'];
+const onePage = (tab, size, fixture) => ONE_PAGE_SIZES.includes(size) || (tab === 'effects' && size === '360x640' && fixture === 'q0-opponent-leads-r1');
 const sweepSizes = process.env.BATTLE_TABLE_SIZE ? selectedSizes : [...sizes, ...SWEEP];
 assert(selectedSizes.length, 'BATTLE_TABLE_SIZE must name one supported size');
 const checks = [], screenshots = [], errors = [], measurements = [], contexts = new Set();
@@ -395,6 +400,7 @@ async function reveal(page, { round, playerCard, opponentCard, keyboard = false,
     assert(!view.scroll, `${tab}: no document scroll`);
     assert.deepEqual(view.clipped, [], `${page.size} ${tab}: reveal page content must fit without scrolling`);
     const sides = new Set();
+    let pageCount = null;
     for (let turn = 0; turn < 8; turn++) {
       const list = await page.evaluate(() => {
         const module = document.querySelector('.battle-reveal [data-viewport-module]:not([hidden])'), list = module?.querySelector('[data-viewport-list]');
@@ -407,6 +413,7 @@ async function reveal(page, { round, playerCard, opponentCard, keyboard = false,
           pager: shown, more: shown && !!next && !next.disabled };
       });
       if (!list) break;
+      if (!turn) pageCount = list.pages;
       list.sides.forEach(side => sides.add(side));
       assert.deepEqual([list.overflow, list.cut], ['false', []], `${page.size} ${tab} page ${list.page}/${list.pages}: items stay inside the list`);
       assert(list.pager || list.pages === '1', `${page.size} ${tab}: ${list.pages} pages but no pager`);
@@ -414,6 +421,7 @@ async function reveal(page, { round, playerCard, opponentCard, keyboard = false,
       await press(page, page.locator('.battle-reveal [data-viewport-module]:not([hidden]) [data-viewport-action="next"]'), `${tab} 下頁`);
     }
     if (tab === 'resources') assert.deepEqual([...sides].sort(), ['opponent', 'player'], `${page.size}: both public resource panels reachable by pointer`);
+    if (tab !== 'clash' && onePage(tab, page.size, page.fixtureName)) assert.equal(pageCount, '1', `${page.size} ${page.fixtureName} ${tab}: fits one page beside the played pair, as on ced2aa4`);
     if (tab === shotTab) await shot(page, `reveal-${tab}`);
   }
   return accepted;
