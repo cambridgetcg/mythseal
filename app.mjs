@@ -48,6 +48,8 @@ const loadProfile=()=>profileStore.load();
 const profileFence=createIndexedDBFence((()=>{try{return globalThis.indexedDB;}catch{return null;}})(),{key:PROFILE_KEY});
 const fencedLock=strict=>navigator.locks?createFencedLock({request:fn=>navigator.locks.request(PROFILE_LOCK,fn),fence:profileFence,read:()=>localStorage.getItem(PROFILE_KEY),strict}):null;
 // Adapter commands require the lock and a fence proving the bytes are current; no unlocked path.
+// Restore holds it strictly too (§11): it retires the ledger and keeps a recovery copy of the
+// journey it replaces, so it decides on the latest bytes or refuses.
 const profileLock=()=>fencedLock(true);
 // Every other writer under PROFILE_LOCK: waits briefly, then proceeds as before; its write heals the fence.
 const writerLock=()=>fencedLock(false);
@@ -126,7 +128,9 @@ async function transact(change,onSaved){
 }
 async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = () => true } = {}) {
   const restored = restoreSnapshot(snapshot);
-  const lock = writerLock();
+  // Strict: a tab still behind another tab's commit would retire the ledger below a quote
+  // minted after it, and replace a journey that no recovery copy holds.
+  const lock = profileLock();
   if (!lock) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
   return lock(() => {
     const current = loadProfile();

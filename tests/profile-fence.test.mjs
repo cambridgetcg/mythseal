@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { createProfile, PROFILE_KEY } from '../progression.mjs';
 import { getActiveDeck, toggleInstanceLock } from '../collection.mjs';
-import { createProfileStore } from '../profile-store.mjs';
+import { createProfileStore, RECOVERY_KEY } from '../profile-store.mjs';
+import { createSnapshot, restoreSnapshot, fingerprintProfile } from '../cloud-save.mjs';
 import { previewCommand, commitCommand, readCommandReceipt, COMMAND_MESSAGES } from '../local-commands.mjs';
 import {
   createFencedLock, createIndexedDBFence, profileDigest, ProfileFenceError, FENCE_MESSAGES,
@@ -61,7 +63,7 @@ function origin(profile, { lag = 15 } = {}) {
   return {
     tab, lock, fence, faults, fenceLog,
     record: () => record, setRecord: next => { record = next; },
-    saved: () => JSON.parse(backend.get(PROFILE_KEY)), bytes: () => backend.get(PROFILE_KEY),
+    saved: () => JSON.parse(backend.get(PROFILE_KEY)), bytes: () => backend.get(PROFILE_KEY), stored: key => backend.get(key) ?? null,
     pending: () => held.length, deliverOne: () => held.shift()?.(),
     deliver: () => { while (held.length) held.shift()(); },
   };
@@ -367,6 +369,67 @@ test('N29 with the IndexedDB adapter on a full disk, an upgrade asks for space, 
   await lock(false)(() => a.store.save(a.store.load())); // a reload's startup save records it
   const fresh = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
   assert.equal((await commitIn(a, fresh, lock(true))).status, 'committed', 'the same browser commits: it was never the problem');
+});
+
+/** The body of app.mjs restoreLocalProfile's lock callback, without its DOM state. */
+function restoreIn(tab, snapshot, expectedFingerprint, lock) {
+  const restored = restoreSnapshot(snapshot, { now });
+  return lock(() => {
+    const current = tab.store.load();
+    if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
+    return tab.store.replace(current, restored, { savedAt: at });
+  });
+}
+
+test('N30 restore holds the fence strictly: a tab behind another tab\'s commit refuses, so the commit and the expiry of older quotes both hold', async () => {
+  const base = rich(), [x, y, z] = spare(base), backup = createSnapshot(base);
+  // Tabs A and B are in sync at nextSeq 2. B confirms a restore; A then commits cmd-2 and
+  // previews cmd-3, and neither write has reached B.
+  async function lagging(strict) {
+    const o = origin(base, { lag: null }), a = o.tab(), b = o.tab();
+    assert.equal((await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: z }).request, a.fenced(true))).status, 'committed');
+    o.deliver();
+    const expected = fingerprintProfile(b.store.load());
+    assert.equal((await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true))).status, 'committed');
+    const quote = previewCommand(a.store.load(), { type: UPGRADE, uid: y }).request;
+    assert.equal(quote.commandId, 'cmd-3');
+    return { o, a, b, quote, restore: () => restoreIn(b, backup, expected, b.fenced(strict, 20)) };
+  }
+  {
+    // Control: the lenient lock restore used before decides on B's old view.
+    const { o, a, quote, restore } = await lagging(false);
+    await restore();
+    assert.deepEqual(o.saved().commands, { version: 1, nextSeq: 3, retiredBelow: 3, receipts: [] }, 'retired from the old view');
+    assert.equal(levelOf(JSON.parse(o.stored(RECOVERY_KEY)).snapshot.profile, x), 1, "the recovery copy misses A's commit");
+    o.deliver();
+    const late = await commitIn(a, quote, a.fenced(true));
+    assert.deepEqual([late.status, late.duplicate], ['committed', false], 'a quote from before the restore commits after it');
+  }
+  {
+    const { o, a, b, quote, restore } = await lagging(true);
+    const bytes = o.bytes();
+    await assert.rejects(restore(), { name: 'ProfileFenceError', code: 'unsynced', message: FENCE_MESSAGES.unsynced });
+    assert.equal(o.bytes(), bytes); assert.equal(o.stored(RECOVERY_KEY), null, 'no recovery copy is written');
+    assert.equal(levelOf(o.saved(), x), 2, "A's commit is kept");
+    o.deliver();
+    await assert.rejects(restore(), /本機旅程剛有更新/, 'once it arrives, the confirmation is out of date (§12)');
+    await restoreIn(b, backup, fingerprintProfile(b.store.load()), b.fenced(true, 20));
+    assert.deepEqual(o.saved().commands, { version: 1, nextSeq: 4, retiredBelow: 4, receipts: [] });
+    assert.equal(levelOf(JSON.parse(o.stored(RECOVERY_KEY)).snapshot.profile, x), 2, 'the recovery copy holds the latest journey');
+    o.deliver();
+    const late = await commitIn(a, quote, a.fenced(true));
+    assert.deepEqual([late.status, late.reason], ['rejected', 'expired'], 'every ID from before the restore is expired (§11)');
+  }
+});
+
+test('N30 app.mjs restores under the strict fenced lock, as commands do', async () => {
+  const source = await readFile(new URL('../app.mjs', import.meta.url), 'utf8');
+  const start = source.indexOf('async function restoreLocalProfile('), end = source.indexOf('function recoveryMarkup(');
+  assert(start > 0 && end > start);
+  const restore = source.slice(start, end);
+  assert.match(restore, /const lock = profileLock\(\);/);
+  assert.doesNotMatch(restore, /writerLock\(\)/);
+  assert.match(source, /const profileLock=\(\)=>fencedLock\(true\);/);
 });
 
 /** A small in-memory IndexedDB: one database, one object store, async events. While

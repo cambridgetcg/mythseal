@@ -273,6 +273,34 @@ try {
   await shot(oldServer.page, 'account-mobile-legacy-restore.png');
   complete('Old-server capability absence blocks v5 upload/delete while explicit v1 restore migrates copies and preserves v5 recovery');
 
+  // Restore holds the profile fence strictly (docs/LOCAL-COMMANDS.md §11): a fence left
+  // "writing" refuses it with nothing changed, and the next page load's own save heals it.
+  const strict = await fixturePage(seed), strictPage = strict.page;
+  const fenceState = (state = null) => strictPage.evaluate(async state => {
+    const store = (await import('/profile-fence.mjs')).createIndexedDBFence(indexedDB);
+    if (state) await store.write({ v: 1, state });
+    return (await store.read())?.state ?? null;
+  }, state);
+  const earlier = structuredClone(seed); earlier.coins = 2468;
+  const recoveryCopy = JSON.stringify({ savedAt: fixedNow, snapshot: createSnapshot(earlier) });
+  await strictPage.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: recoveryKey, value: recoveryCopy });
+  assert.equal(await fenceState(), 'settled', 'the startup save records the fence');
+  await fenceState('writing');
+  await action(strictPage, 'account-open').click(); await idle(strictPage);
+  await action(strictPage, 'restore-recovery').click();
+  await action(strictPage, 'confirm-restore-recovery').click();
+  await strictPage.locator('.toast', { hasText: '上次儲存未能完整確認' }).waitFor();
+  assert.deepEqual(await readProfile(strictPage), seed, 'the refused restore changed nothing');
+  assert.equal(await strictPage.evaluate(key => localStorage.getItem(key), recoveryKey), recoveryCopy);
+  await strictPage.reload(); await strictPage.locator('.game-lobby').waitFor();
+  assert.equal(await fenceState(), 'settled', 'the reload healed it');
+  await action(strictPage, 'account-open').click(); await idle(strictPage);
+  await action(strictPage, 'restore-recovery').click();
+  await action(strictPage, 'confirm-restore-recovery').click();
+  await strictPage.waitForFunction(({ key, coins }) => JSON.parse(localStorage.getItem(key)).coins === coins, { key: PROFILE_KEY, coins: earlier.coins });
+  assert.deepEqual((await readRecovery(strictPage)).snapshot, createSnapshot(seed));
+  complete('Restore refuses on an unsettled profile fence with nothing changed; after a reload heals it, the local recovery restore completes');
+
   assert.deepEqual(errors, [], 'Unexpected browser errors or failed static resources');
   console.log(JSON.stringify({ ok: true, evidence: 'Isolated browser UI with intercepted mock APIs; no live authentication or email delivery tested.', checks, screenshots, browserErrors: errors, externalOriginsBlocked: blockedExternal.size }, null, 2));
 } catch (error) {
