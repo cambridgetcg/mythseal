@@ -44,6 +44,20 @@ records the design and two rounds of review fixes.
   `GAME_URL=… node tools/expansion-smoke.mjs` also passes in Chromium: 16
   checks and 899 layout checks, exit 0.
 
+**Third review fixes · 2026-10-11.** Source commit **`7762730`** fixes the ten
+defects that a verification review of `6a93cb4` re-confirmed, plus an older
+effect-page overflow that the new worst-case fixture exposed. The
+[plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10) lists each one
+and the smoke check that now guards it. The same loopback server and a clean
+tree gave: `node --test tests/*.test.mjs` **456/456**;
+`npm run test:battle-table` **40/40 in each engine** (Chrome 154.0.8037.98,
+WebKit 26.6), whose sweep is now 32 sizes, each with a low-life pass;
+`npm run test:viewport` **23/23 in each engine**;
+`BROWSER=webkit node tools/battle-presentation-smoke.mjs` **6/6**; and all 14
+Chromium suites of `npm run test:browser`, each exit 0. The expansion smoke and
+the before/after measurement below were not repeated for these CSS, markup and
+test changes.
+
 **Before/after.** Measured with `tools/battle-measure.mjs` on fixture
 `q0-arena-round1-opponent-leads` (sha256_16 `6894b11ff0e9b0e6`): arena round 1,
 both sides at 12 life and 12 pills, and the opponent leads with 焰心 announced

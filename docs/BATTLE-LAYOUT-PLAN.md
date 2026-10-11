@@ -4,10 +4,11 @@ Proposed 2026-09-23 after the owner could no longer see the opponent's played
 card and lineup while making a move after the viewport conversion.
 
 **Status 2026-10-11:** implemented locally on branch `q0/battle-table` (steps 1–4
-below), with two rounds of review fixes. It is not merged, pushed or deployed;
-the last recorded public release is still v0.5.1. The final headless
-Chromium/WebKit loopback checks and before/after measurement ran on `80fb7a3`
-and are recorded in [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10).
+below), with three rounds of review fixes. It is not merged, pushed or deployed;
+the last recorded public release is still v0.5.1. The headless Chromium/WebKit
+loopback checks and before/after measurement ran on `80fb7a3` and are recorded
+in [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10); the third round's
+checks ran on `7762730` (see [Third review fixes](#implementation-record-2026-10-10)).
 Physical iOS/Android devices and human review remain open. See also the
 [Implementation record](#implementation-record-2026-10-10).
 
@@ -254,13 +255,90 @@ their list and that both resource panels are reached.
   `npm run test:browser` and `tools/expansion-smoke.mjs` in Chromium. Synthetic
   headless evidence only.
 
+**Third review fixes (2026-10-11).** A verification review of `6a93cb4`
+re-confirmed these. Each now has a check in `tools/battle-table-smoke.mjs`. With
+only that fix reverted on the fixed tree, the check fails in Chromium at the size
+named.
+- *The round result flashed before the staged reveal.* Commit swaps the inert
+  table to the resolved reveal view (winner text, new life and pills) and the
+  dialog's backdrop faded in from transparent over 200 ms, so that table showed
+  in the first frames, before the dialog's 'impact'. The round-result backdrop
+  now dims and blurs the table from the first frame; only the dialog fades in.
+  The smoke reads the backdrop's opacity in the first frame after a real Commit
+  under full motion (0 without the fix).
+- *The Fury switch collapsed in landscape windows under about 740 px wide*: the
+  27 px track measured 2 px at 568×320, 6 px at 640×360 and 12 px at 667×375,
+  with its knob outside it; in Mist Gate it overflowed onto the attack estimate.
+  In the two-column table the switch now shares the 怒擊 line and the cost note
+  takes the button's full width below; the track never shrinks. The smoke
+  requires a whole track inside the button, clear of the note (11.9 px at
+  667×375 without the fix).
+- *The attack-estimate label rendered at 9 px* on phones and 10 px elsewhere, in
+  the muted colour, because older `.attack-preview span` rules matched its new
+  wrapper. It now inherits 11 px and the copy colour, and 10 px in phone
+  landscape, where 11 px wraps. The smoke requires at least 10 px on one line
+  (9 px at 390×844 without the fix).
+- *Below about 580 px tall the single-column rows overlapped* (375×553, 360×560,
+  360×540, 600×540): the own lineup rose over the centre slots and the player's
+  caption dropped under the move panel. In those windows the player's caption
+  yields like the opponent's; the move panel shows the same numbers and the
+  resources group's label keeps the plan. The smoke checks that rows stacked in
+  one column never intersect, and the sweep adds 360×560 and 360×540 (4.0 px at
+  375×553 without the fix).
+- *At the 56 px minimum card height names drew over the state badges* (a 3.4 px
+  line-box overlap). The compact card's badge and copy sit 1 px closer to its
+  edges, with no gap inside the copy. The smoke requires each name to start below
+  its badge, within 1 px (3.4 px at 375×553 without the fix).
+- *Low life showed only as colour.* The table hid the 危 mark along with the 生命
+  label. At 3 life or less 危 now shows as a 10 px mark at the orb's top-right;
+  the word stays hidden. A low-life fixture checks it at every sweep size (hidden
+  at 1440×900 without the fix).
+- *Mist Gate replaced the selected card's highlight* with an older, weaker one,
+  so the player's pick looked weaker than the announced card. The old Mist Gate
+  hand rules are removed. The smoke checks the Mist Gate highlight's colours
+  (the old border without the fix).
+- *The reveal's played pair pushed one side to a second page:* 生命與仙丹 at
+  1440×900, 1920×1080 and 360×740, and 技能與共鳴 at 360×640, which were one page
+  on `ced2aa4`. The eyebrow and phase line now yield beside the resource and
+  effect pages at every size, as they already did in short landscape, so the
+  heading moves up when leaving the clash page. Page counts now match `ced2aa4`
+  for the opponent-led, player-led and both long-name fixtures at those sizes,
+  and the smoke asserts one page there (two at 1440×900 without the fix).
+- *The pair cut off the winner's attack* (`實際攻擊 ...`) at 360 px with a three- or
+  four-character name and Fury, and in phone landscape. The attack is now its
+  own non-shrinking `· 攻擊 N`; only the bid text may end in an ellipsis. The
+  long-names fixture now bids 9 pills with Fury, so the opponent wins with a
+  four-character name. The smoke checks each attack is whole (cut at 568×320
+  without the CSS).
+- *Found by that fixture:* a three-note effect block (skill, resonance, Fury) was
+  taller than its one-item page in 360 px tall landscape (740×360, 640×360,
+  568×320), as on `ced2aa4`. In short landscape each side's notes now share two
+  columns, so a four-note block fits too.
+- *Dead code.* `.identity`, `.avatar` and `.battle-log`, missed by the first
+  cleanup, are removed from `styles.css`.
+- Checks on `7762730` with a clean tree against a loopback dev server:
+  `node --test tests/*.test.mjs` 456/456; `npm run test:battle-table` 40/40 in
+  Chromium (system Google Chrome 154) and WebKit 26.6, now 32 sweep sizes plus a
+  low-life pass at each; `npm run test:viewport` 23/23 in each engine;
+  `BROWSER=webkit node tools/battle-presentation-smoke.mjs` 6/6; and all 14
+  suites of `npm run test:browser` in Chromium.
+  The six layout screenshots (360×640, 568×320, 600×400, 640×360, 844×390,
+  1440×900) were reviewed with Fury on and low life, plus the reveal's resource
+  and effect pages. Synthetic headless evidence only; headless WebKit does not
+  draw `backdrop-filter`, so the blur itself was seen only in Chromium.
+
 **Still open.** Physical iOS/Android and human review; owner review of the
 compact phone cards, the short-landscape arrangement, the new tablet layouts and
 the phone-landscape and very short arrangements; the pre-existing WebKit
 rewards-dialog tab width. At short-landscape widths (for example 667×375) and
 landscape windows under about 740 px, the cost note and the centre slot's detail
 line can end in an ellipsis; the same numbers stay in the player's resource
-caption. Four-character names still clip where cards are 50 px wide or narrower
+caption. Portrait windows under about 540 px tall are not supported: the table
+rows would also need vertical slot labels there, and the review found the
+reveal's clash page already overflowing at 390×520 and 360×530. The name/badge
+spacing on compact cards was checked with headless fonts only. The round
+result's live-region announcement still names the winner at Commit, before the
+visual staging. Four-character names still clip where cards are 50 px wide or narrower
 (phone landscape under about 520 px, such as 480×320). They also clip in the
 lineups of landscape windows about 601–630 px wide, and up to about 690 px wide
 when taller than 500 px (for example 601×500, 601×520 and 640×520). The compact
