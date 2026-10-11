@@ -4,11 +4,12 @@ Proposed 2026-09-23 after the owner could no longer see the opponent's played
 card and lineup while making a move after the viewport conversion.
 
 **Status 2026-10-11:** implemented locally on branch `q0/battle-table` (steps 1–4
-below), with three rounds of review fixes. It is not merged, pushed or deployed;
+below), with four rounds of review fixes. It is not merged, pushed or deployed;
 the last recorded public release is still v0.5.1. The headless Chromium/WebKit
 loopback checks and before/after measurement ran on `80fb7a3` and are recorded
 in [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10); the third round's
-checks ran on `7762730` (see [Third review fixes](#implementation-record-2026-10-10)).
+checks ran on `7762730` and the fourth round's on `0482837` (see the review
+fixes in the [Implementation record](#implementation-record-2026-10-10)).
 Physical iOS/Android devices and human review remain open. See also the
 [Implementation record](#implementation-record-2026-10-10).
 
@@ -327,12 +328,49 @@ named.
   and effect pages. Synthetic headless evidence only; headless WebKit does not
   draw `backdrop-filter`, so the blur itself was seen only in Chromium.
 
+**Fourth review fixes (2026-10-11).** A review of `c213330` found two
+regressions that its checks missed. Each now has a check in
+`tools/battle-table-smoke.mjs`; with only that fix reverted on the fixed tree,
+the check fails in Chromium as noted.
+- *The attack-estimate label broke mid-word* (己方預估攻 / 擊) in Chromium once
+  the estimate had two digits, the usual case once a pill is placed: at 568×320,
+  560×420 and 640×360, and at 960×540 the roomy layout's note wrapped the same
+  way (…手影 / 響). `06bd920` had enlarged the label beside an estimate that
+  takes its width from the same cell, and the smoke measured only single-digit
+  estimates there. The label now has the cell's full width on its own line; the
+  cost note and the estimate share the line below, as in the Fury cell beside
+  it. One 11 px size serves every layout, the cell keeps its 44 px box, and the
+  label stays whole beside a three-digit estimate (110 with 青霄 and all 12
+  pills). Every decision pass also requires the label and estimate inside the
+  cell without overlapping, and each sweep size adds a two-digit estimate with
+  Fury and a three-digit one (the label is 27.0 px tall, two lines, at 568×320
+  without the fix).
+- *The round result still showed inside the dialog before its phase.* `9a8ada7`
+  covered the table behind, but `fitOverlay()` measured the dialog's resolved
+  markup before the reveal set 'sealed', so under full motion the phase rules
+  transitioned out of the resolved state while the dialog faded in. The heading
+  (此局，你勝。), the clash and the effect notes reached about 0.2 effective
+  opacity before their phase (the damage line 0.09). On a remembered 生命與仙丹
+  page each life ring started at its post-round fill and climbed back to the
+  pre-round value, then fell again at impact. `modal()` now runs the
+  reveal's first phase before anything measures the new dialog, so its
+  content is first styled 'sealed' with the pre-round resources. The smoke
+  samples every frame from Commit to completion on the clash page, a remembered
+  effects page and a remembered resources page (a new round 3). The clash stays
+  hidden before 'bids', the heading before 'impact', and the damage line and
+  notes before 'recovery'. Each shown ring keeps its pre-round fill until
+  'impact'. Without the fix the heading reaches 0.21 while sealed in round 1;
+  checking rings alone, the player's ring reads 26.5% beside 5 life in round 3.
+- Checks on `0482837` with a clean tree against a loopback dev server are listed
+  in [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10).
+
 **Still open.** Physical iOS/Android and human review; owner review of the
 compact phone cards, the short-landscape arrangement, the new tablet layouts and
 the phone-landscape and very short arrangements; the pre-existing WebKit
 rewards-dialog tab width. At short-landscape widths (for example 667×375) and
 landscape windows under about 740 px, the cost note and the centre slot's detail
-line can end in an ellipsis; the same numbers stay in the player's resource
+line can end in an ellipsis, as can the cost note beside a three-digit
+estimate at 360 px wide; the same numbers stay in the player's resource
 caption. Portrait windows under about 540 px tall are not supported: the table
 rows would also need vertical slot labels there, and the review found the
 reveal's clash page already overflowing at 390×520 and 360×530. The name/badge
@@ -343,9 +381,7 @@ visual staging. Four-character names still clip where cards are 50 px wide or na
 lineups of landscape windows about 601–630 px wide, and up to about 690 px wide
 when taller than 500 px (for example 601×500, 601×520 and 640×520). The compact
 88 px clash cards clip their
-own face text, as they did in short landscape. A full-motion reveal starts with
-the winner heading visible and fading out over 150 ms, because the heading's
-transition begins when the phase is first set; this predates Q0. In the final
+own face text, as they did in short landscape. In the final
 measurement the first table paint after resume was 3–17 ms slower in four of
 five headless profiles; nobody has profiled why. Merging, a public build and a
 hosted release are separate steps that have not happened.

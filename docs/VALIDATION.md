@@ -58,6 +58,21 @@ Chromium suites of `npm run test:browser`, each exit 0. The expansion smoke and
 the before/after measurement below were not repeated for these CSS, markup and
 test changes.
 
+**Fourth review fixes · 2026-10-11.** Source commit **`0482837`** fixes the two
+regressions a review of `c213330` found: the attack-estimate label broke beside
+two-digit estimates (`6d5509a`), and the round result showed inside the dialog
+before its phase (`0482837`). The
+[plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10) lists both and
+the smoke checks that now guard them. The same loopback server and a clean tree
+gave: `node --test tests/*.test.mjs` **456/456**; `npm run test:battle-table`
+**40/40 in each engine** (Chrome 154.0.8037.98, WebKit 26.6), now sampling
+every reveal frame on three dialog pages and adding two- and three-digit
+estimates at each of the 32 sweep sizes; `npm run test:viewport` **23/23 in
+each engine**; `BROWSER=webkit node tools/battle-presentation-smoke.mjs`
+**6/6**; and all 14 Chromium suites of `npm run test:browser`, each exit 0. The
+expansion smoke and the before/after measurement were not repeated for these
+CSS, JavaScript and test changes.
+
 **Before/after.** Measured with `tools/battle-measure.mjs` on fixture
 `q0-arena-round1-opponent-leads` (sha256_16 `6894b11ff0e9b0e6`): arena round 1,
 both sides at 12 life and 12 pills, and the opponent leads with 焰心 announced
