@@ -31,6 +31,92 @@ In-app close controls restore the originating screen, scroll and logical focus.
 Cards-hub tabs preserve filters and deck drafts, and destination changes retain
 the last scroll position. These are in-memory UI preferences, not new profile
 fields. Browser URL routing/native Back integration is not part of this slice.
+The [Back model](#back-model--2026-10-12) added browser and system Back on
+2026-10-12, still without URL routing.
+
+## Back model · 2026-10-12
+
+Roadmap packet D1, on branch `d1/back-model` from `main` `7712a7b`; not merged
+or deployed. Before it, browser Back (Android system back, iOS edge swipe, a
+desktop Back button) left the game from every screen, because the runtime
+created no history entries. Back now closes one layer at a time and leaves only
+from the 洞府 root.
+
+The layers above the root are a destination, sub-views and a dialog, or a
+battle. [`nav-stack.mjs`](../nav-stack.mjs) models them from a plain view object
+that `app.mjs` builds from its existing state (`screen`, `accountReturn`,
+`preparationReturn`, the open 藏卡 group, `experienceReturn` and the overlay's
+dismissible flag). One decision table answers every Back:
+
+| Top layer | Back does | `app.mjs` calls |
+| --- | --- | --- |
+| Dismissible dialog: quests, settings, rules, preparation, card page, codex detail, pack receipt, inheritance, keep/abandon menu, any dialog with × | Closes it, exactly as ×, Escape or the backdrop. A result card or settings opened over a result or preparation returns to it. | `dismissModal()` |
+| Round or match result, or any other non-dismissible dialog | Nothing: it stays open and nothing settles. The guard entry is re-armed. | — |
+| A battle whose final commit is still being saved | Nothing until the result opens. | — |
+| Collection group (one character's copies in 藏卡) | 藏卡 | `closeBagGroup()` |
+| Deck editor opened from preparation | That preparation | `returnToPreparation()` |
+| 旅程閣 | The screen it was opened from | `navigate(accountReturn)` |
+| Battle in progress | The existing keep/abandon menu; profile bytes unchanged | `requestNavigation('home')` |
+| Finished battle with no dialog open | 洞府 | `navigate('home')` |
+| 遊歷, 對弈, 藏卡 (including the codex tab), 市集 | 洞府 | `navigate('home')` |
+| 洞府 with nothing open | Handed to the system. On the web the page leaves without a confirmation prompt; this is the owner default. | — |
+
+Each row calls the function that layer's own close control already calls, so
+Back never settles, pays, claims or writes a save. The five return variables
+stay where they were: they also carry focus and scroll restoration, and the
+stack reads them rather than duplicating them.
+
+**History entries.** Entries are state-only (`history.state["mythseal.nav"]`
+holds a version, a per-load session id, a position and the layer signature).
+The URL never changes; there is no hash routing and no deep link. Each layer
+above the root has one entry:
+
+- `render()`, `modal()` and `closeModal()` queue one reconciliation, so every
+  dismissible dialog gets its entry without changing any of the call sites.
+- An entry is pushed only on a user turn: a trusted input that gives user
+  activation (Escape gives none), with `navigator.userActivation.isActive` where
+  the browser has it. Never from popstate, pageshow, timers, storage events or
+  network callbacks. Chrome's history-manipulation intervention lets the Back
+  button skip entries a page adds without activation.
+- Switching destinations, cards-hub tabs or a dialog that replaces another uses
+  `replaceState`, so the depth stays bounded by the layers. The deepest chain is
+  five: a destination, preparation, its deck editor, a character group on the
+  editor's cards tab and a card page. Ordinary play stays within three or four.
+- Closing in the UI (×, Escape, backdrop, 返回 buttons, the dock) walks back
+  over its own entries with `history.go(-n)`. The resulting popstate is
+  recognised as the app's own, so one close is never handled twice.
+- **Re-arm, not re-push.** When a Back holds (a result) or opens the
+  keep/abandon menu, the game is still above the root, so it needs its entry
+  back. It steps forward onto the entry Back just left (`history.go(+n)`)
+  instead of pushing a new one from the popstate handler, which has no user
+  activation. As Chromium describes its intervention, the entry under such a
+  push is marked skippable, so the next Back could leave the game. If no entry
+  is left ahead, the layer waits without one, and the next user turn pushes it.
+  Each Back still closes or holds one layer.
+- While one of the game's own walks is in flight, reconciliation waits for its
+  popstate. If none arrives within 3 s (`NAV_STALL_MS`; a same-document walk
+  lands within milliseconds), the next reconciliation reads the entry the page
+  is really on, so a walk the browser dropped cannot block later pushes.
+- **Reload and bfcache.** A reload starts at 洞府 with a new session id, so
+  entries from the earlier load are stale. They are never acted on as layers and
+  never settle anything; Back at the root leaves past them in one step. A
+  bfcache restore (`pageshow` with `persisted`) re-reads the position and pushes
+  nothing until the next input.
+- `history.scrollRestoration` is `manual`; the app already restores scroll and
+  focus when a layer closes.
+
+**Native shells.** `createNavHistory(...).requestBack()` applies the same table
+without a browser traversal and returns `'exit'` at the root. A future Capacitor
+back-button listener calls it ([MOBILE-RELEASE](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
+
+**Checks.** `node --test tests/nav-stack.test.mjs` (N1–N17) covers every table
+row against a simulated session history. `GAME_URL=… npm run test:back` runs
+`tools/back-smoke.mjs` in Chrome with the Pixel 7 descriptor, then WebKit with
+the iPhone 15 descriptor ([VALIDATION](VALIDATION.md#d1-back-model--2026-10-12)).
+Playwright's `page.goBack()` steps to the previous entry by index. It does not
+show whether a real Back button would skip an entry, so physical Android
+gesture navigation (including predictive back), the iOS Safari edge swipe and
+real bfcache restores are M5.1 items not yet verified.
 
 ## Encounter loop
 
