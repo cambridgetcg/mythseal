@@ -270,8 +270,8 @@ unbound file can then be removed, because its bytes stay in Git history (commit
   sword sit behind the title and name, and in 畫皮之鬼 INK the ghost's lower
   robe sits behind 鬼 under the paper shade. These are recorded as caveats on
   each file's Card fit line, not as passes. 嬰寧 AA did not clear the text block
-  and was unbound. The two round-three
-  prompts below include this rule. In the 陸判 INK candidate bound from one of
+  and was unbound. Both round-three prompts include this rule, as does the
+  round-four 嬰寧 AA prompt below. In the 陸判 INK candidate bound from one of
   them, every face, hand and the brush sit above about 55%, and only props, the
   lower drafts and the strike's tail sit under the paper shade, clear of the
   lettering. None of the three 嬰寧 AA candidates from the other kept 王子服
@@ -291,9 +291,11 @@ and WebKit) his face sits between the title 花間藏笑 and the name 嬰寧, an
 robe is behind 寧. His call 「勿爾，墮矣！」 is the drawn moment, so its second
 figure is overprinted. Moving the crop cannot fix this (see the card-fit rule
 above). The file is kept unchanged but is unbound and in neither allowlist; its
-provenance block below remains the record. The prompt below was revised for
-card fit. Three candidates were generated from it in round three and none was
-selected (see the round-three record below), so the slot stays planned.
+provenance block below remains the record. The prompt was then revised for
+card fit. Three candidates were generated from that revision in round three
+and none was selected (see the round-three record below), so the slot stays
+planned. The prompt below is the round-four revision (see its note); it has not
+been sent.
 
 - **Verified anchor:** The next day (「次日，至舍後」) 王子服 walks into the small
   garden behind the house: 「有園半畝，細草鋪氈，楊花糝徑」, and inside it
@@ -325,7 +327,7 @@ selected (see the round-three record below), so the slot stays planned.
   the quiet zone grew from the bottom fifth to the lower two fifths. The scale
   relationship was always invented composition, not text.
 - **Round three · 2026-10-11, card-fit prompt:** three candidates were
-  generated from the prompt below (SHA-256 `00bdf1f605a8…`, the brief as
+  generated from the card-fit prompt (SHA-256 `00bdf1f605a8…`, the brief as
   committed in `0ab6819`; 嬰寧 had no round two) by the route recorded in
   [the 陸判 INK provenance block](#lz01-006-ink1--陸判-ink--夜酌朱批-1): Codex CLI
   0.162.1, `image_gen__imagegen`, `transparent_background: false`, the tool
@@ -387,12 +389,46 @@ selected (see the round-three record below), so the slot stays planned.
     dim left corner (about x80–110, y625–715) looks like a Jizō or Buddhist
     figure and can read as a small third figure at card size.
 
-  None was committed; all three stay in the private archive. The prompt below
-  is unchanged. Another round needs a revision that keeps 王子服's feet above
-  about 55% (y845); that revision has not been written.
+  None was committed; all three stay in the private archive. The round-four
+  note below records the revision that followed.
+- **Round-four prompt · 2026-10-11, card fit and empty hands:** 王子服 has now
+  failed card fit twice and the empty hands once. Round one put him at about
+  59–76% of the image height. The round-three prompt asked for his whole
+  figure to end above the lower two fifths, yet his lower robe and feet still
+  reached about 61–64%. r3-c2, the cleanest fit, gave him a dried sprig, the
+  flower he shows only after her laughter stops. The dim corner "hinting at a
+  quieter hidden history" also became a stone lantern (round one's bound file
+  and r3-c1) or a statue in a shrine (r3-c3). Because round three landed his
+  feet lower than its prompt asked, the new target leaves room: feet no lower
+  than 52% (about y799), about 46px above the card-fit line (y845) and about
+  72px above the top of the title at 390 (y871). The anchors, the drawn moment
+  (「仰視，則嬰寧在上。見生來，狂笑欲墮」 and his call 「勿爾，墮矣！」), the
+  exclusions, both identity descriptions, the palette and the style lines are
+  unchanged. The changes from the round-three text are these. The garden is
+  seen from a slightly raised viewpoint, and the blossom fills the upper
+  canvas. 嬰寧 stays in the top third, with her head about one twelfth of the
+  image height (was one tenth), so that her whole seated figure fits there.
+  The catkin path runs along a raised grassy bank, one low step above the lawn,
+  in the middle band. 王子服 stands on it as a small full figure, about one
+  sixth of the image height tall, between about one third and one half of the
+  image height, with his feet no lower than 52%. Both his hands are lifted
+  open in front of him, palms empty and holding nothing, where round three had
+  one raised hand and one at his side, and a closing line excludes a flower,
+  sprig, twig or branch in his hands. "Smaller than Yingning but not tiny"
+  became "clearly smaller than Yingning", and his face and open empty hands
+  must still read at card size. The quiet zone grew from the lower two fifths
+  to the lower 45%. It is now a lawn sloping down toward the viewer, kept free
+  of objects, stones, statues, shrines and lanterns as well as figures and
+  cropped limbs. The dim corner is now made only of deeper leaf shadow, and a
+  closing line excludes any shrine, statue, stone lantern or third figure
+  anywhere. The closing list adds lettering, pseudo-glyphs, calligraphy and
+  seals, as in the shared rules, because r3-c1's hut lattice was borderline.
+  The prompt below (SHA-256 `d0aafae839ce…`) has not been sent. Before
+  anything is bound, round four still needs generation, the two reviews and
+  the card check at 1440 and 390 in Chromium and WebKit.
 
 ```text
-Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Yingning: Laughter Hidden among Flowers. A half-acre back garden behind a country house: fine grass like a soft carpet, a narrow path dusted with drifting willow catkins, and a small three-bay thatched hut ringed on all sides by flowering trees; abundant pale pink and white spring blossom fills much of the canvas as breathing space. High in a blossoming tree in the upper part of the image, Yingning, a fully clothed Chinese teenage girl from the classical story, simple fresh green robes and half-tied dark hair, is caught laughing so helplessly she almost loses her balance, one hand gripping a branch, petals shaken loose around her; her bright natural laughing face catches soft warm spring light and stays clearly readable at small card size; her head is about one tenth of the image height, placed in the upper third. On the path below the tree, a little to one side and in the middle distance, Wang Zifu, a fully clothed teenage scholar in muted warm russet cotton robes, has stopped mid-stroll and looks up in alarm, calling to her to be careful, one empty hand raised and the other empty at his side; a respectful distance separates them. His whole figure, from head to feet, stands in the middle band of the image and ends above the lower two fifths, and his face and raised hand stay readable at small card size. Humour, surprise and gentle concern, with one softly dim shaded corner of the garden hinting at a quieter hidden history. Clear vertical depth: Wang Zifu is smaller than Yingning but not tiny, Yingning stays large enough to read, and generous negative space of blossom surrounds them; the lower two fifths of the image are open quiet grass, path and fallen petals with no figure and no cropped limbs, because card text is printed over them. Exquisite painterly Chinese literary fantasy with ink wash texture under fine detail; restrained celadon, blossom ivory, pale peach, warm amber and a touch of aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, non-sexual, no fox ears or tails, no embrace or touching, no romantic gaze, no gore. No text, signatures, logos, watermark, numbers, borders or UI.
+Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Yingning: Laughter Hidden among Flowers. A half-acre back garden behind a country house, seen from a slightly raised viewpoint: fine grass like a soft carpet, a narrow path dusted with drifting willow catkins, and a small three-bay thatched hut ringed on all sides by flowering trees; abundant pale pink and white spring blossom fills much of the upper canvas as breathing space. High in a blossoming tree in the top third of the image, Yingning, a fully clothed Chinese teenage girl from the classical story, simple fresh green robes and half-tied dark hair, is caught laughing so helplessly she almost loses her balance, one hand gripping a branch, petals shaken loose around her; her bright natural laughing face catches soft warm spring light and stays clearly readable at small card size; her head is about one twelfth of the image height, and her whole figure stays in the top third. In the middle band of the image, a little to one side of the tree, the catkin-dusted path runs along a raised grassy bank, one low step above the lawn. On that raised path stands Wang Zifu, a fully clothed teenage scholar in muted warm russet cotton robes, a small full figure seen from head to feet, about one sixth of the image height tall. He has stopped mid-stroll and looks up at her in alarm, calling to her to be careful, both hands lifted open in front of him, palms empty, holding nothing at all; a respectful distance separates them. His whole figure, head to feet, sits between about one third and one half of the image height from the top, with his feet no lower than 52 percent of the image height. Humour, surprise and gentle concern; one softly shaded corner of the garden, made only of deeper leaf shadow, hints at a quieter hidden history. Clear vertical depth: Wang Zifu is clearly smaller than Yingning, yet his alarmed upturned face and open empty hands stay readable at small card size, and generous negative space of blossom surrounds them both. Below the raised bank an open lawn slopes gently down toward the viewer: the lower 45 percent of the image is only soft grass, fallen petals and the near end of the path, with no figure, cropped limb, object, stone, statue, shrine or lantern, because card text is printed over it. Exquisite painterly Chinese literary fantasy with ink wash texture under fine detail; restrained celadon, blossom ivory, pale peach, warm amber and a touch of aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, non-sexual, no fox ears or tails, no embrace or touching, no romantic gaze, no gore. Nothing in Wang Zifu's hands: no flower, sprig, twig or branch. No shrine, statue, stone lantern or third figure anywhere in the garden. No text, lettering, pseudo-glyphs, calligraphy, seals, signatures, logos, watermark, numbers, borders or UI.
 ```
 
 ### lz01-009-aa1 · 陳氏 AA · 仍有人守門
