@@ -32,9 +32,6 @@
 .game-shell.is-mist-gate .arena{padding-top:15px}
 .game-shell.is-mist-gate .move-panel{border-color:#c5b7834d;background:linear-gradient(140deg,#213d315c,#10281f8c)}
 .game-shell.is-mist-gate .attack-preview{padding:10px 0}
-.game-shell.is-mist-gate .player-hand .card{transition:transform 160ms ease-out,border-color 160ms ease-out,box-shadow 160ms ease-out}
-.game-shell.is-mist-gate .player-hand .card.selected{transform:translateY(-4px);border-color:#e4ca8b;box-shadow:0 0 0 1px #d8bd834d,0 8px 20px #071a1666}
-.game-shell.is-mist-gate .player-hand .card.selectable:hover:not(:disabled){transform:translateY(-4px)}
 .game-shell.is-mist-gate .pill-control button{min-width:44px;min-height:44px;width:44px;height:44px;border-color:#bfb1834d;background:#0d211b;border-radius:50%;font-size:19px}
 .game-shell.is-mist-gate .pill-control button:active:not(:disabled){transform:scale(.96)}
 .game-shell.is-mist-gate .pill-slider{height:44px;min-height:44px;margin:4px 0;background:linear-gradient(#c7b27b33,#c7b27b33) center/100% 3px no-repeat}
@@ -174,9 +171,7 @@
 body[data-motion="reduce"] *,body[data-motion="reduce"] *:before,body[data-motion="reduce"] *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 body[data-page-hidden="true"] *,body[data-page-hidden="true"] *:before,body[data-page-hidden="true"] *:after{animation-play-state:paused!important}
 body[data-motion="reduce"] .mist-reveal .duel-cards,body[data-motion="reduce"] .mist-reveal .resolution,body[data-motion="reduce"] .mist-reveal .result-effects,body[data-motion="reduce"] .mist-reveal>h2,body[data-page-hidden="true"] .mist-reveal .duel-cards,body[data-page-hidden="true"] .mist-reveal .resolution,body[data-page-hidden="true"] .mist-reveal .result-effects,body[data-page-hidden="true"] .mist-reveal>h2{opacity:1!important;visibility:visible!important;transform:none!important}
-body[data-motion="reduce"] .game-shell.is-mist-gate .player-hand .card,body[data-page-hidden="true"] .game-shell.is-mist-gate .player-hand .card{transform:none!important}
 @media(prefers-reduced-motion:reduce){
   .mist-arrival:after,.mist-arrival .mist-lantern{animation:none!important}
   .mist-reveal .duel-cards,.mist-reveal .resolution,.mist-reveal .result-effects,.mist-reveal>h2{opacity:1!important;visibility:visible!important;transform:none!important;transition:none!important}
-  .game-shell.is-mist-gate .player-hand .card{transform:none!important}
 }

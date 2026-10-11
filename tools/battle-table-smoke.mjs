@@ -483,9 +483,13 @@ try {
     assert.equal(await page.locator('.game-shell.is-mist-gate').count(), 1);
     assert.deepEqual((await page.locator('#battle-card-opponent-chiling .card-stat strong').allTextContents()).map(Number), [getBattleCard(FIXTURES['q0-mist-gate'].match, 'opponent', 'chiling').power, getBattleCard(FIXTURES['q0-mist-gate'].match, 'opponent', 'chiling').damage], 'effective expedition ranks are shown');
     await exerciseDraft(page, { announced: 'chiling' });
+    // Mist Gate uses the table's one selection highlight, as strong as the announced card's.
+    const highlight = await page.locator('#app .player-hand .battle-mini.is-selected').evaluate(node => ({ border: getComputedStyle(node).borderTopColor, shadow: getComputedStyle(node).boxShadow }));
+    assert.equal(highlight.border, 'rgb(241, 212, 150)', `${tag} Mist Gate selected border ${JSON.stringify(highlight)}`);
+    assert(highlight.shadow.startsWith('rgb(241, 212, 150) 0px 0px 0px 1px'), `${tag} Mist Gate selected ring ${JSON.stringify(highlight)}`);
     await shot(page, 'mist');
     await release(page);
-    passed(`${tag}: Mist Gate keeps its atmosphere while every decision input stays visible and effective expedition stats show`);
+    passed(`${tag}: Mist Gate keeps its atmosphere and the table's selection highlight while every decision input stays visible and effective expedition stats show`);
 
     // A legacy snapshot without the leading commitment gets one from public state before any input.
     page = await open('q0-legacy-unannounced', { width, height });
