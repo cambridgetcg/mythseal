@@ -1,0 +1,349 @@
+import { installViewportNavigation } from './viewport-browser-helpers.mjs';
+/** D2 save durability (docs/LOCAL-COMMANDS.md §19): export → clear site data → the new journey's
+ * restore offer → import restores the same journey; declining changes nothing; each backup
+ * prompt appears once; the 旅程閣 status line; the cloud option with intercepted fixture APIs.
+ * Synthetic saves, loopback assets only, no download written to disk. */
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createProfile, claimLogin, sellInstance, PROFILE_KEY } from '../progression.mjs';
+import { mintInstance, setInstanceXP, saveInstanceDeck, getActiveDeck } from '../collection.mjs';
+import { createSnapshot, fingerprintProfile, backupProfile } from '../cloud-save.mjs';
+import { RECOVERY_KEY, RESTORE_MESSAGES } from '../profile-store.mjs';
+import { FENCE_MESSAGES } from '../profile-fence.mjs';
+import { IMPORT_MESSAGES, MAX_IMPORT_BYTES } from '../platform.mjs';
+import { SAVES_KEY } from '../save-status.mjs';
+
+const browserName = process.env.BROWSER || 'chromium';
+if (!['chromium', 'webkit'].includes(browserName)) throw Error('BROWSER must be chromium or webkit.');
+const runtime = fileURLToPath(new URL('../test-results/webkit-runtime', import.meta.url));
+if (browserName === 'webkit' && !process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync(runtime)) process.env.PLAYWRIGHT_BROWSERS_PATH = runtime;
+const engines = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+if (!process.env.GAME_URL) throw Error('Set GAME_URL to the loopback server serving this checkout, e.g. GAME_URL=http://127.0.0.1:4177.');
+const base = new URL(process.env.GAME_URL);
+if (!['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname)) throw Error('Save durability smoke requires loopback.');
+const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const now = '2026-09-21T12:00:00.000Z';
+const BATTLE_KEY = 'shanhai.battle.v5';
+const contexts = new Set(), checks = [], errors = [];
+const passed = label => { checks.push(label); console.log(`PASS ${label}`); };
+const action = (page, name, id) => page.locator(`[data-action="${name}"]${id ? `[data-id="${id}"]` : ''}`);
+const notice = page => page.locator('[data-save-notice]');
+const raw = (page, key = PROFILE_KEY) => page.evaluate(key => localStorage.getItem(key), key);
+const read = (page, key = PROFILE_KEY) => page.evaluate(key => JSON.parse(localStorage.getItem(key)), key);
+/** Every key but the device-local save record, which is not journey data. */
+const journeyKeys = page => page.evaluate(saves => Object.fromEntries(Object.keys(localStorage).filter(key => key !== saves).sort().map(key => [key, localStorage.getItem(key)])), SAVES_KEY);
+const persistCalls = page => page.evaluate(() => Number(sessionStorage.getItem('save-smoke.persist') || 0));
+
+/** A journey with XP, a merchant-held copy and a second deck. */
+function travelled() {
+  let profile = claimLogin(createProfile({ now }), now);
+  const added = mintInstance(profile, 'qingxiao', { source: 'npc-market', now });
+  profile = sellInstance(setInstanceXP(added.profile, added.instance.uid, 430), added.instance.uid, now);
+  const extra = mintInstance(profile, 'kongzi', { source: 'npc-market', now });
+  profile = setInstanceXP(extra.profile, extra.instance.uid, 260);
+  profile = saveInstanceDeck(profile, { slotId: 'deck-2', name: '千古同行', instanceIds: [...getActiveDeck(profile).instanceIds].reverse() });
+  profile.stats = { played: 7, won: 5 };
+  return { ...profile, coins: 4321, dust: 87 };
+}
+
+/** A guest on the fixture API: 旅程閣 asks who is signed in; nothing else is expected. */
+function guestApi(route, request, url) {
+  if (url.pathname === '/api/v1/account' && request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false, user: null, emailEnabled: false, journeyVersions: [1, 3] }) });
+  errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
+}
+async function contextFor({ seed = null, api = guestApi, width = 1440 } = {}) {
+  const mobile = width < 600;
+  const context = await browser.newContext({ viewport: { width, height: mobile ? 844 : 1000 }, reducedMotion: 'reduce', deviceScaleFactor: 1, acceptDownloads: true, ...(mobile && browserName === 'chromium' ? { isMobile: true, hasTouch: true } : {}) });
+  contexts.add(context);
+  await context.addInitScript(({ seed, key, now }) => {
+    const NativeDate = Date, fixed = new NativeDate(now).getTime();
+    globalThis.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
+    Math.random = () => 0.23;
+    // The seed is written once per tab; clearing site data below must not bring it back.
+    if (seed && !sessionStorage.getItem('save-smoke.seeded')) { localStorage.setItem(key, seed); sessionStorage.setItem('save-smoke.seeded', 'yes'); }
+    // A spy in place of the browser's answer, which headless engines do not ask a person for.
+    // On the prototype: WebKit does not keep a property defined on navigator.storage here.
+    if (globalThis.StorageManager) {
+      Object.defineProperty(StorageManager.prototype, 'persist', { configurable: true, value: async () => { sessionStorage.setItem('save-smoke.persist', String(Number(sessionStorage.getItem('save-smoke.persist') || 0) + 1)); return true; } });
+      Object.defineProperty(StorageManager.prototype, 'persisted', { configurable: true, value: async () => false });
+    }
+    window.saveSmokeToasts = [];
+    new MutationObserver(records => { for (const record of records) for (const node of record.addedNodes) if (node.classList?.contains('toast')) window.saveSmokeToasts.push(node.textContent); })
+      .observe(document, { childList: true, subtree: true });
+  }, { seed: seed && JSON.stringify(seed), key: PROFILE_KEY, now });
+  await context.route('**/*', async route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.origin === base.origin && url.pathname.startsWith('/api/')) return api(route, request, url);
+    if (url.origin !== base.origin || url.pathname.startsWith('/api/') || !['GET', 'HEAD'].includes(request.method())) {
+      errors.push(`Unexpected network ${request.method()} ${url.origin}${url.pathname}`); return route.abort('blockedbyclient');
+    }
+    return route.continue();
+  });
+  return context;
+}
+async function pageIn(context) {
+  const page = await context.newPage(); installViewportNavigation(page); page.setDefaultTimeout(12000);
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('response', response => { const url = new URL(response.url()); if (response.status() >= 400 && !url.pathname.startsWith('/api/')) errors.push(`${response.status()} ${url.pathname}`); });
+  await page.goto(base.href); await page.locator('.game-lobby').waitFor(); return page;
+}
+const toastCount = page => page.evaluate(() => window.saveSmokeToasts.length);
+const waitToast = (page, text, from) => page.waitForFunction(({ text, from }) => window.saveSmokeToasts.slice(from).some(message => message.includes(text)), { text, from });
+async function press(page, locator, text) { const from = await toastCount(page); await locator.click(); await waitToast(page, text, from); }
+async function openTools(page) {
+  await page.locator('.game-header [data-action="account-open"]').click();
+  await page.locator('[data-save-status]').waitFor();
+}
+async function exportFile(page) {
+  const [download] = await Promise.all([page.waitForEvent('download'), action(page, 'export-save').first().click()]);
+  const chunks = [];
+  for await (const chunk of await download.createReadStream()) chunks.push(chunk);
+  return { name: download.suggestedFilename(), mimeType: 'application/json', buffer: Buffer.concat(chunks) };
+}
+/** Pick a file through the real button and the page's own <input type=file>. */
+async function pick(page, trigger, file) {
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), trigger.click()]);
+  await chooser.setFiles(file);
+}
+const fileOf = (value, name = 'journey.json') => ({ name, mimeType: 'application/json', buffer: Buffer.from(typeof value === 'string' ? value : JSON.stringify(value, null, 2)) });
+async function clearSiteData(page) {
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await new Promise(resolve => { const request = indexedDB.deleteDatabase('shanhai.profile.fence'); request.onsuccess = request.onerror = request.onblocked = () => resolve(); });
+  });
+  await page.reload(); await page.locator('.game-lobby').waitFor();
+}
+async function winBattle(page) {
+  await action(page, 'continue-journey').click();
+  await action(page, 'confirm-start').click();
+  for (let round = 0; round < 4; round++) {
+    await page.locator('.battle-table [data-action="commit"]').waitFor();
+    const move = await page.evaluate(async ({ key }) => {
+      const { chooseAIMove, resolveRound } = await import('./engine.mjs');
+      const saved = JSON.parse(localStorage.getItem(key)), state = saved.match;
+      let best;
+      for (const cardId of state.player.hand.filter(id => !state.player.used.includes(id))) {
+        const opponentMove = saved.aiMove || chooseAIMove(state, () => 0.23, cardId);
+        for (const fury of [false, true]) for (let pills = 0; pills <= state.player.pills - (fury ? 3 : 0); pills++) {
+          const candidate = { cardId, fury, pills }, next = resolveRound(state, candidate, opponentMove);
+          const score = (next.status === 'finished' ? next.winner === 'player' ? 1000 : -1000 : 0) + (next.player.hp - next.opponent.hp) * 10 + next.player.pills * 0.7 - next.opponent.pills * 0.3;
+          if (!best || score > best.score) best = { ...candidate, score };
+        }
+      }
+      return best;
+    }, { key: BATTLE_KEY });
+    await page.locator(`.player-hand [data-action="select"][data-id="${move.cardId}"]`).click();
+    if (((await action(page, 'fury').getAttribute('aria-pressed')) === 'true') !== move.fury) await action(page, 'fury').click();
+    await page.locator('#pill-slider').fill(String(move.pills));
+    await action(page, 'commit').click();
+    await page.locator('.result-modal .resolution').waitFor();
+    const finished = (await action(page, 'next-round').textContent()).includes('對局結果');
+    await action(page, 'next-round').click();
+    if (finished) { await page.locator('.match-score').waitFor(); break; }
+  }
+  assert.equal((await read(page)).pending, null, 'the battle settled');
+  await action(page, 'end-home').click(); await page.locator('.game-lobby').waitFor();
+}
+async function openPack(page) {
+  await page.locator('.game-dock [data-action="market"]').click();
+  await page.locator('[data-action="buy-pack"][data-set="wx01"]').first().click();
+  // Reduced motion: the accepted receipt opens straight to its complete phase.
+  await page.locator('.pack-opening[data-phase="complete"]').waitFor();
+  await action(page, 'pack-ack').click(); await page.locator('.pack-opening').waitFor({ state: 'hidden' });
+  await page.locator('.game-dock [data-action="home"]').click(); await page.locator('.game-lobby').waitFor();
+}
+async function noOverflow(page, label) {
+  const size = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
+  assert(size.document <= size.viewport + 1, `${label}: ${JSON.stringify(size)}`);
+}
+
+const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
+try {
+  {
+    // S1: export → clear site data → the new journey offers a restore → import restores it.
+    const original = travelled(), page = await pageIn(await contextFor({ seed: original }));
+    assert.equal(await notice(page).count(), 0, 'an existing journey is not offered a restore');
+    assert.equal(await persistCalls(page), 0, 'persist() is never requested on an ordinary load');
+    await openTools(page);
+    assert.match(await page.locator('[data-last-backup]').innerText(), /上次備份：未曾/);
+    const stored = await raw(page);
+    const file = await exportFile(page);
+    assert.equal(file.name, `萬象契旅程-${original.daily.date}.json`);
+    assert.equal(file.buffer.toString('utf8'), JSON.stringify(JSON.parse(stored), null, 2), 'the existing export format: the stored journey, indented');
+    await page.locator(`[data-last-backup] time[datetime="${now}"]`).waitFor();
+    assert.match(await page.locator('[data-last-backup]').innerText(), /匯出檔案/);
+    passed('S1a the export downloads the stored journey in the existing format, and 旅程閣 shows its date as the last backup');
+
+    await clearSiteData(page);
+    const started = await read(page);
+    assert.notEqual(fingerprintProfile(started), fingerprintProfile(original), 'site data cleared: a new journey');
+    await notice(page).and(page.locator('[data-save-notice="restore-offer"]')).waitFor();
+    assert.match(await notice(page).innerText(), /有舊旅程？由備份還原/);
+    assert.equal(await persistCalls(page), 0);
+    await pick(page, notice(page).locator('[data-action="import-save"]'), file);
+    await page.locator('.import-compare').waitFor();
+    const compare = await page.locator('.import-compare').innerText();
+    assert.match(compare, /將被取代/); assert.match(compare, /將還原/);
+    assert.equal(await page.locator('.import-side').nth(1).locator('[data-summary="cards"]').innerText(), String(original.instances.length));
+    assert.equal(await raw(page), JSON.stringify(started), 'nothing is written before the confirmation');
+    await press(page, action(page, 'import-confirm'), '已由備份還原旅程');
+    const restored = await read(page);
+    assert.equal(fingerprintProfile(restored), fingerprintProfile(original), 'an identical journey fingerprint');
+    assert.equal(fingerprintProfile(restored), fingerprintProfile(backupProfile(JSON.parse(stored))));
+    const recovery = await read(page, RECOVERY_KEY);
+    assert.deepEqual(recovery.snapshot, createSnapshot(started), 'the replaced journey is kept as the recovery copy');
+    await page.locator('.modal').waitFor({ state: 'hidden' });
+    assert.equal(await notice(page).count(), 0, 'the offer is gone after the restore');
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await notice(page).count(), 0);
+    assert.equal(fingerprintProfile(await read(page)), fingerprintProfile(original));
+    passed('S1b after clearing site data the new journey offers a restore; the exported file restores an identical journey fingerprint, with the new journey as the recovery copy');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S2: declining changes nothing; refused files and refused states write nothing.
+    const page = await pageIn(await contextFor({ width: 390 }));
+    await notice(page).waitFor();
+    await noOverflow(page, 'restore offer at 390 px');
+    const box = await notice(page).boundingBox();
+    assert(box && box.width <= 390 && box.height <= 60, `one compact strip: ${JSON.stringify(box)}`);
+    const before = await journeyKeys(page);
+    assert.equal(before[RECOVERY_KEY], undefined);
+    const backup = travelled();
+    await pick(page, notice(page).locator('[data-action="import-save"]'), fileOf(backup));
+    await page.locator('.import-compare').waitFor();
+    await action(page, 'close-modal').filter({ hasText: '保留現在進度' }).click();
+    await page.locator('.modal').waitFor({ state: 'hidden' });
+    assert.deepEqual(await journeyKeys(page), before, 'keeping the current journey writes nothing');
+    const refusals = [
+      ['too-large', fileOf('x'.repeat(MAX_IMPORT_BYTES + 1))],
+      ['unparsable', fileOf('{"version": 5,')],
+      ['future-version', fileOf({ ...backup, version: 6 })],
+      ['tampered', fileOf({ ...backup, instances: backup.instances.map((card, index) => index ? card : { ...card, xp: 999 }) })],
+      ['unfinished', fileOf({ ...backup, pending: { id: 'battle-1' } })],
+      ['not-export', fileOf(createSnapshot(backup))],
+    ];
+    for (const [reason, file] of refusals) {
+      const from = await toastCount(page);
+      await pick(page, notice(page).locator('[data-action="import-save"]'), file);
+      await waitToast(page, IMPORT_MESSAGES[reason], from);
+      assert.equal(await page.locator('.import-compare').count(), 0, `${reason}: no confirmation`);
+      assert.deepEqual(await journeyKeys(page), before, `${reason}: 0 bytes written`);
+    }
+    passed(`S2a declining the import and ${refusals.length} refused files (oversize, unparsable, future version, tampered, mid-battle, cloud snapshot) leave every journey byte unchanged`);
+
+    // A "writing" fence (a holder that saved and never settled) refuses at the confirmation.
+    await pick(page, notice(page).locator('[data-action="import-save"]'), fileOf(backup));
+    await page.locator('.import-compare').waitFor();
+    await page.evaluate(async () => (await import('/profile-fence.mjs')).createIndexedDBFence(indexedDB).write({ v: 1, state: 'writing' }));
+    await press(page, action(page, 'import-confirm'), FENCE_MESSAGES.unsettled);
+    assert.deepEqual(await journeyKeys(page), before, 'the fence refusal writes nothing');
+    await action(page, 'close-modal').filter({ hasText: '保留現在進度' }).click();
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    const healed = await journeyKeys(page);
+    passed('S2b while the fence says "writing" the import is refused at its confirmation with nothing written');
+
+    await action(page, 'save-notice-dismiss', 'restore-offer').click();
+    await notice(page).waitFor({ state: 'detached' });
+    assert.deepEqual(await journeyKeys(page), healed, 'dismissing the offer leaves the journey unchanged');
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await notice(page).count(), 0, 'a dismissed offer stays dismissed');
+    assert.deepEqual(await journeyKeys(page), healed);
+    passed('S2c dismissing the offer leaves the profile bytes unchanged and it does not return');
+
+    // An unfinished battle refuses before the file picker opens.
+    await action(page, 'continue-journey').click(); await action(page, 'confirm-start').click();
+    await page.locator('.battle-table').waitFor();
+    await action(page, 'battle-menu').click(); await action(page, 'navigate-confirm').click();
+    await page.locator('.game-lobby').waitFor();
+    const pending = await journeyKeys(page);
+    assert.ok(JSON.parse(pending[PROFILE_KEY]).pending);
+    let chooser = 0; page.on('filechooser', () => { chooser++; });
+    await openTools(page);
+    await press(page, action(page, 'import-save'), '請先完成或放棄未完對局，再匯入旅程備份');
+    assert.equal(chooser, 0, 'no file picker during a battle');
+    assert.deepEqual(await journeyKeys(page), pending);
+    passed('S2d during an unfinished battle the import is refused before the picker opens, with nothing written');
+    assert.equal(RESTORE_MESSAGES.unfinished.includes('本機旅程未有更改'), true);
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S3: each guest backup prompt appears once, at its milestone; persist() once, at the first win.
+    const page = await pageIn(await contextFor({ width: 390 }));
+    await action(page, 'save-notice-dismiss', 'restore-offer').click();
+    assert.equal(await persistCalls(page), 0);
+    await winBattle(page);
+    await page.locator('[data-save-notice="first-win"]').waitFor();
+    await noOverflow(page, 'first-win prompt at 390 px');
+    assert.equal(await persistCalls(page), 1, 'persist() exactly once, after the first win');
+    assert.equal(await page.locator('[data-save-notice="first-win"] [data-action="export-save"]').count(), 1);
+    assert.equal(await page.locator('[data-save-notice="first-win"] [data-action="account-open"]').count(), 1);
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await notice(page).count(), 0, 'shown once: not after a reload');
+    await winBattle(page);
+    assert.equal(await notice(page).count(), 0, 'not after a second win');
+    assert.equal(await persistCalls(page), 1);
+    await openPack(page);
+    await page.locator('[data-save-notice="first-pack"]').waitFor();
+    assert.equal(await persistCalls(page), 1, 'the first pack does not ask again');
+    await action(page, 'save-notice-dismiss', 'first-pack').click();
+    await notice(page).waitFor({ state: 'detached' });
+    await openPack(page);
+    assert.equal(await notice(page).count(), 0, 'not after a second pack');
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await notice(page).count(), 0);
+    await openTools(page);
+    assert.equal(await page.locator('[data-save-status]').getAttribute('data-persistence'), 'granted');
+    assert.match(await page.locator('[data-persistence-label]').innerText(), /瀏覽器已答應保留/);
+    assert.match(await page.locator('[data-last-backup]').innerText(), /上次備份：未曾/);
+    passed('S3 the first-win and first-pack prompts each appear once and never as a dialog; persist() ran once, after the first win, and 旅程閣 shows its answer');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S4: signed in (intercepted fixture API), the offer adds cloud restore; a cloud backup is the last backup.
+    const backup = travelled(), fixture = { revision: 1, backup: { revision: 1, updatedAt: now, snapshot: createSnapshot(backup) }, calls: [] };
+    const api = (route, request, url) => {
+      const reply = (value, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
+      fixture.calls.push(`${request.method()} ${url.pathname}`);
+      if (url.pathname === '/api/v1/account') return reply({ authenticated: true, user: { id: 'save-smoke-account', email: 'traveller@example.test' }, emailEnabled: true, journeyVersions: [1, 3] });
+      if (url.pathname === '/api/v3/journey' && request.method() === 'GET') return reply({ backup: fixture.backup, revision: fixture.revision });
+      if (url.pathname === '/api/v3/journey' && request.method() === 'PUT') {
+        const body = request.postDataJSON(); fixture.revision += 1;
+        fixture.backup = { revision: fixture.revision, updatedAt: now, snapshot: body.snapshot };
+        return reply({ backup: fixture.backup, revision: fixture.revision });
+      }
+      errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return reply({ error: { code: 'not_found' } }, 404);
+    };
+    const page = await pageIn(await contextFor({ api }));
+    await notice(page).waitFor();
+    assert.equal(await notice(page).locator('[data-action="restore-offer-cloud"]').count(), 0, 'no cloud option before the account is known');
+    assert.deepEqual(fixture.calls, [], 'the lobby makes no account request');
+    await openTools(page);
+    await page.locator('.account-identity').waitFor();
+    await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
+    await notice(page).locator('[data-action="restore-offer-cloud"]').click();
+    await page.locator('.account-confirmation').waitFor();
+    await action(page, 'account-restore').click();
+    await page.locator('.account-shell[aria-busy="false"] .account-message[role="status"]').waitFor();
+    assert.equal(fingerprintProfile(await read(page)), fingerprintProfile(backup), 'the cloud journey was restored through the existing flow');
+    await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await notice(page).count(), 0, 'the offer closes after a restore');
+    await openTools(page);
+    await action(page, 'account-upload').click();
+    await page.locator(`[data-last-backup] time[datetime="${now}"]`).waitFor();
+    assert.match(await page.locator('[data-last-backup]').innerText(), /雲端備份/);
+    assert.equal(fixture.calls.filter(call => call === 'PUT /api/v3/journey').length, 1);
+    passed('S4 signed in, the restore offer adds 雲端旅程 into the existing cloud restore (fixture API), and a cloud backup becomes the last backup');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  assert.deepEqual(errors, []);
+  console.log(`Save durability smoke passed in ${browserName}: ${checks.length} groups.`);
+} finally {
+  for (const context of contexts) await context.close().catch(() => {});
+  await browser.close();
+}
