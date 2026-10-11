@@ -6,11 +6,13 @@ v0.5.0 implements 旅程閣, player-session handling and account-private backups
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not
 merged, pushed or deployed, and the last recorded public release is still
-v0.5.1; this entry includes no hosted check. The final checks below ran on
-2026-10-11 against source commit **`80fb7a3`** with a clean tree. A loopback
+v0.5.1; this entry includes no hosted check. The list of checks below ran on
+2026-10-11 against source commit **`80fb7a3`** with a clean tree; the dated
+addenda after it record the 2026-10-11 polish, whose last source commit is
+**`0482837`**. A loopback
 `python3 tools/serve.py --port 4191` served that worktree (`Cache-Control:
-no-store`, uncompressed). The commit that adds this entry changes documentation
-only. All of this is synthetic headless evidence.
+no-store`, uncompressed). The commits that add this entry and its addenda change
+documentation only. All of this is synthetic headless evidence.
 
 Before Q0 the battle had four module tabs: 手牌, 落子, 對手 and 局勢. Now one 對局
 table keeps both public four-card hands, the announced confrontation, life and
@@ -19,7 +21,7 @@ pills, and the move controls in view, and the reveal uses the same table.
 the only reader of the stored AI move: it returns a card ID or null and never
 reads the bid or Fury. No engine, reward, AI, save-schema or art change. The
 [battle-table plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
-records the design and two rounds of review fixes.
+records the design and each round of review fixes.
 
 - `node --test tests/*.test.mjs`: **456/456**, exit 0, on Node 26.0.0. The base
   had 446. The new `tests/battle-table-view.test.mjs` adds 9: the gate, the view
@@ -72,6 +74,52 @@ each engine**; `BROWSER=webkit node tools/battle-presentation-smoke.mjs`
 **6/6**; and all 14 Chromium suites of `npm run test:browser`, each exit 0. The
 expansion smoke and the before/after measurement were not repeated for these
 CSS, JavaScript and test changes.
+
+**2026-10-11 polish · summary.** The two review rounds above are one polish pass
+from `6a93cb4` to source commit **`0482837`**. It changes `app.mjs`,
+`battle-ui.mjs`, five CSS files, `tests/battle-table-view.test.mjs` and
+`tools/battle-table-smoke.mjs`; no engine, save, reward, AI or art file. The
+smoke's hidden-move checks (byte-identical table HTML, ARIA and announcer text
+for different hidden bids and Fury) still pass.
+- **Fixed (12 of the 13 findings raised on `6a93cb4`):** the round result
+  showing before its staged reveal behind the dialog (#1, #2, `9a8ada7`) and,
+  as the next review found, inside it (`0482837`); the Fury switch collapsing in
+  landscape under about 740 px (#3, #11, `06bd920`); the 9 px attack-estimate
+  label (#5, `06bd920`) and its later mid-word break beside two-digit estimates
+  (`6d5509a`); the winner's attack cut off in the reveal pair (#4, `7762730`);
+  dead `.identity`, `.avatar` and `.battle-log` CSS (#7, `3c66454`); reveal
+  resource and effect pages split where `ced2aa4` used one (#8, `7f354b9`);
+  single-column rows overlapping below about 580 px tall (#9, `6bfc4a6`; they
+  now hold down to about 540 px); names over state badges at the 56 px card
+  height (#10, `6bfc4a6`); the hidden 危 mark (#12, `2eec18a`; visual only, with
+  no screen-reader text of its own); and Mist Gate's older selected-card
+  highlight (#13, `055437f`).
+- **Not reproducible:** #6, four-character names with ✧ cut off in the centre
+  slots at 640×360. Nothing changed for it. **Skipped:** none.
+- Each fix but #7 (no element uses those classes) has a smoke check that fails
+  in Chromium with only that fix reverted.
+  Independent probes on `c213330` re-confirmed all twelve against reverted CSS or
+  JavaScript in Chromium and WebKit; the two later fixes (`6d5509a`,
+  `0482837`) were re-checked only by their author, partly with the reviewer's
+  frame probe.
+- Final checks on `b9a3732`, with a clean tree whose game, test and tool files
+  are identical to `0482837`, against the same loopback server on Node 26.0.0:
+  `node --test tests/*.test.mjs` **456/456**, exit 0; and
+  `GAME_URL=http://127.0.0.1:4191 npm run test:battle-table` **40/40 in each
+  engine** (Chrome 154.0.8037.98, WebKit 26.6, no page errors), exit 0. The tree
+  was still clean afterwards.
+  The viewport, WebKit presentation and `test:browser` results above for
+  `0482837` were not repeated; the expansion smoke and the before/after
+  measurement last ran on `80fb7a3`.
+- **Still open**, detailed in the
+  [plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10): the
+  live-region announcement names the winner at Commit; where `backdrop-filter`
+  is not drawn (headless WebKit, and Safari releases that need the `-webkit-`
+  prefix) the resolved table behind the reveal is only dimmed, so its result
+  stays readable during 'sealed' and 'bids'; portrait windows under about
+  540 px tall, and the selected card's full-motion lift at 540–549 px; three
+  技能與共鳴 pages where `ced2aa4` had two at 375×553 and 360×560; and the
+  device, owner-review and clipping notes from before.
 
 **Before/after.** Measured with `tools/battle-measure.mjs` on fixture
 `q0-arena-round1-opponent-leads` (sha256_16 `6894b11ff0e9b0e6`): arena round 1,
@@ -136,8 +184,8 @@ hosted release: no build, deploy or `mythseal.com` check was made. Production
 caching, compression and CDN behavior. Sound. The WebKit expansion smoke was not
 rerun; the 2026-10-10 run stopped at a 43.08 px rewards-dialog tab at 360×740
 and 360×640, which also fails on `ced2aa4`. The plan's **Still open** list
-covers owner review of the new layouts and the remaining name/ellipsis clipping
-at a few narrow or short sizes.
+covers owner review of the new layouts, the remaining name/ellipsis clipping
+at a few narrow or short sizes and the items the polish left open.
 
 ## GitHub source checkpoint · 2026-09-24
 

@@ -364,25 +364,56 @@ the check fails in Chromium as noted.
 - Checks on `0482837` with a clean tree against a loopback dev server are listed
   in [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10).
 
-**Still open.** Physical iOS/Android and human review; owner review of the
-compact phone cards, the short-landscape arrangement, the new tablet layouts and
-the phone-landscape and very short arrangements; the pre-existing WebKit
-rewards-dialog tab width. At short-landscape widths (for example 667×375) and
-landscape windows under about 740 px, the cost note and the centre slot's detail
-line can end in an ellipsis, as can the cost note beside a three-digit
-estimate at 360 px wide; the same numbers stay in the player's resource
-caption. Portrait windows under about 540 px tall are not supported: the table
-rows would also need vertical slot labels there, and the review found the
-reveal's clash page already overflowing at 390×520 and 360×530. The name/badge
-spacing on compact cards was checked with headless fonts only. The round
-result's live-region announcement still names the winner at Commit, before the
-visual staging. Four-character names still clip where cards are 50 px wide or narrower
-(phone landscape under about 520 px, such as 480×320). They also clip in the
-lineups of landscape windows about 601–630 px wide, and up to about 690 px wide
-when taller than 500 px (for example 601×500, 601×520 and 640×520). The compact
-88 px clash cards clip their
-own face text, as they did in short landscape. In the final
-measurement the first table paint after resume was 3–17 ms slower in four of
-five headless profiles; nobody has profiled why. Merging, a public build and a
-hosted release are separate steps that have not happened.
+**Polish outcome (2026-10-11).** The third and fourth review fixes above fixed
+twelve of the thirteen findings raised on `6a93cb4`, plus the two regressions
+the next review found. The thirteenth, four-character names with ✧ cut off in
+the centre slots at 640×360, did not reproduce, and nothing changed for it. None
+was skipped. [VALIDATION.md](VALIDATION.md#q0-battle-table--2026-10-10) has the
+commit list and the final checks.
+
+**Still open (refreshed after the 2026-10-11 polish).**
+- Physical iOS/Android and human review; owner review of the compact phone
+  cards, the short-landscape arrangement, the new tablet layouts and the
+  phone-landscape and very short arrangements; the pre-existing WebKit
+  rewards-dialog tab width.
+- The round result's live-region announcement still names the winner at
+  Commit, before the visual staging.
+- The reveal hides the resolved table behind it only where `backdrop-filter`
+  is drawn. `styles.css` has only the unprefixed property, so headless WebKit,
+  and Safari releases that need the `-webkit-` prefix, only dim the table under
+  the 75 % backdrop: 此回合勝, the damage and the new life and pills stay
+  readable during 'sealed' and 'bids'. Browsers without `:has()` fall back to
+  the old backdrop fade. Real Safari was not checked.
+- Portrait windows under about 540 px tall are not supported: the table rows
+  overlap by up to about 11 px there, would also need vertical slot labels,
+  and the reveal's clash page already overflows at 390×520 and 360×530. At
+  540–549 px tall under full motion the selected card's 3 px lift overlaps the
+  confrontation row by up to 2.3 px (375×540); the sweep runs with reduced
+  motion only.
+- At 375×553 and 360×560 the reveal's 技能與共鳴 takes three pages for the
+  player-led and long-Fury fixtures, against two on `ced2aa4` (Chromium);
+  生命與仙丹 went from two pages to one there.
+- At short-landscape widths (for example 667×375) and landscape windows under
+  about 740 px, the cost note and the centre slot's detail line can end in an
+  ellipsis, as can the cost note beside a three-digit estimate at 360 px wide;
+  the same numbers stay in the player's resource caption.
+- Four-character names still clip where cards are 50 px wide or narrower (phone
+  landscape under about 520 px, such as 480×320). They also clip in the lineups
+  of landscape windows about 601–630 px wide, and up to about 690 px wide when
+  taller than 500 px (for example 601×500, 601×520 and 640×520). The compact
+  88 px clash cards clip their own face text, as they did in short landscape.
+- Small details: the name/badge spacing on compact cards was checked with
+  headless fonts only. At 360×540 and 640×360 the opponent's 危 mark overlaps
+  the bottom 1–2 px of the empty header box, and at 640×360 its glyph touches
+  the header's divider. The table's card hover rule is not limited to
+  `(hover: hover)`, so under emulated touch a just-tapped selected card keeps
+  the dimmer hover border until the next tap (its 1 px ring stays). 危 has no
+  screen-reader text of its own; the life label still reads 生命 N / 12. In
+  headless WebKit a 320 px wide portrait window scrolls the document; this was
+  not investigated or compared with `ced2aa4`.
+- In the final measurement (on `80fb7a3`, not repeated after the polish) the
+  first table paint after resume was 3–17 ms slower in four of five headless
+  profiles; nobody has profiled why.
+- Merging, a public build and a hosted release are separate steps that have not
+  happened.
 
