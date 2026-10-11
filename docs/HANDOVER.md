@@ -83,8 +83,8 @@ pushed, merged or deployed**. The last recorded public release is still
 
 Roadmap packet Q4's registry and audit are on the local branch
 **`q4/content-registry`**, started from `origin/main` `8afbabc`. Source commit
-**`4265039`**, with review fixes in **`7291880`**. The branch is not merged,
-pushed or deployed, and no hosted check was made.
+**`4265039`**, with review fixes in **`7291880`** and **`cf63bec`**. The branch
+is not merged, pushed or deployed, and no hosted check was made.
 
 - **Added:** `tools/content-registry.mjs` (Node tooling, never served),
   `tests/content-registry.test.mjs` and `npm run audit:content`. The registry
@@ -93,7 +93,7 @@ pushed or deployed, and no hosted check was made.
   takes this from the content modules, the two asset allowlists and the LZ-01
   checklist. No runtime, save, content, art or allowlist change; the public
   build stays at 80 files.
-- **Checked:** 469/469 Node tests at `7291880`; the audit exits 0 with no
+- **Checked:** 473/473 Node tests at `cf63bec`; the audit exits 0 with no
   findings; `npm run build` gives 80 files. Every finding code has an
   injected-fault case. Browser suites were not run because no runtime file
   changed.
@@ -102,6 +102,14 @@ pushed or deployed, and no hosted check was made.
   acquisition lists the story AA gift, campaign-final AA and fire-mountain
   first-clear BASE (checked by playing every grant route), and
   `loadContentSources()` takes no root.
+- **Second review fixes (`cf63bec`):** the asset walker follows plain CSS
+  `@import`, non-image `assets/` paths, `srcset`, media sources and literal
+  `new Audio`/`Worker`/`fetch` paths; reward rules list `claimExpansionGrant` and
+  `openWX01Ticket` only where a clear banks them; legacy acquisition lists the
+  starter/welcome copies and the v2 migration; the preview ownership reason no
+  longer claims that no preview page writes a profile; and a `t.skip()` in a
+  test body, or a declaration in a block comment, no longer counts as evidence.
+  A path a module builds at runtime is still invisible to the static walker.
 - **When content changes:** run `npm run audit:content`. If you bind an LZ-01
   special, update its status in the [EXPANSION-LZ01](EXPANSION-LZ01.md)
   checklist in the same change, or the audit fails.

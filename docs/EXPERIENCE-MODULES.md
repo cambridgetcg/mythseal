@@ -235,34 +235,59 @@ subset that the build generates, not import this file.
   from [ART-LZ01](ART-LZ01.md). That makes 150 entries: 120 `local-playable`,
   24 `preview` and 6 `planned`.
 - **Acquisition mirrors a few hard-coded grants:** pack pools, seal treatments,
-  campaign reward characters and activity drops come from the content modules.
+  campaign reward characters, activity drops and the starter (`ORIGINAL_CARD_IDS`)
+  and welcome (`WELCOME_CARD_IDS`) card lists come from the content modules.
   `progression.mjs` hard-codes the rest: the westward story AA gift
   (`claimWX01StoryPrint`), the campaign-final AA choice
-  (`campaign:westward-echo:aa`) and the fire-mountain first-clear BASE. The
-  registry mirrors those as named constants. A test clears every encounter, wins a
-  looting fire-mountain run and tries every grant route on every WX-01 printing;
-  the printings each route mints must match the listed routes exactly.
+  (`campaign:westward-echo:aa`), the fire-mountain first-clear BASE, and the
+  routes that mint a new journey's 16 starter and welcome copies (`createProfile`)
+  or turn a v2 save's counts into copies (`hydrateProfile`). The registry mirrors
+  those as named constants. One test clears every encounter, wins a looting
+  fire-mountain run and tries every grant route on every WX-01 printing; another
+  creates a journey and migrates three v2 saves. In both, the printings each route
+  mints must match the listed routes exactly. Moving or restoring an existing copy
+  (merchant buyback, a v3+ save, a backup restore) mints nothing and is not listed.
+- **Reward rules are per entry:** an encounter lists `claimExpansionGrant` only if
+  its first clear can bank a grant (a reward character, or the campaign's last
+  node), and `openWX01Ticket` only if it banks a ticket (the six volume finals).
+  The activity lists both, for its first-clear grant and weekly tickets. A test
+  clears every encounter and wins a run, and the lists must match exactly what
+  each clear banks.
 - **Capabilities:** each entry carries all five capabilities. A capability is
   `available`, `unavailable` with a reason, or `not-applicable` with a reason;
   for example, encounters have no preview surface and are not owned. When the
   source wires an item but a requirement fails, such as missing art, an
   unlisted asset, an illegal deck or a dangling prerequisite, the capability is
   `inconsistent` and the audit fails. `server-authoritative` is unavailable everywhere.
+  A preview printing's `local-owned` reason names the pages that serve it and
+  whether they load the profile store (`profile-store.mjs`). `liaozhai.html` and
+  `honglou.html` never do; the preview-allowlisted `playtest.html` does, and writes
+  coins and a gift marker, but no page can mint a preview printing.
 - **References, not copies:** entry, completion, reward, resume and unlock rules
   are `file.mjs:function` references. Evidence names `tests/file › title`, and a
   capability limit keeps its references beside its prose (`{ text, references }`).
   The audit resolves every reference-shaped string anywhere in an entry, so no
   field escapes it, and it rejects prose that embeds a reference. A test counts only
-  if it runs: `test.skip`, `{ skip }`/`{ todo }` options and a `//`-commented
-  declaration do not resolve. A test hidden behind runtime control flow such as
-  `if (false)` cannot be seen statically; the runner's test count shows it.
+  if it runs: `test.skip`, `{ skip }`/`{ todo }` options, a declaration inside a
+  `//` or block comment or a string, and a body that calls its context's `skip()`
+  or `todo()` (even conditionally) do not resolve. A test hidden behind runtime
+  control flow around its declaration, such as `if (false) test(...)`, or skipped
+  through an indirect call cannot be seen statically; the runner's skip count
+  shows it.
   `cardId`, `printId` and the absent `uid` stay distinct. Only
   `FIRE_MOUNTAIN.version` exists as a declared content version, and no rules
   version exists. `contentDigest` (SHA-256 of each authored record) detects
   change without inventing either version.
 - **Audit:** `npm run audit:content` and `tests/content-registry.test.mjs` fail
   on several kinds of inconsistency. They cover a public page loading an unlisted
-  file and an allowlisted file nothing uses. They cover preview data or art
+  file through a reference the walker can see, and an allowlisted file nothing
+  uses. The walker follows HTML `src`/`href`/`poster`/`srcset` on loading tags and
+  inline scripts; CSS `url()`, `@import "..."` and `image-set()`; and JS imports,
+  `assets/...` and `./` paths, and literal paths given to `new Audio`/`Worker`/`URL`,
+  `fetch` or `.src`. A path built at runtime (`${...}`, concatenation, a variable)
+  is invisible to it. Content art is covered by entry assets instead, and
+  `tools/serve.py` returns 404 for unlisted files, which the browser smokes record
+  as failures on the paths they exercise. They cover preview data or art
   reaching the public build and a planned special that is bound, allowlisted or
   present while its checklist row still says "no image". They also cover drift
   between the LZ-01 checklist and its briefs, and a dead rule or evidence

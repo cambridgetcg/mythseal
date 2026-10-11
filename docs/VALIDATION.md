@@ -7,13 +7,47 @@ v0.5.0 implements 旅程閣, player-session handling and account-private backups
 Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
 commit **`4265039`** adds `tools/content-registry.mjs`,
 `tests/content-registry.test.mjs` and the `npm run audit:content` script. Review
-fix commit **`7291880`** closes the gaps a review found (below). The
-branch is not merged, pushed or deployed, and there was no hosted check. No game
-runtime, save schema, content, art or allowlist file changed. Design and scope are in
+fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
+(below). The branch is not merged, pushed or deployed, and there was no hosted
+check. No game runtime, save schema, content, art or allowlist file changed.
+Design and scope are in
 [EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q4--content-registry-and-honest-capability-visibility).
 
-- `node --test tests/*.test.mjs`: **469/469**, exit 0, Node 26.0.0, at
-  `7291880`. The base has 456; `4265039` added 9 and `7291880` adds 4.
+- `node --test tests/*.test.mjs`: **473/473**, exit 0, Node 26.0.0, at
+  `cf63bec`. The base has 456; `4265039` added 9, `7291880` added 4 and
+  `cf63bec` adds 4.
+- **Second review fixes in `cf63bec`** (all tooling metadata; no player, save
+  or build effect):
+  - The asset walker missed CSS `@import "x.css"` (only `@import url(...)` was
+    followed), non-image `assets/` literals such as `new Audio('assets/sfx/…mp3')`,
+    `.gif`, `srcset` and `<video>`/`<audio>` sources. In a scratch copy, adding
+    either load left the audit, the build and all 469 tests passing. The walker
+    now follows those and the other load forms listed in EXPERIENCE-MODULES; the
+    current tree's references are byte-for-byte the same as before. A path built
+    at runtime is still invisible to it.
+  - Every campaign encounter listed `claimExpansionGrant`, though 39 of 48
+    first clears bank no grant, and no encounter or the activity listed
+    `openWX01Ticket`, though six volume finals and the weekly fire-mountain
+    clears bank tickets. Reward rules are now per node and checked against what
+    each clear actually banks.
+  - Legacy acquisition omitted the 16 starter and welcome copies that
+    `createProfile` mints and the v2 save migration in `hydrateProfile`. Both
+    are listed and checked against a new journey and three v2 migrations.
+  - Preview printings said "preview pages never write a profile", but the
+    preview-allowlisted `playtest.html` writes coins and a gift marker. The
+    reason now names the serving pages (`liaozhai.html`, `honglou.html`) and
+    whether they load `profile-store.mjs`.
+  - A test that called `t.skip()` in its body still counted as evidence. A body
+    that calls its context's `skip()`/`todo()`, even conditionally, and a
+    declaration inside a block comment or a string no longer count.
+  - Mutation check in scratch copies (APFS clones, deleted afterwards): removing
+    the volume-final ticket, the weekly ticket or the campaign-final AA from
+    `progression.mjs`; a `t.skip()` evidence body, a plain `@import` or an
+    unlisted `new Audio(...)`; and reverting each of the seven tool changes, each
+    made `node --test tests/content-registry.test.mjs` exit 1 (13 of 13). The
+    three source-drift mutants also made `node tools/content-registry.mjs`
+    exit 1. Before this commit, the ticket removals failed only
+    `tests/expansion-progression.test.mjs`.
 - **Review fixes in `7291880`:**
   - The dead-reference check skipped `unlock.rule` and the references inside
     backup limits, so renaming `isNodeUnlocked`, `assertLegacyExpansionBoundary`
@@ -61,18 +95,19 @@ runtime, save schema, content, art or allowlist file changed. Design and scope a
   current derivation does not produce, so their cases alter a built registry. Before
   `7291880` only 10 of the then 26 codes had an asserted case.
 - `npm run build`: exit 0, 80 public files, the same allowlist as the base
-  (re-run at `7291880`, unchanged).
+  (re-run at `cf63bec`, unchanged).
 - **Audit result:** nothing inconsistent in current content. All 60 authored
   opponent decks are legal, so `app.mjs:opponentDeck` never silently falls back to
   its random legacy deck. Every allowlisted file is used, nothing a served page
-  loads is unlisted, and no preview file reaches the public graph.
+  loads through a statically visible reference is unlisted, and no preview file
+  reaches the public graph.
 - **Observations, not fixed:** the six original encounters have no authored
   opponent deck; `app.mjs:opponentDeck` shuffles the legacy roster with
   `Math.random`, so that choice is not injectable. `engine.mjs` declares no rules
   version. The registry reports both instead of inventing values.
 - **Not run:** `npm run test:browser` and the WebKit suites, because no runtime
-  file changed. Also not run: CI, any hosted or deployed check, and any
-  physical-device or human review.
+  file changed (also at `cf63bec`). Also not run: CI, any hosted or deployed
+  check, and any physical-device or human review.
 
 ## Q0 battle table · 2026-10-10
 
