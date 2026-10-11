@@ -8,10 +8,13 @@ Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
 commit **`4265039`** adds `tools/content-registry.mjs`,
 `tests/content-registry.test.mjs` and the `npm run audit:content` script. Review
 fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
-(below). The branch is not merged, pushed or deployed, and there was no hosted
-check. No game runtime, save schema, content, art or allowlist file changed.
-Design and scope are in
-[EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q4--content-registry-and-honest-capability-visibility).
+(below). Later commits change documentation only; the documentation finish at
+the end of this entry re-ran the checks on that tree. The branch is not merged,
+pushed or deployed, and there was no hosted check. No game runtime, save schema,
+content, art or allowlist file changed. Design and scope are in
+[EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q4--content-registry-and-honest-capability-visibility);
+statuses and capability states are defined in
+[Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states).
 
 - `node --test tests/*.test.mjs`: **473/473**, exit 0, Node 26.0.0, at
   `cf63bec`. The base has 456; `4265039` added 9, `7291880` added 4 and
@@ -104,10 +107,50 @@ Design and scope are in
 - **Observations, not fixed:** the six original encounters have no authored
   opponent deck; `app.mjs:opponentDeck` shuffles the legacy roster with
   `Math.random`, so that choice is not injectable. `engine.mjs` declares no rules
-  version. The registry reports both instead of inventing values.
-- **Not run:** `npm run test:browser` and the WebKit suites, because no runtime
-  file changed (also at `cf63bec`). Also not run: CI, any hosted or deployed
-  check, and any physical-device or human review.
+  version. The registry reports both instead of inventing values. The audit
+  requires a reason only for an `unavailable` capability; `not-applicable`
+  reasons are checked by the test suite for today's entries, not by
+  `npm run audit:content`.
+- **Documentation finish (later on 2026-10-11).** These commits add
+  [Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states), the ROADMAP
+  status and a shorter handover note. Their game, test and tool files are
+  identical to `cf63bec`'s. Checks on that tree:
+  - `node --test tests/*.test.mjs`: **473/473**, exit 0, 0 skipped, Node 26.0.0.
+  - `node tools/content-registry.mjs`: exit 0, `findings: []`. By capability:
+    `preview` 77 available, 67 not-applicable, 6 unavailable; `local-playable`
+    120 available, 30 unavailable; `local-owned` 53 available, 67
+    not-applicable, 30 unavailable; `backup-compatible` 120 available, 30
+    unavailable; `server-authoritative` 150 unavailable. No capability is
+    `inconsistent`.
+  - `npm run build`: exit 0, 80 public files.
+  - `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai` and
+    `npm run test:honglou` (loopback `tools/serve.py`, this worktree): each exit
+    0, 14/14 checks in Chromium (system Google Chrome 154.0.8037.98) and 14/14
+    in WebKit (Playwright 1.63.0, WebKit 26.6). Each smoke seeds
+    `shanhai.profile.v5`, `shanhai.profile.v3`, `shanhai.battle.v5` and a
+    session key, then checks they stay unread and unchanged, with no cookie,
+    storage API, API or external call and no asset error. This is the ROADMAP
+    exit "preview browsing leaves profile bytes unchanged" for those two pages.
+    These pages are unchanged since `8afbabc`, so the check is a re-run, not a
+    new feature check. `playtest.html` is a preview-allowlisted supply page that
+    writes coins and a gift marker by design, and it serves no preview printing.
+  - **Merge simulation with `art/lz01-specials-images` (`3f8851b`):** a
+    `git clone --shared` in the scratch directory, then
+    `git merge --no-commit --no-ff` into `f33c35b`. The only conflict was this
+    file. `node tools/content-registry.mjs` exited 1 with a `SyntaxError`
+    (`liaozhai-cards.mjs` no longer exports `LZ01_AA`), and
+    `tests/content-registry.test.mjs` failed to load for the same reason. With
+    the import pointed at `LZ01_SPECIALS`, the audit reported `checklist-mismatch`
+    for `lz01-006-ink1`, because ART-LZ01's "Pending specials briefs" heading is
+    now "Specials briefs · 2026-10-10". With the parser also accepting that
+    heading, the audit exited 0 with 120 local-playable, 29 preview and 1
+    planned. With the test file's import adapted the same way, 3 of its 17
+    tests still failed, all on today's pinned LZ-01 state. Nothing from the
+    simulation was committed, and the clone was deleted.
+    The whole suite was not run on the merged tree.
+- **Not run:** `npm run test:browser` and the WebKit suites other than the two
+  preview smokes above, because no runtime file changed. Also not run: CI, any
+  hosted or deployed check, and any physical-device or human review.
 
 ## Q0 battle table · 2026-10-10
 

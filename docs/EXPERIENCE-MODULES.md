@@ -253,16 +253,10 @@ subset that the build generates, not import this file.
   The activity lists both, for its first-clear grant and weekly tickets. A test
   clears every encounter and wins a run, and the lists must match exactly what
   each clear banks.
-- **Capabilities:** each entry carries all five capabilities. A capability is
-  `available`, `unavailable` with a reason, or `not-applicable` with a reason;
-  for example, encounters have no preview surface and are not owned. When the
-  source wires an item but a requirement fails, such as missing art, an
-  unlisted asset, an illegal deck or a dangling prerequisite, the capability is
-  `inconsistent` and the audit fails. `server-authoritative` is unavailable everywhere.
-  A preview printing's `local-owned` reason names the pages that serve it and
-  whether they load the profile store (`profile-store.mjs`). `liaozhai.html` and
-  `honglou.html` never do; the preview-allowlisted `playtest.html` does, and writes
-  coins and a gift marker, but no page can mint a preview printing.
+- **Capabilities and status:** each entry carries all five capabilities, each in
+  one of four states, and its status is computed from them.
+  [Q4 registry states](#q4-registry-states) below defines both and lists today's
+  values by kind.
 - **References, not copies:** entry, completion, reward, resume and unlock rules
   are `file.mjs:function` references. Evidence names `tests/file › title`, and a
   capability limit keeps its references beside its prose (`{ text, references }`).
@@ -301,9 +295,94 @@ subset that the build generates, not import this file.
   completion and unlocks its next step. Both activity routes complete twice with
   one first-clear grant. A cloud-snapshot round trip keeps all 66 clears, the
   activity record and one copy of each of the 53 ownable printings.
-- **Still open for Q4:** feature views do not show these reasons yet. Start → completion →
-  receipt → return is covered at rules level, not in the browser UI. The "one
-  deeper encounter" sample and human difficulty review are not started.
+
+### Q4 registry states
+
+Registry schema version 1. No state is written by hand: `buildContentRegistry`
+derives each capability's state from the source, then computes the entry's
+status from those states. `npm run audit:content` prints the counts
+(`summary.byStatus`, `summary.byCapability`); `node tools/content-registry.mjs --json`
+prints every entry with its reasons, limits and evidence.
+
+| Capability state | Meaning | Fields | Audit |
+| --- | --- | --- | --- |
+| `available` | The source wires it, and every requirement the registry checks holds | `evidence`; `limits` as `{ text, references }` where they apply | Every reference must resolve (`dead-reference`) |
+| `unavailable` | This source does not offer it | `reason` | No reason → `missing-reason` |
+| `not-applicable` | It does not fit the kind of entry: an encounter has no preview surface and is never owned | `reason` | The audit does not check this reason; the suite does for today's entries |
+| `inconsistent` | The source wires it, but a requirement fails. Examples: missing art or an invalid PNG, an asset outside its allowlist, an unknown card or illegal deck, a dangling prerequisite, a module its page cannot reach, a printing with no acquisition route, or a preview module holding a catalogue printing | `blockers`, plus any `evidence`/`limits` | Each blocker is a `capability-inconsistent` finding; the audit exits 1 |
+
+An entry's **status** is the first that applies:
+
+1. `local-playable`: its `local-playable` or `local-owned` capability is
+   `available` or `inconsistent`;
+2. `preview`: otherwise, its `preview` capability is `available` or `inconsistent`;
+3. `planned`: otherwise.
+
+An `inconsistent` capability still counts, so a broken playable item keeps its
+status and fails the audit instead of quietly becoming a preview. No status or
+state means deployed: the registry's `evidenceScope` is `source`, and only
+release-manifest evidence (`dist/release.json`, [HOSTING](HOSTING.md)) shows
+what is live.
+
+The current source (content as at `8afbabc`) has 150 entries and no
+`inconsistent` capability:
+
+| Entries | Status | `preview` | `local-playable` | `local-owned` | `backup-compatible` | `server-authoritative` |
+| --- | --- | --- | --- | --- | --- | --- |
+| 66 encounters: 6 original, 12 story, 48 campaign | `local-playable` | not-applicable | available | not-applicable | available, with limits | unavailable |
+| 1 activity: 火焰山三連戰 | `local-playable` | not-applicable | available | not-applicable | available, with limits | unavailable |
+| 53 printings: 24 legacy, 29 WX-01 | `local-playable` | available | available | available | available | unavailable |
+| 24 bound previews: 13 LZ-01, 11 HL-01 | `preview` | available | unavailable | unavailable | unavailable | unavailable |
+| 6 planned LZ-01 specials | `planned` | unavailable | unavailable | unavailable | unavailable | unavailable |
+
+What today's reasons and limits say:
+
+- **`server-authoritative`**, every entry: no authoritative game server exists
+  yet (ROADMAP M2), and an account backup is a private, editable copy of local
+  progress.
+- **Encounter and activity backup limits:** an unfinished battle or an active run
+  blocks backup export and restore. Snapshot formats v1/v2 cannot carry
+  campaign or activity progress.
+- **Bound previews, `local-playable`:** 22 are candidates absent from
+  `engine.mjs` `CARDS`, with no rules, deck or AI integration. The two HL-01
+  林黛玉 printings name a card that exists, but the catalogue lacks them, so
+  林黛玉 plays only as `legacy/lindaiyu`.
+- **Bound previews, `local-owned` and `backup-compatible`:** `collection.mjs`
+  mints only `printing-catalogue.mjs` printings, and the page that serves each
+  preview (`liaozhai.html` or `honglou.html`) never loads the profile store
+  (`profile-store.mjs`). The reason is computed from the pages that actually serve
+  the module. The preview-allowlisted `playtest.html` does load the store and
+  writes coins and a gift marker, but it serves no preview printing. No profile
+  stores preview data, so no backup carries it.
+- **Planned specials:** every capability is unavailable. The `preview` reason
+  quotes the checklist status in [EXPANSION-LZ01](EXPANSION-LZ01.md), today
+  "Planned · brief only (2026-10-10), no image". The proposed file from
+  [ART-LZ01](ART-LZ01.md) is kept as `plannedAssets`, not `assets`.
+
+**Changing state means changing the source.** Editing the registry does not do it:
+
+- **planned → preview:** bind the selected image in `liaozhai-cards.mjs`, add it
+  to `hosting/preview-assets.json`, and in the same change replace the checklist
+  row's "Planned · … no image" status with the image path. Otherwise
+  `planned-bound`, `planned-asset-exists`, `planned-asset-listed` or
+  `checklist-mismatch` fails the audit.
+- **preview → local-playable:** needs rules integration: a card in `engine.mjs`
+  `CARDS`, a printing in `printing-catalogue.mjs` with publicly allowlisted art,
+  and an acquisition route. Then remove the printing from its preview module.
+  While a preview module still holds a catalogue printing, its `local-playable`
+  capability is `inconsistent` and the two entries share a `duplicate-id`.
+- **any → inconsistent:** a requirement in the table above breaks. Fix the
+  source or the allowlist, not the registry.
+- **server-authoritative** stays unavailable until an authoritative server
+  exists. Any other state is a `false-authority` finding.
+
+**Still open for Q4:** feature views do not show these reasons yet. Start →
+completion → receipt → return is covered at rules level, not in the browser UI.
+The "one deeper encounter" sample and human difficulty review are not started.
+The unmerged `art/lz01-specials-images` branch changes the LZ-01 module's exports
+and the brief section the registry parses; see the
+[handover](HANDOVER.md#q4-content-registry-checkpoint--2026-10-11-local-only)
+before merging the two branches.
 
 ## Q5 · a fair observation and legal-command boundary
 

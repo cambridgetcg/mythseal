@@ -82,41 +82,37 @@ pushed, merged or deployed**. The last recorded public release is still
 ## Q4 content registry checkpoint · 2026-10-11 (local only)
 
 Roadmap packet Q4's registry and audit are on the local branch
-**`q4/content-registry`**, started from `origin/main` `8afbabc`. Source commit
-**`4265039`**, with review fixes in **`7291880`** and **`cf63bec`**. The branch
-is not merged, pushed or deployed, and no hosted check was made.
+**`q4/content-registry`**, started from `origin/main` `8afbabc`. The source
+commit is **`4265039`**, with review fixes in **`7291880`** and **`cf63bec`**;
+later commits change documentation only. The branch is not merged, pushed or
+deployed, and no hosted check was made.
 
-- **Added:** `tools/content-registry.mjs` (Node tooling, never served),
-  `tests/content-registry.test.mjs` and `npm run audit:content`. The registry
-  derives what every encounter, the activity, each legacy/WX-01 printing, each
-  LZ-01/HL-01 preview printing and the six planned LZ-01 specials can do. It
-  takes this from the content modules, the two asset allowlists and the LZ-01
-  checklist. No runtime, save, content, art or allowlist change; the public
-  build stays at 80 files.
-- **Checked:** 473/473 Node tests at `cf63bec`; the audit exits 0 with no
-  findings; `npm run build` gives 80 files. Every finding code has an
-  injected-fault case. Browser suites were not run because no runtime file
-  changed.
-- **Review fixes (`7291880`):** the audit now resolves unlock rules and the
-  references behind backup limits, a skipped test no longer counts as evidence,
-  acquisition lists the story AA gift, campaign-final AA and fire-mountain
-  first-clear BASE (checked by playing every grant route), and
-  `loadContentSources()` takes no root.
-- **Second review fixes (`cf63bec`):** the asset walker follows plain CSS
-  `@import`, non-image `assets/` paths, `srcset`, media sources and literal
-  `new Audio`/`Worker`/`fetch` paths; reward rules list `claimExpansionGrant` and
-  `openWX01Ticket` only where a clear banks them; legacy acquisition lists the
-  starter/welcome copies and the v2 migration; the preview ownership reason no
-  longer claims that no preview page writes a profile; and a `t.skip()` in a
-  test body, or a declaration in a block comment, no longer counts as evidence.
-  A path a module builds at runtime is still invisible to the static walker.
+- **What it is:** `tools/content-registry.mjs` (Node tooling, never served),
+  `tests/content-registry.test.mjs` and `npm run audit:content`. From the content
+  modules, both asset allowlists and the LZ-01 docs, it derives what each
+  encounter, the activity, each legacy/WX-01 printing, each LZ-01/HL-01 preview
+  and each planned LZ-01 special can do. No runtime, save, content, art or
+  allowlist file changed. [Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states)
+  defines statuses and capability states.
+- **Checked:** 473/473 Node tests, the audit (exit 0, no findings), an 80-file
+  build and the LZ-01/HL-01 preview smokes in Chromium and WebKit;
+  [VALIDATION](VALIDATION.md#q4-content-registry--2026-10-11) has the receipts
+  and both review rounds.
 - **When content changes:** run `npm run audit:content`. If you bind an LZ-01
-  special, update its status in the [EXPANSION-LZ01](EXPANSION-LZ01.md)
-  checklist in the same change, or the audit fails.
-- **Open:** feature views do not show unavailable reasons yet; there are no
-  browser-level completion → return tests; the deeper-encounter sample and human
-  difficulty review are not started.
-  [VALIDATION](VALIDATION.md#q4-content-registry--2026-10-11) has the checks.
+  special, update its row in the [EXPANSION-LZ01](EXPANSION-LZ01.md) checklist
+  in the same change, or the audit fails.
+- **Merging with `art/lz01-specials-images` (at `3f8851b`, also unmerged):**
+  that branch replaces the `LZ01_AA` export with `LZ01_SPECIALS` and
+  `LZ01_PLANNED_SPECIALS`, and renames ART-LZ01's "Pending specials briefs"
+  section to "Specials briefs · 2026-10-10". In a scratch merge the registry
+  tool and its tests failed to load. Whichever branch merges second must update
+  the registry's import and the brief section it parses, then the three tests
+  that pin today's LZ-01 state (counts, the planned list and a fault case that
+  binds 嬰寧 AA). Expected after that: 120 local-playable, 29 preview, 1 planned.
+  `docs/VALIDATION.md` also conflicts.
+- **Open:** feature views do not show unavailable reasons yet; there is no
+  browser-level start → completion → receipt → return test; the
+  deeper-encounter sample and human difficulty review are not started.
 
 ## Experience planning checkpoint · 2026-09-29
 
