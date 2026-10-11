@@ -2,7 +2,9 @@
  * Q4 content registry: a read-only index of what each piece of authored content
  * can do in this source tree. Every entry is derived from the content modules,
  * hosting/public-assets.json, hosting/preview-assets.json and the LZ-01 printing
- * checklist; nothing here is a second rules, reward or printing database.
+ * checklist; nothing here is a second rules, reward or printing database. The
+ * only mirrored facts are the few grants progression.mjs hard-codes (see the
+ * grant constants below), and a test plays those routes to keep them exact.
  *
  * Node tooling only. It reads repository files (allowlists, docs, module text),
  * and it describes LZ-01/HL-01 preview identities, so it is never served:

@@ -83,8 +83,8 @@ pushed, merged or deployed**. The last recorded public release is still
 
 Roadmap packet Q4's registry and audit are on the local branch
 **`q4/content-registry`**, started from `origin/main` `8afbabc`. Source commit
-**`4265039`**. The branch is not merged, pushed or deployed, and no hosted check
-was made.
+**`4265039`**, with review fixes in **`7291880`**. The branch is not merged,
+pushed or deployed, and no hosted check was made.
 
 - **Added:** `tools/content-registry.mjs` (Node tooling, never served),
   `tests/content-registry.test.mjs` and `npm run audit:content`. The registry
@@ -93,9 +93,15 @@ was made.
   takes this from the content modules, the two asset allowlists and the LZ-01
   checklist. No runtime, save, content, art or allowlist change; the public
   build stays at 80 files.
-- **Checked:** 465/465 Node tests; the audit exits 0 with no findings;
-  `npm run build` gives 80 files. Browser suites were not run because no
-  runtime file changed.
+- **Checked:** 469/469 Node tests at `7291880`; the audit exits 0 with no
+  findings; `npm run build` gives 80 files. Every finding code has an
+  injected-fault case. Browser suites were not run because no runtime file
+  changed.
+- **Review fixes (`7291880`):** the audit now resolves unlock rules and the
+  references behind backup limits, a skipped test no longer counts as evidence,
+  acquisition lists the story AA gift, campaign-final AA and fire-mountain
+  first-clear BASE (checked by playing every grant route), and
+  `loadContentSources()` takes no root.
 - **When content changes:** run `npm run audit:content`. If you bind an LZ-01
   special, update its status in the [EXPANSION-LZ01](EXPANSION-LZ01.md)
   checklist in the same change, or the audit fails.

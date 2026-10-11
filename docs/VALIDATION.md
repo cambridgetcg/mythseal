@@ -6,13 +6,37 @@ v0.5.0 implements 旅程閣, player-session handling and account-private backups
 
 Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
 commit **`4265039`** adds `tools/content-registry.mjs`,
-`tests/content-registry.test.mjs` and the `npm run audit:content` script. The
+`tests/content-registry.test.mjs` and the `npm run audit:content` script. Review
+fix commit **`7291880`** closes the gaps a review found (below). The
 branch is not merged, pushed or deployed, and there was no hosted check. No game
 runtime, save schema, content, art or allowlist file changed. Design and scope are in
 [EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q4--content-registry-and-honest-capability-visibility).
 
-- `node --test tests/*.test.mjs`: **465/465**, exit 0, Node 26.0.0. The base
-  has 456; the new file adds 9.
+- `node --test tests/*.test.mjs`: **469/469**, exit 0, Node 26.0.0, at
+  `7291880`. The base has 456; `4265039` added 9 and `7291880` adds 4.
+- **Review fixes in `7291880`:**
+  - The dead-reference check skipped `unlock.rule` and the references inside
+    backup limits, so renaming `isNodeUnlocked`, `assertLegacyExpansionBoundary`
+    or either cloud-save limit test left the audit at exit 0. It now resolves
+    every reference-shaped string in an entry; limits hold `{ text, references }`,
+    and prose that embeds a reference is its own finding. In a scratch copy,
+    renaming `isNodeUnlocked`, `assertLegacyExpansionBoundary` and the activity
+    limit test, and skipping one evidence test, made `node tools/content-registry.mjs`
+    exit 1 with four `dead-reference` findings. The suite injects each of these,
+    and the other limit test's rename, as a separate case.
+  - A test disabled with `{ skip }` still counted as evidence. Skip/todo options
+    and `//`-commented declarations no longer resolve; a test hidden behind
+    `if (false)` still cannot be detected statically.
+  - Acquisition omitted the westward story AA gift, the campaign-final AA choice
+    and the fire-mountain first-clear BASE. They are listed now, and a test plays
+    every story and expansion grant route on every WX-01 printing and requires an
+    exact match with the listed routes.
+  - `loadContentSources(root)` redirected file reads but not the content modules.
+    It now takes no root and throws if given one.
+  - Mutation check in scratch copies: removing any of the three new grant routes,
+    reverting the reference collection, the skip handling, the embedded-reference
+    check or the root guard, or deleting a fault case, each made
+    `node --test tests/content-registry.test.mjs` fail (8 of 8 mutations).
 - `node tools/content-registry.mjs`: exit 0, `findings: []`. It derives 150
   entries: encounters 6 original, 12 story and 48 campaign; one activity; 24
   legacy, 29 WX-01, 19 LZ-01 and 11 HL-01 printings. Statuses are 120
@@ -25,12 +49,19 @@ runtime, save schema, content, art or allowlist file changed. Design and scope a
   browser UI.
 - **Backup:** a v3 cloud snapshot round trip keeps all 66 clears, the activity
   record and grants, and one copy of each of the 53 ownable printings.
-- **Fault injection:** each audit check fires on a deliberately broken copy of
-  the sources, for example a dropped public map, a leaked LZ-01 atlas, an
-  unknown card or illegal authored deck, a dangling prerequisite, a printing
-  with absent or missing art, a wrong activity drop, a bound planned special,
-  checklist or brief drift, an unlisted import and a preview import.
-- `npm run build`: exit 0, 80 public files, the same allowlist as the base.
+- **Fault injection:** each of the 27 finding codes fires on an injected fault,
+  and a test fails if a code in the source has no case. 23 codes fire on a
+  deliberately broken copy of the sources, for example a dropped public map, a
+  leaked LZ-01 atlas, an unknown card or illegal authored deck, a dangling,
+  circular or second root prerequisite, a printing with absent or missing art, a
+  wrong activity drop, a bound planned special, checklist or brief drift, an
+  unlisted import, a preview import and a renamed or skipped referenced test or
+  rule. The other 4 guard the registry's own shape (an owned-copy `uid`, a
+  server-authority claim, a missing reason, an embedded reference), which the
+  current derivation does not produce, so their cases alter a built registry. Before
+  `7291880` only 10 of the then 26 codes had an asserted case.
+- `npm run build`: exit 0, 80 public files, the same allowlist as the base
+  (re-run at `7291880`, unchanged).
 - **Audit result:** nothing inconsistent in current content. All 60 authored
   opponent decks are legal, so `app.mjs:opponentDeck` never silently falls back to
   its random legacy deck. Every allowlisted file is used, nothing a served page

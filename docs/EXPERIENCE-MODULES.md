@@ -234,6 +234,14 @@ subset that the build generates, not import this file.
   printing checklist" in [EXPANSION-LZ01](EXPANSION-LZ01.md), with proposed files
   from [ART-LZ01](ART-LZ01.md). That makes 150 entries: 120 `local-playable`,
   24 `preview` and 6 `planned`.
+- **Acquisition mirrors a few hard-coded grants:** pack pools, seal treatments,
+  campaign reward characters and activity drops come from the content modules.
+  `progression.mjs` hard-codes the rest: the westward story AA gift
+  (`claimWX01StoryPrint`), the campaign-final AA choice
+  (`campaign:westward-echo:aa`) and the fire-mountain first-clear BASE. The
+  registry mirrors those as named constants. A test clears every encounter, wins a
+  looting fire-mountain run and tries every grant route on every WX-01 printing;
+  the printings each route mints must match the listed routes exactly.
 - **Capabilities:** each entry carries all five capabilities. A capability is
   `available`, `unavailable` with a reason, or `not-applicable` with a reason;
   for example, encounters have no preview surface and are not owned. When the
@@ -241,18 +249,28 @@ subset that the build generates, not import this file.
   unlisted asset, an illegal deck or a dangling prerequisite, the capability is
   `inconsistent` and the audit fails. `server-authoritative` is unavailable everywhere.
 - **References, not copies:** entry, completion, reward, resume and unlock rules
-  are `file.mjs:function` references. Evidence names `tests/file › title`. The
-  audit checks that each one still resolves. `cardId`, `printId` and the absent
-  `uid` stay distinct. Only `FIRE_MOUNTAIN.version` exists as a declared content
-  version, and no rules version exists. `contentDigest` (SHA-256 of each authored
-  record) detects change without inventing either version.
+  are `file.mjs:function` references. Evidence names `tests/file › title`, and a
+  capability limit keeps its references beside its prose (`{ text, references }`).
+  The audit resolves every reference-shaped string anywhere in an entry, so no
+  field escapes it, and it rejects prose that embeds a reference. A test counts only
+  if it runs: `test.skip`, `{ skip }`/`{ todo }` options and a `//`-commented
+  declaration do not resolve. A test hidden behind runtime control flow such as
+  `if (false)` cannot be seen statically; the runner's test count shows it.
+  `cardId`, `printId` and the absent `uid` stay distinct. Only
+  `FIRE_MOUNTAIN.version` exists as a declared content version, and no rules
+  version exists. `contentDigest` (SHA-256 of each authored record) detects
+  change without inventing either version.
 - **Audit:** `npm run audit:content` and `tests/content-registry.test.mjs` fail
   on several kinds of inconsistency. They cover a public page loading an unlisted
   file and an allowlisted file nothing uses. They cover preview data or art
   reaching the public build and a planned special that is bound, allowlisted or
   present while its checklist row still says "no image". They also cover drift
   between the LZ-01 checklist and its briefs, and a dead rule or evidence
-  reference. Injected-fault cases prove each check fires.
+  reference. Every one of the 27 finding codes has an injected-fault case, and a
+  test fails if a new code lacks one. Four codes guard the registry's own shape
+  (an owned-copy `uid`, a server-authority claim, a missing reason and an
+  embedded reference); the current derivation does not produce them, so their
+  cases alter a registry after it is built.
 - **Rules-level routes:** every advertised encounter route (66 owned plus 2
   borrowed decks) starts, completes, pays its first clear once, rejects a duplicate
   completion and unlocks its next step. Both activity routes complete twice with
