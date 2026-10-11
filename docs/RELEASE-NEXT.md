@@ -114,7 +114,7 @@ at `8afbabc`, are kept in brackets.
 | --- | --- | --- | --- |
 | `clientVersion` / commit | `0.5.1` / `ea48558` | `0.5.1` (not bumped yet) / `b527dc3` | live `release.json`; `dist/release.json` |
 | Public files | 19 files, **11,130,757 B** | 83 files, **74,389,154 B** (70.94 MiB) [80 files, 74,347,757 B]. Q1 adds three modules (32,980 B) and grows five existing ones by 8,417 B | both manifests |
-| Manifest SHA-256 | `7c18fceb…6e88` | `10f594fc…4014` [`98028a3a…54db`] | build output |
+| Manifest SHA-256 | `7c18fceb…4e88` | `10f594fc…4014` [`98028a3a…54db`] | build output; the live value in full is in [HOSTING.md:137](HOSTING.md) (§13) |
 | Of which PNG | 3 files, 10,838,776 B | **23 files, 73,418,493 B**, unchanged since `8afbabc` | `dist/release.json` |
 | Account API | `{"authenticated":false,"user":null,"emailEnabled":true}`: no `journeyVersions` field, so the v1-only Worker | `/api/v2` and `/api/v3` routes behind `JOURNEY_V2_ENABLED` / `JOURNEY_V3_ENABLED`; `journeyVersions` in every account reply. Q1 changes no route | live probe; `server/account-api.mjs:8-16`, `:123-125`, `:173`; v0.5.1 routes: `git show v0.5.1:server/account-api.mjs` lines 7-12 |
 | Local save key | `shanhai.profile.v3` | `shanhai.profile.v5`; reads v4/v3/v2 sources and leaves them in place. Since Q1 a v5 profile may also hold a device-local `commands` ledger | `git show v0.5.1:progression.mjs:16`; `progression.mjs:24`; `profile-store.mjs:10-14`, `:71-92`; ledger: `progression.mjs:250` |
@@ -168,7 +168,7 @@ path.** The v0.5.1 deployment used an ignored helper
 | G4 | Hosted proof that the publishable-key binding survives `--keep-vars` ([HOSTING.md:71-81](HOSTING.md)) | Stub tests only | C1 verify |
 | G5 | Hosted acceptance of old and new backups ([HANDOVER.md:519](HANDOVER.md), `:578-580`) | `tools/live-account-check.mjs:83` exercises `/api/v1` only | A4, B4, C3 |
 | G6 | Transfer-size optimization before a hosted rollout ([HANDOVER.md:901](HANDOVER.md)); first screen ≤ 1.5 MiB ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | First screen measured at **6.98 MiB** at `8afbabc`; **6.99 MiB** at `b527dc3`, recomputed statically for Q1's three modules (§9) | A1 |
-| G7 | Exact-source CI before deploy ([HOSTING.md:42-43](HOSTING.md)) | CI exists; it has no browser job (`.github/workflows/ci.yml:19-62`) | A6, B1 |
+| G7 | Exact-source CI before deploy ([HOSTING.md:42-43](HOSTING.md)) | CI exists; it has no browser job (`.github/workflows/ci.yml:19-62`). Two suites that job would run already fail in WebKit on this source, neither because of Q1: `test:expansion` and `test:map-piece` (A6) | A6, B1 |
 | G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:79-85](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
 | G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e b527dc3` exits 0). `test:commands` last passed 13/13 groups per engine at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)); not re-run at `b527dc3`. The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
 
@@ -248,7 +248,9 @@ re-run the grep to find them. `journey-smoke.mjs` matters most: C2 runs it
 against production, where its 404 would look like a failed deploy. Afterwards
 `test:browser` (which includes C2's `smoke.mjs` and `journey-smoke.mjs`),
 `test:commands`, `test:expansion` and the other §10 step 3 suites must pass
-against that preview.
+against that preview. In WebKit, `test:expansion` and `test:map-piece` already
+fail before A2, for the reasons A6 gives; until A6 fixes them, those two may
+fail only as they do on the commit before A2, so do not blame A2 for them.
 *Rollback:* `git revert`. The owner may instead waive G3 in writing for this
 release and accept the mixed-load risk.
 
@@ -336,15 +338,55 @@ instead, §12).** Two cases in §6 hide progress without deleting it. (a)
 key and its fingerprint under a **separate** localStorage key, so the v5 profile
 and cloud snapshot formats stay unchanged. If that legacy key changes later
 (a `storage` event, or a fingerprint mismatch on load), offer recovery or
-export instead of ignoring it. (b) *Cloud:* make `readCloud`
+export instead of ignoring it. Recovery replaces the v5 journey, so under Q1
+it is an import, and any import must retire the ledger as restore does
+([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact),
+"Export"). Recover only through the existing restore path,
+`restoreLocalProfile` → `profileStore.replace` (`app.mjs:129-154`;
+`profile-store.mjs:58-60`, `:119-124`). It holds the strict fenced lock
+(`app.mjs:53`), retires the replaced journey's ledger and first keeps a
+`RECOVERY_KEY` copy of that journey. `createSnapshot` already wraps a v3 or
+v4 profile for it (`cloud-save.mjs:191`). Do not write the legacy journey
+through `transact`, whose guard refuses it for every player with a ledger
+(`app.mjs:118-119`), or through a bare `profileStore.save`, which would drop
+the ledger and let an earlier command ID commit again. Never copy the old
+`commands` across either: that keeps the replaced lineage's command IDs
+executable in the recovered journey. (b) *Cloud:* make `readCloud`
 (`account-client.mjs:116-129`) also read the older enabled namespaces when the
 v3 backup is not empty, compare `updatedAt`, and offer a newer legacy backup
 for restore. That costs one more GET per sign-in. Both changes stay inside
 existing modules, so no new runtime file is needed.
-*Verify:* unit tests for both cases, then the browser suites.
+*Verify:* unit tests for both cases, including (a) over a profile with a
+ledger: the ledger is retired, a `RECOVERY_KEY` copy exists, and a command ID
+issued before the recovery is expired after it. Then the browser suites,
+including `npm run test:commands` in Chromium and WebKit.
 *Rollback:* `git revert`.
 
-**A6 · Browser CI and payload budget (gate G7).** See §10.
+**A6 · Browser CI and payload budget (gate G7).** See §10. First fix two
+WebKit failures that already exist on this source; until then neither the
+browser job nor A8 can exit 0. Both reproduced at `8191bfe` (§13):
+- `test:expansion` stops at `360x740/rewards/grants`, and at `360x640` when
+  that size runs alone: the rewards dialog's `module` tab is 43.08 px wide in
+  Playwright WebKit on macOS, under the smoke's 44 px minimum
+  (`tools/expansion-smoke.mjs:116`, `:129`). Chromium passes. It is on record
+  for `ced2aa4` ([BATTLE-LAYOUT-PLAN.md:155-157](BATTLE-LAYOUT-PLAN.md),
+  [VALIDATION.md:1268-1270](VALIDATION.md)) and for `b6410e9` and the Q1 fixes
+  ([VALIDATION.md:798-800](VALIDATION.md);
+  [LOCAL-COMMANDS.md:678](LOCAL-COMMANDS.md)), so Q1 did not cause it. Give
+  that tab a width of at least 44 px at those sizes, or the owner waives it in
+  writing for this release (§12 item 13). Whether Linux WebKit on a runner
+  measures the same width is **UNVERIFIED**.
+- `test:map-piece` cannot launch WebKit unless `test-results/webkit-runtime`
+  holds a browser, because `tools/map-piece-smoke.mjs:13` points
+  `PLAYWRIGHT_BROWSERS_PATH` there whenever the variable is unset. The other
+  smokes do that only when the folder exists (`tools/expansion-smoke.mjs:15`).
+  §10 step 1 installs browsers into Playwright's default cache, so the CI job
+  would fail here whatever the code under test does
+  ([LOCAL-COMMANDS.md:679](LOCAL-COMMANDS.md)). Add the same `existsSync`
+  check. With the variable pointing at an installed WebKit, the smoke passes.
+
+*Verify:* both suites exit 0 in Chromium and WebKit against the preview.
+*Rollback:* `git revert`.
 
 **A7 · Version and docs.** Bump to 0.6.0 (§3). Correct stale counts: HOSTING
 still says "19 runtime files" (`docs/HOSTING.md:13`). Draft release notes. They
@@ -361,12 +403,14 @@ test:commands` (Q1, Chromium and WebKit: `test:browser` does not run
 `tools/command-smoke.mjs`, whose B2–B11 are the only browser checks of the
 fence's edge cases and the only WebKit checks of the command path;
 [LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact))
-· the other WebKit suites (§10 step 3) ·
+· the other WebKit suites (§10 step 3; after A6's two fixes) ·
 `bash tools/test-backup-sql.sh` (disposable loopback database only). Serve the
 browser suites from a server started after checkout: `tools/serve.py` reads
 the allowlist once at startup, so an older server returns 404 for Q1's
 modules ([HANDOVER.md:237-239](HANDOVER.md)).
-*Verify:* every command exits 0. Record the results in [VALIDATION.md](VALIDATION.md).
+*Verify:* every command exits 0. The one exception is a WebKit `test:expansion`
+failure at the rewards dialog's `module` tab alone, and only if the owner has
+waived that tab in writing (§12 item 13). Record the results in [VALIDATION.md](VALIDATION.md).
 
 ### Phase B · Owner gate and hosted database
 
@@ -374,7 +418,8 @@ modules ([HANDOVER.md:237-239](HANDOVER.md)).
 approval, whether G3 can be waived, the v2 flag, the B3 backup method, the
 apex Worker's CPU limit (§6), either the A5 guards or a written acceptance
 of the §6 open-tab and hidden-backup cases, and the Q1 contract with its
-forward-only rule (G9, §12 item 12). Staging was decided in A0.
+forward-only rule (G9, §12 item 12). Staging was decided in A0, and any
+waiver of the WebKit expansion tab in A6 (§12 item 13).
 
 **B1 · CI then OWNER · Exact source.** Open the release PR. CI must pass on the
 final commit, including the new browser job. Merge, tag `v0.6.0` on the merged
@@ -873,7 +918,8 @@ Add a separate `browser` job (`needs: prototype`, `timeout-minutes: 30`):
    does not run it, and a release that includes Q1 needs it in both engines,
    [LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact)),
    `test:battle-table`, `test:viewport`, `test:wx01`, `test:inheritance`,
-   `test:collection-display`, `test:expansion`, `test:map-piece`.
+   `test:collection-display`, `test:expansion`, `test:map-piece`. The last two
+   fail in WebKit today, so A6 fixes them first.
 4. Turn the first-screen measurement in §9 into `tools/payload-budget.mjs` and
    fail the job above 1.5 MiB (text counted at brotli or gzip size). Measure a
    first-visit guest **and** a returning player whose deck includes a welcome
@@ -897,8 +943,9 @@ evidence ([HANDOVER.md:79-83](HANDOVER.md)).
 
 1. Exact-source CI is green on the `v0.6.0` commit, including the browser job.
 2. A8 passes locally: Node, Python, the content audit, build, preview dry run,
-   Chromium and WebKit suites including `test:commands` in both engines, SQL
-   harness.
+   Chromium and WebKit suites including `test:commands` in both engines (with
+   A6's two WebKit fixes, or the owner's waiver of the expansion tab, §12
+   item 13), SQL harness.
 3. The first screen is ≤ 1.5 MiB as measured, for both the first-visit and the
    returning-player profiles (§9), or the owner has recorded a waiver or a
    first-visit-only scope.
@@ -989,6 +1036,13 @@ disables cloud upload for new clients, so the owner decides.
     - The owner also accepts the forward-only rule (§6): after release, deploy
       or roll back the apex only to v0.5.1 or to a version that contains
       `7a7d03e`, and fix a problem in Q1 forward.
+13. **The rewards dialog's 43.08 px `module` tab in WebKit** (A6), which
+    predates Q1: fix it (recommended), or waive it in writing for this
+    release. A waiver must also say how the CI browser job leaves out that
+    check, since GO item 1 needs the job green: for example, run WebKit
+    `test:expansion` once per size with `VIEWPORT_SIZE`
+    (`tools/expansion-smoke.mjs:22`), without 360x740 and 360x640. The
+    `test:map-piece` launch failure needs no decision; A6 fixes it.
 
 ## 13. Checks run for this plan
 
@@ -1025,6 +1079,10 @@ disables cloud upload for new clients, so the owner decides.
 | Q1 review: `grep -n "import('[./]" tools/*.mjs` (A2); source as at `b527dc3` | exit 0; 16 in-page imports by site-root path in 9 smokes, all listed in A2 |
 | Q1 review: `git log --first-parent --format='%h %p' origin/main`; `git log --diff-filter=A --format=%h b527dc3 -- profile-fence.mjs` (§1) | PRs #1 and #3–#9 each landed as a two-parent merge commit; `7a7d03e` |
 | Q1 review: the Worker entry bundled with the repo's esbuild 0.28.1 into a scratch file (`--bundle`, `@supabase/supabase-js` external), metafile read; source as at `b527dc3` (§2) | exit 0; `command-ledger.mjs` is in the bundle (3,772 B in output). Not a Wrangler measurement |
+| Q1 review 2: an APFS copy of `8191bfe` served by `python3 tools/serve.py --port 4613` (stopped and the copy deleted afterwards); `BROWSER=webkit node tools/expansion-smoke.mjs`, then alone with `VIEWPORT_SIZE=360x640` and `=844x390` (A6) | exit 1 after 6 PASS lines (1440x900, 1280x720, 390x844): `360x740/rewards/grants: actions must be visible, unobstructed and44px`, control `module`, `width: 43.078125`; 360x640 exit 1 on the same tab; 844x390 exit 0 |
+| Q1 review 2: the same server, `BROWSER=webkit node tools/map-piece-smoke.mjs`, then again with `PLAYWRIGHT_BROWSERS_PATH` set to the installed Playwright cache (A6) | exit 1, `browserType.launch: Executable doesn't exist at …/test-results/webkit-runtime/webkit-2359/pw_run.sh`; then exit 0 |
+| Q1 review 2: v0.5.1's manifest recomputed from the tag's blobs (`git show v0.5.1:hosting/public-assets.json`, `git cat-file blob`), hashed as v0.5.1's `tools/build.mjs:35-38` does (§2) | 19 files, 11,130,757 B, `7c18fcebe9d1…4e88`, as in [HOSTING.md:137](HOSTING.md). §2 had `…6e88` since the first draft, a transcription slip |
+| Q1 review 2: scratch Node scripts with an in-memory store (A5). First, a v3 profile through `createSnapshot` and `restoreSnapshot`, then `assertLedgerUnchanged` and `store.replace` over a v5 profile whose ledger has `nextSeq` 5. Second, commit `cmd-1` with `commitCommand`, replace the journey by `store.replace` or by a bare `store.save`, then send the same `cmd-1` request again | First: the guard throws `COMMAND_LEDGER_GUARD_ERROR`; `replace` returns the v3 journey as v5 with the ledger retired (`nextSeq` 6, `retiredBelow` 6, no receipts) and writes `RECOVERY_KEY`. Second: after `replace` the request is rejected as `expired`; after a bare `save` it commits again (`duplicate: false`) |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no
