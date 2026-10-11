@@ -110,17 +110,25 @@ export function createProfileStore({ storage, now = () => new Date() }) {
     storage.setItem(PROFILE_KEY, JSON.stringify(profile));
     return profile;
   }
-  /** Restore under PROFILE_LOCK. The recovery copy of `current` is written only after the
-   * replacement passes the save checks, and the previous copy is put back if the profile
-   * write then fails, so a refused restore never replaces it. */
+  /** Restore under PROFILE_LOCK (docs/LOCAL-COMMANDS.md §11). The recovery copy of `current`
+   * is written only after the replacement passes the save checks. A throwing profile write
+   * may still have landed (§7 step 11), so the profile is read again before anything is
+   * undone: the previous recovery copy comes back only while the replaced bytes are still
+   * stored; the restored bytes count as a restore that landed; anything else keeps the new
+   * copy, because the replaced journey may now exist nowhere else. */
   function replace(current, restored, { savedAt }) {
     const next = restoredLocalProfile(current, restored);
     const recovery = JSON.stringify({ savedAt, snapshot: createSnapshot(current) });
-    const previous = read(RECOVERY_KEY);
+    const previous = read(RECOVERY_KEY), replaced = read(PROFILE_KEY);
     storage.setItem(RECOVERY_KEY, recovery);
     try { return save(next); }
     catch (error) {
-      try { if (previous === null) storage.removeItem(RECOVERY_KEY); else storage.setItem(RECOVERY_KEY, previous); } catch {}
+      let stored;
+      try { stored = read(PROFILE_KEY); } catch { throw error; }
+      if (stored === JSON.stringify(next)) return next;
+      if (stored === replaced) {
+        try { if (previous === null) storage.removeItem(RECOVERY_KEY); else storage.setItem(RECOVERY_KEY, previous); } catch {}
+      }
       throw error;
     }
   }

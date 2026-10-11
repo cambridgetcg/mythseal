@@ -21,13 +21,24 @@ function oldProfile(profile = fresh()) {
 function fixture(values = {}) {
   const data = new Map(Object.entries(values).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)]));
   const writes = [];
-  let failKey = null;
+  let failKey = null, land = null, unreadable = false;
   const storage = {
-    getItem: key => data.get(key) ?? null,
-    setItem(key, value) { if (key === failKey) throw new DOMException('Fixture quota', 'QuotaExceededError'); writes.push(key); data.set(key, value); },
+    getItem(key) { if (unreadable) throw new DOMException('Fixture read', 'SecurityError'); return data.get(key) ?? null; },
+    setItem(key, value) {
+      if (key === failKey) {
+        if (!land) throw new DOMException('Fixture quota', 'QuotaExceededError');
+        // A write that stored `land(value)` and then reported failure anyway.
+        writes.push(key); data.set(key, land(value));
+        throw new DOMException('Fixture write landed, then reported failure', 'UnknownError');
+      }
+      writes.push(key); data.set(key, value);
+    },
     removeItem(key) { writes.push(`-${key}`); data.delete(key); },
   };
-  return { data, writes, storage, store: createProfileStore({ storage, now: () => now }), fail: key => { failKey = key; } };
+  return {
+    data, writes, storage, store: createProfileStore({ storage, now: () => now }),
+    fail: (key, landed = null) => { failKey = key; land = landed; }, blind: () => { unreadable = true; },
+  };
 }
 
 test('v3 migration preserves exact copies, XP, custody, counters and source bytes', () => {
@@ -324,5 +335,47 @@ test('N24 a restore is checked before its recovery copy is written; a refused or
     assert.deepEqual(next.commands, { version: 1, nextSeq: 3, retiredBelow: 3, receipts: [] }, 'a restore retires the replaced lineage');
     assert.deepEqual(JSON.parse(h.data.get(PROFILE_KEY)), next);
     assert.deepEqual(JSON.parse(h.data.get(RECOVERY_KEY)), { savedAt: now, snapshot: createSnapshot(replaced) });
+  }
+});
+
+test('N24 a restore whose profile write lands and then throws keeps the replaced journey recoverable', () => {
+  // The journey being replaced has progress, including a command receipt, that exists nowhere else.
+  const current = { ...upgradeInstance({ ...fresh(), coins: 49_880 }, 'card-000001'), commands: ledger() };
+  const older = JSON.stringify({ savedAt: '2026-01-01T00:00:00.000Z', snapshot: createSnapshot(fresh()) });
+  const restored = restoreSnapshot(createSnapshot({ ...fresh(), coins: 7 }), { now });
+  const keptCopy = replaced => ({ savedAt: now, snapshot: createSnapshot(replaced) });
+  for (const previous of [null, older]) {
+    const label = previous ? 'with an older recovery copy' : 'without a recovery copy';
+    {
+      // The restored bytes landed: the restore happened, and is reported as done.
+      const f = fixture({ [PROFILE_KEY]: current, ...(previous ? { [RECOVERY_KEY]: previous } : {}) }), replaced = f.store.load();
+      f.fail(PROFILE_KEY, value => value);
+      const next = f.store.replace(replaced, restored, { savedAt: now });
+      assert.equal(next.coins, 7, label);
+      assert.equal(f.data.get(PROFILE_KEY), JSON.stringify(next), `${label}: the restore landed`);
+      assert.deepEqual(JSON.parse(f.data.get(RECOVERY_KEY)), keptCopy(replaced), `${label}: the replaced journey keeps its recovery copy`);
+    }
+    {
+      // Other bytes landed: neither journey is stored whole, so the new copy stays.
+      const f = fixture({ [PROFILE_KEY]: current, ...(previous ? { [RECOVERY_KEY]: previous } : {}) }), replaced = f.store.load();
+      f.fail(PROFILE_KEY, value => value.slice(0, 64));
+      assert.throws(() => f.store.replace(replaced, restored, { savedAt: now }), { name: 'UnknownError' });
+      assert.deepEqual(JSON.parse(f.data.get(RECOVERY_KEY)), keptCopy(replaced), `${label}: unknown bytes keep the copy`);
+    }
+    {
+      // The re-read itself fails: nothing proves the replaced bytes survived, so the copy stays.
+      const f = fixture({ [PROFILE_KEY]: current, ...(previous ? { [RECOVERY_KEY]: previous } : {}) }), replaced = f.store.load();
+      f.fail(PROFILE_KEY, value => { f.blind(); return value; });
+      assert.throws(() => f.store.replace(replaced, restored, { savedAt: now }), { name: 'UnknownError' });
+      assert.deepEqual(JSON.parse(f.data.get(RECOVERY_KEY)), keptCopy(replaced), `${label}: an unreadable re-read keeps the copy`);
+    }
+    {
+      // Control: nothing landed, so the replaced bytes are still stored and the old copy comes back.
+      const f = fixture({ [PROFILE_KEY]: current, ...(previous ? { [RECOVERY_KEY]: previous } : {}) }), bytes = f.data.get(PROFILE_KEY);
+      f.fail(PROFILE_KEY);
+      assert.throws(() => f.store.replace(f.store.load(), restored, { savedAt: now }), { name: 'QuotaExceededError' });
+      assert.equal(f.data.get(PROFILE_KEY), bytes);
+      assert.equal(f.data.get(RECOVERY_KEY) ?? null, previous, `${label}: a write that never landed rolls the copy back`);
+    }
   }
 });
