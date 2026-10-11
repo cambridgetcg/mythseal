@@ -288,7 +288,9 @@ the private archive.
   lettering. None of the three 嬰寧 AA candidates from the other kept 王子服
   above 55%; see their record in the brief. The round-four 嬰寧 AA bound as
   `yingning-aa2.png` keeps both figures above about 51%, clear of the title and
-  name, with only grass, the bank and stone steps under the lettering.
+  name. Only plain grass sits behind the title and name; the bank, path and
+  stone steps (about x680-830) sweep away to the lower right, beside the
+  lettering rather than under it (see that file's Card fit line).
 - Reuse each character's BASE description from the prompts above so the
   printing reads as the same identity. Treatments do not change rules.
 - Do not invent proper names for the unnamed Daoist, the fisherman or the dead.

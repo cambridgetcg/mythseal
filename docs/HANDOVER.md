@@ -1,7 +1,9 @@
 # Mythseal agent handover
 
 Start here when joining development. Updated **2026-09-29**, with a local Q0
-checkpoint added on **2026-10-11**. The last recorded
+checkpoint and the LZ-01 special-art addenda (under
+[LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
+**2026-10-11**. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -121,7 +123,10 @@ above. Pushing a branch does not deploy the game.
   火焰山 activity and WX-01's 29 printings. Its owned-copy/pack/progression systems
   are implemented locally; the coherent client/Worker/backup release gates below
   still separate it from the recorded public v0.5.1 snapshot.
-- **Completed standalone previews:** LZ-01 has 12 BASE candidates + 1 AA available;
+- **Completed standalone previews:** at this checkpoint LZ-01 had 12 BASE
+  candidates + 1 AA available (all 19 of 19 printings since the 2026-10-11
+  round-four addendum under
+  [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23));
   HL-01 has 8 BASE + 3 AA, including the unchanged 黛玉 identity and seven new
   candidates. Each has inspection, filters and a fixed opening. Neither adds
   new engine characters, ownership, actual booster acquisition or profile fields.
@@ -193,14 +198,16 @@ source anchors, tradeoffs, nineteen proposed printings and later integration.
 `liaozhai.html` / `liaozhai.css` / `liaozhai.mjs` and `liaozhai-cards.mjs` form a
 standalone preview served by `python3 tools/serve.py`. It has story/faction
 filters, full card inspection, 小倩 BASE/AA and a fixed three-card opening with
-skip/restart. Three 2×2 atlases plus one AA supply thirteen currently available
-illustrations; six special works remain planned. See [ART-LZ01](ART-LZ01.md)
+skip/restart. On 2026-09-23 three 2×2 atlases plus one AA supplied thirteen
+available illustrations and six special works were planned; all six are bound
+now (19 of 19 printings), as the 2026-10-11 addenda below record. See [ART-LZ01](ART-LZ01.md)
 for exact built-in imagegen prompts, mapping and hashes.
 
 The preview imports no engine, account, profile or progression code; it reads
 and writes no player storage and has no RNG, payment or card grant. LZ candidates
-are absent from the game's 39-card roster. All eight new preview files/assets
-are in `hosting/preview-assets.json` only; the public build still has 80 assets.
+are absent from the game's 39-card roster. On 2026-09-23 all eight new preview
+files/assets were in `hosting/preview-assets.json` only (fourteen paths since the
+round-four addendum below) and the public build had 80 assets.
 Gold purchases, owned copies, story integration and the **餘願** keyword are
 explicit later tasks, not implemented rules. No deployment or service change.
 

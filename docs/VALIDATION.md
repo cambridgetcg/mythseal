@@ -220,8 +220,10 @@ this commit's tree before it was committed.
   expects the new progress text.
 - Visual review: the binding session read the new dialog captures in both
   engines at both widths. 嬰寧 laughs in the tree near the top and 王子服 stands
-  on the raised path with both hands open, both clear of 花間藏笑 and 嬰寧;
-  only grass, the bank and the stone steps sit under the lettering.
+  on the raised path with both hands open, both clear of 花間藏笑 and 嬰寧.
+  Only plain grass sits behind the title and name; the bank, path and stone
+  steps sweep away to the lower right, beside the lettering rather than under
+  it, as the file's Card fit line in ART-LZ01 records.
 
 Evidence (ignored): `test-results/lz01-r4-{unit,python,build,browser}.log`
 and `liaozhai-{chromium,webkit}-smoke.json` with their screenshots. The
