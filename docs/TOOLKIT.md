@@ -5,6 +5,11 @@ Source baseline: `c52740d015b0e1a8c6948071ca0a761e2cc9e6db` from private
 The public game remains v0.5.1 from `ea485586d14032bc145a993749a49d5c343ff5f8`;
 this setup did not deploy or change hosted application data/settings.
 
+Note added 2026-10-11: this is a dated record from one machine. "This Mac" and
+"the current checkout" below mean that Mac and its checkout at the time, not
+yours. Resolve your own checkout (`git rev-parse --show-toplevel`) and follow
+[Start a fresh checkout](HANDOVER.md#start-a-fresh-checkout) for current setup.
+
 ## Development ready on this Mac · 2026-09-22
 
 The current checkout is `/Users/yuai/Projects/mythseal`, on
