@@ -16,7 +16,7 @@ html,body{height:100%;min-height:0;margin:0}body{height:100dvh;overflow:hidden}#
 [data-viewport-list]{flex:1 1 0%;min-height:0;min-width:0;align-content:start;grid-auto-rows:max-content;margin-top:0;margin-bottom:0}
 [data-viewport-list]>*{flex-shrink:0}
 .viewport-module-tabs{display:flex;flex-wrap:wrap;gap:6px;flex:0 0 auto;min-width:0;margin:0;padding:0;border-bottom:1px solid #c8b57f38;padding-bottom:8px}
-.viewport-module-tabs>button{flex:1 1 auto;min-height:44px;padding:7px 12px;border:1px solid #b6bd9538;background:#10241c;color:#aabca8;font-size:12px;letter-spacing:1px}
+.viewport-module-tabs>button{flex:1 1 auto;min-width:44px;min-height:44px;padding:7px 12px;border:1px solid #b6bd9538;background:#10241c;color:#aabca8;font-size:12px;letter-spacing:1px}
 .viewport-module-tabs>button[aria-selected="true"]{background:#35422b;border-color:#ccb97885;color:#e9d29b}
 .viewport-pagination{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;flex:0 0 auto;min-height:44px;margin:0;padding:3px 0;border-top:1px solid #b6bd9526}
 .viewport-pagination>button{min-width:72px;min-height:44px;padding:6px 10px;font:11px var(--sans);letter-spacing:.4px;color:#d8c797;border:1px solid #bfaf7640;background:#14291e}
