@@ -192,7 +192,7 @@ async function leaveFromRoot(page, label) {
   page.blanks.expected = 0; page.leaving = false;
   await page.goForward();
   await page.locator('.game-lobby').waitFor();
-  assert.equal(await profileRaw(page), before, `${label}: leaving and returning writes nothing`);
+  assert.equal(await profileRaw(page), before, `${label}: leaving and returning leaves the save bytes unchanged`);
   return writes;
 }
 
@@ -200,7 +200,7 @@ try {
   {
     const page = await open('journey'), start = await page.evaluate(() => history.length);
     const raw = await profileRaw(page);
-    // From each of the five destinations (and the codex inside 藏卡), Back is 洞府.
+    // From the four destinations besides 洞府 (and the codex inside 藏卡), Back is 洞府; 洞府 itself hands Back on below.
     for (const destination of ['world', 'arena', 'bag', 'market']) {
       await click(page, `.game-dock [data-action="${destination}"]`); await settle(page, destination);
       await back(page, 'home');
