@@ -11,7 +11,7 @@ fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
 (below). Five later commits also change source: merge commit **`d1f0f91`**
 adapts the registry and its tests to PR #8's LZ-01 specials, **`6bc784a`**
 fixes a third review's findings, **`092f1fd`** a fourth's, **`2d44071`** a
-fifth's, and the sixth-review fix commit (below) a sixth's. Merge commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
+fifth's, and **`2a04859`** a sixth's. Merge commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
 the remaining commits change documentation only; each source step below lists the checks run on it. The branch is not
 merged into `main`, pushed or deployed, and there was no hosted check. The
 registry's own commits change no game runtime, save schema, content, art or
@@ -385,7 +385,7 @@ statuses and capability states are defined in
     check and human review. Still unseen by the reader: a file-level hook that
     skips (`beforeEach(t => t.skip())`), which Node 26 counts as a skipped
     test; the docs now list it beside the other blind spots.
-- **Sixth review fixes · 2026-10-11** (tooling and documentation only; no
+- **Sixth review fixes in `2a04859` · 2026-10-11** (tooling and documentation only; no
   player, save, content, art, allowlist or build effect). The reviewers
   reproduced each gap on `ce1b30f` with Node 26.0.0 in APFS clones (deleted
   afterwards); two of the three findings named the same gap. After the fix,
@@ -427,7 +427,7 @@ statuses and capability states are defined in
   - Mutation check: reverting the runner-subtest scan, the statement-head
     rule, or all of `tools/content-registry.mjs` to `ce1b30f` made
     `node --test tests/content-registry.test.mjs` exit 1 (3 of 3).
-  - Checks on the fix, Node 26.0.0: `node --test tests/*.test.mjs` **476/476**,
+  - Checks on `2a04859`, Node 26.0.0: `node --test tests/*.test.mjs` **476/476**,
     exit 0, 0 skipped (the new cases sit inside existing tests).
     `npm run audit:content` exit 0, `findings: []`, 120 local-playable and 30
     preview; the built registry is byte-identical to `ce1b30f`'s.

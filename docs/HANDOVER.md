@@ -88,7 +88,7 @@ Roadmap packet Q4's registry and audit are on the local branch
 commits: **`4265039`** (the registry), review fixes **`7291880`** and
 **`cf63bec`**, merge commit **`d1f0f91`** (adapts the registry and its tests to
 PR #8's LZ-01 specials), third-review fixes **`6bc784a`**, fourth-review
-fixes **`092f1fd`**, fifth-review fixes **`2d44071`** and the sixth-review fix commit (below). Merge commit `d606447` brings in `origin/main` `daf18ed`
+fixes **`092f1fd`**, fifth-review fixes **`2d44071`** and sixth-review fixes **`2a04859`**. Merge commit `d606447` brings in `origin/main` `daf18ed`
 (PRs #6–#8, documentation only); the other commits change documentation only. The branch is not merged into
 `main`, pushed or deployed, and no hosted check was made.
 
@@ -154,7 +154,7 @@ fixes **`092f1fd`**, fifth-review fixes **`2d44071`** and the sixth-review fix c
   `contentDigest` now hashes its own record, not its base card. Still 27
   finding codes. Checked: 476/476 Node tests, the audit (exit 0, no findings),
   an 80-file build and the LZ-01/HL-01 preview smokes in Chromium and WebKit.
-- **Sixth review (fix commit not yet named here):** a subtest declared through
+- **Sixth review (`2a04859`):** a subtest declared through
   the runner's own `test`, `it`, `describe` or `suite` inside a cited test (Node
   attaches it to the running test) is now read like `t.test(...)`, so a
   skipped one no longer counts, with or without a context parameter; and
