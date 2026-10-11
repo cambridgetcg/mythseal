@@ -226,6 +226,24 @@ async function assertDecisionVisible(page, label, { announced, selected }) {
     if (JSON.stringify(chosen) !== JSON.stringify([selected])) problems.push(`selected ${JSON.stringify(chosen)}`);
     if (metrics.ownStates.filter(text => text === '已選').length !== 1) problems.push('selected label count');
     for (const selector of ['[data-action="pill-minus"]', '[data-action="pill-plus"]', '#pill-slider', '[data-action="fury"]', '[data-action="commit"]', '[data-action="history"]']) hitTest(table.querySelector(selector), selector);
+    // The Fury switch keeps its full 27 px track inside the button, clear of the cost note.
+    const fury = table.querySelector('[data-action="fury"]'), track = fury?.querySelector('.toggle-track'), furyNote = fury?.querySelector('small');
+    if (fury && track && furyNote) {
+      const outer = fury.getBoundingClientRect(), switchBox = track.getBoundingClientRect(), noteBox = furyNote.getBoundingClientRect();
+      const inside = inner => inner.left >= outer.left - 0.5 && inner.right <= outer.right + 0.5 && inner.top >= outer.top - 0.5 && inner.bottom <= outer.bottom + 0.5;
+      metrics.furyTrack = Math.round(switchBox.width * 10) / 10;
+      if (switchBox.width < 26.5 || switchBox.height < 14.5) problems.push(`fury track ${switchBox.width.toFixed(1)}x${switchBox.height.toFixed(1)}`);
+      if (!inside(switchBox)) problems.push('fury track outside its button');
+      if (!noteBox.width || !inside(noteBox)) problems.push('fury cost note outside its button');
+      if (noteBox.right > switchBox.left + 0.5 && noteBox.left < switchBox.right - 0.5 && noteBox.bottom > switchBox.top + 0.5 && noteBox.top < switchBox.bottom - 0.5) problems.push('fury cost note overlaps the switch');
+    } else problems.push('fury switch parts missing');
+    // The attack estimate's label is at least 10 px and on one line.
+    const estimate = table.querySelector('.attack-preview-copy>span');
+    if (estimate) {
+      const size = parseFloat(getComputedStyle(estimate).fontSize), height = estimate.getBoundingClientRect().height;
+      if (size < 10) problems.push(`attack estimate label ${size}px`);
+      if (height > size * 2.2) problems.push(`attack estimate label wraps (${height.toFixed(1)} px tall)`);
+    } else problems.push('attack estimate label missing');
     for (const numeral of table.querySelectorAll('.battle-resources [data-hp-value], .battle-resources [data-pill-value]')) {
       const rect = numeral.getBoundingClientRect(), hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
       if (!rect.width || !rect.height || !inView(rect) || !(hit === numeral || numeral.contains(hit))) problems.push(`resource numeral hidden ${numeral.closest('[data-side]').dataset.side}`);
@@ -604,7 +622,7 @@ try {
     await reveal(page, { round: 1, playerCard: 'tieshan', opponentCard: 'liuer', shotTab: 'resources' });
     await release(page);
   }
-  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced; every decision input inside the viewport and hit-testable; no page or table overflow; the reveal's pages fit, every pager is tappable and both resource panels are reachable`);
+  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced; every decision input inside the viewport and hit-testable, with a whole Fury switch; no page or table overflow; the reveal's pages fit, every pager is tappable and both resource panels are reachable`);
 
   // Finished overkill settles exactly once across Next and reload.
   const finished = FIXTURES['q0-overkill-finished'];

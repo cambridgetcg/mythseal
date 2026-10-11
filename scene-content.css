@@ -151,9 +151,11 @@
 .game-shell .battle-table .move-panel .pill-slider{grid-column:3;grid-row:1;width:100%;height:44px;min-height:44px;margin:0}
 .game-shell .battle-table .move-panel .fury-toggle{grid-area:fury;display:flex;align-items:center;justify-content:space-between;gap:6px;height:44px;min-height:44px;padding:0 8px;border:1px solid #b6bd9533;border-radius:3px;font-size:12px;letter-spacing:1px;color:#ccd4c4;text-align:left}
 .game-shell .battle-table .move-panel .fury-toggle small{display:block;font-size:10px;letter-spacing:0;color:#aebba8;white-space:nowrap}
+.game-shell .battle-table .move-panel .fury-toggle .toggle-track{flex-shrink:0}
 .game-shell .battle-table .move-panel .fury-toggle[aria-pressed="true"]{border-color:#e6b58280;color:#ecc08f}
 .game-shell .battle-table .move-panel .attack-preview{grid-area:attack;display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:44px;padding:0 8px;border:1px solid #b6bd9533;border-radius:3px}
 .game-shell .battle-table .move-panel .attack-preview-copy{display:flex;flex-direction:column;min-width:0;font-size:11px;line-height:1.35;color:#ccd4c4}
+.game-shell .battle-table .move-panel .attack-preview-copy>span{font-size:inherit;color:inherit}
 .game-shell .battle-table .move-panel .attack-preview i{display:none;font-style:normal;font-size:10px;color:#aebba8}
 .game-shell .battle-table .move-panel .attack-preview small{display:block;max-width:none;margin:0;font-size:10px;color:#d2d7c7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .game-shell .battle-table .move-panel .attack-preview strong{font:24px/1 Georgia,serif;color:var(--paper)}
@@ -171,6 +173,12 @@
  .battle-table .battle-edge[data-side="player"]{grid-area:me}.battle-table .battle-actions{grid-area:actions;align-self:end}
  .battle-table .battle-status .eyebrow{display:flex}
  .battle-table .battle-slot-copy b{font-size:13px;letter-spacing:.5px}
+ /* The Fury cell is half a narrow column: the switch shares the 怒擊 line and the
+    cost note takes the button's full width below, so neither is squeezed. */
+ .game-shell .battle-table .move-panel .fury-toggle{display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:center;align-items:center;gap:2px 6px}
+ .game-shell .battle-table .move-panel .fury-toggle>span:first-child{display:contents}
+ .game-shell .battle-table .move-panel .fury-toggle small{grid-column:1/-1;grid-row:2}
+ .game-shell .battle-table .move-panel .fury-toggle .toggle-track{grid-column:2;grid-row:1}
 }
 /* Phone landscape (600 px or narrower): a slimmer right column and tighter gaps
    leave each lineup card room for a four-character name with ✧. */
@@ -181,6 +189,7 @@
  .battle-mini-name{letter-spacing:0}
  .game-shell .battle-table .move-panel{gap:4px;padding:4px}
  .game-shell .battle-table .move-panel .primary{height:44px;min-height:44px}
+ .game-shell .battle-table .move-panel .attack-preview-copy>span{font-size:10px}
 }
 /* Narrow short landscape: the centre slots drop their thumbnails (the lineup
    shows the same art and highlight) so a four-character name with ✧ fits. */
