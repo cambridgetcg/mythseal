@@ -1,0 +1,237 @@
+/** N1 mobile shell acceptance (docs/NAVIGATION.md#mobile-shell): safe areas, focus-zoom-safe
+ * inputs, narrow widths, landscape dock and slider names. Emulated phones, synthetic saves and
+ * loopback assets only; not evidence from a physical device. */
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { createProfile, hydrateProfile, PROFILE_KEY } from '../progression.mjs';
+import { mintInstance } from '../collection.mjs';
+import { WX01_PRINTINGS } from '../printing-catalogue.mjs';
+import { clickViewportItem, viewportFrames } from './viewport-browser-helpers.mjs';
+
+const browserName = process.env.BROWSER || 'chromium';
+if (!['chromium', 'webkit'].includes(browserName)) throw Error('BROWSER must be chromium or webkit.');
+const runtime = fileURLToPath(new URL('../test-results/webkit-runtime', import.meta.url));
+if (browserName === 'webkit' && !process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync(runtime)) process.env.PLAYWRIGHT_BROWSERS_PATH = runtime;
+const engines = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+if (!process.env.GAME_URL) throw Error('Set GAME_URL to the loopback server serving this checkout, e.g. GAME_URL=http://127.0.0.1:4177.');
+const base = new URL(process.env.GAME_URL);
+if (!['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname)) throw Error('Shell smoke requires loopback.');
+const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const output = fileURLToPath(new URL('../test-results/', import.meta.url));
+const now = '2026-09-22T12:00:00.000Z';
+// Chromium emulates an Android phone, WebKit an iPhone (both touch, coarse pointer, mobile viewport).
+const { defaultBrowserType, ...device } = engines.devices[browserName === 'webkit' ? 'iPhone 15' : 'Pixel 7'];
+const DEVICE = browserName === 'webkit' ? 'iPhone 15' : 'Pixel 7';
+// Portrait widths from a folded cover screen to a small tablet; heights only make each portrait.
+const WIDTHS = [[302, 640], [320, 568], [360, 740], [393, 659], [412, 839], [734, 1000]];
+const LANDSCAPES = [[844, 390], [734, 343]];
+// The order is top, right, bottom, left: an iPhone's notch/home-indicator bands, plus landscape side insets.
+const INSETS = { top: 48, right: 44, bottom: 34, left: 44 };
+const INPUT_IDS = ['bag-search', 'bag-faction', 'bag-filter', 'bag-sort', 'source-filter', 'training-select', 'experience-sound', 'experience-ambience', 'experience-effects', 'experience-motion', 'experience-pace', 'account-email', 'pill-slider'];
+const contexts = new Set(), checks = [], errors = [], records = [], findings = [];
+// SHELL_AUDIT=1 records every failed expectation instead of stopping at the first (exit 1 at the end).
+const audit = process.env.SHELL_AUDIT === '1';
+const expect = (ok, message) => { if (ok) return; if (!audit) assert.fail(message); findings.push(message); console.log(`AUDIT FAIL ${message}`); };
+const passed = label => { checks.push(label); console.log(`${audit ? 'DONE' : 'PASS'} ${label}`); };
+const action = (page, name, id) => page.locator(`[data-action="${name}"]:not(#app[inert] *)${id === undefined ? '' : `[data-id="${id}"]`}`).first();
+const click = (page, name, id) => clickViewportItem(page, action(page, name, id));
+const go = (page, name) => clickViewportItem(page, page.locator(`.game-dock [data-action="${name}"]`));
+const close = async page => { await clickViewportItem(page, page.locator('.modal-close')); await page.locator('.modal').waitFor({ state: 'hidden' }); };
+
+function fixture() {
+  let profile = createProfile({ now });
+  for (const print of WX01_PRINTINGS) profile = mintInstance(profile, print.cardId, { printId: print.id, now, source: 'shell-fixture' }).profile;
+  profile.coins = 50000; profile.dust = 1000; profile.cleared = ['mist-gate'];
+  return hydrateProfile(profile, { now });
+}
+const seed = fixture();
+
+async function pageFor(viewport, insets = null) {
+  const context = await browser.newContext({ ...device, ...(viewport ? { viewport: { width: viewport[0], height: viewport[1] } } : {}), reducedMotion: 'reduce' });
+  contexts.add(context);
+  await context.addInitScript(({ seed, key, now, insets }) => {
+    const NativeDate = Date, fixed = new NativeDate(now).getTime();
+    globalThis.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
+    Math.random = () => .23;
+    if (!localStorage.getItem('shell-smoke.seeded')) {
+      localStorage.setItem('shell-smoke.seeded', 'yes'); localStorage.setItem(key, JSON.stringify(seed));
+      localStorage.setItem('shanhai.experience.v1', JSON.stringify({ sound: false, motion: 'reduce', pace: 'fast' }));
+    }
+    // What a native shell (e.g. Capacitor SystemBars) would do: override the custom properties, not env().
+    if (insets) {
+      const apply = () => { for (const [side, px] of Object.entries(insets)) document.documentElement.style.setProperty(`--safe-area-inset-${side}`, `${px}px`); };
+      if (document.documentElement) apply(); else document.addEventListener('readystatechange', apply, { once: true });
+    }
+  }, { seed, key: PROFILE_KEY, now, insets });
+  await context.route('**/*', route => {
+    const request = route.request(), url = new URL(request.url());
+    if (url.origin === base.origin && url.pathname === '/api/v1/account' && request.method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false, user: null, emailEnabled: true }) });
+    }
+    if (url.origin !== base.origin || url.pathname.startsWith('/api/') || !['GET', 'HEAD'].includes(request.method())) {
+      errors.push(`Unexpected network ${request.method()} ${url.origin}${url.pathname}`); return route.abort('blockedbyclient');
+    }
+    return route.continue();
+  });
+  const page = await context.newPage(); page.setDefaultTimeout(12000);
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
+  await page.goto(base.href); await page.locator('.game-lobby').waitFor(); await viewportFrames(page);
+  if (insets) assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top').trim()), `${insets.top}px`, 'inset override applies');
+  return page;
+}
+
+/** The six screens of the spec, in a fixed order; `inspect` runs on each. */
+async function screens(page, inspect) {
+  await inspect('lobby');
+  await click(page, 'experience-settings'); await page.locator('#experience-ambience').waitFor({ state: 'attached' }); await viewportFrames(page);
+  await inspect('modal:settings'); await close(page);
+  await go(page, 'bag'); await inspect('collection');
+  await go(page, 'market'); await inspect('market');
+  await click(page, 'account-open'); await page.locator('[data-viewport-surface="account"]').waitFor(); await viewportFrames(page);
+  await inspect('旅程閣'); await click(page, 'account-back');
+  await go(page, 'arena'); await inspect('arena');
+  await click(page, 'start'); await click(page, 'confirm-start');
+  await page.locator('.player-hand').waitFor({ state: 'attached' }); await viewportFrames(page);
+  await inspect('battle');
+}
+
+// Visible box of a node after every clipping ancestor; null when nothing of it shows.
+const GEOMETRY = `
+  const shown = node => !node.closest('[hidden],[inert]') && getComputedStyle(node).visibility !== 'hidden' && node.getClientRects().length > 0;
+  const clipBox = node => {
+    let r = node.getBoundingClientRect(), box = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    for (let up = node.parentElement; up && up !== document.documentElement; up = up.parentElement) {
+      const style = getComputedStyle(up);
+      if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+      const c = up.getBoundingClientRect();
+      if (style.overflowX !== 'visible') { box.left = Math.max(box.left, c.left); box.right = Math.min(box.right, c.right); }
+      if (style.overflowY !== 'visible') { box.top = Math.max(box.top, c.top); box.bottom = Math.min(box.bottom, c.bottom); }
+    }
+    return box.right - box.left > .5 && box.bottom - box.top > .5 ? box : null;
+  };
+  const label = node => node.dataset.action ? node.dataset.action + (node.dataset.id ? ':' + node.dataset.id : '') : node.dataset.viewportTarget || node.id || node.getAttribute('aria-label') || node.textContent.trim().slice(0, 16) || node.tagName;
+  const CONTROLS = 'button,a[href],input:not([type="hidden"]),select,textarea,summary,[role="button"],[role="tab"],[role="slider"],[tabindex]:not([tabindex="-1"])';
+`;
+
+const overflow = (page, label) => page.evaluate(`(() => {${GEOMETRY}
+  const html = document.documentElement;
+  const outside = [...document.querySelectorAll(CONTROLS + ',[data-viewport-surface],[data-viewport-module],.modal,.game-header,.game-dock')].filter(shown).map(node => {
+    const r = node.getBoundingClientRect();
+    if (r.left >= -1 && r.right <= innerWidth + 1) return null;
+    const box = clipBox(node); // inside a horizontal scroller, only the shown part counts
+    return box && (box.left < -1 || box.right > innerWidth + 1) ? { name: label(node), left: Math.round(r.left), right: Math.round(r.right) } : null;
+  }).filter(Boolean);
+  // Recorded, not asserted: the viewport controller's own flag for content taller than its frame.
+  const tall = [...document.querySelectorAll('[data-viewport-overflow="true"]')].filter(shown).map(node => node.dataset.viewportList || node.className.split(' ')[0]);
+  return { innerWidth, clientWidth: html.clientWidth, htmlScroll: html.scrollWidth, bodyScroll: document.body.scrollWidth, scrollX, scale: visualViewport ? visualViewport.scale : 1, outside, tall };
+})()`).then(result => ({ label, ...result }));
+
+const bandHits = (page, insets) => page.evaluate(`(() => {${GEOMETRY}
+  const insets = ${JSON.stringify(insets)}, hits = [];
+  for (const node of [...document.querySelectorAll(CONTROLS)].filter(shown)) {
+    const box = clipBox(node); if (!box) continue;
+    const bands = [box.top < insets.top - .5 && 'top', box.bottom > innerHeight - insets.bottom + .5 && 'bottom', box.left < insets.left - .5 && 'left', box.right > innerWidth - insets.right + .5 && 'right'].filter(Boolean);
+    if (bands.length) hits.push({ name: label(node), bands, box: [box.left, box.top, box.right, box.bottom].map(Math.round) });
+  }
+  const tall = [...document.querySelectorAll('[data-viewport-overflow="true"]')].filter(shown).map(node => node.dataset.viewportList || node.className.split(' ')[0]);
+  return { viewport: [innerWidth, innerHeight], hits, tall };
+})()`);
+
+const dockOverlap = page => page.evaluate(`(() => {${GEOMETRY}
+  const dock = document.querySelector('.game-dock'), d = dock.getBoundingClientRect();
+  const future = document.querySelector('[data-viewport-action="module"][data-viewport-target="future"]');
+  const overlaps = [...document.querySelectorAll(CONTROLS)].filter(shown).filter(node => !dock.contains(node)).map(node => {
+    const box = clipBox(node);
+    return box && box.left < d.right - .5 && box.right > d.left + .5 && box.top < d.bottom - .5 && box.bottom > d.top + .5 ? { name: label(node), box: [box.left, box.top, box.right, box.bottom].map(Math.round) } : null;
+  }).filter(Boolean);
+  const r = future && future.getBoundingClientRect();
+  return { future: future && shown(future) ? [r.left, r.top, r.right, r.bottom].map(Math.round) : null, dock: [d.left, d.top, d.right, d.bottom].map(Math.round), overlaps };
+})()`);
+
+await mkdir(output, { recursive: true });
+const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
+let failure = null;
+try {
+  // 1 · Focus zoom: every text-entry control computes at least 16px on the coarse-pointer phone.
+  {
+    const page = await pageFor(null), fonts = new Map();
+    assert(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), `${DEVICE} emulation reports a coarse pointer`);
+    const collect = async () => { for (const [id, size] of await page.evaluate(() => [...document.querySelectorAll('input,select,textarea')].map((node, i) => [node.id || `${node.tagName}#${i}`, parseFloat(getComputedStyle(node).fontSize)]))) fonts.set(id, Math.min(size, fonts.get(id) ?? Infinity)); };
+    await collect();
+    await click(page, 'experience-settings'); await page.locator('#experience-ambience').waitFor({ state: 'attached' }); await collect();
+    // 5 · The two volume sliders have names (the checkbox and selects already took theirs from labels).
+    const names = {};
+    for (const id of ['experience-ambience', 'experience-effects']) {
+      const snapshot = await page.locator(`#${id}`).ariaSnapshot();
+      names[id] = /^- slider "([^"]+)"/.exec(snapshot)?.[1] || '';
+      expect(names[id].trim(), `#${id} needs an accessible name: ${snapshot}`);
+    }
+    expect(names['experience-ambience'] !== names['experience-effects'], 'the two sliders are told apart');
+    passed(`${DEVICE}: volume sliders are named ${JSON.stringify(Object.values(names))}`);
+    await close(page);
+    await click(page, 'quests'); await page.locator('#training-select').waitFor({ state: 'attached' }); await collect(); await close(page);
+    await go(page, 'bag'); await collect();
+    await click(page, 'cards-tab', 'decks'); await collect();
+    await click(page, 'cards-tab', 'codex'); await collect();
+    await click(page, 'account-open'); await page.locator('[data-viewport-surface="account"]').waitFor(); await collect(); await click(page, 'account-back');
+    await go(page, 'arena'); await click(page, 'start'); await click(page, 'confirm-start'); await page.locator('#pill-slider').waitFor({ state: 'attached' }); await collect();
+    const small = [...fonts].filter(([, size]) => !(size >= 16));
+    records.push({ check: 'input-font', device: DEVICE, fonts: Object.fromEntries(fonts) });
+    assert.deepEqual(INPUT_IDS.filter(id => !fonts.has(id)), [], 'every known input was rendered');
+    expect(!small.length, `inputs, selects and textareas must compute >=16px on a coarse pointer ${JSON.stringify(small)}`);
+    passed(`${DEVICE}: ${fonts.size} inputs/selects/textareas compute >=16px on a coarse pointer`);
+    await page.context().close(); contexts.delete(page.context());
+  }
+
+  // 3 · No horizontal page overflow at six portrait widths on six screens.
+  for (const size of WIDTHS) {
+    const tag = size.join('x'), page = await pageFor(size), results = [];
+    await screens(page, async label => { await viewportFrames(page); results.push(await overflow(page, `${tag}/${label}`)); });
+    records.push({ check: 'overflow', size: tag, results });
+    for (const r of results) {
+      expect(r.innerWidth === size[0] && r.clientWidth === size[0] && r.scale === 1, `${r.label}: layout viewport must stay ${size[0]}px wide ${JSON.stringify(r)}`);
+      expect(r.htmlScroll <= size[0] && r.bodyScroll <= size[0] && r.scrollX === 0, `${r.label}: document must not scroll sideways ${JSON.stringify(r)}`);
+      expect(!r.outside.length, `${r.label}: controls and panels stay within the width ${JSON.stringify(r.outside)}`);
+    }
+    for (const r of results) if (r.tall.length) console.log(`NOTE ${r.label}: vertical overflow flagged by the viewport controller ${JSON.stringify(r.tall)}`);
+    passed(`${tag}: lobby, settings modal, collection, market, 旅程閣, arena and battle have no horizontal overflow`);
+    await page.context().close(); contexts.delete(page.context());
+  }
+
+  // 2 · Safe-area overrides (48/44/34/44) keep every interactive control out of the inset bands.
+  for (const size of [null, [844, 390]]) {
+    const page = await pageFor(size, INSETS), tag = size ? size.join('x') : DEVICE, results = [];
+    await screens(page, async label => { await viewportFrames(page); results.push({ label: `${tag}/${label}`, ...await bandHits(page, INSETS) }); });
+    records.push({ check: 'safe-area', size: tag, insets: INSETS, results });
+    for (const r of results) expect(!r.hits.length, `${r.label}: controls must stay out of the safe-area bands ${JSON.stringify(r.hits)}`);
+    for (const r of results) if (r.tall.length) console.log(`NOTE ${r.label}: vertical overflow flagged by the viewport controller ${JSON.stringify(r.tall)}`);
+    passed(`${tag}: with insets ${JSON.stringify(INSETS)}, no interactive control on seven screens enters a safe-area band`);
+    await page.context().close(); contexts.delete(page.context());
+  }
+
+  // 4 · Landscape phones: 來日 and every other arena control stay clear of the dock.
+  for (const [size, insets] of [...LANDSCAPES.map(size => [size, null]), [[844, 390], INSETS]]) {
+    const page = await pageFor(size, insets), tag = size.join('x') + (insets ? '+insets' : '');
+    await go(page, 'arena'); await viewportFrames(page);
+    const result = await dockOverlap(page);
+    records.push({ check: 'landscape-dock', size: tag, ...result });
+    assert(result.future, `${tag}: the 來日 tab is shown`);
+    expect(!result.overlaps.length, `${tag}: arena controls must not overlap the dock ${JSON.stringify(result)}`);
+    passed(`${tag}: 來日 ${JSON.stringify(result.future)} clears the dock ${JSON.stringify(result.dock)}`);
+    await page.context().close(); contexts.delete(page.context());
+  }
+  assert.deepEqual(errors, []);
+  assert.deepEqual(findings, [], `${findings.length} audit findings`);
+} catch (error) {
+  failure = error.stack; process.exitCode = 1;
+  const page = [...contexts].at(-1)?.pages().at(-1);
+  if (page && !page.isClosed()) await page.screenshot({ path: `${output}shell-${browserName}-failure.png` }).catch(() => {});
+} finally {
+  await Promise.allSettled([...contexts].map(context => context.close())); await browser.close();
+  const report = { ok: !failure, browser: browserName, device: DEVICE, audit, findings, evidence: 'Emulated phone viewports in headless Playwright with synthetic saves and loopback assets; not a physical device.', checks, records, errors, ...(failure ? { error: failure } : {}) };
+  await writeFile(`${output}shell-${browserName}.json`, JSON.stringify(report, null, 2) + '\n');
+  console.log(failure ? `Shell smoke FAILED: ${failure}` : `Shell smoke: ${checks.length} checks passed`);
+}
