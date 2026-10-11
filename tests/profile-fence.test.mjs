@@ -115,7 +115,7 @@ test('N22 the fenced lock makes the next holder see the previous write: one comm
     assert.equal(qa.commandId, qb.commandId);
     const [ra, rb] = await Promise.all([commitIn(a, qa, a.fenced(true)), commitIn(b, qb, b.fenced(true))]);
     assert.equal(ra.status, 'committed');
-    assert.deepEqual([rb.status, rb.reason, rb.message], ['rejected', 'identity-conflict', COMMAND_MESSAGES['identity-conflict']]);
+    assert.deepEqual([rb.status, rb.reason, rb.message], ['rejected', 'identity-conflict', COMMAND_MESSAGES['other-card']]);
     assert.deepEqual([levelOf(o.saved(), x), levelOf(o.saved(), y)], [2, 1], 'the accepted upgrade stays');
     assert.equal(o.saved().commands.receipts.length, 1); assert.equal(a.counts.set + b.counts.set, 1);
   }

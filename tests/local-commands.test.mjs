@@ -185,11 +185,13 @@ test('N25 a duplicate names the accepted receipt: its real levels and costs, not
 test('N6 a changed payload under the same identity is rejected; malformed requests never read storage', async () => {
   const base = rich(), uid = outsideDeck(base), other = base.instances.find(item => item.uid !== uid).uid, h = harness(base);
   const { request } = quote(h, uid); await commit(h, request);
-  for (const intent of [{ ...request.intent, uid: other }, { ...request.intent, toLevel: 3 }]) {
+  // Another uid carrying this fingerprint cannot match its own preview; the same uid at
+  // another level means this copy's slot was taken (N26 covers the copy for each cause).
+  for (const [intent, message] of [[{ ...request.intent, uid: other }, 'other-card-changed'], [{ ...request.intent, toLevel: 3 }, 'identity-conflict']]) {
     h.clear();
     const result = await commit(h, { ...request, intent });
     assert.equal(result.status, 'rejected'); assert.equal(result.reason, 'identity-conflict');
-    assert.equal(result.message, COMMAND_MESSAGES['identity-conflict']); assert.equal(h.writes(), 0);
+    assert.equal(result.message, COMMAND_MESSAGES[message]); assert.equal(h.writes(), 0);
   }
   for (const bad of [
     { ...request, extra: true }, { ...request, commandId: 'cmd-0' }, { ...request, commandId: 'upgrade-1' },
@@ -265,6 +267,49 @@ test('N8 two tabs: the same preview spends once; different copies in one slot co
     assert.deepEqual([b.status, b.reason], ['rejected', 'identity-conflict']);
     assert.equal(h.writes(), 1);
     assert.equal(instanceOf(h.saved(), second).level, 1);
+  }
+});
+
+test('N26 an identity conflict names its cause: another copy took the slot, with this copy unchanged or not', async () => {
+  const base = rich(), [x, y] = base.instances.filter(item => !getActiveDeck(base).instanceIds.includes(item.uid)).map(item => item.uid);
+  {
+    // Another tab upgraded a different copy in the same slot; this copy is untouched.
+    const h = harness(base), tabA = quote(h, x), tabB = quote(h, y);
+    assert.equal(tabA.request.commandId, tabB.request.commandId);
+    assert.equal((await commit(h, tabB.request)).status, 'committed');
+    const record = JSON.stringify(instanceOf(h.saved(), x)); h.clear();
+    const refused = await commit(h, tabA.request);
+    assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'identity-conflict', COMMAND_MESSAGES['other-card']]);
+    assert.equal(h.writes(), 0); assert.equal(JSON.stringify(instanceOf(h.saved(), x)), record, 'the copy really is unchanged');
+    const repainted = quote(h, x);
+    assert.deepEqual([repainted.costs, repainted.effects, repainted.request.intent, repainted.request.expectedFingerprint],
+      [tabA.costs, tabA.effects, tabA.request.intent, tabA.request.expectedFingerprint], 'only the slot moved');
+    assert.notEqual(repainted.request.commandId, tabA.request.commandId);
+    const pressed = await commit(h, repainted.request);
+    assert.deepEqual([pressed.status, pressed.duplicate], ['committed', false], 'the next press commits');
+    assert.equal(instanceOf(h.saved(), x).level, 2);
+  }
+  for (const [name, change] of [
+    ['this copy changed too', profile => toggleInstanceLock(profile, x)],
+    ['this copy is no longer affordable', profile => ({ ...profile, coins: 100 })],
+  ]) {
+    // The copy never claims this card is unchanged unless its fresh preview proves it.
+    const h = harness(base), tabA = quote(h, x), tabB = quote(h, y);
+    await commit(h, tabB.request); edit(h, change); const bytes = h.bytes(); h.clear();
+    const refused = await commit(h, tabA.request);
+    assert.deepEqual([refused.reason, refused.message], ['identity-conflict', COMMAND_MESSAGES['other-card-changed']], name);
+    assert.equal(h.writes(), 0, name); assert.equal(h.bytes(), bytes, name);
+  }
+  {
+    // This copy's own slot was taken at another level (it levelled from XP, then upgraded elsewhere): it did change.
+    const h = harness(base), tabA = quote(h, x);
+    edit(h, profile => setInstanceXP(profile, x, getXPThreshold(2)));
+    const tabB = quote(h, x);
+    assert.deepEqual([tabB.request.commandId, tabB.request.intent.toLevel], [tabA.request.commandId, 3]);
+    await commit(h, tabB.request); h.clear();
+    const refused = await commit(h, tabA.request);
+    assert.deepEqual([refused.reason, refused.message], ['identity-conflict', COMMAND_MESSAGES['identity-conflict']]);
+    assert.equal(h.writes(), 0);
   }
 });
 

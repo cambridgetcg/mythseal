@@ -21,6 +21,8 @@ const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Conte
 const now = '2026-09-22T12:00:00.000Z';
 const contexts = new Set(), checks = [], errors = [];
 const COMMITTED = '此卡修練完成', DUPLICATE = '這次修練早已入帳', CHANGED = '卡牌剛有變動', QUOTA = '儲存空間不足', NO_LOCK = '請用支援安全儲存的新版瀏覽器修練';
+// identity-conflict names its cause: another copy took the slot and this one is unchanged.
+const OTHER_CARD = COMMAND_MESSAGES['other-card'];
 const UNSYNCED = COMMAND_MESSAGES.unsynced, FIRST_RECEIPT = '已入帳的修練：Lv.1 → Lv.2 · 120 金幣 · 6 靈砂';
 const read = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROFILE_KEY);
 const raw = page => page.evaluate(key => localStorage.getItem(key), PROFILE_KEY);
@@ -165,14 +167,14 @@ try {
     await press(first, upgradeButton(first, other), COMMITTED);
     const raced = await read(first), racedWrites = await writes(second);
     assert.equal(raced.commands.receipts[0].intent.uid, other);
-    await press(second, upgradeButton(second, target), CHANGED);
+    await press(second, upgradeButton(second, target), OTHER_CARD);
     assert.deepEqual(await read(second), raced, 'another copy committed in the same slot is an identity conflict'); assert.equal(await writes(second), racedWrites);
     assert.equal(card(raced, target).level, 1);
     await press(second, upgradeButton(second, target), COMMITTED);
     const settled = await read(second);
     assert.equal(card(settled, target).level, 2); assert.equal(card(settled, other).level, 2); assert.equal(settled.commands.nextSeq, 3);
     await release(first);
-    passed('B2 a lock toggled in another tab, or another copy committed in the same slot, refuses as changed with no spend; the repainted page then commits once');
+    passed('B2 a lock toggled in another tab refuses as changed, and another copy committed in the same slot refuses naming that cause, with no spend; the repainted page then commits once');
   }
 
   {
@@ -219,7 +221,7 @@ try {
     const rounds = Number(process.env.COMMAND_SMOKE_ROUNDS || 4), outcomes = [];
     for (const variant of ['same', 'sibling']) for (let round = 0; round < rounds; round++) {
       const { profile, target, sibling } = fixture({ extra: 300 }), context = await contextFor(profile), first = await pageIn(context), second = await pageIn(context);
-      const other = variant === 'same' ? target : sibling, answer = variant === 'same' ? DUPLICATE : CHANGED;
+      const other = variant === 'same' ? target : sibling, answer = variant === 'same' ? DUPLICATE : OTHER_CARD;
       await passportDirect(first, target); await passportDirect(second, other);
       const before = await read(first), beforeWrites = await writes(first) + await writes(second);
       const fromFirst = await toastCount(first), fromSecond = await toastCount(second);
@@ -242,7 +244,7 @@ try {
       || outcome.upgraded.length !== 1 || outcome.receipts.length !== 1 || outcome.receipts[0] !== outcome.upgraded[0]);
     assert.deepEqual(bad, [], JSON.stringify(bad, null, 1));
     assert(outcomes.filter(outcome => outcome.variant === 'same').every(outcome => outcome.messages.some(text => text.includes(FIRST_RECEIPT))));
-    passed(`B4 at ${outcomes[0].bytes} B saved, ${rounds} rounds per case: the same copy commits once and the other page gets the receipt; sibling copies in one slot commit once and the other page is told the card changed`);
+    passed(`B4 at ${outcomes[0].bytes} B saved, ${rounds} rounds per case: the same copy commits once and the other page gets the receipt; sibling copies in one slot commit once and the other page is told another card took the slot`);
   }
 
   {

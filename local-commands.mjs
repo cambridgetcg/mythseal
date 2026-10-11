@@ -18,7 +18,11 @@ const previewKeys = ['type', 'uid'];
 export const COMMAND_MESSAGES = Object.freeze({
   committed: '此卡修練完成，另一張副本的等級不變。',
   duplicate: '這次修練早已入帳，未有再次扣除資源。',
+  // identity-conflict names its cause (§9): this copy's own slot was taken at another level,
+  // or another copy's upgrade took the slot, leaving this one unchanged or changed as well.
   'identity-conflict': '卡牌剛有變動，未有扣除資源；請查看更新後的修練預覽。',
+  'other-card': '另一個分頁剛為另一張卡完成修練；這張卡未有變動，未有扣除資源，請再按一次修練升級。',
+  'other-card-changed': '另一個分頁剛為另一張卡完成修練，未有扣除資源；請查看更新後的修練預覽。',
   stale: '卡牌剛有變動，未有扣除資源；請查看更新後的修練預覽。',
   expired: '修練預覽已過期，未有扣除資源；請重新查看。',
   exhausted: '本機操作記錄已達上限，未有扣除資源。',
@@ -112,6 +116,16 @@ function receiptFor(slot, intent, before, after, at) {
   };
 }
 
+/** Same slot, another intent (§4). A receipt for this copy at another level means this copy
+ * changed. A receipt for another copy says nothing about this one, so its fresh preview
+ * decides: unchanged means only the slot moved and the next click can commit. */
+function identityConflict(profile, stored, { intent, expectedFingerprint }) {
+  if (!isRecord(stored?.intent) || stored.intent.uid === intent.uid) return rejected('identity-conflict');
+  const fresh = previewCommand(profile, { type: intent.type, uid: intent.uid }).request;
+  const unchanged = fresh !== null && fresh.intent.toLevel === intent.toLevel && fresh.expectedFingerprint === expectedFingerprint;
+  return rejected('identity-conflict', COMMAND_MESSAGES[unchanged ? 'other-card' : 'other-card-changed']);
+}
+
 /** Runs synchronously inside the lock and never throws: every path returns a result. */
 function commitLocked({ commandId, slot, intent, expectedFingerprint }, { store, now }) {
   let profile;
@@ -125,7 +139,7 @@ function commitLocked({ commandId, slot, intent, expectedFingerprint }, { store,
       const stored = receiptForSeq(ledger, slot);
       return sameCommandIntent(stored?.intent, intent)
         ? { status: 'committed', duplicate: true, receipt: stored, profile }
-        : rejected('identity-conflict');
+        : identityConflict(profile, stored, { intent, expectedFingerprint });
     }
     if (slot > ledger.nextSeq) return rejected('stale');
     if (ledger.nextSeq >= MAX_COMMAND_SEQ) return rejected('blocked', COMMAND_MESSAGES.exhausted);
