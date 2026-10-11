@@ -173,8 +173,22 @@ function validateProfile(profile, version) {
   if (stableJSON(canonical) !== stableJSON(profile)) fail('旅程備份資料不一致，未有更改本機進度。');
 }
 
+/** Device-local profile fields that never enter a backup (docs/LOCAL-COMMANDS.md). */
+export const LOCAL_ONLY_PROFILE_KEYS = Object.freeze(['commands']);
+
+/** Shallow copy without local-only keys. Descriptors and prototype are kept as they
+ * are, so accessors are not invoked here and the bounded validator still sees them. */
+export function backupProfile(profile) {
+  if (profile === null || typeof profile !== 'object' || Array.isArray(profile)
+    || !LOCAL_ONLY_PROFILE_KEYS.some(key => Object.hasOwn(profile, key))) return profile;
+  const descriptors = Object.getOwnPropertyDescriptors(profile);
+  for (const key of LOCAL_ONLY_PROFILE_KEYS) delete descriptors[key];
+  return Object.create(Object.getPrototypeOf(profile), descriptors);
+}
+
 export function createSnapshot(profile) {
-  return validateSnapshot({ format: SNAPSHOT_FORMAT, version: profile?.version === 3 ? 1 : profile?.version === 4 ? 2 : SNAPSHOT_VERSION, profile });
+  const shared = backupProfile(profile);
+  return validateSnapshot({ format: SNAPSHOT_FORMAT, version: shared?.version === 3 ? 1 : shared?.version === 4 ? 2 : SNAPSHOT_VERSION, profile: shared });
 }
 
 /** Return detached validated data. Unknown formats/versions never start a new game. */

@@ -8,6 +8,7 @@ import { createWX01State, validateWX01State } from './wx01-state.mjs';
 import { CAMPAIGN_NODES } from './campaign-content.mjs';
 import { FIRE_MOUNTAIN } from './activity-content.mjs';
 import { createExpansionState, validateExpansionState, validateExpansionPending, rollExpansionWeek, seededBattleRNG, basePrintFor, MAX_EXPANSION_GRANTS, CAMPAIGN_TITLE, ACTIVITY_TITLE } from './expansion-state.mjs';
+import { validateCommandLedger } from './command-ledger.mjs';
 
 const freeze = value => {
   if (value && typeof value === 'object') {
@@ -244,6 +245,9 @@ export function hydrateProfile(raw, { now = new Date(), legacyDeck, legacyStats,
   hydrated.wx01 = raw.version >= 4 ? validateWX01State(raw.wx01, { ...hydrated, version: raw.version }) : createWX01State();
   hydrated.expansion = raw.version >= 5 ? validateExpansionState(raw.expansion, hydrated) : createExpansionState(`${hydrated.daily.date}T12:00:00Z`);
   hydrated.expansion = rollExpansionWeek(hydrated.expansion, `${hydrated.daily.date}T12:00:00Z`);
+  // Optional local command ledger (docs/LOCAL-COMMANDS.md). Absent is its initial
+  // state: never invent it, and fail closed rather than silently drop a bad one.
+  if (raw.version === PROFILE_VERSION && Object.hasOwn(raw, 'commands')) hydrated.commands = validateCommandLedger(raw.commands);
   return hydrated;
 }
 

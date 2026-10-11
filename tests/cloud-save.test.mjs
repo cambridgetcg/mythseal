@@ -6,7 +6,7 @@ import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { getActiveDeck, mintInstance, setInstanceXP, saveInstanceDeck, syncCollection } from '../collection.mjs';
 import {
   createSnapshot, validateSnapshot, restoreSnapshot, snapshotSummary, fingerprintProfile,
-  MAX_SNAPSHOT_BYTES, MAX_SNAPSHOT_CARDS, LEGACY_MAX_SNAPSHOT_BYTES,
+  MAX_SNAPSHOT_BYTES, MAX_SNAPSHOT_CARDS, LEGACY_MAX_SNAPSHOT_BYTES, LOCAL_ONLY_PROFILE_KEYS, backupProfile,
 } from '../cloud-save.mjs';
 
 const now = '2026-09-21T12:00:00.000Z';
@@ -382,4 +382,37 @@ test('an active activity blocks cloud export and restore even between battles wi
     assert.throws(() => restoreSnapshot({ format: 'mythseal.offline-journey', version: 3, profile: p }), /活動旅程/);
     assert.deepEqual(p, before);
   }
+});
+
+test('N18 backups never carry the local command ledger and no snapshot version accepts one', () => {
+  const commands = {
+    version: 1, nextSeq: 2, retiredBelow: 1,
+    receipts: [{ seq: 1, intent: { type: 'care.upgrade', uid: 'card-000001', toLevel: 2 }, at: now,
+      result: { cardId: 'qingxiao', printId: 'legacy/qingxiao', fromLevel: 1, toLevel: 2, fromXP: 0, toXP: 80, coins: 120, dust: 6, coinsAfter: 1080, dustAfter: 14 } }],
+  };
+  assert.deepEqual(LOCAL_ONLY_PROFILE_KEYS, ['commands']);
+  const plain = travelledProfile(), local = { ...copy(plain), commands: copy(commands) }, original = copy(local);
+  const snapshot = createSnapshot(local);
+  assert.deepEqual(snapshot, createSnapshot(plain));
+  assert.equal(Object.hasOwn(snapshot.profile, 'commands'), false);
+  assert.deepEqual(validateSnapshot(snapshot), snapshot);
+  assert.deepEqual(local, original, 'the local profile keeps its ledger');
+  assert.equal(Object.hasOwn(restoreSnapshot(snapshot, { now }), 'commands'), false, 'restore never yields a ledger');
+  assert.equal(fingerprintProfile(backupProfile(local)), fingerprintProfile(plain));
+  assert.notEqual(fingerprintProfile(local), fingerprintProfile(plain), 'the full local fingerprint still sees the ledger');
+  assert.equal(backupProfile(plain), plain, 'a ledger-free profile is passed through untouched');
+
+  const v3 = copy(snapshot); v3.profile.commands = copy(commands);
+  const v1 = legacySnapshot(plain); v1.profile.commands = copy(commands);
+  const v4Profile = copy(plain); v4Profile.version = 4; delete v4Profile.expansion;
+  const v2 = createSnapshot(v4Profile); assert.equal(v2.version, 2); v2.profile.commands = copy(commands);
+  for (const invalid of [v1, v2, v3]) {
+    assert.throws(() => validateSnapshot(invalid), `snapshot v${invalid.version}`);
+    assert.throws(() => restoreSnapshot(invalid, { now }), `snapshot v${invalid.version}`);
+  }
+
+  let accessed = false;
+  const accessor = Object.defineProperty({ ...copy(plain), commands: copy(commands) }, 'coins', { enumerable: true, get() { accessed = true; return 1; } });
+  assert.throws(() => createSnapshot(accessor));
+  assert.equal(accessed, false, 'stripping the ledger never invokes accessors');
 });

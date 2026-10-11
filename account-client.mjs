@@ -1,4 +1,4 @@
-import { createSnapshot, validateSnapshot, fingerprintProfile, SNAPSHOT_VERSION } from './cloud-save.mjs';
+import { createSnapshot, validateSnapshot, fingerprintProfile, backupProfile, SNAPSHOT_VERSION } from './cloud-save.mjs';
 
 const messages = {
   unauthorized: '登入已失效，請重新登入。此裝置的旅程仍然保留。',
@@ -71,7 +71,8 @@ export function createAccountController({ getLocalProfile, restoreLocalProfile, 
   const announce = message => { publish({ status: message }); notify(message); };
   const localDiffers = backup => {
     if (!backup) return true;
-    try { return fingerprintProfile(getLocalProfile()) !== fingerprintProfile(backup.snapshot.profile); }
+    // The local command ledger never enters a backup, so a ledger-only difference is not a change.
+    try { return fingerprintProfile(backupProfile(getLocalProfile())) !== fingerprintProfile(backup.snapshot.profile); }
     catch { return true; } // Cloud size/format limits must never interrupt a committed offline action.
   };
 
