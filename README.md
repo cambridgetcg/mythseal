@@ -10,7 +10,9 @@ An original Eastern fantasy card game inspired by the four-round card selection,
 
 Gameplay still runs from editable browser-local saves; an account backup is not trusted online ownership. iOS, Android, an authoritative game economy and online player trading remain optional roadmap ideas; collectible commercialization was retired as a delivery objective on 2026-09-23. See the [roadmap](ROADMAP.md), [technical plan](docs/TECHNICAL-PLAN.md), [backend stack](docs/BACKEND-STACK.md), [NFT stack](docs/NFT-STACK.md), [content and release pipeline](docs/CONTENT-RELEASE-PIPELINE.md), [mobile plan](docs/MOBILE-RELEASE.md) and [blockchain design](docs/BLOCKCHAIN-DESIGN.md). [Naming history](docs/NAMING.md) preserves the earlier research; selecting a name and owning its domain do not establish trademark clearance.
 
-**Joining development?** Start with the [agent handover](docs/HANDOVER.md) for the live architecture, infrastructure/access map, fresh-checkout setup, checks and release procedure. The [roadmap](ROADMAP.md) breaks future work into bounded tasks with dependencies and acceptance criteria. Read [AGENTS.md](AGENTS.md) before editing.
+**Joining development?** Start with the [agent handover](docs/HANDOVER.md) for the live architecture, infrastructure/access map, fresh-checkout setup, checks and release procedure. The [roadmap](ROADMAP.md) breaks future work into bounded tasks with dependencies and acceptance criteria. Read [AGENTS.md](AGENTS.md) before editing and [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+**Looking for a document?** The [documentation library](docs/README.md) lists every file in `docs/` by subject and marks each one as current behavior, a dated proposal, a dated record or retired research.
 
 **Experience development:** [lessons from the RXSG restoration](docs/EXPERIENCE-LESSONS.md)
 map to [Q0–Q6 work packets](ROADMAP.md#experience-quality-track) and
@@ -18,8 +20,9 @@ map to [Q0–Q6 work packets](ROADMAP.md#experience-quality-track) and
 previewed batch care, bounded automation, content capabilities and fair agent
 practice. These are plans built on the existing game, not new deployed features.
 
-The [fresh-clone toolkit check](docs/TOOLKIT.md) records the latest local setup,
-access verification, test evidence and remaining prerequisites.
+The [fresh-clone toolkit check](docs/TOOLKIT.md) is a dated record (2026-09-21,
+updated 2026-09-22) of one clean setup: access verification, test evidence and
+remaining prerequisites.
 
 ## Run locally
 
@@ -178,8 +181,8 @@ npm test
 Pure engine, progression and collection suites use Node's built-in test runner. Browser checks use Playwright as a development tool; the game itself has no JavaScript dependencies:
 
 `npm ci` includes pinned Playwright. Start `npm run preview` in another terminal,
-then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for all twelve
-flows. The scripts use installed Google Chrome on macOS; set `CHROME_PATH` for
+then run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` for every flow
+in that script. The scripts use installed Google Chrome on macOS; set `CHROME_PATH` for
 another executable, or install the matching browser with
 `npx --no-install playwright install chromium`. No browser download is needed
 when Chrome is already installed. `PLAYWRIGHT_MODULE` remains an optional override.
@@ -240,7 +243,7 @@ This is a private development repository. No open-source license or NFT-holder a
 - `cloud-save.mjs`: bounded, versioned offline snapshots and safe restoration validation.
 - `server/account-api.mjs`: server-only Supabase auth/session adapter and private-backup API.
 - `supabase/migrations/`: private backup storage and account-scoped SQL RPCs.
-- `hosting/public-assets.json`: the shared 21-file public allowlist for builds and the local server.
+- `hosting/public-assets.json`: the public allowlist shared by builds and the local server; `hosting/preview-assets.json` lists the local-only preview pages.
 - `backpack-ui.mjs`, `backpack.css`: owned cards, saved decks and individual card records.
 - `adventure-ui.mjs`, `adventure.css`: travel, market, daily and arena screens.
 - `classics.css`: classical collection filters, feature banner and themed packs.
@@ -248,10 +251,4 @@ This is a private development repository. No open-source license or NFT-holder a
 - `assets/portraits.png`: original 4 × 3 character atlas.
 - `assets/world-map.png`: original illustrated six-realm map.
 - `assets/classics.png`: 4 × 3 atlas of the twelve classical characters.
-- [Art generation record](docs/ART.md): exact prompts and provenance.
-- [Technical plan](docs/TECHNICAL-PLAN.md): implementation order and architecture decisions.
-- [Backend stack](docs/BACKEND-STACK.md): server authority, transactions, schema and cost assumptions.
-- [Accounts and cloud journeys](docs/ACCOUNTS.md): implemented backup behavior, security boundary and SMTP readiness.
-- [NFT stack](docs/NFT-STACK.md): testnet candidates, wallets, ownership indexing and metadata.
-- [Content/release pipeline](docs/CONTENT-RELEASE-PIPELINE.md): artwork, animation and versioned content delivery.
-- [Hosting](docs/HOSTING.md): build allowlist, Cloudflare setup and actual deployment evidence.
+- [Documentation library](docs/README.md): every design, operations, evidence, provenance and research document, with its subject and status.

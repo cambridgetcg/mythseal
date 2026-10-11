@@ -5,9 +5,15 @@ Source baseline: `c52740d015b0e1a8c6948071ca0a761e2cc9e6db` from private
 The public game remains v0.5.1 from `ea485586d14032bc145a993749a49d5c343ff5f8`;
 this setup did not deploy or change hosted application data/settings.
 
+This is a dated record from one machine. "This Mac" below means the Mac used for
+the check, not yours. Resolve your own checkout (`git rev-parse --show-toplevel`)
+and follow [Start a fresh checkout](HANDOVER.md#start-a-fresh-checkout) for
+current setup.
+
 ## Development ready on this Mac · 2026-09-22
 
-The current checkout is `/Users/yuai/Projects/mythseal`, on
+The checked checkout was a fresh `mythseal` clone, recorded at
+`/Users/yuai/Projects/mythseal` on that machine, on
 `codex/toolkit-readiness`. The preview responds at
 **http://127.0.0.1:8791** with guest play available and email sending disabled.
 GitHub access was rechecked as `cambridgetcg` through Sol's per-command identity;
