@@ -1,0 +1,18 @@
+/* Save safety (save-ui.mjs): the 旅程閣 backup status, the lobby's one-line notices and the import confirmation. */
+.game-shell .game-utilities.save-tools{flex-wrap:wrap;row-gap:4px}
+.game-shell .save-status{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:2px 16px;margin:0;color:var(--muted);font-size:11px;line-height:1.8}
+.game-shell .save-status time{color:var(--paper);font-variant-numeric:tabular-nums}
+.game-shell .save-status[data-persistence="granted"] [data-persistence-label]{color:var(--green)}
+.game-shell .save-notice{min-width:0}
+.game-shell .save-notice>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.game-shell .save-notice>div{flex-shrink:0}
+.game-shell .save-notice .save-notice-close{min-width:44px;padding-left:0;padding-right:0;font-size:14px;line-height:1}
+.import-file{margin:4px 0 12px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+.import-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 12px}
+.import-side{border:1px solid var(--line);padding:12px 14px;background:#0002;min-width:0}
+.import-side h3{margin:0 0 8px;font:13px var(--serif);letter-spacing:1px;color:var(--gold)}
+.import-side dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;margin:0}
+.import-side dl>div{display:flex;justify-content:space-between;gap:8px;font-size:11px}
+.import-side dt{color:var(--muted)}.import-side dd{margin:0;color:var(--paper);font-variant-numeric:tabular-nums}
+.import-side p{margin:8px 0 0;font-size:10px;color:var(--muted)}
+@media(max-width:600px){.game-shell .save-notice>span{font-size:10px}.game-shell .save-notice .small-button{padding:6px 8px}.import-compare{grid-template-columns:minmax(0,1fr)}}

@@ -23,6 +23,9 @@ import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './pr
 import { previewCommand, commitCommand, readCommandReceipt, duplicateMessage, COMMAND_MESSAGES } from './local-commands.mjs';
 import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
+import { exportJourney, importJourney, journeySummary, isStandalone } from './platform.mjs';
+import { createSaveStatus } from './save-status.mjs';
+import { saveToolsMarkup, saveNoticeMarkup, importConfirmMarkup } from './save-ui.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
@@ -41,6 +44,11 @@ const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const profileStore=createProfileStore({storage:localStorage});
 const loadProfile=()=>profileStore.load();
+// Device-local backup status, persistence outcome and prompts; never inside the journey or a
+// backup (docs/LOCAL-COMMANDS.md §11). load() starts a new journey only when none is stored,
+// and only then does the lobby offer a restore.
+const saves=createSaveStatus({storage:localStorage});
+const freshJourney=!profileStore.hasJourney();
 // localStorage is only eventually consistent between tabs, even for the next holder of the
 // Web Lock. Each holder waits for the bytes the previous holder recorded in the IndexedDB
 // fence (docs/LOCAL-COMMANDS.md §10.1). Read at call time so a browser that loses Web Locks
@@ -138,6 +146,7 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
     // the replacement (with the replaced lineage's retired command boundary), then keeps a
     // validated recovery copy of the current journey and saves; a refusal changes neither.
     const next = profileStore.restore(restored, { expectedFingerprint, busy: economyBusy, isCurrent, savedAt: new Date().toISOString() });
+    saves.closeRestoreOffer();
     packOpening?.destroy();packOpening=null;
     localStorage.removeItem(BATTLE_KEY);
     syncProfile(next);passportQuote=null;
@@ -153,6 +162,61 @@ function recoveryMarkup() {
   const saved = read(RECOVERY_KEY, null);
   if (!saved?.snapshot) return '';
   return `<aside class="account-recovery"><p>上次恢復前的本機旅程已保留。你可以下載副本，或復原到當時進度。</p><button class="text-button" data-action="export-recovery">下載本機回復備份 ↗</button><button class="text-button" data-action="restore-recovery">復原上次本機旅程 →</button></aside>`;
+}
+// Save safety (docs/LOCAL-COMMANDS.md §11): export, file import through restoreLocalProfile,
+// and the lobby's restore offer and once-only backup prompts.
+let saveNotice=null, importDraft=null, importInput=null;
+function lobbySaveNotice() {
+  // The resume strip for a WX receipt or an activity has this place first.
+  if(profile.wx01.receipt||profile.expansion.fireMountain.run)return '';
+  if(saves.showRestoreOffer(profile))return saveNoticeMarkup('restore-offer',{signedIn:Boolean(account.getState().account)});
+  saveNotice??=saves.takePrompt({guest:!account.getState().account});
+  return saveNoticeMarkup(saveNotice);
+}
+function backupMade(kind) {
+  saves.recordBackup(kind);saveNotice=null;
+  if(['account','home'].includes(screen))render();
+}
+function exportSave() {
+  try {
+    const result=exportJourney(loadProfile(),{document});
+    if(result.importable)backupMade('export');
+    toast(result.importable?'旅程備份已匯出。':'旅程備份已匯出；對局或活動未完時的備份未能還原，完成後請再匯出一次。');
+  } catch(error) { toast(error.message||'未能匯出旅程備份。'); }
+}
+function importBlocked(current) {
+  if(economyBusy||current.pending||current.expansion.fireMountain.run)return '請先完成或放棄未完對局，再匯入旅程備份；本機旅程未有更改。';
+  if(current.wx01.receipt)return '請先查看並確認已入藏的西行畫作，再匯入旅程備份。';
+  return '';
+}
+function pickJourneyFile() {
+  if(importDraft?.restoring)return;
+  try{const blocked=importBlocked(loadProfile());if(blocked)return toast(blocked);}catch(error){return toast(error.message);}
+  // One input outside #app, so a render while the picker is open cannot detach it.
+  if(!importInput){
+    importInput=document.createElement('input');
+    Object.assign(importInput,{type:'file',accept:'.json,application/json',id:'journey-import-file',className:'sr-only',tabIndex:-1});
+    importInput.setAttribute('aria-hidden','true');
+    importInput.addEventListener('change',()=>{const file=importInput.files?.[0];importInput.value='';if(file)reviewImport(file);});
+    document.body.append(importInput);
+  }
+  importInput.click();
+}
+async function reviewImport(file) {
+  const result=await importJourney(file);
+  if(!result.ok)return toast(result.message);
+  let current;
+  try{current=loadProfile();}catch(error){return toast(error.message);}
+  const blocked=importBlocked(current);if(blocked)return toast(blocked);
+  // Nothing is written until the confirmation; it restores only this journey, unchanged.
+  importDraft={snapshot:result.snapshot,fingerprint:fingerprintProfile(current)};
+  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name}),'import-modal',true,'import-review');
+}
+function confirmImport() {
+  const draft=importDraft;
+  if(!draft||draft.restoring)return;
+  draft.restoring=true;
+  restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(importDraft===draft)importDraft=null;saveNotice=null;closeModal();account.markLocalChanged();render();toast('已由備份還原旅程；原本的本機旅程已留作回復備份。');}).catch(error=>{draft.restoring=false;toast(error.message);});
 }
 async function economy(change,message,after,onSaved){
   if(economyBusy)return;economyBusy=true;
@@ -193,7 +257,7 @@ function cardMarkup(card, options = {}) {
 function header() {
   return gameHeaderMarkup({profile,screen,sound,accountButton:accountButtonMarkup(account.getState())});
 }
-function homeMarkup() { return lobbyMarkup(profile,cardMarkup,selectedNode); }
+function homeMarkup() { return `${lobbySaveNotice()}${lobbyMarkup(profile,cardMarkup,selectedNode)}`; }
 
 function updateResourcePreview() {
   if(!match||match.status!=='playing'||revealPending)return;
@@ -290,7 +354,7 @@ function render() {
   const previousMap=app.querySelector('.world-map[data-world]');
   if(previousMap)worldScrollPositions.set(previousMap.dataset.world,previousMap.parentElement.scrollLeft);
   profile=refreshDaily(profile);
-  const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
+  const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}${saveToolsMarkup(saves.status())}${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
   app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?((profile.wx01.receipt||profile.expansion.fireMountain.run)?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
   prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});
@@ -399,6 +463,7 @@ function showPackReceipt(recovered=false) {
   syncProfile(loadProfile());
   const receipt=profile.wx01.receipt;
   if(!receipt){render();return toast('這份畫作已收入行囊。');}
+  if(!recovered&&['pack','box','ticket'].includes(receipt.kind))saves.packOpened();
   modal(packReceiptMarkup(receipt,cardMarkup),'pack-modal',true,'pack-receipt');
   packOpening=createPackOpeningController({element:overlay.querySelector('.pack-opening'),receipt,
     reducedMotion:()=>experience.reducedMotion(),pace:()=>experience.getPreferences().pace,announce,window,document,
@@ -842,6 +907,7 @@ async function recordFinishedMatch() {
   const settledId=encounter.id;
   const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used,finalResources:{hp:match.player.hp,pills:match.player.pills}}),()=>clearBattleSnapshot(settledId));
   lastReward=result.reward;recorded=true;
+  saves.battleFinished(match.winner);
 }
 function resultModal({animate=false}={}) {
   const r=match.lastResult, won=r.winner==='player';
@@ -959,7 +1025,7 @@ document.addEventListener('click', event=>{
   const accountActions = {
     'account-retry': () => account.init(),
     'account-refresh': () => account.refreshCloud(),
-    'account-upload': () => account.upload(),
+    'account-upload': () => account.upload().then(saved => { if (saved) backupMade('cloud'); }),
     'account-confirm-restore': () => account.setConfirmation('restore'),
     'account-confirm-delete': () => account.setConfirmation('delete'),
     'account-cancel-confirmation': () => {account.cancelConfirmation();viewport.selectModule({key:viewKey(),moduleId:'cloud'});},
@@ -1095,10 +1161,17 @@ document.addEventListener('click', event=>{
   if(action==='sell-card'){navigate('bag');bagView.query=getCard(id).name;render();return;}
   if(action==='buy-pack'){if(loadProfile().wx01.receipt)return showPackReceipt(true);const packSet=button.dataset.set||selectedPack;return economy(p=>buyPack(p,{set:packSet}),'',result=>{
     if(result.receipt)return showPackReceipt();
+    saves.packOpened();
     modal(`<div class="eyebrow">${PACK_SETS[result.set].name} · THREE FATES</div><h2>三份緣，已入藏。</h2><p>卡牌已加入收藏。多出的卡可到商旅市集出售。</p><div class="pack-reveal">${result.cards.map(({cardId,rarity,instanceId,printId})=>`<div class="pack-result" style="--rarity:${RARITIES[rarity].color}">${cardMarkup(getCard(cardId),{printId})}<span class="rarity-label">${RARITIES[rarity].name}</span><p>${getCard(cardId).name} · Lv.1<br><span class="instance-serial">#${safe(instanceId)}</span></p></div>`).join('')}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">收入行囊 ✓</button><button class="primary" data-action="buy-pack" data-set="${result.set}" ${profile.coins<PACK_PRICE?'disabled':''}>再開一匣 · ${PACK_PRICE} 金幣</button></div>`,'pack-modal');
   });}
-  if(action==='export-save'){
-    const blob=new Blob([JSON.stringify(loadProfile(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`萬象契旅程-${profile.daily.date}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('旅程備份已匯出。');return;
+  if(action==='export-save')return exportSave();
+  if(action==='import-save')return pickJourneyFile();
+  if(action==='import-confirm')return confirmImport();
+  if(action==='save-notice-dismiss'){if(id==='restore-offer')saves.closeRestoreOffer();else saveNotice=null;render();return;}
+  if(action==='restore-offer-cloud'){
+    navigate('account');
+    if(account.getState().backup)account.setConfirmation('restore');
+    return;
   }
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}
   if(action==='rules')return rulesModal();
@@ -1202,5 +1275,6 @@ document.addEventListener('keydown',event=>{
   }
 });
 await transact(p=>p);
+saves.launch({fresh:freshJourney,standalone:isStandalone()}).catch(()=>{});
 startupReady=true;
 render();

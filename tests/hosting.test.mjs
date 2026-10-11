@@ -83,3 +83,11 @@ test('N20 runtime modules are allowlisted: the game and playtest import closures
   assert.deepEqual(playtest.filter(path => !PUBLIC_FILES.includes(path) && !PREVIEW_FILES.includes(path)), []);
   assert.equal(new Set(PUBLIC_FILES).size, PUBLIC_FILES.length, 'no duplicate allowlist entries');
 });
+
+test('D2 save-safety modules are allowlisted and reached by the game', () => {
+  const game = closure('index.html');
+  for (const file of ['platform.mjs', 'save-status.mjs', 'save-ui.mjs', 'saves.css']) {
+    assert.ok(PUBLIC_FILES.includes(file), `${file} is in hosting/public-assets.json`);
+    assert.ok(game.includes(file), `${file} is reachable from index.html`);
+  }
+});
