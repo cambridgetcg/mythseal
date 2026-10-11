@@ -115,8 +115,8 @@ the other commits change documentation only. The branch is not merged into
   "Pending specials briefs" section to "Specials briefs · 2026-10-10". The
   registry now reads both lists and the new heading, and the audit checks that
   `LZ01_PLANNED_SPECIALS` names exactly the checklist's planned rows. With all
-  six specials bound, it derives 120 local-playable and 30 preview entries and
-  none planned. The tests derive the LZ-01 split from `liaozhai-cards.mjs`
+  seven specials bound (小倩 AA since 2026-09-23, plus the six PR #8 planned and
+  bound), it derives 120 local-playable and 30 preview entries and none planned. The tests derive the LZ-01 split from `liaozhai-cards.mjs`
   instead of pinning it, and rebuild a planned special from a bound one to keep
   the planned-path faults exercised.
 - **Third review (`6bc784a`):** a cited test must now be a top-level
@@ -126,6 +126,20 @@ the other commits change documentation only. The branch is not merged into
   `west-spirit-mountain` lists the story-gift claim, since the four westward
   nodes unlock in a chain. The audit compares a bound special's brief file with
   its binding.
+- **Fourth review (fourth-review fix commit, after `65c4593`):** evidence
+  reading fails closed. A cited test whose options are not an object literal (a
+  variable, a conditional, a spread or a computed key), use a quoted
+  `'skip'`/`'todo'` key, or whose callback is missing or passed by name no longer
+  counts, nor does any access to its context's `skip`/`todo` (`t.skip?.()`,
+  `t['skip']()`, `t.skip.call(t)`). Each checklist row's character, treatment
+  and working title are compared with `LZ01_SPECIALS` (bound) or
+  `LZ01_PLANNED_SPECIALS` (planned), and a planned entry takes its treatment
+  from the module. A special, world or activity without an art or map path is a
+  `capability-inconsistent` finding instead of a `TypeError`. The CLI resolves
+  symlinks before deciding it is the main script, so a run through a symlinked
+  path audits instead of printing nothing with exit 0. Still 27 finding codes.
+  Checked: 475/475 Node tests, the audit (exit 0, no findings), an 80-file
+  build and the LZ-01/HL-01 preview smokes in Chromium and WebKit.
 - **Merging into `main`:** `docs/README.md` now qualifies the Experience modules,
   Roadmap, Handover and Validation rows for Q4. When the branch merges, update
   the "not merged" status lines here, in ROADMAP, EXPERIENCE-MODULES and

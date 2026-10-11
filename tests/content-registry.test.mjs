@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmdirSync, symlinkSync, unlinkSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildContentRegistry, auditContent, loadContentSources, resolveReference, localReferences, CAPABILITIES, GRANT_RULES, START_RULES } from '../tools/content-registry.mjs';
 import { createProfile, hydrateProfile, beginBattle, finishBattle, startActivity, advanceActivity, isNodeUnlocked, claimWX01StoryPrint, claimExpansionGrant, NODES } from '../progression.mjs';
 import { LEGACY_CARD_IDS } from '../engine.mjs';
@@ -133,10 +137,15 @@ test('a consistent planned special audits clean and reports its brief, not an im
   const item = buildContentRegistry(changed).entries.find(candidate => candidate.id === `print:${PLANNED_ID}`);
   assert.deepEqual([item.status, item.cardId, item.treatment, item.assets, item.plannedAssets, item.brief], ['planned', plannedPrint.cardId, plannedPrint.treatment, [], [PLANNED.src], 'docs/ART-LZ01.md']);
   assert.match(item.capabilities.preview.reason, /no image/);
+  const relabeled = planned({ docs: { lz01Checklist: plannedChecklist.replace('| `lz01-008-ink1` | 畫皮之鬼 / INK', '| `lz01-008-ink1` | 畫皮之鬼 / AA') } });
+  assert.equal(buildContentRegistry({ ...sources, ...relabeled, content: { ...sources.content, ...relabeled.content } }).entries.find(candidate => candidate.id === `print:${PLANNED_ID}`).treatment,
+    plannedPrint.treatment, 'a planned entry takes its treatment from LZ01_PLANNED_SPECIALS, not the checklist label');
 });
 
 const nodes = (id, change) => NODES.map(node => node.id === id ? { ...node, ...change(node) } : node);
 const evidenceTitle = 'six map locations unlock sequentially on wins and move the traveller on entry';
+const redeemTitle = 'seal redemption charges its advertised tier once and creates a fresh copy beside a trained sibling';
+const withoutKey = (record, key) => Object.fromEntries(Object.entries(record).filter(([name]) => name !== key));
 /** [label, broken sources, codes that must fire, a message one finding must match] */
 const SOURCE_FAULTS = [
   ['a referenced public map dropped from the allowlist', { publicAssets: sources.publicAssets.filter(path => path !== 'assets/maps/westward.png') },
@@ -227,6 +236,28 @@ const SOURCE_FAULTS = [
     ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
   ['a renamed unlock rule whose old definition survives in a comment', rewrite('progression.mjs', text => `${text.replaceAll('isNodeUnlocked', 'isStageOpen')}\n// Renamed from: export function isNodeUnlocked(profile, nodeId)\n`),
     ['dead-reference'], /progression\.mjs:isNodeUnlocked no longer resolves \(cited by 66 entries\)/],
+  ['an evidence test switched off by options held in a variable', rewrite('tests/wx01-progression.test.mjs', text => text.replace(`test('${redeemTitle}', `, `const pending = { skip: 'awaiting balance review' };\ntest('${redeemTitle}', pending, `)),
+    ['dead-reference'], /seal redemption charges its advertised tier once .* no longer resolves \(cited by \d+ entries\)/],
+  ['an evidence test switched off with a quoted { \'skip\' } key', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', `, `test('${evidenceTitle}', { 'skip': 'disabled' }, `)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test skipped inside its body with t.skip?.()', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', () => {`, `test('${evidenceTitle}', t => { t.skip?.('disabled'); return;`)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['a bound special that lost its image path', { content: { LZ01_SPECIALS: LZ01_SPECIALS.map(print => print === plannedPrint ? withoutKey(print, 'src') : print) } },
+    ['capability-inconsistent', 'checklist-mismatch'], /checklist image assets\/lz01\/huapi-ink\.png differs from bound \(no image\)/],
+  ['an HL-01 special that lost its image path', { content: { HL01_AA: [].concat(sources.content.HL01_AA).map((print, index) => index ? print : withoutKey(print, 'src')) } },
+    ['capability-inconsistent'], /printing has no art/],
+  ['a world that lost its map', { content: { WORLDS: sources.content.WORLDS.map(world => world.id === 'westward' ? withoutKey(world, 'map') : world) } },
+    ['capability-inconsistent'], /world westward has no map/],
+  ['an activity that lost its map', { content: { FIRE_MOUNTAIN: withoutKey(sources.content.FIRE_MOUNTAIN, 'map') } },
+    ['capability-inconsistent'], /activity has no map/],
+  ['a bound checklist row naming another character', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace('| `lz01-009-aa1` | 陳氏 / AA', '| `lz01-009-aa1` | 王六郎 / AA') } },
+    ['checklist-mismatch'], /checklist character 王六郎 differs from LZ01_SPECIALS 陳氏/],
+  ['a bound checklist row naming another treatment', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace('| `lz01-006-ink1` | 陸判 / INK', '| `lz01-006-ink1` | 陸判 / TR') } },
+    ['checklist-mismatch'], /checklist treatment TR differs from LZ01_SPECIALS ink/],
+  ['a bound checklist row naming another working title', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace('| 聶小倩 / TR | 歸燈 |', '| 聶小倩 / TR | 歸途 |') } },
+    ['checklist-mismatch'], /checklist working title 歸途 differs from LZ01_SPECIALS 歸燈/],
+  ['a planned checklist row naming another treatment', planned({ docs: { lz01Checklist: plannedChecklist.replace('| `lz01-008-ink1` | 畫皮之鬼 / INK', '| `lz01-008-ink1` | 畫皮之鬼 / AA') } }),
+    ['checklist-mismatch'], /checklist treatment AA differs from LZ01_PLANNED_SPECIALS ink/],
   ['a bound special whose brief still names its superseded file', { docs: { ...sources.docs, lz01Briefs: sources.docs.lz01Briefs.replace(/^(\| `lz01-004-aa1` \|(?:[^|\n]*\|){2} )`assets\/lz01\/yingning-aa2\.png`/m, '$1`assets/lz01/yingning-aa.png`') } },
     ['checklist-mismatch'], /docs\/ART-LZ01\.md brief file assets\/lz01\/yingning-aa\.png differs from bound assets\/lz01\/yingning-aa2\.png/],
 ];
@@ -303,6 +334,28 @@ test('rule, resume and evidence references must name real code or real tests', (
   assert.equal(runs("test('a sample', function (t) { if (slow) this?.skip(); });"), false);
   assert(runs("test('a sample', function () { assert.ok(this.name); });"), 'a function callback that never skips still counts');
   assert(runs("test('a sample', () => { subject.this.skip(); });"), 'only the context itself skipping counts');
+  // Node reports each of these skipped (or runs nothing), so none is evidence.
+  assert.equal(runs("const pending = { skip: 'x' };\ntest('a sample', pending, () => {});"), false, 'options held in a variable cannot be read');
+  assert.equal(runs("test('a sample', process.env.FAST ? { skip: 'slow' } : {}, () => {});"), false, 'conditional options cannot be read');
+  assert.equal(runs("const o = { skip: 'x' };\ntest('a sample', { ...o }, () => {});"), false, 'a spread may carry skip');
+  assert.equal(runs("test('a sample', { ['skip']: true }, () => {});"), false, 'a computed key may be skip');
+  assert.equal(runs("test('a sample', { 'skip': 'disabled' }, () => {});"), false, 'a quoted skip key still skips');
+  assert.equal(runs('test("a sample", { "todo": true }, () => {});'), false);
+  assert.equal(runs("test('a sample', { get skip() { return true; } }, () => {});"), false);
+  assert.equal(runs("test('a sample', { skip: false || 'slow' }, () => {});"), false, 'only a literal false keeps it running');
+  assert(runs("test('a sample', { 'skip': false, 'timeout': 50, }, () => {});"), 'quoted keys are read, not guessed');
+  assert.equal(runs("test('a sample', t => { t.skip?.('x'); });"), false, 'an optional call still skips');
+  assert.equal(runs("test('a sample', t => { t['skip']('x'); });"), false, 'a bracketed skip still skips');
+  assert.equal(runs("test('a sample', t => { t[method]('x'); });"), false, 'a computed member may be skip');
+  assert.equal(runs("test('a sample', t => { t.todo.call(t); });"), false);
+  assert.equal(runs("test('a sample', function () { this['skip'](); });"), false);
+  assert(runs("test('a sample', t => { t['diagnostic']('skip'); });"), 'a bracketed member naming something else still runs');
+  assert.equal(runs("test('a sample', named);\nfunction named(t) { t.skip(); }"), false, 'a callback passed by name cannot be read');
+  assert.equal(runs("test('a sample');"), false, 'a test without a callback runs nothing');
+  assert.equal(runs("test('a sample', { timeout: 50 });"), false);
+  assert.equal(runs("test('a sample', ({ skip }) => {});"), false, 'a destructured context cannot be followed');
+  assert.equal(runs("test('a sample' + ' again', () => {});"), false, 'a longer title names another test');
+  assert(runs("test('a sample', async (t = {}) => { t.diagnostic('x'); },);"), 'a defaulted context and a trailing comma still run');
   const defines = text => resolveReference('sample.mjs:gone', () => text);
   assert(defines('export function gone() {}') && defines('const gone = () => 1;') && defines('function other() {}\nexport { other, gone };'));
   assert.equal(defines('// Renamed from: export function gone(profile) {}'), false, 'a definition left in a comment is not code');
@@ -527,6 +580,18 @@ test('a backup round trip keeps every playable clear, the activity record and ev
   const prints = value => value.instances.map(instance => `${instance.uid}:${instance.printId}`).sort();
   assert.deepEqual(prints(restored), prints(profile));
   for (const item of ownable) assert(restored.instances.some(instance => instance.printId === item.printId), item.printId);
+});
+
+test('the audit CLI runs and reports when its path goes through a symlink', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mythseal-registry-')), link = join(dir, 'checkout');
+  symlinkSync(fileURLToPath(new URL('..', import.meta.url)), link, 'dir');
+  try {
+    const run = spawnSync(process.execPath, [join(link, 'tools', 'content-registry.mjs')], { encoding: 'utf8' });
+    assert.notEqual(run.stdout, '', 'a symlinked path must not skip the audit and exit 0 silently');
+    const output = JSON.parse(run.stdout);
+    assert.equal(output.summary.entries, registry.summary.entries);
+    assert.equal(run.status, output.findings.length ? 1 : 0, run.stderr);
+  } finally { unlinkSync(link); rmdirSync(dir); }
 });
 
 test('the registry is tooling only: no allowlist or served page can load it', () => {

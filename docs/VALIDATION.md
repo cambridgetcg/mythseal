@@ -8,9 +8,10 @@ Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
 commit **`4265039`** adds `tools/content-registry.mjs`,
 `tests/content-registry.test.mjs` and the `npm run audit:content` script. Review
 fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
-(below). Two later commits also change source: merge commit **`d1f0f91`**
-adapts the registry and its tests to PR #8's LZ-01 specials, and **`6bc784a`**
-fixes a third review's findings. Merge commit `d606447` brings in `origin/main`
+(below). Three later commits also change source: merge commit **`d1f0f91`**
+adapts the registry and its tests to PR #8's LZ-01 specials, **`6bc784a`**
+fixes a third review's findings, and the fourth-review fix commit (below)
+fixes a fourth's. Merge commit `d606447` brings in `origin/main`
 `daf18ed` (documentation only), and the remaining commits change documentation
 only; each source step below lists the checks run on it. The branch is not
 merged into `main`, pushed or deployed, and there was no hosted check. The
@@ -247,6 +248,71 @@ statuses and capability states are defined in
   - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
     check and human review. `docs/RELEASE-NEXT.md` (from PR #7) has no row in
     `docs/README.md` on `main` either; that index gap is left to its owner.
+- **Fourth review fixes · 2026-10-11** (tooling and documentation only; no
+  player, save, content, art, allowlist or build effect). Each gap was first
+  reproduced on `65c4593` by the reviewers; after the fix, each original repro
+  was re-run in an APFS-clone scratch copy (deleted afterwards).
+  - Evidence reading failed open. Only an object-literal options argument was
+    read, so options held in a variable, a conditional or a spread were never
+    inspected, and option keys were matched in masked code, so a quoted
+    `{ 'skip': … }` or computed `['skip']` key was invisible; the body check
+    needed `ctx.skip(` and missed `t.skip?.()` and `t['skip']()`. Node 26
+    reports each of these skipped. Repro: `const pending = { skip: 'awaiting
+    balance review' };` passed to the `wx01-progression.test.mjs` test that 13
+    WX-01 special printings cite left the audit at exit 0 while `node --test`
+    reported 21 tests, 1 skipped. Now options must be an object literal whose own
+    keys are read from the source (a `skip`/`todo` key passes only with the
+    literal value `false`; a spread, computed or unparseable key fails), the
+    callback must be written inline (a missing or named callback fails), and any
+    access to the context's `skip`/`todo`, or any computed member of the
+    context other than a plain string naming something else, fails. The same
+    repro now exits 1 with `dead-reference` (cited by 13 entries).
+  - Checklist columns: a bound special's character and treatment were never
+    compared with its binding, and a planned entry took its treatment from the
+    docs label. Relabelling `lz01-009-aa1` as 王六郎 / AA and `lz01-006-ink1` as
+    陸判 / TR left the audit clean; it now reports two `checklist-mismatch`
+    findings. Character, treatment and working title are compared with
+    `LZ01_SPECIALS` or `LZ01_PLANNED_SPECIALS`, and a planned entry's treatment
+    comes from the module. The planned character check now compares the name
+    without its parenthesised source note instead of a prefix.
+  - Removing `src` from the bound 畫皮之鬼 INK made the audit throw `TypeError`
+    in `fileKind` and the registry test file fail as one load error. A preview
+    printing without `src`, a world without `map` and an activity without `map`
+    are now `capability-inconsistent` findings; that repro exits 1 with four
+    findings, and the registry tests report individually (15 of 19 pass, as the
+    tree is then inconsistent).
+  - The CLI compared `resolve(argv[1])` with the loader's symlink-resolved
+    `import.meta.url`, so a run through a symlinked path printed nothing and
+    exited 0. Both sides now go through `realpathSync`; a run through a symlink
+    to the worktree (and through `/tmp`) printed the same 861 bytes as the
+    physical path. `tools/build.mjs` and `tools/deploy.mjs` keep the old idiom;
+    there, doing nothing is visible rather than a false pass.
+  - Docs: the Q4 lines that said "all six" LZ-01 specials now say seven (小倩 AA
+    was bound on 2026-09-23, before PR #8 bound six more), and the docs index's
+    LZ-01 rows no longer say the special art is not yet generated.
+  - Regression cases: 21 unit cases in the reference test; eleven source-fault
+    cases (options in a variable, a quoted `skip` key, `t.skip?.()`; a special,
+    an HL-01 AA, a world and the activity without an art or map path; bound
+    character, treatment and title drift, and planned treatment drift); a
+    planned-treatment assertion; and one new test that runs the CLI through a
+    symlinked checkout. Still 27 finding codes.
+  - Mutation check in the clone: reverting each of ten parts of the fix (the
+    unreadable-options rule, reading option keys from source, the any-access
+    context rule, the computed-member rule, bound and planned column checks,
+    the planned treatment source, the preview `src` and world `map` guards and
+    the realpath guard) made `node --test tests/content-registry.test.mjs`
+    exit 1 (10 of 10).
+  - Checks on the fix, Node 26.0.0: `node --test tests/*.test.mjs` **475/475**,
+    exit 0, 0 skipped (474 plus the symlink CLI test). `npm run audit:content`
+    exit 0, `findings: []`, 120 local-playable and 30 preview, by capability
+    unchanged from `d1f0f91`. `npm run build` exit 0, 80 public files.
+    `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai` and
+    `npm run test:honglou`: each exit 0, 14/14 checks in Chromium (system
+    Google Chrome 154.0.8037.98) and 14/14 in WebKit (Playwright 1.63.0), no
+    errors or forbidden requests; the loopback server was not restarted (no
+    allowlist changed).
+  - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
+    check and human review.
 
 ## LZ-01 special printings · 2026-10-11
 

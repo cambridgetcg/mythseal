@@ -5,7 +5,9 @@ the vocabulary that follows. The documents own the details; this index only
 helps you find the right one. It does not change release state.
 
 Last organized **2026-10-11** against `main` at `8afbabc`: 40 other Markdown
-documents, one JSON snapshot and the archived `history/` folder.
+documents, one JSON snapshot and the archived `history/` folder. On
+`q4/content-registry`, the two LZ-01 rows were later brought up to `main`'s PR #8
+merge (`daf18ed`).
 
 ## Status vocabulary
 
@@ -81,7 +83,7 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 
 | Document | What it covers | Status |
 | --- | --- | --- |
-| [LZ-01 聊齋・燈下有靈](EXPANSION-LZ01.md) | Twelve-character candidate design and the `/liaozhai.html` preview | `preview` · 2026-09-23, updated 2026-10-10 |
+| [LZ-01 聊齋・燈下有靈](EXPANSION-LZ01.md) | Twelve-character candidate design and the `/liaozhai.html` preview | `preview` · 2026-09-23, updated 2026-10-11 (all 19 printings bound, PR #8) |
 | [HL-01 紅樓・風月入夢](EXPANSION-HL01.md) | Eight-card 海棠詩社 design and the `/honglou.html` preview | `preview` · 2026-09-23 |
 | [Literary booster programme](BOOSTER-SERIES.md) | Pack types, editorial direction and first stat sketches for literary sets (中文) | `proposal · 2026-09-23` |
 
@@ -140,7 +142,7 @@ explain the earlier thinking; none is an instruction to mint or sell.
 | [WX-01 production artwork](ART-WX01.md) | Prompts for four base atlases and ten special illustrations | `record · 2026-09-22` |
 | [西行 special-print studies](ART-EXPANSION.md) | Three Wukong studies (異畫, 墨卷, 天工) shown in `atelier.html`, also reused unchanged for the WX-01 Wukong AA, INK and TR printings | `record · 2026-09-22` |
 | [HL-01 art studies](ART-HL01.md) | Prompts and integrity notes for the 紅樓 preview art | `record · 2026-09-23` |
-| [LZ-01 art studies](ART-LZ01.md) | Prompts for the 聊齋 preview art, plus six briefs for special prints not yet generated | `record · 2026-09-23`; briefs 2026-10-10 |
+| [LZ-01 art studies](ART-LZ01.md) | Prompts for the 聊齋 preview art, the briefs for its six later special prints and their provenance; all seven specials are bound | `record · 2026-09-23`; briefs 2026-10-10; specials generated and bound 2026-10-11 (PR #8) |
 
 ## Research and naming
 

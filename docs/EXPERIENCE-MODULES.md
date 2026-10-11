@@ -235,7 +235,8 @@ subset that the build generates, not import this file.
   [EXPANSION-LZ01](EXPANSION-LZ01.md), with its proposed file from the
   "Specials briefs" table in [ART-LZ01](ART-LZ01.md). That makes 150 entries:
   120 `local-playable` and 30 `preview`. Since `art/lz01-specials-images` was
-  merged, all six LZ-01 specials are bound, so none is `planned`.
+  merged, all seven LZ-01 specials are bound (小倩 AA since 2026-09-23, plus the
+  six that branch planned and bound), so none is `planned`.
 - **Acquisition mirrors a few hard-coded grants:** pack pools, seal treatments,
   campaign reward characters, activity drops and the starter (`ORIGINAL_CARD_IDS`)
   and welcome (`WELCOME_CARD_IDS`) card lists come from the content modules.
@@ -269,16 +270,27 @@ subset that the build generates, not import this file.
   The audit resolves every reference-shaped string anywhere in an entry, so no
   field escapes it, and it rejects prose that embeds a reference. A code reference
   resolves only to a definition in code, not one left in a comment or a string. A
-  test counts only if it is a top-level `test(...)` that runs. These do not
-  resolve: a declaration nested in any bracket (inside `describe`/`suite`, whose
-  `.skip` or `{ skip }` drops the test without counting it as skipped, another
-  test, a block or a function), `test.skip`, `{ skip }`/`{ todo }` options, a
-  declaration inside a `//` or block comment or a string, and a body that calls
-  its context's `skip()` or `todo()` (even conditionally). The context is the
-  callback's first parameter, or `this` in a `function` callback. A test hidden
-  behind bracketless runtime control flow, such as `if (false) test(...)`, or
-  skipped through an indirect call cannot be seen statically; only the runner's
-  test count (which drops) or skip count shows it.
+  test counts only if it is a top-level `test(...)` that runs, and the reader
+  fails closed on what it cannot see into. These do not resolve:
+  - a declaration nested in any bracket (inside `describe`/`suite`, whose
+    `.skip` or `{ skip }` drops the test without counting it as skipped, another
+    test, a block or a function), `test.skip`, and a declaration inside a `//`
+    or block comment or a string;
+  - options with a `skip` or `todo` key, quoted or not, unless its value is
+    literally `false`; and options that are not an object literal (a variable,
+    a conditional, a call) or that hold a spread or a computed key;
+  - a missing callback (the test runs nothing) and a callback passed by name or
+    built by a call, whose body cannot be read;
+  - a body that reaches its context's `skip` or `todo` anywhere, even
+    conditionally: `t.skip()`, `t?.skip?.()`, `t.skip.call(t)`, `t['skip']()`,
+    or any computed member such as `t[name]`. The context is the callback's
+    first parameter, or `this` in a `function` callback; a destructured or rest
+    first parameter cannot be followed, so it does not resolve either.
+
+  A test hidden behind bracketless runtime control flow, such as
+  `if (false) test(...)`, or skipped through a helper that receives its context
+  or an alias of the context, cannot be seen statically; only the runner's test
+  count (which drops) or skip count shows it.
   `cardId`, `printId` and the absent `uid` stay distinct. Only
   `FIRE_MOUNTAIN.version` exists as a declared content version, and no rules
   version exists. `contentDigest` (SHA-256 of each authored record) detects
@@ -297,8 +309,12 @@ subset that the build generates, not import this file.
   present while its checklist row still says "no image". They also cover drift
   between the LZ-01 checklist, its briefs and `LZ01_PLANNED_SPECIALS` (the list
   `liaozhai.html` prints as still planned), including a bound special whose brief
-  still names a different file than the one `LZ01_SPECIALS` binds, and a dead
-  rule or evidence reference. Every one of the 27 finding codes has an injected-fault case, and a
+  still names a different file than the one `LZ01_SPECIALS` binds, and a
+  checklist row whose character, treatment or working title differs from the
+  printing `LZ01_SPECIALS` or `LZ01_PLANNED_SPECIALS` holds (a planned entry
+  takes its treatment from the module, not the row's label). A printing, world
+  or activity whose art or map path is missing is a `capability-inconsistent`
+  finding, not a crash. They also cover a dead rule or evidence reference. Every one of the 27 finding codes has an injected-fault case, and a
   test fails if a new code lacks one. Four codes guard the registry's own shape
   (an owned-copy `uid`, a server-authority claim, a missing reason and an
   embedded reference); the current derivation does not produce them, so their
@@ -338,8 +354,8 @@ release-manifest evidence (`dist/release.json`, [HOSTING](HOSTING.md)) shows
 what is live.
 
 The current source (content as at the merge of `art/lz01-specials-images`,
-which bound the six LZ-01 specials) has 150 entries and no `inconsistent`
-capability:
+which bound the six planned LZ-01 specials, so all seven are bound) has 150
+entries and no `inconsistent` capability:
 
 | Entries | Status | `preview` | `local-playable` | `local-owned` | `backup-compatible` | `server-authoritative` |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -347,7 +363,7 @@ capability:
 | 1 activity: 火焰山三連戰 | `local-playable` | not-applicable | available | not-applicable | available, with limits | unavailable |
 | 53 printings: 24 legacy, 29 WX-01 | `local-playable` | available | available | available | available | unavailable |
 | 30 bound previews: 19 LZ-01 (12 BASE, 4 AA, 2 INK, 1 TR), 11 HL-01 | `preview` | available | unavailable | unavailable | unavailable | unavailable |
-| Planned LZ-01 specials (none since the six were bound) | `planned` | unavailable | unavailable | unavailable | unavailable | unavailable |
+| Planned LZ-01 specials (none since all seven were bound) | `planned` | unavailable | unavailable | unavailable | unavailable | unavailable |
 
 What today's reasons and limits say:
 

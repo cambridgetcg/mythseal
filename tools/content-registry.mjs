@@ -12,7 +12,7 @@
  * Domain validators (engine, progression, collection, cloud-save) still decide
  * legality; this index only reports and audits.
  */
-import { closeSync, lstatSync, openSync, readFileSync, readSync } from 'node:fs';
+import { closeSync, lstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -348,9 +348,9 @@ function encounterEntries(ctx) {
     // Nodes without an authored deck meet a random legal deck from the legacy roster (app.mjs:opponentDeck).
     const opponentPool = node.opponentDeck ?? content.LEGACY_CARD_IDS;
     const art = cardArt(ctx, opponentPool);
-    const assets = unique([...(world ? [world.map] : []), ...art.assets]);
+    const assets = unique([...(world?.map ? [world.map] : []), ...art.assets]);
     const blockers = [
-      ...(world ? [] : [`no world lists encounter ${node.id}`]),
+      ...(!world ? [`no world lists encounter ${node.id}`] : world.map ? [] : [`world ${world.id} has no map`]),
       ...(requires === null || ctx.nodeIds.has(requires) ? [] : [`prerequisite ${requires} is not an encounter`]),
       ...deckBlockers(ctx, 'opponent deck', node.opponentDeck),
       ...deckBlockers(ctx, 'loaner deck', node.loanerDeck),
@@ -410,8 +410,9 @@ function activityEntries(ctx) {
   const cardRefs = unique([...activity.loanerDeck, ...activity.stages.flatMap(stage => [stage.bossId, ...stage.opponentDeck])]);
   const art = cardArt(ctx, cardRefs);
   const printRefs = activity.stages.map(stage => stage.dropPrintId);
-  const assets = unique([activity.map, ...art.assets, ...printRefs.map(id => ctx.prints.get(id)?.art?.src).filter(Boolean)]);
+  const assets = unique([activity.map, ...art.assets, ...printRefs.map(id => ctx.prints.get(id)?.art?.src)].filter(Boolean));
   const blockers = [
+    ...(activity.map ? [] : ['activity has no map']),
     ...(ctx.nodeIds.has(activity.unlockNode) ? [] : [`unlock node ${activity.unlockNode} is not an encounter`]),
     ...deckBlockers(ctx, 'loaner deck', activity.loanerDeck), ...stageBlockers, ...art.blockers,
     ...assets.flatMap(path => ctx.assetBlockers(path, 'public')),
@@ -534,7 +535,7 @@ function previewOwnership(ctx, pages) {
 }
 function previewEntry(ctx, { setId, sourceModule, card, printId, treatment, src, name, evidence }) {
   const pages = ctx.servedBy(sourceModule);
-  const blockers = [...ctx.assetBlockers(src, 'served'), ...(pages.length ? [] : [`${sourceModule} is not reachable from any served page`])];
+  const blockers = [...(src ? ctx.assetBlockers(src, 'served') : ['printing has no art']), ...(pages.length ? [] : [`${sourceModule} is not reachable from any served page`])];
   const integrated = ctx.prints.has(printId);
   const capabilities = {
     preview: capability(true, { blockers, evidence }),
@@ -546,16 +547,19 @@ function previewEntry(ctx, { setId, sourceModule, card, printId, treatment, src,
   return {
     id: `print:${printId}`, kind: 'printing', group: setId, name, status: statusOf(capabilities), sourceModule,
     contentVersion: null, contentDigest: digest({ card, printId, treatment, src }), rulesVersion: null, cardId: card.id, printId, setId, treatment,
-    assets: [src], pages, rules: {}, capabilities,
+    assets: src ? [src] : [], pages, rules: {}, capabilities,
   };
 }
+
+/** The character a checklist row names for a card: its name without a parenthesised source note (`陳氏（畫皮）` → `陳氏`). */
+const checklistCharacter = card => card?.name.replace(/（[^（）]*）$/, '') ?? null;
 
 function previewEntries(ctx) {
   const { content } = ctx;
   const hlAA = [].concat(content.HL01_AA);
   const lzCard = id => content.LZ01_CARDS.find(card => card.id === id), hlCard = id => content.HL01_CARDS.find(card => card.id === id);
   const lz = [
-    ...content.LZ01_CARDS.map(card => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card, printId: card.printId, treatment: 'base', src: card.art.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.lz01 })),
+    ...content.LZ01_CARDS.map(card => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card, printId: card.printId, treatment: 'base', src: card.art?.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.lz01 })),
     // LZ01_SPECIALS is keyed by printId (and cardId:treatment); one card can have several specials.
     ...content.LZ01_SPECIALS.map(print => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card: lzCard(print.cardId) ?? { id: print.cardId }, printId: print.printId, treatment: print.treatment, src: print.src, name: print.name, evidence: EVIDENCE.lz01 })),
   ];
@@ -563,6 +567,8 @@ function previewEntries(ctx) {
   const briefs = new Map((ctx.lzBriefs ?? []).map(row => [row.printId, row]));
   const planned = (ctx.lzChecklist?.rows ?? []).filter(row => row.planned && !bound.has(row.printId)).map(row => {
     const card = content.LZ01_CARDS.find(item => item.printId === row.printId.replace(/-[a-z]+\d*$/, '-base')) ?? null;
+    // The module's planned printing decides the treatment; the audit reports a checklist label that disagrees.
+    const treatment = content.LZ01_PLANNED_SPECIALS.find(print => print.printId === row.printId)?.treatment ?? row.treatment;
     const reason = `${row.status} (docs/EXPANSION-LZ01.md); nothing is bound in liaozhai-cards.mjs.`;
     const capabilities = {
       preview: capability(false, { reason }),
@@ -573,13 +579,13 @@ function previewEntries(ctx) {
     };
     return {
       id: `print:${row.printId}`, kind: 'printing', group: 'lz01', name: `${row.character} · ${row.title}`, status: statusOf(capabilities), sourceModule: 'docs/EXPANSION-LZ01.md',
-      contentVersion: null, contentDigest: digest(row), rulesVersion: null, cardId: card?.id ?? null, printId: row.printId, setId: 'lz01', treatment: row.treatment,
+      contentVersion: null, contentDigest: digest(row), rulesVersion: null, cardId: card?.id ?? null, printId: row.printId, setId: 'lz01', treatment,
       assets: [], plannedAssets: briefs.get(row.printId)?.proposedFile ? [briefs.get(row.printId).proposedFile] : [], brief: briefs.has(row.printId) ? 'docs/ART-LZ01.md' : null,
       rules: {}, capabilities,
     };
   });
   const hl = [
-    ...content.HL01_CARDS.map(card => previewEntry(ctx, { setId: 'hl01', sourceModule: 'honglou-cards.mjs', card, printId: card.printId, treatment: 'base', src: card.art.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.hl01 })),
+    ...content.HL01_CARDS.map(card => previewEntry(ctx, { setId: 'hl01', sourceModule: 'honglou-cards.mjs', card, printId: card.printId, treatment: 'base', src: card.art?.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.hl01 })),
     ...hlAA.map(print => previewEntry(ctx, { setId: 'hl01', sourceModule: 'honglou-cards.mjs', card: hlCard(print.cardId) ?? { id: print.cardId }, printId: print.printId, treatment: print.treatment ?? 'aa', src: print.src, name: print.name, evidence: EVIDENCE.hl01 })),
   ];
   return [...lz, ...planned, ...hl];
@@ -673,18 +679,94 @@ function bracketDepth(code, index) {
   return depth;
 }
 
+/** Comma-separated items between `from` and `to` in masked code at that bracket level, as trimmed [start, end) ranges; empty items are dropped. */
+function topLevelItems(code, from, to) {
+  const items = [];
+  let start = from, depth = 0;
+  for (let index = from; index <= to; index++) {
+    if (index === to || (code[index] === ',' && depth === 0)) {
+      let first = start, last = index;
+      while (first < last && /\s/.test(code[first])) first++;
+      while (last > first && /\s/.test(code[last - 1])) last--;
+      if (first < last) items.push([first, last]);
+      start = index + 1;
+    } else if ('([{'.includes(code[index])) depth++;
+    else if (')]}'.includes(code[index])) depth--;
+  }
+  return items;
+}
+
+/**
+ * Can a `test()` options object literal (the masked range [from, to), braces included)
+ * switch the test off? Only its own keys count, read from the source so a quoted key
+ * is seen. A `skip` or `todo` key passes only with the literal value `false`; a
+ * spread, a computed key or a key this reader cannot parse may hide one, so it fails.
+ */
+function optionsMaySkip(source, code, [from, to]) {
+  for (const [start, end] of topLevelItems(code, from + 1, to - 1)) {
+    if (/^(?:\.\.\.|\[)/.test(code.slice(start, end))) return true;
+    const key = /^(?:(?:get|set|async)\s+|\*\s*)*(?:(['"])([^'"\\\n]*)\1|([A-Za-z_$][\w$]*))/.exec(source.slice(start, end));
+    if (!key) return true;
+    if (/^(?:skip|todo)$/.test(key[2] ?? key[3]) && !/^\s*:\s*false\s*$/.test(code.slice(start + key[0].length, end))) return true;
+  }
+  return false;
+}
+
+/**
+ * The function written inline as a `test()` callback (the masked range [from, to)), or
+ * null when the callback is anything else (a name, a call, a bound function), since
+ * then its body cannot be read. `params` is the range of its parameter list.
+ */
+function inlineCallback(code, [from, to]) {
+  const text = code.slice(from, to), prefix = /^async\b\s*/.exec(text)?.[0].length ?? 0;
+  const keyword = /^function\b\s*\*?\s*[\w$]*\s*(?=\()/.exec(text.slice(prefix));
+  if (keyword) { const open = from + prefix + keyword[0].length; return { keyword: true, params: [open + 1, closingBracket(code, open)] }; }
+  if (text[prefix] === '(') {
+    const open = from + prefix, close = closingBracket(code, open);
+    return /^\s*=>/.test(code.slice(close + 1, to)) ? { keyword: false, params: [open + 1, close] } : null;
+  }
+  const single = /^([A-Za-z_$][\w$]*)\s*=>/.exec(text.slice(prefix));
+  return single ? { keyword: false, params: [from + prefix, from + prefix + single[1].length] } : null;
+}
+
+/**
+ * Does the callback body (the masked range [from, to)) reach its context's `skip` or
+ * `todo`? Any access counts, called or not (`t.skip()`, `t?.skip?.()`,
+ * `t.skip.call(t)`), and so does a computed member (`t['skip']`, `t[name]`) unless it
+ * is a plain string naming something else.
+ */
+function contextMaySkip(source, code, [from, to], contexts) {
+  const names = contexts.map(name => name.replace(/\$/g, '\\$')).join('|'), body = code.slice(from, to);
+  if (new RegExp(`(?<![\\w$.])(?:${names})\\s*\\??\\.\\s*(?:skip|todo)\\b`).test(body)) return true;
+  for (const match of body.matchAll(new RegExp(`(?<![\\w$.])(?:${names})\\s*(?:\\?\\.\\s*)?\\[`, 'g'))) {
+    const open = from + match.index + match[0].length - 1;
+    const key = /^\s*(['"`])([\w$]*)\1\s*$/.exec(source.slice(open + 1, closingBracket(code, open)));
+    if (!key || /^(?:skip|todo)$/.test(key[2])) return true;
+  }
+  return false;
+}
+
 /**
  * Does `source` declare a top-level `test('<title>', ...)` that the runner will
  * execute? These do not count: a declaration nested in any bracket (a `describe`
  * or `suite` callback, which `.skip` or `{ skip }` can switch off without counting
  * the test as skipped; another test's body; a block or function), a
- * `test.skip`/`test.todo` call, `{ skip }`/`{ todo }` options (unless literally
- * `false`), a declaration inside a comment or string, and a test whose body calls
- * its context's `skip()` or `todo()` anywhere, even conditionally, since the runner
- * may then report it skipped. The context is the callback's first parameter, and
- * `this` in a `function` callback. A test hidden behind runtime control flow
- * without brackets (`if (false) test(...)`) or skipped through an indirect call
- * cannot be seen from the text; the runner's own test and skip counts show it.
+ * `test.skip`/`test.todo` call, a declaration inside a comment or string, and:
+ * - options that may skip: a `skip` or `todo` key, quoted or not, unless literally
+ *   `false`; and options this reader cannot see into, which is anything but an
+ *   object literal (a variable, a conditional, a call) or one with a spread or a
+ *   computed key;
+ * - a callback that is missing (the test runs nothing) or not written inline (a
+ *   name or a call), since its body cannot be read;
+ * - a body that reaches its context's `skip` or `todo` anywhere, even
+ *   conditionally or through `?.`, `.call` or a computed key, since the runner may
+ *   then report it skipped. The context is the callback's first parameter (a
+ *   destructured or rest first parameter cannot be followed, so it fails), and
+ *   `this` in a `function` callback.
+ * A test hidden behind runtime control flow without brackets
+ * (`if (false) test(...)`), or skipped through a helper it hands its context to or
+ * an alias of the context, cannot be seen from the text; the runner's own test and
+ * skip counts show it.
  */
 function declaresRunningTest(source, title) {
   const code = maskCode(source);
@@ -692,17 +774,19 @@ function declaresRunningTest(source, title) {
     const call = `test(${quote}${title}${quote}`;
     for (let at = source.indexOf(call); at >= 0; at = source.indexOf(call, at + 1)) {
       if (/[\w$.]/.test(source[at - 1] ?? '') || !code.startsWith('test(', at) || bracketDepth(code, at) !== 0) continue;
-      const end = closingBracket(code, at + 4);
-      let rest = at + call.length;
-      const options = /^\s*,\s*(?=\{)/.exec(code.slice(rest, end));
-      if (options) {
-        const open = rest + options[0].length, close = closingBracket(code, open);
-        if (/\b(?:skip|todo)\b(?!\s*:\s*false\b)/.test(code.slice(open, close + 1))) continue;
-        rest = close + 1;
-      }
-      const callback = /^\s*,\s*(?:async\s+)?(?:(function)\b\s*\*?\s*[\w$]*\s*\(\s*([A-Za-z_$][\w$]*)?|\(\s*([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*)\s*=>)/.exec(code.slice(rest, end));
-      const contexts = callback ? [callback[2] ?? callback[3] ?? callback[4], callback[1] && 'this'].filter(Boolean) : [];
-      if (contexts.length && new RegExp(`(?<![\\w$.])(?:${contexts.map(name => name.replace(/\$/g, '\\$')).join('|')})\\s*(?:\\?\\.|\\.)\\s*(?:skip|todo)\\s*\\(`).test(code.slice(rest, end))) continue;
+      const end = closingBracket(code, at + 4), afterTitle = at + call.length;
+      if (!/^\s*(?:,|$)/.test(code.slice(afterTitle, end))) continue; // the title goes on (`'…' + x`): another test
+      const [first, second] = topLevelItems(code, afterTitle, end);
+      const options = first && code[first[0]] === '{' ? first : null;
+      if (options && (closingBracket(code, options[0]) !== options[1] - 1 || optionsMaySkip(source, code, options))) continue;
+      const callback = options ? second : first;
+      const fn = callback && inlineCallback(code, callback);
+      if (!fn) continue;
+      const [param] = topLevelItems(code, ...fn.params);
+      const context = param && /^([A-Za-z_$][\w$]*)\s*(?:=|$)/.exec(code.slice(...param));
+      if (param && !context) continue;
+      const contexts = [context?.[1], fn.keyword && 'this'].filter(Boolean);
+      if (contexts.length && contextMaySkip(source, code, callback, contexts)) continue;
       return true;
     }
   }
@@ -791,14 +875,22 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
     if (JSON.stringify(boundBase) !== JSON.stringify(checklist.baseRange)) add('checklist-mismatch', null, `BASE checklist ${checklist.baseRange.join(',')} differs from liaozhai-cards.mjs ${boundBase.join(',')}`);
     const rows = new Map(checklist.rows.map(row => [row.printId, row]));
     const briefed = new Map((briefs ?? []).map(row => [row.printId, row]));
+    /** A row's character, treatment and working-title columns against the printing liaozhai-cards.mjs holds under `list`. */
+    const columnDrift = (entry, row, print, list) => {
+      const character = checklistCharacter(ctx.content.LZ01_CARDS.find(card => card.id === print.cardId));
+      if (character !== row.character) add('checklist-mismatch', entry.id, `checklist character ${row.character} differs from ${list} ${character ?? print.cardId}`);
+      if (row.treatment && row.treatment !== print.treatment) add('checklist-mismatch', entry.id, `checklist treatment ${row.label} differs from ${list} ${print.treatment}`);
+      if (print.title !== undefined && print.title !== row.title) add('checklist-mismatch', entry.id, `checklist working title ${row.title} differs from ${list} ${print.title}`);
+    };
     for (const entry of bound.filter(item => item.treatment !== 'base')) {
       const row = rows.get(entry.printId);
       if (!row) add('checklist-mismatch', entry.id, 'bound special printing is missing from the checklist');
       else if (row.planned) add('planned-bound', entry.id, 'checklist still says "Planned · no image" for a printing liaozhai-cards.mjs binds');
-      else if (row.image !== entry.assets[0]) add('checklist-mismatch', entry.id, `checklist image ${row.image} differs from bound ${entry.assets[0]}`);
+      else if (row.image !== entry.assets[0]) add('checklist-mismatch', entry.id, `checklist image ${row.image} differs from bound ${entry.assets[0] ?? '(no image)'}`);
+      if (row) columnDrift(entry, row, ctx.content.LZ01_SPECIALS.find(print => print.printId === entry.printId), 'LZ01_SPECIALS');
       // A brief that outlives its generation names the file that was bound, never a superseded or proposed one.
       const brief = briefed.get(entry.printId);
-      if (brief && brief.proposedFile !== entry.assets[0]) add('checklist-mismatch', entry.id, `docs/ART-LZ01.md brief file ${brief.proposedFile ?? '(none)'} differs from bound ${entry.assets[0]}`);
+      if (brief && brief.proposedFile !== entry.assets[0]) add('checklist-mismatch', entry.id, `docs/ART-LZ01.md brief file ${brief.proposedFile ?? '(none)'} differs from bound ${entry.assets[0] ?? '(no image)'}`);
     }
     for (const row of checklist.rows) {
       if (!row.planned && !bound.some(entry => entry.printId === row.printId)) add('checklist-mismatch', `print:${row.printId}`, 'checklist marks this special available but nothing binds it');
@@ -807,14 +899,15 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
     const planned = lzEntries.filter(entry => entry.status === 'planned');
     // liaozhai.html prints LZ01_PLANNED_SPECIALS as still planned (仍在規劃中), so it must name exactly the checklist's planned rows.
     const plannedRows = new Set(checklist.rows.filter(row => row.planned).map(row => row.printId));
-    const plannedInModule = new Set(ctx.content.LZ01_PLANNED_SPECIALS.map(print => print.printId));
-    for (const id of plannedInModule) if (!plannedRows.has(id)) add('checklist-mismatch', `print:${id}`, 'liaozhai-cards.mjs LZ01_PLANNED_SPECIALS lists a printing the checklist does not mark planned');
+    const plannedInModule = new Map(ctx.content.LZ01_PLANNED_SPECIALS.map(print => [print.printId, print]));
+    for (const id of plannedInModule.keys()) if (!plannedRows.has(id)) add('checklist-mismatch', `print:${id}`, 'liaozhai-cards.mjs LZ01_PLANNED_SPECIALS lists a printing the checklist does not mark planned');
     for (const id of plannedRows) if (!plannedInModule.has(id)) add('checklist-mismatch', `print:${id}`, 'checklist marks this printing planned but liaozhai-cards.mjs LZ01_PLANNED_SPECIALS omits it');
     // A brief may outlive its generation (then it describes a bound printing, checked above); a planned special may not lack one.
     for (const row of briefs ?? []) if (!rows.has(row.printId)) add('checklist-mismatch', `print:${row.printId}`, 'docs/ART-LZ01.md briefs a printing the checklist does not list');
     for (const entry of planned) {
       const row = rows.get(entry.printId), card = ctx.content.LZ01_CARDS.find(item => item.id === entry.cardId);
-      if (!card || !card.name.startsWith(row.character)) add('planned-card-mismatch', entry.id, `${entry.printId} number does not match ${row.character}`);
+      if (checklistCharacter(card) !== row.character) add('planned-card-mismatch', entry.id, `${entry.printId} number does not match ${row.character}`);
+      if (plannedInModule.has(entry.printId)) columnDrift(entry, row, plannedInModule.get(entry.printId), 'LZ01_PLANNED_SPECIALS');
       if (!entry.plannedAssets.length) add('checklist-mismatch', entry.id, briefs ? 'planned special has no brief with a proposed file in docs/ART-LZ01.md' : 'planned special has no brief: docs/ART-LZ01.md has no "Specials briefs" section');
       if (!/no image/.test(row.status)) continue;
       for (const path of entry.plannedAssets) {
@@ -839,7 +932,16 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
   return deepFreeze(findings);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+/**
+ * Is this file the script node was asked to run? Both sides are resolved through symlinks:
+ * the loader resolves import.meta.url but not argv[1], and a run that silently printed
+ * nothing would exit 0, which reads as a clean audit.
+ */
+function isMainScript() {
+  try { return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; }
+}
+
+if (isMainScript()) {
   const sources = loadContentSources(), registry = buildContentRegistry(sources), findings = auditContent(sources, registry);
   console.log(JSON.stringify(process.argv.includes('--json') ? registry : { summary: registry.summary, findings }, null, 2));
   if (findings.length) process.exitCode = 1;
