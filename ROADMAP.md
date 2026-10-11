@@ -562,8 +562,11 @@ These are bounded starting points, not instructions to start every phase at once
 | Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
 | Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
 
-For the newly requested experience work, start with [Q0/Q1](#experience-quality-track)
-and the independent Q4 catalogue audit. Portable operations and one authoritative
+For the experience work, Q0 and Q4's registry and audit are merged (PRs #5 and
+#9), and Q1 by PR #10; their [status lines](#experience-quality-track) say what
+is left. Next come physical-device and owner review of Q0, owner review of the
+Q1 contract and its §15 decisions, Q4's open exit items, and then Q2/Q3 on the
+reviewed Q1 contract. Portable operations and one authoritative
 battle contract remain the online track; local quality work need not wait for
 them. Record each finished slice in the owning current-state/evidence documents
 and advance this roadmap only when its acceptance criteria are demonstrated.

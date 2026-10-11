@@ -56,7 +56,7 @@ Q0 acceptance is the simultaneous-visibility and hidden-information matrix in
 
 ## Q1 · one local command and its accepted receipt
 
-**Status 2026-10-11:** the agreed contract is [LOCAL-COMMANDS](LOCAL-COMMANDS.md),
+**Status 2026-10-11:** the proposed contract is [LOCAL-COMMANDS](LOCAL-COMMANDS.md),
 implemented for one command (`care.upgrade`) on the branch
 `q1/local-commands` and merged into `main` by PR #10 (not deployed). Where it differs from the illustrative sketch below, it
 governs; its §13 lists the deviations. Owner review is requested before Q2/Q3

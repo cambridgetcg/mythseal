@@ -62,8 +62,10 @@ the handover, the roadmap, the battle-table plan, the experience modules and
 the local-commands contract say so. The validation log's dated Q0, Q4 and Q1
 entries were written before those merges and are left as written; its
 [Q1 integration entry](VALIDATION.md#q1-integration-with-main--2026-10-11)
-notes this. The handover's note that documentation-navigation PR #2 "remains
-independent" also predates this index.
+notes this. Its LZ-01 special-printings entry was likewise written before PR #8
+(`daf18ed`) merged that branch, and still says "not merged". The handover's
+note that documentation-navigation PR #2 "remains independent" also predates
+this index.
 
 ## Game rules and systems
 
@@ -109,10 +111,10 @@ independent" also predates this index.
 
 | Document | What it covers | Status |
 | --- | --- | --- |
-| [Accounts and private backups](ACCOUNTS.md) | 旅程閣 sign-in, backup contents, the session and storage boundary, and email setup | `current` · live in v0.5.1 (snapshot v1); `main`'s snapshot v2/v3 need hosted migrations that the [handover](HANDOVER.md#playable-local-wx-01-and-guarded-saves) records as not applied |
+| [Accounts and private backups](ACCOUNTS.md) | 旅程閣 sign-in, backup contents, the session and storage boundary, and email setup | `current` · live in v0.5.1 (snapshot v1); `main`'s snapshot v2/v3 need hosted migrations that the [handover](HANDOVER.md#playable-local-wx-01-and-guarded-saves) records as not applied. Since Q1 (PR #10), `main`'s cloud and local recovery restore also need usable IndexedDB, and refuse on a full disk or while the fence says `writing`, where ACCOUNTS names only Web Locks; [LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact) and [§15](LOCAL-COMMANDS.md#15-owner-decisions) own that rule |
 | [Hosting, releases and rollback](HOSTING.md) | Public boundary, build and deploy procedure, rollback and exact deployment receipts | `current` procedure, with dated receipts; its "19 runtime files" is the v0.5.1 count (`main`'s allowlist has 83 since Q1, 80 before) |
 | [Next release plan · v0.6.0](RELEASE-NEXT.md) | The proposed v0.6.0: scope (including Q1), release gates, ordered checklist, data safety, staging options, rollback, payload budget and owner decisions | `proposal · 2026-10-11`, revised for Q1 the same day; nothing in it is deployed, migrated or provisioned |
-| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0, Q4 and Q1 entries record checks on their branches before PRs #5 and #9 and PR #10 merged them, and its newest entry records the Q1 integration with `main` `b40c4d2` |
+| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0, Q4 and Q1 entries record checks on their branches before PRs #5 and #9 and PR #10 merged them, as its LZ-01 special-printings entry does before PR #8 (`daf18ed`), and its newest entry records the Q1 integration with `main` `b40c4d2` |
 | [Developer connections](CONNECTIONS.md) | Service identities, verified access, credential locations and remaining setup | `record · 2026-09-21`, rechecked 2026-09-22 |
 | [Fresh-clone toolkit check](TOOLKIT.md) | One fresh clone's setup, access rechecks and local test receipts | `record · 2026-09-21`, updated 2026-09-22 |
 | [Account API contract](../server/README.md) | Worker routes, cookies, bindings and the database access boundary | `current` |

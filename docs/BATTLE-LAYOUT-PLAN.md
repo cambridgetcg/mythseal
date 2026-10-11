@@ -415,6 +415,6 @@ commit list and the final checks.
 - In the final measurement (on `80fb7a3`, not repeated after the polish) the
   first table paint after resume was 3–17 ms slower in four of five headless
   profiles; nobody has profiled why.
-- Merging, a public build and a hosted release are separate steps that have not
-  happened.
+- A public build and a hosted release are separate steps that have not
+  happened. Merging has: PR #5 (`bca9ab4`) took this work into `main`.
 

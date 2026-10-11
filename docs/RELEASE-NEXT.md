@@ -168,7 +168,7 @@ path.** The v0.5.1 deployment used an ignored helper
 | G4 | Hosted proof that the publishable-key binding survives `--keep-vars` ([HOSTING.md:71-81](HOSTING.md)) | Stub tests only | C1 verify |
 | G5 | Hosted acceptance of old and new backups ([HANDOVER.md:519](HANDOVER.md), `:578-580`) | `tools/live-account-check.mjs:83` exercises `/api/v1` only | A4, B4, C3 |
 | G6 | Transfer-size optimization before a hosted rollout ([HANDOVER.md:901](HANDOVER.md)); first screen ≤ 1.5 MiB ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | First screen measured at **6.98 MiB** at `8afbabc`; **6.99 MiB** at `b527dc3`, recomputed statically for Q1's three modules (§9) | A1 |
-| G7 | Exact-source CI before deploy ([HOSTING.md:42-43](HOSTING.md)) | CI exists; it has no browser job (`.github/workflows/ci.yml:19-62`). Two suites that job would run already fail in WebKit on this source, neither because of Q1: `test:expansion` and `test:map-piece` (A6) | A6, B1 |
+| G7 | Exact-source CI before deploy ([HOSTING.md:42-43](HOSTING.md)) | CI exists; it has no browser job (`.github/workflows/ci.yml:16-73`). Two suites that job would run already fail in WebKit on this source, neither because of Q1: `test:expansion` and `test:map-piece` (A6) | A6, B1 |
 | G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:79-85](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
 | G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e b527dc3` exits 0). `test:commands` last passed 13/13 groups per engine at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)); not re-run at `b527dc3`. The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
 
@@ -192,8 +192,9 @@ derivatives, swap PNG→WebP in `hosting/public-assets.json`, and update
 drop out of the public allowlist. v0.5.1 tabs still open after the deploy will
 then get 404s for the PNGs (§6).
 *Verify:* `npm test`, `npm run build`, the first-screen budget check (A6), and
-browser suites in Chromium and WebKit. The owner reviews the art at 390 px and
-on desktop.
+browser suites in Chromium and WebKit. In WebKit, `test:expansion` and
+`test:map-piece` may fail only as they do on the commit before A1, until A6
+fixes them (as in A2). The owner reviews the art at 390 px and on desktop.
 *Rollback:* `git revert`. Nothing hosted is involved.
 
 **A2 · Versioned module graph (gate G3).** Recommended design: the build
@@ -346,10 +347,22 @@ it is an import, and any import must retire the ledger as restore does
 `profile-store.mjs:58-60`, `:119-124`). It holds the strict fenced lock
 (`app.mjs:53`), retires the replaced journey's ledger and first keeps a
 `RECOVERY_KEY` copy of that journey. `createSnapshot` already wraps a v3 or
-v4 profile for it (`cloud-save.mjs:191`). Do not write the legacy journey
-through `transact`, whose guard refuses it for every player with a ledger
-(`app.mjs:118-119`), or through a bare `profileStore.save`, which would drop
-the ledger and let an earlier command ID commit again. Never copy the old
+v4 profile for it (`cloud-save.mjs:191`). That path takes less than `load()`
+migrates. Its validator refuses a journey with a pending battle
+(`cloud-save.mjs:118`), and a v3 profile, wrapped as snapshot v1, may hold at
+most 2,000 copies and 512 KiB (`:121-122`, `:201`). `load()` carries a pending
+battle across (`profile-store.mjs:89-97`) and caps v5 at 10,000 copies
+(`:44`), and v0.5.1 caps only 99,999 copies per card (`git show
+v0.5.1:progression.mjs` line 14). So a changed legacy key from a tab closed or
+reloaded mid-battle cannot be recovered this way, and no served build can
+finish that battle: offer it as export only, and say why. A v3 key over the
+snapshot v1 caps can be migrated as `load()` does (`profile-store.mjs:81-98`)
+before wrapping, because `createSnapshot` makes a v5 profile a snapshot v3
+(10,000 copies, 4 MiB); that was checked for 2,001 copies only (§13). Do not
+write the legacy journey through `transact`, whose guard refuses it for every
+player with a ledger (`app.mjs:118-119`), or through a bare
+`profileStore.save`, which would drop the ledger and let an earlier command ID
+commit again. Never copy the old
 `commands` across either: that keeps the replaced lineage's command IDs
 executable in the recovered journey. (b) *Cloud:* make `readCloud`
 (`account-client.mjs:116-129`) also read the older enabled namespaces when the
@@ -358,8 +371,11 @@ for restore. That costs one more GET per sign-in. Both changes stay inside
 existing modules, so no new runtime file is needed.
 *Verify:* unit tests for both cases, including (a) over a profile with a
 ledger: the ledger is retired, a `RECOVERY_KEY` copy exists, and a command ID
-issued before the recovery is expired after it. Then the browser suites,
-including `npm run test:commands` in Chromium and WebKit.
+issued before the recovery is expired after it. Also cover the two legacy
+journeys this path refuses: a pending battle (offered as export only) and a v3
+key over 2,000 copies. Then the browser suites, including `npm run
+test:commands` in Chromium and WebKit. Until A6, WebKit `test:expansion` and
+`test:map-piece` may fail only as they do on the commit before A5 (as in A2).
 *Rollback:* `git revert`.
 
 **A6 · Browser CI and payload budget (gate G7).** See §10. First fix two
@@ -386,6 +402,8 @@ browser job nor A8 can exit 0. Both reproduced at `8191bfe` (§13):
   check. With the variable pointing at an installed WebKit, the smoke passes.
 
 *Verify:* both suites exit 0 in Chromium and WebKit against the preview.
+Under a §12 item 13 waiver, run WebKit `test:expansion` per size instead, as
+A8 describes, and configure the CI job to match.
 *Rollback:* `git revert`.
 
 **A7 · Version and docs.** Bump to 0.6.0 (§3). Correct stale counts: HOSTING
@@ -408,9 +426,27 @@ fence's edge cases and the only WebKit checks of the command path;
 browser suites from a server started after checkout: `tools/serve.py` reads
 the allowlist once at startup, so an older server returns 404 for Q1's
 modules ([HANDOVER.md:237-239](HANDOVER.md)).
-*Verify:* every command exits 0. The one exception is a WebKit `test:expansion`
-failure at the rewards dialog's `module` tab alone, and only if the owner has
-waived that tab in writing (§12 item 13). Record the results in [VALIDATION.md](VALIDATION.md).
+*Verify:* every command exits 0. The one exception is WebKit
+`test:expansion`, and only if the owner has waived the rewards dialog's
+`module` tab in writing (§12 item 13). The smoke stops at its first failed
+check: one `try` holds the size loop and the four checks after it, and the
+first error is rethrown (`tools/expansion-smoke.mjs:179-264`). A full WebKit
+run that fails at `360x740/rewards` has printed only 6 of its 16 PASS lines,
+so a failure there shows nothing about the rest. Under the waiver, run WebKit
+`test:expansion` once per size instead (`BROWSER=webkit VIEWPORT_SIZE=<size>
+GAME_URL=… node tools/expansion-smoke.mjs`; `:22`):
+- `1440x900`, `1280x720`, `390x844` and `844x390` each exit 0. Each of these
+  runs also covers the four checks after the size loop (`:211-257`: loaner retry
+  and snapshot rebuild, the first chapter claim with receipt recovery, the
+  free ticket pack with the AA choice, three loaner battles), which write the
+  profile through the fenced lock.
+- `360x740` and `360x640` each fail at `<size>/rewards` on the `module` tab
+  and nowhere earlier. Record that the checks after it at those two sizes (the
+  rest of the rewards dialog, the AA choice, the unchanged-save assert and
+  supply/resume) did not run in WebKit.
+
+The Chromium half of `test:expansion` still exits 0. Record the results in
+[VALIDATION.md](VALIDATION.md).
 
 ### Phase B · Owner gate and hosted database
 
@@ -558,7 +594,7 @@ rolling it back changes nothing in behaviour. Read §6 before rolling back.
 That v0.5.1 apex is profile v3, not a v5 build, so Q1's forward-only rule does
 not block it (§6). Never roll back, or deploy, to any Worker version built from
 a v5 commit that lacks `7a7d03e`; after players have committed commands, the
-way back below Q1 is a forward fix (§6, §8).
+way back below Q1 to a v5 build is a forward fix (§6, §8).
 **UNVERIFIED:** whether a Cloudflare rollback also restores that version's
 secrets. The key value has not changed
 since v0.5.1, so either behaviour binds the same key.
@@ -566,7 +602,7 @@ since v0.5.1, so either behaviour binds the same key.
 **C2 · OWNER · Production browser smoke.** With `GAME_URL=https://mythseal.com`,
 run `node tools/smoke.mjs` ([HOSTING.md:102](HOSTING.md)) and `node
 tools/journey-smoke.mjs`. **Only these two run against production.** The
-navigation suite and 16 other smoke scripts, Q1's `tools/command-smoke.mjs`
+navigation suite and 17 other smoke scripts, Q1's `tools/command-smoke.mjs`
 among them, throw on a non-loopback URL
 (`tools/navigation-smoke.mjs:13`: "Navigation smoke requires a loopback game
 server."; [cmd] grep of `tools/*smoke*.mjs` at `b527dc3`, §13). That error would look like a
@@ -596,10 +632,16 @@ provider error (`server/account-api.mjs:240-245`). **A CPU-limit failure
 looks different:** Cloudflare error **1102**, a non-JSON 503 (the checker
 already classifies it, `tools/live-account-check.mjs:88`), plus `exceededCpu`
 outcomes in the Worker's logs (outcome name not re-checked here). Players who
-report "progress gone" most likely had a v0.5.1 tab open across the deploy
-(§6). Tell them to reload every open tab and export from the footer. If V3
-must be turned off, follow §8 "Flag only": deploy an explicit `"false"`.
-Deleting the key keeps `true` (A3).
+report "progress gone" most likely played in a v0.5.1 tab left open across the
+deploy (§6). Reloading every open tab stops it happening again but does not
+bring that progress back. v0.6.0 moved the export out of the footer: its
+匯出旅程備份, in the 旅程閣 page's tools (`app.mjs:296`), saves only the v5
+journey (`app.mjs:1103-1104`), and without A5(a) nothing in v0.6.0 reads or
+exports the stranded v3 key (§6). A v0.5.1 tab that is still open can export
+it from its own footer before it is reloaded. Otherwise support has only what
+the owner's A5 decision provides (§12 item 9). If V3 must be turned off,
+follow §8 "Flag only": deploy an explicit `"false"`. Deleting the key keeps
+`true` (A3).
 
 **C5 · AGENT · Record.** Add a v0.6.0 record to [HOSTING.md](HOSTING.md) and
 [VALIDATION.md](VALIDATION.md) (source SHA and tag, both Worker version IDs, CI
@@ -627,7 +669,8 @@ link, check receipts, what was not verified), and update the
   rollback lands in v3, and after a later roll-forward v5 wins, orphaning those
   rollback-window changes (`progression.mjs:24`; v0.5.1 `progression.mjs:16`).
   So prefer fixing forward. If a rollback is unavoidable, keep it short and
-  tell players to export from the footer before and after.
+  tell players to export before and after (匯出旅程備份: in the 旅程閣 page's
+  tools in v0.6.0, in the footer in v0.5.1).
 - **Q1 makes `mythseal.com` forward-only for v5 builds.** Once v0.6.0 is
   served, a player who upgrades a card from its card page commits a command,
   and their v5 profile gains a `commands` ledger
@@ -675,8 +718,13 @@ link, check receipts, what was not verified), and update the
   that key (`git show v0.5.1:app.mjs` line 503). As soon as any v0.6.0 tab or
   reload migrates v3 to v5, `load()` reads v5 first and never looks at v3
   again (`profile-store.mjs:78-80`). Everything played afterwards in the old
-  tab disappears from view on its next reload. It is not deleted: the recovery
-  screen's export still includes the v3 key (`bootstrap.mjs:16`). After A1,
+  tab disappears from view on its next reload. It is not deleted, but without
+  A5(a) the game cannot reach it. The only export that includes the v3 key
+  (`bootstrap.mjs:13-19`) is on the startup-recovery screen, which appears
+  only when `app.mjs` fails to load (`bootstrap.mjs:2-4`); v0.6.0's own export
+  saves only the v5 journey (`app.mjs:1103-1104`), and no build imports a save
+  file. Short of the browser's developer tools, the only way out is the old
+  tab's own footer export, used before that tab is reloaded. After A1,
   those tabs also get 404s for the removed PNGs. The release notes (A7) and C4
   tell players to reload every open tab. A5(a) adds a guard in code.
 - **Cloud rows survive both directions, but a newer v1 backup can be hidden.**
@@ -891,7 +939,7 @@ stays dependency-free):
 ## 10. Browser CI recommendation
 
 Today CI runs the Node, SQL, contract, build, dry-run and syntax checks in a
-**5-minute** job, with **no** browser suite (`.github/workflows/ci.yml:19-62`).
+**5-minute** job, with **no** browser suite (`.github/workflows/ci.yml:16-73`).
 
 Add a separate `browser` job (`needs: prototype`, `timeout-minutes: 30`):
 
@@ -944,8 +992,10 @@ evidence ([HANDOVER.md:79-83](HANDOVER.md)).
 1. Exact-source CI is green on the `v0.6.0` commit, including the browser job.
 2. A8 passes locally: Node, Python, the content audit, build, preview dry run,
    Chromium and WebKit suites including `test:commands` in both engines (with
-   A6's two WebKit fixes, or the owner's waiver of the expansion tab, §12
-   item 13), SQL harness.
+   A6's two WebKit fixes; or, under the owner's waiver of the expansion tab,
+   §12 item 13, with WebKit `test:expansion` run per size as A8 says: four
+   sizes exit 0, and 360x740 and 360x640 fail only at that tab, their later
+   checks recorded as not run), SQL harness.
 3. The first screen is ≤ 1.5 MiB as measured, for both the first-visit and the
    returning-player profiles (§9), or the owner has recorded a waiver or a
    first-visit-only scope.
@@ -959,8 +1009,9 @@ evidence ([HANDOVER.md:79-83](HANDOVER.md)).
    real Worker, or the owner has accepted the risk in writing.
 7. The owner has signed off on the Q0 open items (G8) and the derivative art.
 8. Either the A5 guards ship, or the owner has accepted the open-tab and
-   hidden-backup cases (§6) in writing. Either way, the "reload every open tab"
-   notice is ready.
+   hidden-backup cases (§6) in writing, knowing that without A5(a) no in-game
+   path reads or exports progress stranded in the v3 key. Either way, the
+   "reload every open tab" notice is ready.
 9. The rollback IDs were re-read with `wrangler deployments list` just before
    C1, match the documented ones or have been explained, and are written in the
    release record. The rollback was rehearsed in staging if S1 exists.
@@ -1003,7 +1054,9 @@ disables cloud upload for new clients, so the owner decides.
 8. The apex Worker's CPU limit, read from the account. If it is Free or
    unknown, S1 or a written acceptance of the risk (§6).
 9. The A5 cross-version guards, or a written acceptance of the open-tab and
-   hidden-backup cases (§6).
+   hidden-backup cases (§6). Without A5(a), v0.6.0 offers no in-game way to
+   read or export progress stranded in the v3 key (§6), so the acceptance
+   should say what support tells those players (C4).
 10. The WebP-only gap on older Safari: accept it, or keep a PNG fallback (§9).
 11. Whether the first-screen budget also covers returning players (§9).
 12. **Q1 in v0.6.0** (G9). Q1 must ship in this release (§1), so before GO
@@ -1041,8 +1094,11 @@ disables cloud upload for new clients, so the owner decides.
     release. A waiver must also say how the CI browser job leaves out that
     check, since GO item 1 needs the job green: for example, run WebKit
     `test:expansion` once per size with `VIEWPORT_SIZE`
-    (`tools/expansion-smoke.mjs:22`), without 360x740 and 360x640. The
-    `test:map-piece` launch failure needs no decision; A6 fixes it.
+    (`tools/expansion-smoke.mjs:22`), without 360x740 and 360x640. A8 then
+    runs it per size locally too. Either way, the WebKit checks after the
+    rewards dialog at 360x740 and 360x640 (the AA choice, the unchanged-save
+    assert and supply/resume) do not run, so the waiver covers them as well.
+    The `test:map-piece` launch failure needs no decision; A6 fixes it.
 
 ## 13. Checks run for this plan
 
@@ -1083,6 +1139,10 @@ disables cloud upload for new clients, so the owner decides.
 | Q1 review 2: the same server, `BROWSER=webkit node tools/map-piece-smoke.mjs`, then again with `PLAYWRIGHT_BROWSERS_PATH` set to the installed Playwright cache (A6) | exit 1, `browserType.launch: Executable doesn't exist at …/test-results/webkit-runtime/webkit-2359/pw_run.sh`; then exit 0 |
 | Q1 review 2: v0.5.1's manifest recomputed from the tag's blobs (`git show v0.5.1:hosting/public-assets.json`, `git cat-file blob`), hashed as v0.5.1's `tools/build.mjs:35-38` does (§2) | 19 files, 11,130,757 B, `7c18fcebe9d1…4e88`, as in [HOSTING.md:137](HOSTING.md). §2 had `…6e88` since the first draft, a transcription slip |
 | Q1 review 2: scratch Node scripts with an in-memory store (A5). First, a v3 profile through `createSnapshot` and `restoreSnapshot`, then `assertLedgerUnchanged` and `store.replace` over a v5 profile whose ledger has `nextSeq` 5. Second, commit `cmd-1` with `commitCommand`, replace the journey by `store.replace` or by a bare `store.save`, then send the same `cmd-1` request again | First: the guard throws `COMMAND_LEDGER_GUARD_ERROR`; `replace` returns the v3 journey as v5 with the ledger retired (`nextSeq` 6, `retiredBelow` 6, no receipts) and writes `RECOVERY_KEY`. Second: after `replace` the request is rejected as `expired`; after a bare `save` it commits again (`duplicate: false`) |
+| Q1 review 3: `grep -n` for `passed(`, `try{`, `}catch` and `if(failure)` in `tools/expansion-smoke.mjs` at `feba897` (A8) | PASS at `:194` and `:207` in the six-size loop and at `:220`, `:231`, `:243` and `:257` after it, all inside one `try` (`:179`) whose `catch` keeps the first error, rethrown at `:264`. A full pass prints 16 PASS lines, so the WebKit run above, with 6, left 10 checks unrun |
+| Q1 review 3: loopback guards, `includes(base.hostname)` or `includes(new URL(base).hostname)` in every `tools/*smoke*.mjs` blob at `8afbabc` and `feba897` (C2) | 17 of 21 at `8afbabc`, 18 of 22 at `feba897`; only `smoke.mjs`, `journey-smoke.mjs`, `classics-smoke.mjs` and `backpack-smoke.mjs` have none. `map-piece-smoke.mjs` asserts loopback at line 15 at both commits (`node:assert/strict`, before any browser launches). Correction to the two loopback rows above, which listed it as unguarded: their counts should read 17 of 21 and 18 of 22, and C2's "16 other smoke scripts" was 17 |
+| Q1 review 3: the public `.mjs`/`.html` files in `hosting/public-assets.json` searched for `shanhai.profile.v3`, `type="file"` and `FileReader`; `bootstrap.mjs`, `app.mjs:1103-1104` and `profile-store.mjs:78-98` read (§6, C4) | The v3 key appears only in `profile-store.mjs:12` (a migration source, read only while v5 is absent) and `bootstrap.mjs:16` (the startup-recovery export, built only in the `catch` around `import('./app.mjs')`). No file input or `FileReader`, so no save import. `export-save` serialises `loadProfile()`, the v5 journey |
+| Q1 review 3: scratch Node script with in-memory storage, v0.5.1's `progression.mjs`, `collection.mjs` and `engine.mjs` from `git archive v0.5.1`, and `profile-store.mjs` and `cloud-save.mjs` at `feba897` (A5; scratch deleted afterwards) | A v0.5.1 journey after `beginBattle`, stored as `shanhai.profile.v3`: `load()` migrates it (version 5, battle pending); `createSnapshot` refuses it and the migrated profile with `請先完成或放棄未完對局或活動旅程，再儲存雲端旅程。`. A v0.5.1 journey with 2,001 copies: `createSnapshot` refuses it with `雲端旅程暫時最多保留 2,000 張卡牌…`; migrated by `load()` first, it wraps as snapshot v3 and `restoreSnapshot` returns version 5 with 2,001 copies |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no
