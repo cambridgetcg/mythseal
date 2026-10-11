@@ -985,9 +985,13 @@ document.addEventListener('click', event=>{
   }
   if(action==='confirm-restore-recovery'){
     const saved=read(RECOVERY_KEY,null),draft=recoveryDraft;
+    if(draft?.restoring)return;
     if(!draft||saved?.savedAt!==draft.savedAt)return toast('回復備份已更新，請重新查看。');
-    recoveryDraft=null;
-    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>toast(error.message));return;
+    // A refusal changes nothing and leaves this dialog open, so the draft stays for a press
+    // again: after a fence refusal that asks for a retry, it restores once the fence passes,
+    // and every retry runs the backup and fingerprint checks again (docs/LOCAL-COMMANDS.md §11).
+    draft.restoring=true;
+    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(recoveryDraft===draft)recoveryDraft=null;closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>{draft.restoring=false;toast(error.message);});return;
   }
   if(action==='bag-tab')return switchCardsTab(id);
   if(action==='bag-card')return openBagGroup(id,{fromCodex:true});

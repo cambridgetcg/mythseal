@@ -6,8 +6,10 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createProfile, PROFILE_KEY } from '../progression.mjs';
 import { mintInstance, getActiveDeck, syncCollection } from '../collection.mjs';
-import { PROFILE_LOCK } from '../profile-store.mjs';
+import { PROFILE_LOCK, RECOVERY_KEY } from '../profile-store.mjs';
 import { COMMAND_MESSAGES } from '../local-commands.mjs';
+import { FENCE_MESSAGES } from '../profile-fence.mjs';
+import { createSnapshot } from '../cloud-save.mjs';
 
 const browserName = process.env.BROWSER || 'chromium';
 if (!['chromium', 'webkit'].includes(browserName)) throw Error('BROWSER must be chromium or webkit.');
@@ -332,6 +334,52 @@ try {
     assert.equal(card(await read(page), target).level, 2); assert.equal(await writes(page), startWrites + 1);
     await release(page);
     passed('B9 IndexedDB refusing the fence write for lack of space refuses the upgrade with the storage copy, not the browser copy, and no write; it then commits');
+  }
+
+  {
+    // A local recovery restore that the strict fence refuses (a transient IndexedDB failure,
+    // a tab still behind) changes nothing and keeps its dialog. Pressing 復原本機旅程 again,
+    // as the refusal invites, must restore once the fence passes, never claim that the
+    // backup changed; a press while the restore is in flight is ignored.
+    const { profile } = fixture(), earlier = { ...profile, coins: 777, dust: 11 };
+    const page = await pageIn(await contextFor(profile));
+    const recovery = JSON.stringify({ savedAt: now, snapshot: createSnapshot(earlier) });
+    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: RECOVERY_KEY, value: recovery });
+    const readRecovery = () => page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY);
+    await page.evaluate(() => { const button = document.createElement('button'); button.dataset.action = 'restore-recovery'; document.body.append(button); button.click(); button.remove(); });
+    const confirm = page.locator('.modal [data-action="confirm-restore-recovery"]');
+    await confirm.waitFor();
+    const bytes = await raw(page), startWrites = await writes(page), start = await toastCount(page);
+    const unchanged = async label => {
+      assert(await confirm.isVisible(), `${label}: the dialog stays open`);
+      assert.equal(await raw(page), bytes, `${label}: profile unchanged`); assert.equal(await writes(page), startWrites);
+      assert.equal(await readRecovery(), recovery, `${label}: recovery copy unchanged`);
+    };
+    await page.evaluate(() => {
+      const get = IDBObjectStore.prototype.get;
+      IDBObjectStore.prototype.get = function() { IDBObjectStore.prototype.get = get; throw new DOMException('Synthetic transient fence failure', 'UnknownError'); };
+    });
+    await press(page, confirm, FENCE_MESSAGES.unavailable);
+    await unchanged('unavailable');
+    await page.evaluate(async () => (await import('/profile-fence.mjs')).createIndexedDBFence(indexedDB).write({ v: 1, state: 'settled', digest: '1:deadbeefdeadbeef' }));
+    await press(page, confirm, FENCE_MESSAGES.unsynced);
+    await unchanged('unsynced');
+    await page.evaluate(async key => {
+      const { createIndexedDBFence, profileDigest } = await import('/profile-fence.mjs');
+      await createIndexedDBFence(indexedDB).write({ v: 1, state: 'settled', digest: profileDigest(localStorage.getItem(key)) });
+    }, PROFILE_KEY);
+    const from = await toastCount(page);
+    await page.evaluate(() => { const button = document.querySelector('.modal [data-action="confirm-restore-recovery"]'); button.click(); button.click(); });
+    await waitToast(page, '已復原上次本機旅程', from);
+    await page.locator('.modal').waitFor({ state: 'hidden' });
+    const toasts = await toastsSince(page, start);
+    assert(!toasts.some(message => message.includes('回復備份已更新')), `never told the backup changed: ${JSON.stringify(toasts)}`);
+    assert.equal(toasts.filter(message => message.includes('已復原上次本機旅程')).length, 1, 'one restore for two presses');
+    const saved = await read(page);
+    assert.equal(saved.coins, 777); assert.equal(saved.dust, 11); assert.equal(await writes(page), startWrites + 1);
+    assert.deepEqual(JSON.parse(await readRecovery()).snapshot, createSnapshot(JSON.parse(bytes)), 'the replaced journey became the recovery copy');
+    await release(page);
+    passed('B10 a local recovery restore refused by the fence (unavailable, then unsynced) changes nothing and keeps its dialog; pressing it again restores once, never claiming the backup changed');
   }
 
   {

@@ -292,6 +292,11 @@ try {
   await strictPage.locator('.toast', { hasText: '上次儲存未能完整確認' }).waitFor();
   assert.deepEqual(await readProfile(strictPage), seed, 'the refused restore changed nothing');
   assert.equal(await strictPage.evaluate(key => localStorage.getItem(key), recoveryKey), recoveryCopy);
+  // The dialog stays open; pressing it again repeats the fence's reason, never 回復備份已更新.
+  await strictPage.evaluate(() => document.querySelector('.toast')?.remove());
+  await action(strictPage, 'confirm-restore-recovery').click();
+  await strictPage.locator('.toast', { hasText: '上次儲存未能完整確認' }).waitFor();
+  assert.deepEqual(await readProfile(strictPage), seed, 'the second refusal changed nothing');
   await strictPage.reload(); await strictPage.locator('.game-lobby').waitFor();
   assert.equal(await fenceState(), 'settled', 'the reload healed it');
   await action(strictPage, 'account-open').click(); await idle(strictPage);
@@ -299,7 +304,7 @@ try {
   await action(strictPage, 'confirm-restore-recovery').click();
   await strictPage.waitForFunction(({ key, coins }) => JSON.parse(localStorage.getItem(key)).coins === coins, { key: PROFILE_KEY, coins: earlier.coins });
   assert.deepEqual((await readRecovery(strictPage)).snapshot, createSnapshot(seed));
-  complete('Restore refuses on an unsettled profile fence with nothing changed; after a reload heals it, the local recovery restore completes');
+  complete('Restore refuses on an unsettled profile fence with nothing changed, again when pressed again; after a reload heals it, the local recovery restore completes');
 
   assert.deepEqual(errors, [], 'Unexpected browser errors or failed static resources');
   console.log(JSON.stringify({ ok: true, evidence: 'Isolated browser UI with intercepted mock APIs; no live authentication or email delivery tested.', checks, screenshots, browserErrors: errors, externalOriginsBlocked: blockedExternal.size }, null, 2));
