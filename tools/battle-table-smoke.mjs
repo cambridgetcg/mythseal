@@ -37,9 +37,10 @@ const selectedSizes = process.env.BATTLE_TABLE_SIZE ? sizes.filter(pair => pair.
 // Beyond the six contract sizes: portrait tablets and landscape windows between
 // the phone and roomy layouts, short roomy windows (800x600 to 1280x620 put the
 // reveal pair above the resource page), common phones, a phone browser with its
-// bars (375x553) and phone landscape (640x360, and 600 px wide or narrower:
-// 568x320, 600x400, 560x420, 600x540).
-const SWEEP = [[601, 800], [700, 800], [744, 1133], [768, 1024], [800, 600], [820, 1180], [834, 1194], [906, 700], [960, 540], [1024, 600], [1024, 768], [1280, 620], [1366, 768], [1920, 1080], [375, 667], [375, 553], [412, 915], [667, 375], [740, 360], [640, 360], [568, 320], [600, 400], [560, 420], [600, 540]];
+// bars (375x553, 360x560 and 360x540, the shortest supported portrait windows)
+// and phone landscape (640x360, and 600 px wide or narrower: 568x320, 600x400,
+// 560x420, 600x540).
+const SWEEP = [[601, 800], [700, 800], [744, 1133], [768, 1024], [800, 600], [820, 1180], [834, 1194], [906, 700], [960, 540], [1024, 600], [1024, 768], [1280, 620], [1366, 768], [1920, 1080], [375, 667], [375, 553], [360, 560], [360, 540], [412, 915], [667, 375], [740, 360], [640, 360], [568, 320], [600, 400], [560, 420], [600, 540]];
 const sweepSizes = process.env.BATTLE_TABLE_SIZE ? selectedSizes : [...sizes, ...SWEEP];
 assert(selectedSizes.length, 'BATTLE_TABLE_SIZE must name one supported size');
 const checks = [], screenshots = [], errors = [], measurements = [], contexts = new Set();
@@ -197,6 +198,9 @@ async function assertDecisionVisible(page, label, { announced, selected }) {
         if (parseFloat(getComputedStyle(badge).fontSize) < 10) problems.push(`${card.id}: state label below 10px`);
         if (rect && (box.left < rect.left - 0.5 || box.right > rect.right + 0.5 || box.top < rect.top - 0.5 || box.bottom > rect.bottom + 0.5 || !box.width)) problems.push(`${card.id}: state label outside card`);
         if (!card.getAttribute('aria-label')?.includes(badge.textContent.trim())) problems.push(`${card.id}: aria-label lacks state`);
+        // At the 56 px minimum card height the name sits below the badge, not over it.
+        const name = card.querySelector('.battle-mini-name')?.getBoundingClientRect();
+        if (name && name.top < box.bottom - 1) problems.push(`${card.id}: name overlaps state label by ${(box.bottom - name.top).toFixed(1)}`);
       }
     }
     // Names are never clipped in any state: a range wider than its box means an ellipsis.
@@ -254,6 +258,13 @@ async function assertDecisionVisible(page, label, { announced, selected }) {
     const module = table.querySelector('[data-viewport-module]');
     if (!module || module.scrollHeight > module.clientHeight + 2 || module.scrollWidth > module.clientWidth + 2) problems.push(`table module overflow ${module?.scrollHeight}/${module?.clientHeight}`);
     if (table.querySelectorAll('[data-viewport-module]').length !== 1) problems.push('more than one battle module');
+    // Rows stacked in the same column never overlap (short single-column phones).
+    const area = selector => table.querySelector(selector)?.getBoundingClientRect();
+    for (const [upper, lower] of [['.battle-status', '.battle-edge[data-side="opponent"] .battle-edge-head'], ['.enemy-hand', '.battle-confrontation'], ['.battle-confrontation', '.player-hand'], ['.battle-edge[data-side="player"] .battle-edge-head', '.battle-actions']]) {
+      const top = area(upper), bottom = area(lower);
+      if (!top || !bottom) { problems.push(`row missing ${upper} / ${lower}`); continue; }
+      if (top.right > bottom.left + 0.5 && bottom.right > top.left + 0.5 && top.bottom > bottom.top + 0.5) problems.push(`rows overlap ${upper} / ${lower} by ${(top.bottom - bottom.top).toFixed(1)}`);
+    }
     const tabs = table.querySelector('.viewport-module-tabs');
     if (tabs && !tabs.hidden && getComputedStyle(tabs).display !== 'none') problems.push('module tabs visible');
     if (table.querySelectorAll('.viewport-pagination,[data-viewport-list]').length) problems.push('four-card rows are paginated');
@@ -622,7 +633,7 @@ try {
     await reveal(page, { round: 1, playerCard: 'tieshan', opponentCard: 'liuer', shotTab: 'resources' });
     await release(page);
   }
-  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced; every decision input inside the viewport and hit-testable, with a whole Fury switch; no page or table overflow; the reveal's pages fit, every pager is tappable and both resource panels are reachable`);
+  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced and clear of their state labels; every decision input inside the viewport and hit-testable, with a whole Fury switch and no overlapping rows; no page or table overflow; the reveal's pages fit, every pager is tappable and both resource panels are reachable`);
 
   // Finished overkill settles exactly once across Next and reload.
   const finished = FIXTURES['q0-overkill-finished'];
