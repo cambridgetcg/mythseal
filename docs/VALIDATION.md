@@ -2,6 +2,58 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Q1 integration with `main` · 2026-10-11
+
+Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings
+`origin/main` `b40c4d2` (PRs #6–#9) into `2ad6da9`; the commits after it change
+documentation only. No deployment, no hosted check and no network request.
+Node 26.0.0 on macOS.
+
+**Merge.** Git reported conflicts only in `docs/HANDOVER.md` and
+`docs/VALIDATION.md`, where both sides had added 2026-10-11 sections. Both
+sides' sections were kept whole: Q4 and LZ-01 first, then Q1. Checked
+afterwards:
+
+- Every other path in `b527dc3` equals the tree that `git merge-tree
+  --write-tree 2ad6da9 b40c4d2` produces, and neither conflicted file contains
+  a conflict marker.
+- Against `b40c4d2`, both files only gain lines (77 and 368). Against
+  `2ad6da9`, VALIDATION only gains lines (663), and HANDOVER loses only the
+  seven lines that `main` had itself replaced since `8afbabc` (two in its
+  opening paragraph and five in the LZ-01 preview notes).
+- Against `2ad6da9`, no public file changes; the merge adds PR #8's preview
+  files and PR #9's tooling.
+
+**Checks at `b527dc3`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **530/530** (Q1's 510 plus the 20
+  that PRs #8 and #9 added on `main`).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, **83 public files** (`main`'s 80 plus Q1's
+  `command-ledger.mjs`, `local-commands.mjs` and `profile-fence.mjs`),
+  74,389,154 B, manifest `10f594fc…4014`.
+- `git merge-base --is-ancestor 7a7d03e b527dc3`: exit 0, so the fence is in
+  the tree that PR #10 brings to `main`.
+
+**Documentation.** The commits after the merge add docs-index rows for
+[LOCAL-COMMANDS](LOCAL-COMMANDS.md) and [RELEASE-NEXT](RELEASE-NEXT.md), bring
+the status lines in ROADMAP, HANDOVER, EXPERIENCE-MODULES, LOCAL-COMMANDS,
+BATTLE-LAYOUT-PLAN and NAVIGATION up to the merges (Q0 in PR #5, `bca9ab4`;
+Q4 in PR #9, `b40c4d2`; Q1 by PR #10), and take Q1 into the v0.6.0 plan, whose
+§13 lists the plan's own checks. The dated entries below for Q4, Q1 (with its
+review rounds) and Q0 were written on their branches before those merges and
+are left as written. On those documentation commits: `git diff --check` is
+clean, and a local Markdown link and anchor check over `docs/*.md`,
+`ROADMAP.md` and `README.md` (scratch script approximating GitHub's heading
+slugs) finds every link target and anchor.
+
+Not run at `b527dc3`: any browser suite (`npm run test:commands` last passed
+at `38fa64f`, and `test:browser`, `test:inheritance` and `test:wx01` at
+`1afaf6b`, as recorded below; the merge changes no public file), the literary
+preview smokes for PR #8's files, deploy dry runs, the SQL harness and CI.
+
 ## Q4 content registry · 2026-10-11
 
 Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
