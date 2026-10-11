@@ -10,10 +10,9 @@ commit **`4265039`** adds `tools/content-registry.mjs`,
 fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
 (below). Three later commits also change source: merge commit **`d1f0f91`**
 adapts the registry and its tests to PR #8's LZ-01 specials, **`6bc784a`**
-fixes a third review's findings, and the fourth-review fix commit (below)
-fixes a fourth's. Merge commit `d606447` brings in `origin/main`
-`daf18ed` (documentation only), and the remaining commits change documentation
-only; each source step below lists the checks run on it. The branch is not
+fixes a third review's findings, and **`092f1fd`** fixes a fourth's. Merge
+commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
+the remaining commits change documentation only; each source step below lists the checks run on it. The branch is not
 merged into `main`, pushed or deployed, and there was no hosted check. The
 registry's own commits change no game runtime, save schema, content, art or
 allowlist file; the PR #8 merge brought in that branch's LZ-01 content, art and
@@ -248,8 +247,8 @@ statuses and capability states are defined in
   - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
     check and human review. `docs/RELEASE-NEXT.md` (from PR #7) has no row in
     `docs/README.md` on `main` either; that index gap is left to its owner.
-- **Fourth review fixes · 2026-10-11** (tooling and documentation only; no
-  player, save, content, art, allowlist or build effect). Each gap was first
+- **Fourth review fixes in `092f1fd` · 2026-10-11** (tooling and documentation
+  only; no player, save, content, art, allowlist or build effect). Each gap was first
   reproduced on `65c4593` by the reviewers; after the fix, each original repro
   was re-run in an APFS-clone scratch copy (deleted afterwards).
   - Evidence reading failed open. Only an object-literal options argument was
@@ -302,7 +301,7 @@ statuses and capability states are defined in
     the planned treatment source, the preview `src` and world `map` guards and
     the realpath guard) made `node --test tests/content-registry.test.mjs`
     exit 1 (10 of 10).
-  - Checks on the fix, Node 26.0.0: `node --test tests/*.test.mjs` **475/475**,
+  - Checks on `092f1fd`, Node 26.0.0: `node --test tests/*.test.mjs` **475/475**,
     exit 0, 0 skipped (474 plus the symlink CLI test). `npm run audit:content`
     exit 0, `findings: []`, 120 local-playable and 30 preview, by capability
     unchanged from `d1f0f91`. `npm run build` exit 0, 80 public files.

@@ -87,9 +87,9 @@ Roadmap packet Q4's registry and audit are on the local branch
 **`q4/content-registry`**, started from `origin/main` `8afbabc`. Source
 commits: **`4265039`** (the registry), review fixes **`7291880`** and
 **`cf63bec`**, merge commit **`d1f0f91`** (adapts the registry and its tests to
-PR #8's LZ-01 specials) and third-review fixes **`6bc784a`**. Merge commit
-`d606447` brings in `origin/main` `daf18ed` (PRs #6–#8, documentation only);
-the other commits change documentation only. The branch is not merged into
+PR #8's LZ-01 specials), third-review fixes **`6bc784a`** and fourth-review
+fixes **`092f1fd`**. Merge commit `d606447` brings in `origin/main` `daf18ed`
+(PRs #6–#8, documentation only); the other commits change documentation only. The branch is not merged into
 `main`, pushed or deployed, and no hosted check was made.
 
 - **What it is:** `tools/content-registry.mjs` (Node tooling, never served),
@@ -126,7 +126,7 @@ the other commits change documentation only. The branch is not merged into
   `west-spirit-mountain` lists the story-gift claim, since the four westward
   nodes unlock in a chain. The audit compares a bound special's brief file with
   its binding.
-- **Fourth review (fourth-review fix commit, after `65c4593`):** evidence
+- **Fourth review (`092f1fd`):** evidence
   reading fails closed. A cited test whose options are not an object literal (a
   variable, a conditional, a spread or a computed key), use a quoted
   `'skip'`/`'todo'` key, or whose callback is missing or passed by name no longer
