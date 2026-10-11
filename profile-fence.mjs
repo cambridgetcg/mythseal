@@ -102,12 +102,15 @@ async function caughtUp(read, digest, { budget, sleep, clock }) {
  * - `read()` returns the stored profile text, synchronously.
  * - `strict`: refuse (reject with ProfileFenceError before the callback runs) when the
  *   fence cannot prove the bytes are current. Lenient holders are writers whose callback
- *   saves the profile whenever it returns; they wait for a shorter budget and then
- *   proceed as they did before the fence, and their write heals the fence.
+ *   saves the profile whenever it returns; they wait for a shorter budget (all of it when
+ *   the record is "writing" or malformed) and then proceed as they did before the fence,
+ *   and their write heals the fence.
  *
  * The returned function takes a synchronous callback, like the raw lock, and resolves to
  * its result. A failure to record the bytes afterwards does not hide that result: the
- * fence then stays "writing", which a strict holder refuses until a lenient write. */
+ * fence then stays "writing", which a strict holder refuses until a lenient write; that
+ * write waits its whole budget first, and a tab still behind after it can lose the
+ * unrecorded write (docs/LOCAL-COMMANDS.md §10.1 Limits). */
 export function createFencedLock({ request, fence, read, strict = true, budget, ioBudget = FENCE_IO_MS, sleep = defaultSleep, clock = defaultClock }) {
   const wait = { budget: budget ?? (strict ? FENCE_STRICT_MS : FENCE_LENIENT_MS), sleep, clock };
   const load = () => within(signal => fence.read({ signal }), ioBudget);
@@ -119,7 +122,13 @@ export function createFencedLock({ request, fence, read, strict = true, budget, 
     // not proof that every write has arrived, so the bytes are checked again below.
     let verified = readable && record === null;
     if (readable && record !== null) {
-      if (!isSettled(record)) { if (strict) throw new ProfileFenceError('unsettled'); }
+      if (!isSettled(record)) {
+        if (strict) throw new ProfileFenceError('unsettled');
+        // "writing" or malformed: a holder may have saved and then failed to record its bytes
+        // (a failed settle, a closed tab). There is no digest to wait for, so give that write
+        // the whole lenient budget to reach this tab before this write heals the fence.
+        await sleep(wait.budget);
+      }
       else if (await caughtUp(read, record.digest, wait)) verified = true;
       else if (strict) throw new ProfileFenceError('unsynced');
     }

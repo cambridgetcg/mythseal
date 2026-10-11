@@ -372,6 +372,11 @@ try {
     await page.evaluate(() => { const button = document.querySelector('.modal [data-action="confirm-restore-recovery"]'); button.click(); button.click(); });
     await waitToast(page, '已復原上次本機旅程', from);
     await page.locator('.modal').waitFor({ state: 'hidden' });
+    // Without the in-flight guard the second press passes the backup check, queues a second
+    // restore behind the lock and is refused after the first succeeds (本機旅程剛有更新): still
+    // one restore and one write, so only the toasts tell the two apart.
+    await idleLock(page); await page.waitForTimeout(300);
+    assert.deepEqual(await toastsSince(page, from), ['已復原上次本機旅程。'], 'the second press is ignored, not refused after the restore');
     const toasts = await toastsSince(page, start);
     assert(!toasts.some(message => message.includes('回復備份已更新')), `never told the backup changed: ${JSON.stringify(toasts)}`);
     assert.equal(toasts.filter(message => message.includes('已復原上次本機旅程')).length, 1, 'one restore for two presses');
@@ -379,7 +384,7 @@ try {
     assert.equal(saved.coins, 777); assert.equal(saved.dust, 11); assert.equal(await writes(page), startWrites + 1);
     assert.deepEqual(JSON.parse(await readRecovery()).snapshot, createSnapshot(JSON.parse(bytes)), 'the replaced journey became the recovery copy');
     await release(page);
-    passed('B10 a local recovery restore refused by the fence (unavailable, then unsynced) changes nothing and keeps its dialog; pressing it again restores once, never claiming the backup changed');
+    passed('B10 a local recovery restore refused by the fence (unavailable, then unsynced) changes nothing and keeps its dialog; pressing it again restores once, never claiming the backup changed, and a press during the restore is ignored, not refused after it');
   }
 
   {

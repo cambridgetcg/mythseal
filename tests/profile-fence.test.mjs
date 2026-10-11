@@ -432,6 +432,45 @@ test('N30 app.mjs restores under the strict fenced lock, as commands do', async 
   assert.match(source, /const profileLock=\(\)=>fencedLock\(true\);/);
 });
 
+test('N31 a lenient writer that finds a failed settle\'s "writing" record waits its whole budget, so a tab behind keeps the commit or restore', async () => {
+  // Tab A's strict write lands but its settle fails once (an aborted IndexedDB transaction),
+  // leaving "writing". Tab B, 15 ms behind, has a lenient write queued right behind it.
+  const base = rich(), [x] = spare(base), backup = createSnapshot({ ...base, coins: 777 });
+  const failSettleOnce = o => { let armed = true; o.faults.write = next => { if (armed && next?.state === 'settled') { armed = false; return true; } return false; }; };
+  const bump = tab => () => { const profile = tab.store.load(); profile.dust += 1; tab.store.save(profile); };
+  async function behind(budget, strictWrite) {
+    const o = origin(base), a = o.tab(), b = o.tab();
+    failSettleOnce(o);
+    const [result] = await Promise.all([strictWrite(a), b.fenced(false, budget)(bump(b))]);
+    return { o, result };
+  }
+  const commit = a => commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true));
+  const restore = a => restoreIn(a, backup, fingerprintProfile(a.store.load()), a.fenced(true));
+  const recoveryCoins = o => JSON.parse(o.stored(RECOVERY_KEY)).snapshot.profile.coins;
+  {
+    // Control: with no wait (a zero budget), the heal writes B's older bytes over both.
+    const committed = await behind(0, commit);
+    assert.equal(committed.result.status, 'committed');
+    assert.deepEqual([levelOf(committed.o.saved(), x), committed.o.saved().commands, committed.o.saved().coins], [1, undefined, base.coins], 'the reported upgrade is gone');
+    assert.equal(committed.o.record().state, 'settled', 'and nothing refuses afterwards');
+    const restored = await behind(0, restore);
+    assert.deepEqual([restored.o.saved().coins, recoveryCoins(restored.o)], [base.coins, base.coins], 'the restored journey exists nowhere');
+  }
+  {
+    const { o, result } = await behind(FENCE_LENIENT_MS, commit);
+    assert.deepEqual([result.status, result.duplicate], ['committed', false]);
+    const saved = o.saved();
+    assert.deepEqual([levelOf(saved, x), saved.commands?.receipts.length, saved.coins, saved.dust], [2, 1, base.coins - 120, base.dust - 6 + 1], 'the commit and the lenient write both hold');
+    assert.deepEqual(o.record(), { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) });
+  }
+  {
+    const { o } = await behind(FENCE_LENIENT_MS, restore);
+    assert.deepEqual([o.saved().coins, o.saved().dust], [777, base.dust + 1], 'the restored journey and the lenient write both hold');
+    assert.equal(recoveryCoins(o), base.coins, 'the recovery copy holds the replaced journey');
+    assert.equal(o.record().digest, profileDigest(o.bytes()));
+  }
+});
+
 /** A small in-memory IndexedDB: one database, one object store, async events. While
  * `options.refuseWrites` names a DOMException, every readwrite transaction aborts with it
  * and stores nothing, as a full disk does; it is read per transaction, so it can change. */
