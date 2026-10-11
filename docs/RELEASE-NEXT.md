@@ -8,10 +8,22 @@ new authority: every step marked **OWNER** needs the owner's own decision and
 credentials. **Revised 2026-10-11** after an independent review. The checks
 added for the revision are listed in §13.
 
-Evidence labels: `path:line` points at the source at `8afbabc`; **[cmd]** is a
-command run for this plan on 2026-10-11 (exit code given); **UNVERIFIED** marks
-anything not checked here. The only network calls made were unauthenticated
-`GET https://mythseal.com/release.json` and `GET https://mythseal.com/api/v1/account`.
+**Revised again 2026-10-11 for Q1**, on branch `q1/local-commands` at
+`b527dc3` (`origin/main` `b40c4d2`, with PRs #6–#9, merged in), for PR #10. v0.6.0
+would be the first public release with profile v5, so it now includes Q1
+([LOCAL-COMMANDS §15](LOCAL-COMMANDS.md#15-owner-decisions) decision 3). The
+release candidate is `main` after PR #10 merges. `8afbabc`, the commit this plan
+was first written from, is now a pre-fence v5 build that must never be served
+once Q1 has been (§1, §6). The Q1 revision's checks are in §13.
+
+Evidence labels: `path:line` points at the tree this document is committed in;
+every citation was re-checked for the Q1 revision, and a citation of another
+revision says so (for example `git show v0.5.1:…`). Measurements say which
+commit they ran on. **[cmd]** is a command run for this plan on 2026-10-11
+(exit code given); **UNVERIFIED** marks anything not checked here. The only
+network calls made were unauthenticated
+`GET https://mythseal.com/release.json` and `GET https://mythseal.com/api/v1/account`;
+the Q1 revision made none.
 
 Step markers: **AGENT** = repo change any agent can make and check locally, with
 no hosted access. **CI** = GitHub Actions on the exact commit. **OWNER** =
@@ -19,9 +31,35 @@ touches hosted services, real player data, credentials, DNS or billing.
 
 ## 1. Goal and scope
 
-**Goal.** Publish the game that is on `main` today as **v0.6.0**, while keeping
-every existing account, v1 cloud backup and local save intact. A player who
-loads the new client must still be able to back up their journey to the cloud.
+**Goal.** Publish `main` as it stands after PR #10 (Q1) as **v0.6.0**, while
+keeping every existing account, v1 cloud backup and local save intact. A player
+who loads the new client must still be able to back up their journey to the
+cloud.
+
+**Release candidate.** Build only from `main` after PR #10 merges, plus the
+release PR on top (B1). Never build or deploy `8afbabc`, or any other v5
+commit on `main` from before PR #10: those are v5 builds without Q1's fence (§6). A
+candidate qualifies only if `git merge-base --is-ancestor 7a7d03e <commit>`
+exits 0 (`7a7d03e` adds the fence; [cmd] it exits 0 for `b527dc3` and 1 for
+`8afbabc` and `b40c4d2`).
+
+**Why Q1 is in this release.** Live v0.5.1 keeps its journey in
+`shanhai.profile.v3` (`git show v0.5.1:progression.mjs` lines 15-16), and `main`
+uses profile v5 (`progression.mjs:24`), so v0.6.0 would be the first public v5
+release. The Q1 contract requires Q1 in or before that release, and a release
+that includes Q1 runs `npm run test:commands` in both engines
+([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact),
+§15 decision 3).
+
+**What changed on `main` since this plan's `8afbabc` baseline.** Q0 (PR #5) and
+the LZ-01 specials briefs (PR #4) were already in `8afbabc`. Since then:
+
+| Change | Public build | Effect on this release |
+| --- | --- | --- |
+| PR #6, docs index; PR #7, this plan | No change | Documentation only |
+| PR #8, LZ-01's six special images | No change: the six PNGs are added to `hosting/preview-assets.json` only, and `hosting/public-assets.json` names no `assets/lz01/` file ([cmd] `git diff 8afbabc b527dc3 -- hosting/`) | Stays preview-only, like the rest of LZ-01 |
+| PR #9, Q4 content registry | No change: `tools/content-registry.mjs` is Node tooling, never served; it adds `npm run audit:content` | A tooling check for Phase A (A8) |
+| PR #10, Q1 local commands | 80 → **83** files: adds `command-ledger.mjs`, `local-commands.mjs` and `profile-fence.mjs`, and changes `app.mjs`, `account-client.mjs`, `cloud-save.mjs`, `profile-store.mjs` and `progression.mjs` | Ships in v0.6.0 (above); its release rules are G9, A8, §6 and §8 |
 
 **In scope**
 
@@ -30,44 +68,61 @@ loads the new client must still be able to back up their journey to the cloud.
   six campaign volumes (66 encounters) and the 火焰山三連戰 activity,
   same-character inheritance, character stacks and the ink codex, Mist Gate
   immersion, the battle resource/clash presentation, story maps, the map piece,
-  and the Q0 對局 table (PR #5) ([HANDOVER.md:12-17](HANDOVER.md), `:40-80`,
-  `:259-356`).
+  and the Q0 對局 table (PR #5) ([HANDOVER.md:15-20](HANDOVER.md), `:43-85`,
+  `:465-562`).
+- **Q1** (merged by PR #10): the card page's 修練升級 as a previewed local
+  command whose effects and receipt land in one profile write, an optional
+  device-local `commands` ledger inside the v5 profile that backups never
+  contain, and an IndexedDB read-after-write fence for every writer under the
+  profile lock ([LOCAL-COMMANDS](LOCAL-COMMANDS.md); [HANDOVER.md:178-239](HANDOVER.md)).
+  `PROFILE_VERSION`, the snapshot format, the Worker's routes and validator,
+  the SQL and the journey flags are unchanged
+  ([LOCAL-COMMANDS §12](LOCAL-COMMANDS.md#12-backup-validation-impact)).
 - Journey **v3** cloud backup (profile v5) on the hosted database and Worker.
 - The release gates that [HANDOVER.md](HANDOVER.md) already sets: hosted v2/v3
   migrations, Worker/client flags, a coherent versioned module graph,
-  binding-retention proof and smaller image transfers (§4).
+  binding-retention proof and smaller image transfers (§4), plus Q1's release
+  rules (G9).
 
 **Out of scope:** the LZ-01/HL-01 literary previews and atelier/playtest pages
-(they stay in `hosting/preview-assets.json`), an authoritative economy, native
-apps, NFTs, paid upgrades, SMTP/Resend changes and redirect-Worker code changes.
-`hosting/www.mjs` and `wrangler.www.jsonc` are unchanged since v0.5.1
-([cmd] `git diff --stat v0.5.1 origin/main -- hosting/www.mjs wrangler.www.jsonc`
-prints nothing).
+(they stay in `hosting/preview-assets.json`, including PR #8's six LZ-01 special
+images), Q4's content registry (tooling, never served), an authoritative
+economy, native apps, NFTs, paid upgrades, SMTP/Resend changes and
+redirect-Worker code changes. `hosting/www.mjs` and `wrangler.www.jsonc` are
+unchanged since v0.5.1 ([cmd] `git diff --stat v0.5.1 origin/main --
+hosting/www.mjs wrangler.www.jsonc` prints nothing at `8afbabc`, and again
+against `b527dc3`).
 
 ## 2. What is live and what main adds
 
 Live values come from [cmd] `curl` at **2026-10-11 08:35:12 UTC** (both HTTP 200,
-exit 0). Main values come from [cmd] `npm run build` (exit 0) at `8afbabc`.
+exit 0). Candidate values come from [cmd] `npm run build` (exit 0) at
+**`b527dc3`**, the Q1 branch with `origin/main` `b40c4d2` merged in, whose
+public files are those PR #10 brings to `main`. The plan's first measurements,
+at `8afbabc`, are kept in brackets.
 
-| Item | Live (mythseal.com) | `main` 8afbabc | Evidence |
+| Item | Live (mythseal.com) | Candidate, measured at `b527dc3` [at `8afbabc`] | Evidence |
 | --- | --- | --- | --- |
-| `clientVersion` / commit | `0.5.1` / `ea48558` | `0.5.1` (not bumped yet) / `8afbabc` | live `release.json`; `dist/release.json` |
-| Public files | 19 files, **11,130,757 B** | 80 files, **74,347,757 B** (70.90 MiB) | both manifests |
-| Manifest SHA-256 | `7c18fceb…6e88` | `98028a3a…54db` | build output |
-| Of which PNG | 3 files, 10,838,776 B | **23 files, 73,418,493 B** | `dist/release.json` |
-| Account API | `{"authenticated":false,"user":null,"emailEnabled":true}`: no `journeyVersions` field, so the v1-only Worker | `/api/v2` and `/api/v3` routes behind `JOURNEY_V2_ENABLED` / `JOURNEY_V3_ENABLED`; `journeyVersions` in every account reply | live probe; `server/account-api.mjs:8-16`, `:123-125`, `:173`; v0.5.1 routes: `git show v0.5.1:server/account-api.mjs` lines 7-12 |
-| Local save key | `shanhai.profile.v3` | `shanhai.profile.v5`; reads v4/v3/v2 sources and leaves them in place | `git show v0.5.1:progression.mjs:16`; `progression.mjs:23`; `profile-store.mjs:9-13`, `:54-75` |
-| Cloud snapshot | v1: 512 KiB, 2,000 copies | v3: 4 MiB, 10,000 copies; v1 is still accepted | `cloud-save.mjs:9-13`; `server/account-api.mjs:5-6` |
-| Hosted migrations | `20260921210000`, `20260921210100` applied | plus `20260922210000` (v2) and `20260923000000` (v3), **not applied** | [HANDOVER.md:580-584](HANDOVER.md); [ACCOUNTS.md:12](ACCOUNTS.md) |
+| `clientVersion` / commit | `0.5.1` / `ea48558` | `0.5.1` (not bumped yet) / `b527dc3` | live `release.json`; `dist/release.json` |
+| Public files | 19 files, **11,130,757 B** | 83 files, **74,389,154 B** (70.94 MiB) [80 files, 74,347,757 B]. Q1 adds three modules (32,980 B) and grows five existing ones by 8,417 B | both manifests |
+| Manifest SHA-256 | `7c18fceb…6e88` | `10f594fc…4014` [`98028a3a…54db`] | build output |
+| Of which PNG | 3 files, 10,838,776 B | **23 files, 73,418,493 B**, unchanged since `8afbabc` | `dist/release.json` |
+| Account API | `{"authenticated":false,"user":null,"emailEnabled":true}`: no `journeyVersions` field, so the v1-only Worker | `/api/v2` and `/api/v3` routes behind `JOURNEY_V2_ENABLED` / `JOURNEY_V3_ENABLED`; `journeyVersions` in every account reply. Q1 changes no route | live probe; `server/account-api.mjs:8-16`, `:123-125`, `:173`; v0.5.1 routes: `git show v0.5.1:server/account-api.mjs` lines 7-12 |
+| Local save key | `shanhai.profile.v3` | `shanhai.profile.v5`; reads v4/v3/v2 sources and leaves them in place. Since Q1 a v5 profile may also hold a device-local `commands` ledger | `git show v0.5.1:progression.mjs:16`; `progression.mjs:24`; `profile-store.mjs:10-14`, `:71-92`; ledger: `progression.mjs:250` |
+| Cloud snapshot | v1: 512 KiB, 2,000 copies | v3: 4 MiB, 10,000 copies; v1 is still accepted. The ledger never enters a backup | `cloud-save.mjs:9-13`, `:177-192`; `server/account-api.mjs:5-6` |
+| Hosted migrations | `20260921210000`, `20260921210100` applied | plus `20260922210000` (v2) and `20260923000000` (v3), **not applied** | [HANDOVER.md:787-791](HANDOVER.md); [ACCOUNTS.md:12](ACCOUNTS.md) |
 | Deploy helper | v0.5.1's tracked `tools/deploy.mjs` was 15 lines, with no identity, secret or `--keep-vars` checks | Hosted preflight plus `--keep-vars` (`tools/deploy.mjs:63-84`, `:93-97`). It has only stub-test evidence | [cmd] `git show v0.5.1:tools/deploy.mjs` |
-| Worker bundle | (unknown) | `Total Upload: 906.25 KiB / gzip: 188.52 KiB` | [cmd] `npm run preview -- --dry-run` exit 0 |
+| Worker bundle | (unknown) | Not re-measured at `b527dc3` (the Q1 revision ran no Wrangler command) [`Total Upload: 906.25 KiB / gzip: 188.52 KiB`]. The Worker imports `cloud-save.mjs` (`server/account-api.mjs:2`), which Q1 changed outside `validateSnapshot` | [cmd] `npm run preview -- --dry-run` exit 0 at `8afbabc` |
 
-The delta covers 61 commits (56 non-merge). Of the allowlisted runtime files,
-73 changed: 61 added and 12 modified, +6,228/−356 lines. Outside the runtime,
-the release-relevant changes are `server/account-api.mjs` (+13/−7 lines), the
-two migrations (+103 and +106, both new files), `tools/deploy.mjs` (+120/−10)
-and `ci.yml` (+2/−2) ([cmd] `git rev-list --count`,
-`git diff --shortstat/--name-status/--numstat v0.5.1 origin/main`).
+The delta from v0.5.1 to `b527dc3` covers 127 commits (115 non-merge)
+[61 and 56 at `8afbabc`]. Of the 83 allowlisted runtime files, 76 changed: 64
+added and 12 modified, +6,947/−371 lines [73: 61 added and 12 modified,
++6,228/−356]. Outside the runtime, the release-relevant changes are unchanged
+since `8afbabc`: `server/account-api.mjs` (+13/−7 lines), the two migrations
+(+103 and +106, both new files), `tools/deploy.mjs` (+120/−10) and `ci.yml`
+(+2/−2) ([cmd] `git rev-list --count`,
+`git diff --shortstat/--name-status/--numstat v0.5.1 b527dc3`, with the
+allowlist read at each commit).
 
 **This release is the first real use of the tracked deploy helper's hosted
 path.** The v0.5.1 deployment used an ignored helper
@@ -84,26 +139,29 @@ path.** The v0.5.1 deployment used an ignored helper
   the deploy message (`tools/deploy.mjs:96`) and the redirect-check query
   (`tools/verify-hosting.mjs:27`). No runtime module hard-codes the version
   ([cmd] `git grep -e 0.5.1 -e clientVersion` matched only those files plus the
-  stub `tests/deploy.test.mjs:6`, which needs no change).
+  stub `tests/deploy.test.mjs:6`, which needs no change; outside `docs/` and
+  Markdown, the fixed-string `git grep -F` matches the same files at
+  `b527dc3`, so Q1 adds no copy of the version).
 - Command: `npm version 0.6.0 --no-git-tag-version`, committed in the release
   PR. Tag `v0.6.0` the exact merged commit after CI passes.
 - Optional: the hard-coded `enabledFeatures` in `tools/build.mjs:40-41` still
-  lists only the v0.5 features. Add `wx01`, `campaign`, `fire-mountain-activity`
-  and `journey-v3-backup` so the public manifest describes the release. This
+  lists only the v0.5 features. Add `wx01`, `campaign`, `fire-mountain-activity`,
+  `journey-v3-backup` and `local-commands` so the public manifest describes the release. This
   changes `release.json` but no hashes.
 
 ## 4. Release gates and their status
 
-| # | Gate (source) | Status at `8afbabc` | Plan step |
+| # | Gate (source) | Status at `8afbabc`, unchanged at `b527dc3` unless noted | Plan step |
 | --- | --- | --- | --- |
-| G1 | Hosted v2/v3 migrations applied and verified before the flags are enabled ([HANDOVER.md:307-311](HANDOVER.md); migration headers `20260922210000…sql:1-2`, `20260923000000…sql:1-2`) | Not applied ([HANDOVER.md:583-584](HANDOVER.md)) | B3 |
-| G2 | Client and Worker roll out together; live v0.5.1 rejects the new fields ([HANDOVER.md:371-374](HANDOVER.md)) | Assets and Worker are **one apex Worker version** (`wrangler.jsonc:4`, `:10-16`), so they roll out atomically. The flags are **not declared** in `wrangler.jsonc:18-22` | A3, C1 |
-| G3 | Coherent hashed/versioned module graph ([HANDOVER.md:311-312](HANDOVER.md); [ROADMAP.md:228-229](../ROADMAP.md)) | Not implemented: the build copies files under their source names (`tools/build.mjs:44-47`) and one `Cache-Control: public, max-age=0, must-revalidate` covers everything (`hosting/_headers:7`) | A2 |
+| G1 | Hosted v2/v3 migrations applied and verified before the flags are enabled ([HANDOVER.md:513-517](HANDOVER.md); migration headers `20260922210000…sql:1-2`, `20260923000000…sql:1-2`) | Not applied ([HANDOVER.md:790-791](HANDOVER.md)) | B3 |
+| G2 | Client and Worker roll out together; live v0.5.1 rejects the new fields ([HANDOVER.md:577-580](HANDOVER.md)) | Assets and Worker are **one apex Worker version** (`wrangler.jsonc:4`, `:10-16`), so they roll out atomically. The flags are **not declared** in `wrangler.jsonc:18-22` | A3, C1 |
+| G3 | Coherent hashed/versioned module graph ([HANDOVER.md:517-518](HANDOVER.md); [ROADMAP.md:266-267](../ROADMAP.md)) | Not implemented: the build copies files under their source names (`tools/build.mjs:44-47`) and one `Cache-Control: public, max-age=0, must-revalidate` covers everything (`hosting/_headers:7`) | A2 |
 | G4 | Hosted proof that the publishable-key binding survives `--keep-vars` ([HOSTING.md:71-81](HOSTING.md)) | Stub tests only | C1 verify |
-| G5 | Hosted acceptance of old and new backups ([HANDOVER.md:313](HANDOVER.md), `:372-374`) | `tools/live-account-check.mjs:83` exercises `/api/v1` only | A4, B4, C3 |
-| G6 | Transfer-size optimization before a hosted rollout ([HANDOVER.md:673](HANDOVER.md)); first screen ≤ 1.5 MiB ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | First screen measured at **6.98 MiB** (§9) | A1 |
+| G5 | Hosted acceptance of old and new backups ([HANDOVER.md:519](HANDOVER.md), `:578-580`) | `tools/live-account-check.mjs:83` exercises `/api/v1` only | A4, B4, C3 |
+| G6 | Transfer-size optimization before a hosted rollout ([HANDOVER.md:901](HANDOVER.md)); first screen ≤ 1.5 MiB ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | First screen measured at **6.98 MiB** at `8afbabc`; **6.99 MiB** at `b527dc3`, recomputed statically for Q1's three modules (§9) | A1 |
 | G7 | Exact-source CI before deploy ([HOSTING.md:42-43](HOSTING.md)) | CI exists; it has no browser job (`.github/workflows/ci.yml:19-62`) | A6, B1 |
-| G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:74-80](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
+| G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:79-85](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
+| G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e b527dc3` exits 0). `test:commands` last passed 13/13 groups per engine at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)); not re-run at `b527dc3`. The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
 
 ## 5. Ordered checklist
 
@@ -161,17 +219,23 @@ Repeat visits become cheap either way.
 `npm run preview` (loopback), with `hosting/.dev.vars` **absent**. The preview
 config names the hosted Supabase URL (`hosting/wrangler.preview.jsonc:20`) and
 loads that file when it exists (`tools/preview.mjs:61-63`). Without the file,
-Phase A has no hosted access.
+Phase A has no hosted access. Some smokes also import runtime modules inside
+the page by their path at the site root: Q1's `tools/command-smoke.mjs:258`
+and `:291` and `tools/account-smoke.mjs:280` (`/profile-fence.mjs`),
+and `tools/collection-display-smoke.mjs:248-249` (`./profile-store.mjs`,
+`./collection.mjs`). After the move to `r/<hash>/` those paths no longer
+exist, so A2 must either keep them resolvable or point the smokes at the
+current `r/<hash>/`, and `test:commands` must pass afterwards.
 *Rollback:* `git revert`. The owner may instead waive G3 in writing for this
 release and accept the mixed-load risk.
 
 **A3 · Flags in source control (gate G2).** Add `"JOURNEY_V3_ENABLED": "true"`
 and `"JOURNEY_V2_ENABLED": "false"` to `wrangler.jsonc` `vars`.
 **Recommendation: keep v2 off, and declare it explicitly.** No public client
-ever wrote v2: the current client uploads only `SNAPSHOT_VERSION` 3 (`account-client.mjs:221`, `cloud-save.mjs:9`), and the
+ever wrote v2: the current client uploads only `SNAPSHOT_VERSION` 3 (`account-client.mjs:222`, `cloud-save.mjs:9`), and the
 v2 table does not exist on the hosted database until B3, after which it is
-empty (per [HANDOVER.md:583-584](HANDOVER.md); not re-queried). Enabling v2 would only add a
-fallback read per sign-in (`account-client.mjs:115-128`). The `[1,3]`
+empty (per [HANDOVER.md:790-791](HANDOVER.md); not re-queried). Enabling v2 would only add a
+fallback read per sign-in (`account-client.mjs:116-129`). The `[1,3]`
 combination is already covered by tests (`tests/account-api.test.mjs:344`,
 `tests/account-client.test.mjs:53`, `:73`).
 **Turn a flag off by declaring `"false"`. Deleting it is not enough.** The
@@ -250,7 +314,7 @@ key and its fingerprint under a **separate** localStorage key, so the v5 profile
 and cloud snapshot formats stay unchanged. If that legacy key changes later
 (a `storage` event, or a fingerprint mismatch on load), offer recovery or
 export instead of ignoring it. (b) *Cloud:* make `readCloud`
-(`account-client.mjs:115-128`) also read the older enabled namespaces when the
+(`account-client.mjs:116-129`) also read the older enabled namespaces when the
 v3 backup is not empty, compare `updatedAt`, and offer a newer legacy backup
 for restore. That costs one more GET per sign-in. Both changes stay inside
 existing modules, so no new runtime file is needed.
@@ -263,24 +327,38 @@ existing modules, so no new runtime file is needed.
 still says "19 runtime files" (`docs/HOSTING.md:13`). Draft release notes. They
 must tell players to reload every open tab after the release (§6).
 
-**A8 · Local release-candidate checks.** `npm test` · `python3 -m unittest
-discover -s tests -p '*_test.py'` · `npm run build` · `npm run preview --
---dry-run` · `GAME_URL=… npm run test:browser` · the WebKit suites ·
-`bash tools/test-backup-sql.sh` (disposable loopback database only).
+**A8 · Local release-candidate checks**, on `main` after PR #10 plus the
+release PR, never on `8afbabc` or another pre-fence commit (§1).
+`git merge-base --is-ancestor 7a7d03e HEAD` (exit 0: the fence is in the
+candidate) · `npm test` · `python3 -m unittest
+discover -s tests -p '*_test.py'` · `npm run audit:content` (Q4's content
+audit, no findings) · `npm run build` · `npm run preview --
+--dry-run` · `GAME_URL=… npm run test:browser` · `GAME_URL=… npm run
+test:commands` (Q1, Chromium and WebKit: `test:browser` does not run
+`tools/command-smoke.mjs`, whose B2–B11 are the only browser checks of the
+fence's edge cases and the only WebKit checks of the command path;
+[LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact))
+· the other WebKit suites (§10 step 3) ·
+`bash tools/test-backup-sql.sh` (disposable loopback database only). Serve the
+browser suites from a server started after checkout: `tools/serve.py` reads
+the allowlist once at startup, so an older server returns 404 for Q1's
+modules ([HANDOVER.md:237-239](HANDOVER.md)).
 *Verify:* every command exits 0. Record the results in [VALIDATION.md](VALIDATION.md).
 
 ### Phase B · Owner gate and hosted database
 
 **B0 · OWNER · Decisions** (§12): scope, the Q0 open items, art derivative
 approval, whether G3 can be waived, the v2 flag, the B3 backup method, the
-apex Worker's CPU limit (§6), and either the A5 guards or a written acceptance
-of the §6 open-tab and hidden-backup cases. Staging was decided in A0.
+apex Worker's CPU limit (§6), either the A5 guards or a written acceptance
+of the §6 open-tab and hidden-backup cases, and the Q1 contract with its
+forward-only rule (G9, §12 item 12). Staging was decided in A0.
 
 **B1 · CI then OWNER · Exact source.** Open the release PR. CI must pass on the
 final commit, including the new browser job. Merge, tag `v0.6.0` on the merged
 commit and push the tag (owner).
 *Verify:* the CI run URL is recorded and `git rev-parse v0.6.0` equals the CI
-commit.
+commit. `git merge-base --is-ancestor 7a7d03e v0.6.0` exits 0, so the tag
+contains Q1's fence (G9).
 *Rollback:* delete the unpublished tag. Nothing is deployed yet.
 
 **B2 · OWNER · Staging rehearsal (recommended).** Only if A0 chose S1 and the
@@ -383,8 +461,10 @@ from `f254ef87…` (apex) and `c14a675f…` (redirect), which come from
 [HOSTING.md:117](HOSTING.md) and `:119`, dated 2026-09-21, until the
 difference is explained. A dashboard variable or secret change creates a newer
 version, and rolling back to the documented ID would silently revert it.
-Then, in a **clean checkout of tag `v0.6.0`**: run `npm ci
-&& npm test && npm run deploy -- --dry-run`, then `npm run deploy`. The helper
+Then, in a **clean checkout of tag `v0.6.0`**: run `git merge-base
+--is-ancestor 7a7d03e HEAD` (exit 0; a nonzero exit means a pre-fence build,
+so stop), then `npm ci && npm test && npm run deploy -- --dry-run`, then
+`npm run deploy`. The helper
 checks identity, account `cf4198e6…`, the existing `SUPABASE_PUBLISHABLE_KEY`
 metadata, both bundles and the commit, then deploys the apex Worker and the
 unchanged redirect Worker (`tools/deploy.mjs:63-114`). After an ambiguous
@@ -407,6 +487,10 @@ C1> --config wrangler.jsonc`. The expected value is the v0.5.1 apex
 redirect Worker's recorded version is expected to be
 `c14a675f-3474-4d66-a341-5fa0d388108e` ([HOSTING.md:119](HOSTING.md)), though
 rolling it back changes nothing in behaviour. Read §6 before rolling back.
+That v0.5.1 apex is profile v3, not a v5 build, so Q1's forward-only rule does
+not block it (§6). Never roll back, or deploy, to any Worker version built from
+a v5 commit that lacks `7a7d03e`; after players have committed commands, the
+way back below Q1 is a forward fix (§6, §8).
 **UNVERIFIED:** whether a Cloudflare rollback also restores that version's
 secrets. The key value has not changed
 since v0.5.1, so either behaviour binds the same key.
@@ -414,9 +498,10 @@ since v0.5.1, so either behaviour binds the same key.
 **C2 · OWNER · Production browser smoke.** With `GAME_URL=https://mythseal.com`,
 run `node tools/smoke.mjs` ([HOSTING.md:102](HOSTING.md)) and `node
 tools/journey-smoke.mjs`. **Only these two run against production.** The
-navigation suite and 14 other smoke scripts throw on a non-loopback URL
+navigation suite and 16 other smoke scripts, Q1's `tools/command-smoke.mjs`
+among them, throw on a non-loopback URL
 (`tools/navigation-smoke.mjs:13`: "Navigation smoke requires a loopback game
-server."; [cmd] grep of `tools/*smoke*.mjs`). That error would look like a
+server."; [cmd] grep of `tools/*smoke*.mjs` at `b527dc3`, §13). That error would look like a
 deploy failure. The two suites use isolated browser contexts and fixture APIs,
 and make no account writes.
 *Verify:* no page or network errors and no horizontal overflow.
@@ -456,9 +541,9 @@ link, check receipts, what was not verified), and update the
 ## 6. Data safety
 
 - **No staging today.** `mythseal-dev` holds real accounts and backups
-  ([HANDOVER.md:393](HANDOVER.md); [supabase/README.md:7](../supabase/README.md)).
+  ([HANDOVER.md:599](HANDOVER.md); [supabase/README.md:7](../supabase/README.md)).
   `npm run preview` is **not** isolated: its config names the hosted project
-  (`hosting/wrangler.preview.jsonc:20`; [HANDOVER.md:545-547](HANDOVER.md)).
+  (`hosting/wrangler.preview.jsonc:20`; [HANDOVER.md:751-753](HANDOVER.md)).
   Docker is unavailable, so a local Supabase stack is not an option either
   ([CONNECTIONS.md:84](CONNECTIONS.md)).
 - **Migrations only add objects.** v2/v3 create new tables and RPCs and leave
@@ -468,18 +553,60 @@ link, check receipts, what was not verified), and update the
   the read-only probe in A4(b).
 - **Local saves move forward one way, and a client rollback is not
   save-neutral.** The new client writes `shanhai.profile.v5` and leaves
-  `shanhai.profile.v3` in place (`profile-store.mjs:54-75`). If the apex rolls
+  `shanhai.profile.v3` in place (`profile-store.mjs:71-92`). If the apex rolls
   back to v0.5.1, its client reads the **stale** v3 key: progress made under
   v0.6.0 disappears from view (it is not deleted). Anything played during the
   rollback lands in v3, and after a later roll-forward v5 wins, orphaning those
-  rollback-window changes (`progression.mjs:23`; v0.5.1 `progression.mjs:16`).
+  rollback-window changes (`progression.mjs:24`; v0.5.1 `progression.mjs:16`).
   So prefer fixing forward. If a rollback is unavoidable, keep it short and
   tell players to export from the footer before and after.
+- **Q1 makes `mythseal.com` forward-only for v5 builds.** Once v0.6.0 is
+  served, a player who upgrades a card from its card page commits a command,
+  and their v5 profile gains a `commands` ledger
+  ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact)).
+  Two kinds of older v5 build then go wrong on the same origin:
+  - A v5 build from before Q1 refuses a save that has a ledger, with
+    `旅程資料未能完整讀取；原件仍保留，請先匯出備份。` and zero writes (verified in
+    Node at `8afbabc`, per LOCAL-COMMANDS §11), and its recovery screen offers
+    export. The save is kept, but that build cannot play it.
+  - A v5 build from before the fence opens a save without a ledger and writes
+    without recording the IndexedDB fence. A Q1 tab that has not yet received
+    that write can then overwrite it
+    ([§10.1](LOCAL-COMMANDS.md#101-read-after-write-fence-added-after-review)).
+
+  Both kinds are any v5 commit that lacks `7a7d03e`. That includes every v5
+  commit on `main` before PR #10, such as `8afbabc` and `b40c4d2`, and
+  `q1/local-commands` before `7a7d03e`. **Never serve one on `mythseal.com` after v0.6.0**: not as
+  a deploy, a re-deploy of an older tag, or a rollback target. Check every
+  candidate and every recorded rollback version's source with
+  `git merge-base --is-ancestor 7a7d03e <commit>`. After players have committed
+  commands, going back below Q1 to a v5 build needs a forward fix instead.
+- **A rollback to the recorded v0.5.1 versions is not affected by Q1.** v0.5.1
+  is profile v3. It writes only `shanhai.profile.v3`, `shanhai.battle.v3` and
+  `shanhai.profile.recovery.v3`, and reads only those and older legacy keys
+  (`git show v0.5.1:progression.mjs` lines 15-17; `git show v0.5.1:app.mjs`
+  lines 15-18, 51, 65-67, 89, 91 and 541). It never opens IndexedDB ([cmd]
+  `git grep -i -e indexeddb -e sessionStorage -e 'localStorage\.\(setItem\|removeItem\|clear\)' v0.5.1`
+  finds only those `app.mjs` writes and test seeding in `tools/`). It shares the lock name
+  `shanhai-profile-v3` with v0.6.0 (`profile-store.mjs:9`; v0.5.1 `app.mjs`
+  lines 54, 59), but under it writes only its own v3 keys. So during such a
+  rollback a player's v5 save, including any `commands` ledger and its
+  receipts, and the fence record in `shanhai.profile.fence`
+  (`profile-fence.mjs:13`) stay exactly as they were, unread. The player sees
+  the stale v3 journey described above, or a new starting journey if the
+  device has no v3 or v2 save (`git show v0.5.1:progression.mjs` line 142).
+  After a roll-forward to a build with the fence, `load()` reads v5 first
+  (`profile-store.mjs:78-80`) and validates the ledger again
+  (`progression.mjs:250`), so committed commands and receipts come back
+  unchanged. The ledger never enters a cloud backup (`cloud-save.mjs:177-192`),
+  so Q1 adds nothing to the cloud cases below. Q1 therefore changes nothing in
+  a rollback to v0.5.1. The stale-v3 and orphaned-rollback-window cases above
+  are unchanged.
 - **The forward deploy also strands progress made in v0.5.1 tabs left open.**
   An open v0.5.1 tab keeps writing `shanhai.profile.v3` and listens only for
   that key (`git show v0.5.1:app.mjs` line 503). As soon as any v0.6.0 tab or
   reload migrates v3 to v5, `load()` reads v5 first and never looks at v3
-  again (`profile-store.mjs:61-63`). Everything played afterwards in the old
+  again (`profile-store.mjs:78-80`). Everything played afterwards in the old
   tab disappears from view on its next reload. It is not deleted: the recovery
   screen's export still includes the v3 key (`bootstrap.mjs:16`). After A1,
   those tabs also get 404s for the removed PNGs. The release notes (A7) and C4
@@ -488,7 +615,7 @@ link, check receipts, what was not verified), and update the
   v1 rows are untouched. v3 rows written after release remain, unread, under a
   rolled-back v0.5.1 Worker, and are readable again after a roll-forward. The
   new client reads the legacy namespaces only when the v3 backup is empty
-  (`account-client.mjs:115-128`), and the v0.6.0 Worker still accepts v1 PUTs
+  (`account-client.mjs:116-129`), and the v0.6.0 Worker still accepts v1 PUTs
   (`server/account-api.mjs:123-125`). Two sequences hide data:
   - A player uploads v3, the site rolls back, the player uploads a newer v1
     under v0.5.1, and the site rolls forward.
@@ -507,7 +634,7 @@ link, check receipts, what was not verified), and update the
   this Mac, the median `validateSnapshot` time was **22–29 ms** at 2,000 copies
   and **108–121 ms** at 9,999. The Worker validates on PUT and on every
   read-back (`server/account-api.mjs:236`, `:251`). The client reads the cloud
-  backup at every sign-in (`account-client.mjs:182`). A CPU failure on GET
+  backup at every sign-in (`account-client.mjs:183`). A CPU failure on GET
   would therefore hit a player with a large collection every time they sign
   in. **Only a real Worker measures this:** S1 staging or, without it, C3 in
   production after release. B4 runs the handler in Node. **Before GO, the owner
@@ -544,8 +671,9 @@ makes this decision before Phase A. Nothing here creates staging.
 | A1–A8, B1 | `git revert` / delete the unpublished tag | None |
 | B3 migrations | Usually none (the live Worker ignores the new objects). If needed, the down-migration procedure below, while the tables are empty | None for v1 |
 | B4/C3 checker | The checker's cleanup, then dashboard deletion of `@example.invalid` users | Synthetic only |
-| C1 apex deploy | `wrangler rollback <apex version recorded before C1> --config wrangler.jsonc` (expected `f254ef87-…`) | Local saves diverge in the rollback window (§6). Cloud rows are kept, but a newer v1 upload made in the window is hidden behind an older v3 row after a roll-forward (§6) |
-| Flag only | Deploy a commit that sets `"JOURNEY_V3_ENABLED": "false"`. **Removing the key is not enough:** `--keep-vars` keeps the previous `"true"` (A3). Verify that anonymous `/api/v1/account` returns `journeyVersions: [1]`. No earlier Worker version runs v0.6.0 with V3 off, so the only `wrangler rollback` alternative is the full C1 rollback | New clients can restore v1 but **cannot upload** (`account-client.mjs:221`), a regression against v0.5.1. v3 rows written since release are unreachable from the UI until V3 is on again |
+| C1 apex deploy | `wrangler rollback <apex version recorded before C1> --config wrangler.jsonc` (expected `f254ef87-…`, v0.5.1: profile v3, so allowed by Q1's rule) | Local saves diverge in the rollback window (§6). Cloud rows are kept, but a newer v1 upload made in the window is hidden behind an older v3 row after a roll-forward (§6). The v5 save, its `commands` ledger and the fence record are left untouched and return on roll-forward (§6) |
+| Any later deploy or rollback after v0.6.0 | Only to v0.5.1 or to a version built from a commit that contains `7a7d03e` (`git merge-base --is-ancestor 7a7d03e <commit>`). For a problem in Q1 itself, fix forward | A pre-Q1 v5 build cannot open a save with a ledger, and a pre-fence v5 build can lose writes (§6) |
+| Flag only | Deploy a commit that sets `"JOURNEY_V3_ENABLED": "false"`. **Removing the key is not enough:** `--keep-vars` keeps the previous `"true"` (A3). Verify that anonymous `/api/v1/account` returns `journeyVersions: [1]`. No earlier Worker version runs v0.6.0 with V3 off, so the only `wrangler rollback` alternative is the full C1 rollback | New clients can restore v1 but **cannot upload** (`account-client.mjs:222`), a regression against v0.5.1. v3 rows written since release are unreachable from the UI until V3 is on again |
 
 **Down-migration procedure** (OWNER, only while `journeys_v2` and `journeys_v3`
 are empty):
@@ -572,22 +700,34 @@ are empty):
 
 ## 9. Payload problem and proposed derivative pipeline
 
-**Measured first screen** ([cmd] scratch Playwright script with installed
-Chrome, a fresh guest context, `dist/` served on an OS-chosen loopback port,
-exit 0). At both 1440×1000 and 390×844 @3x, the lobby appeared after 243 and
-115 ms locally and **59 files** loaded before it: all 36 JS modules (every
-module is a static import of `app.mjs`, `app.mjs:1-31`), all 19 stylesheets
-(`index.html:15-33`), `index.html`, `mark.svg`, `world-map.png` (3,146,354 B)
-and `portraits.png` (3,939,603 B).
+**Measured first screen at `8afbabc`** ([cmd] scratch Playwright script with
+installed Chrome, a fresh guest context, `dist/` served on an OS-chosen
+loopback port, exit 0). At both 1440×1000 and 390×844 @3x, the lobby appeared
+after 243 and 115 ms locally and **59 files** loaded before it: all 36 JS
+modules (every module is a static import of `app.mjs`, whose imports were then
+lines 1-31), all 19 stylesheets (`index.html:15-33`), `index.html`,
+`mark.svg`, `world-map.png` (3,146,354 B) and `portraits.png` (3,939,603 B).
+
+**Recomputed at `b527dc3` for Q1.** Q1's three modules are static imports of
+`app.mjs` (`app.mjs:23-25`), so the first screen now loads **62 files**: all
+39 JS modules (`app.mjs:1-34`), the same 19 stylesheets, `index.html`,
+`mark.svg` and the same two PNGs. The text figures were recomputed without a
+browser ([cmd] scratch Node script, exit 0: `index.html`, its stylesheets,
+`mark.svg` and every module reachable from `bootstrap.mjs`, each compressed
+with `node:zlib` gzip level 6 and brotli quality 11). Run at `8afbabc`, the
+same script gives exactly the 57 text files and byte counts of the browser
+measurement. No browser measured `b527dc3`. Figures at `8afbabc` are in
+brackets.
 
 | | Raw | gzip -6 | brotli q11 |
 | --- | --- | --- | --- |
-| Text (57 files) | 929,264 B | 267,540 B | 228,341 B |
+| Text: 60 files [57] | 970,661 B [929,264] | 282,691 B [267,540] | 240,926 B [228,341] |
 | Images (2 PNG) | 7,085,957 B | (no gain) | (no gain) |
-| **First screen** | **8,015,221 B** | **7,353,497 B (7.01 MiB)** | **7,314,298 B (6.98 MiB)** |
+| **First screen** | **8,056,618 B** [8,015,221] | **7,368,648 B (7.03 MiB)** [7,353,497, 7.01 MiB] | **7,326,883 B (6.99 MiB)** [7,314,298, 6.98 MiB] |
 | Budget ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | | **1,572,864 B (1.5 MiB)** | |
 
-The first screen is about **4.7× over budget**, and 97% of it is two PNGs.
+The first screen is about **4.7× over budget**, and 96–97% of it is two PNGs.
+Q1 adds 41,397 B raw and 12,585–15,151 B compressed.
 **UNVERIFIED:** the compression level Cloudflare actually applies; the gzip and
 brotli columns bracket the likely range.
 
@@ -600,7 +740,8 @@ outputs in the scratch directory, not committed):
 | Maps: `world-map`, `maps/*` (4) | 13,742,268 | 1,410,032 | 844,112 (1280 w, q78; each 171,736–238,164 B ≤ 350 KiB) |
 | Specials: AA/LAA/INK/TR (13) | 39,032,720 | 3,140,780 | 1,214,816 (600 w; each ≤ 132,850 B ≤ 160 KiB) + 241,438 for 240 w thumbs |
 | **Total** | **73,418,493 (70.02 MiB)** | **6,938,444 (6.62 MiB, −90.5%)** | **4,446,560 (4.24 MiB, −93.9%)** |
-| **First screen (text br–gz + images)** | 6.98–7.01 MiB | **1,177,945–1,217,144 B (1.12–1.16 MiB) ✓** | **1,065,869–1,105,068 B (1.02–1.05 MiB) ✓** |
+| **First screen (text br–gz + images), `b527dc3`** | 6.99–7.03 MiB | **1,190,530–1,232,295 B (1.14–1.18 MiB) ✓** | **1,078,454–1,120,219 B (1.03–1.07 MiB) ✓** |
+| First screen at `8afbabc` | 6.98–7.01 MiB | 1,177,945–1,217,144 B (1.12–1.16 MiB) | 1,065,869–1,105,068 B (1.02–1.05 MiB) |
 
 Quality evidence so far: SSIM of the native WebP q80 against the PNG, from
 [cmd] ffmpeg 8.1.2 (exit 0):
@@ -626,9 +767,10 @@ see the next paragraph). Move to B per use after the art review.
 lobby draws the active deck's printings (`navigation-ui.mjs:66`, `:70`). The
 default deck is the first eight original cards, all on the `portraits` atlas
 (`engine.mjs:78`). The four welcome cards, however, are `classics` cards
-(`progression.mjs:28`; `engine.mjs:49-57`). A returning player who has one of
+(`progression.mjs:29`; `engine.mjs:49-57`). A returning player who has one of
 them in the deck also loads `classics.native.webp` (605,018 B). That puts
-scenario A at about **1,782,963–1,822,162 B, over the 1,572,864 B budget**.
+scenario A at about **1,795,548–1,837,313 B at `b527dc3`** (1,782,963–1,822,162
+B at `8afbabc`), **over the 1,572,864 B budget**.
 WX-01 atlases or specials in the deck push it higher. Either
 `tools/payload-budget.mjs` (§10) also measures a returning-player profile, or
 the owner records that the budget covers only a first visit with the default
@@ -704,9 +846,11 @@ Add a separate `browser` job (`needs: prototype`, `timeout-minutes: 30`):
 3. Run `GAME_URL=http://127.0.0.1:8791 npm run test:browser` in Chromium. The
    scripts fall back to Playwright's own Chromium when the macOS Chrome path is
    missing (`tools/smoke.mjs:11-12`).
-   Then run the WebKit-capable suites: `test:battle-table`, `test:viewport`,
-   `test:wx01`, `test:inheritance`, `test:collection-display`,
-   `test:expansion`, `test:map-piece`.
+   Then run the WebKit-capable suites: `test:commands` (Q1; `test:browser`
+   does not run it, and a release that includes Q1 needs it in both engines,
+   [LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact)),
+   `test:battle-table`, `test:viewport`, `test:wx01`, `test:inheritance`,
+   `test:collection-display`, `test:expansion`, `test:map-piece`.
 4. Turn the first-screen measurement in §9 into `tools/payload-budget.mjs` and
    fail the job above 1.5 MiB (text counted at brotli or gzip size). Measure a
    first-visit guest **and** a returning player whose deck includes a welcome
@@ -714,22 +858,24 @@ Add a separate `browser` job (`needs: prototype`, `timeout-minutes: 30`):
 5. Upload `test-results/` **on failure only**, keeping it 7 days. The suites use
    synthetic profiles and intercepted account APIs, with no secrets.
 
-Measured locally ([cmd] `GAME_URL=http://127.0.0.1:4290 npm run test:browser`,
+Measured locally at `8afbabc` ([cmd] `GAME_URL=http://127.0.0.1:4290 npm run test:browser`,
 installed Chrome, 2026-10-11): all 14 Chromium suites passed in **4 min 56 s**
-wall time. The WebKit suites were not timed. Expect very roughly 10–15 runner
+wall time. Not re-timed at `b527dc3`. The WebKit suites, `test:commands`
+included, were not timed. Expect very roughly 10–15 runner
 minutes per run including browser installation (an estimate, not a
 measurement). Runner time will differ, and private-repository Actions minutes
 count against the plan quota ([BACKEND-STACK.md:50](BACKEND-STACK.md); **UNVERIFIED:** the current
 quota). Linux WebKit is **not** Safari and none of this is physical-device
-evidence ([HANDOVER.md:74-78](HANDOVER.md)).
+evidence ([HANDOVER.md:79-83](HANDOVER.md)).
 
 ## 11. Go / no-go
 
 **GO requires all of the following before C1:**
 
 1. Exact-source CI is green on the `v0.6.0` commit, including the browser job.
-2. A8 passes locally: Node, Python, build, preview dry run, Chromium and WebKit
-   suites, SQL harness.
+2. A8 passes locally: Node, Python, the content audit, build, preview dry run,
+   Chromium and WebKit suites including `test:commands` in both engines, SQL
+   harness.
 3. The first screen is ≤ 1.5 MiB as measured, for both the first-visit and the
    returning-player profiles (§9), or the owner has recorded a waiver or a
    first-visit-only scope.
@@ -748,20 +894,24 @@ evidence ([HANDOVER.md:74-78](HANDOVER.md)).
 9. The rollback IDs were re-read with `wrangler deployments list` just before
    C1, match the documented ones or have been explained, and are written in the
    release record. The rollback was rehearsed in staging if S1 exists.
+10. G9: `git merge-base --is-ancestor 7a7d03e v0.6.0` exits 0, and the owner
+    has made the Q1 decision (§12 item 12).
 
 **Success after C1. Otherwise fix forward or roll back:**
 
-10. `verify:hosting` passes from the tag checkout. `/api/v1/account` reports
+11. `verify:hosting` passes from the tag checkout. `/api/v1/account` reports
     `emailEnabled: true` and `journeyVersions: [1,3]`.
-11. `SUPABASE_PUBLISHABLE_KEY` is still listed. The production smoke passes. C3
+12. `SUPABASE_PUBLISHABLE_KEY` is still listed. The production smoke passes. C3
     passes, including the owner's mailbox login and own v1 restore.
 
 **NO-GO triggers:** `db push --dry-run` lists anything except the two expected
 files; no readable backup before B3; the helper reports a missing binding or
 wrong account; the active Worker versions differ from the record and the
 difference is unexplained; a hash mismatch in `verify:hosting`; 5xx from
-`/api/v1/account`; a failing v1 restore; or a near-limit or byte-cap v3 PUT or
-GET that fails in a real Worker (CPU or time). Without S1, that last trigger
+`/api/v1/account`; a failing v1 restore; a candidate, tag or rollback target
+that is a v5 build without `7a7d03e` (§6); `test:commands` failing in either
+engine; or a near-limit or byte-cap v3 PUT or GET that fails in a real Worker
+(CPU or time). Without S1, that last trigger
 can fire only in C3, after release. In that case, lowering the v3 limit is a
 schema and validator change. Turning V3 off (an explicit `"false"`, §8)
 disables cloud upload for new clients, so the owner decides.
@@ -786,6 +936,18 @@ disables cloud upload for new clients, so the owner decides.
    hidden-backup cases (§6).
 10. The WebP-only gap on older Safari: accept it, or keep a PNG fallback (§9).
 11. Whether the first-screen budget also covers returning players (§9).
+12. **Q1 in v0.6.0** (G9). Q1 must ship in this release (§1), so before GO
+    either review the [LOCAL-COMMANDS §15](LOCAL-COMMANDS.md#15-owner-decisions)
+    decisions or record in writing that v0.6.0 ships them as proposed.
+    Shipping makes them player-facing:
+    - The card page's 修練升級 refuses in a browser without Web Locks or
+      usable IndexedDB (§15 decision 2; [LOCAL-COMMANDS §9](LOCAL-COMMANDS.md#9-failure-states)),
+      where v0.5.1's upgrade fell back to an unlocked write
+      (`git show v0.5.1:app.mjs` line 54).
+    - The `commands` ledger format then exists in players' saves.
+    - The owner also accepts the forward-only rule (§6): after release, deploy
+      or roll back the apex only to v0.5.1 or to a version that contains
+      `7a7d03e`, and fix a problem in Q1 forward.
 
 ## 13. Checks run for this plan
 
@@ -808,6 +970,17 @@ disables cloud upload for new clients, so the owner decides.
 | Revision: SSIM, ffmpeg 8.1.2, `format=rgb24` and `format=yuv444p` on both inputs (§9) | exit 0; `portraits` 0.9496 / Y 0.9756; `world-map` 0.9545 / Y 0.9717 |
 | Revision: loopback guards, grep of `tools/*smoke*.mjs` | 15 scripts throw on a non-loopback `GAME_URL`; `smoke.mjs`, `journey-smoke.mjs`, `classics-smoke.mjs`, `backpack-smoke.mjs`, `map-piece-smoke.mjs` and `expansion-smoke.mjs` have no guard |
 | Revision: `classics.native.webp` from the earlier `cwebp` run | 605,018 B |
+| Q1: `node --test tests/*.test.mjs` at `b527dc3` | exit 0; **530/530** pass |
+| Q1: `python3 -m unittest discover -s tests -p '*_test.py'` at `b527dc3` | exit 0; 9 tests OK |
+| Q1: `npm run audit:content` at `b527dc3` | exit 0; 150 entries (120 `local-playable`, 30 `preview`), no findings |
+| Q1: `npm run build` at `b527dc3` | exit 0; **83** files, 74,389,154 B; 23 PNG, 73,418,493 B; manifest `10f594fcd55a…4014` |
+| Q1: first-screen text, scratch Node script (static import graph from `bootstrap.mjs` plus `index.html`'s stylesheets and `mark.svg`; `node:zlib` gzip 6 and brotli 11) at `8afbabc` and `b527dc3` | exit 0; at `8afbabc` it reproduces the browser set's 57 files and 929,264 / 267,540 / 228,341 B exactly; at `b527dc3`, 60 files and 970,661 / 282,691 / 240,926 B (§9) |
+| Q1: `git merge-base --is-ancestor 7a7d03e <commit>` | exit 0 for `b527dc3`; exit 1 for `8afbabc` and `b40c4d2` |
+| Q1: `git rev-list --count` and `git diff --shortstat/--name-status/--numstat` from `v0.5.1` to `8afbabc` and to `b527dc3`, with the allowlist read at each commit | `8afbabc` reproduces the earlier figures; `b527dc3` in §2 |
+| Q1: `git diff --stat v0.5.1 b527dc3 -- hosting/www.mjs wrangler.www.jsonc`; `git diff 8afbabc b527dc3 -- hosting/` | the first prints nothing; the second adds only the six LZ-01 preview entries and the three Q1 public modules. `bootstrap.mjs:3` is still the only dynamic import among the 39 public modules |
+| Q1: v0.5.1 storage, the `git grep` of tag `v0.5.1` quoted in §6; `git show v0.5.1:app.mjs`, `v0.5.1:progression.mjs` | runtime writes only the v3 profile, battle and recovery keys (`app.mjs` lines 51, 65-67, 89, 91, 541); no IndexedDB anywhere (§6) |
+| Q1: citation re-check, scratch script mapping every `path:line` from `8afbabc` through `git diff -U0`, then reading each target | 31 citations had drifted (in HANDOVER, ROADMAP, `progression.mjs`, `profile-store.mjs`, `account-client.mjs` and `app.mjs`) and now point at the same content; every other one already did |
+| Q1: loopback guards, grep of `tools/*smoke*.mjs` at `b527dc3` | 17 of 22 scripts throw on a non-loopback `GAME_URL`, including `command-smoke.mjs`; `smoke.mjs`, `journey-smoke.mjs`, `classics-smoke.mjs`, `backpack-smoke.mjs` and `map-piece-smoke.mjs` have none. Correction to the row above: `expansion-smoke.mjs` also throws at `8afbabc` (line 18), so that count was 16 of 21 |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no
@@ -820,3 +993,11 @@ network calls and ran nothing hosted. It did not run `wrangler deploy
 script again (the 22–29 ms and 108–121 ms ranges in §6 combine the original
 run with the reviewer's). It did not check the Safari/WebP matrix, Cloudflare's
 CPU limits or the `exceededCpu` outcome name.
+
+**Not run for the Q1 revision:** any browser suite at `b527dc3`
+(`test:commands` last passed at `38fa64f`, and `test:browser`,
+`test:inheritance` and `test:wx01` at `1afaf6b`, per
+[VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)), a
+browser first-screen measurement, any Wrangler command (so the Worker bundle
+size is not re-measured), the SQL harness, CI, and anything hosted. It made no
+network calls.

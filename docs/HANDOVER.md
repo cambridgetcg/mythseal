@@ -213,7 +213,9 @@ v0.6.0, which would be the first public v5 release, is planned to include it
   public v5 build, and never a pre-fence v5 build on an origin after it),
   32 retained receipts, and copies awaiting WX review.
 - **Merge notes** (from the pre-merge review; `origin/main` was `daf18ed`,
-  PRs #6–#8). The code merges cleanly; the documents need the person merging:
+  PRs #6–#8). The code merges cleanly; the documents need the person merging.
+  All three were done when `origin/main` `b40c4d2` was merged in (`b527dc3` and
+  the documentation commits after it):
   - `docs/VALIDATION.md` conflicts, because both sides add a dated entry at the
     top. Keep both entries, newest first.
   - Main's `AGENTS.md` asks for every new document in `docs/README.md`, which
