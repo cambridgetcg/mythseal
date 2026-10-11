@@ -8,10 +8,10 @@ Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
 commit **`4265039`** adds `tools/content-registry.mjs`,
 `tests/content-registry.test.mjs` and the `npm run audit:content` script. Review
 fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
-(below). Three later commits also change source: merge commit **`d1f0f91`**
+(below). Four later commits also change source: merge commit **`d1f0f91`**
 adapts the registry and its tests to PR #8's LZ-01 specials, **`6bc784a`**
-fixes a third review's findings, and **`092f1fd`** fixes a fourth's. Merge
-commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
+fixes a third review's findings, **`092f1fd`** a fourth's, and the
+fifth-review fix commit (below) a fifth's. Merge commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
 the remaining commits change documentation only; each source step below lists the checks run on it. The branch is not
 merged into `main`, pushed or deployed, and there was no hosted check. The
 registry's own commits change no game runtime, save schema, content, art or
@@ -312,6 +312,79 @@ statuses and capability states are defined in
     allowlist changed).
   - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
     check and human review.
+- **Fifth review fixes · 2026-10-11** (tooling and documentation only; no
+  player, save, content, art, allowlist or build effect). The reviewers
+  reproduced each gap on `2edc2d9`; after the fix, each original repro was
+  re-run in process or through the CLI in an APFS-clone scratch copy (deleted
+  afterwards).
+  - `{ expectFailure }` options: Node 26.0.0 accepts `expectFailure` and
+    reports a throwing body under it as a pass (`ok 27 - … # EXPECTED
+    FAILURE`; pass 49, fail 0, skipped 0, todo 0), but the options reader
+    rejected only `skip` and `todo` keys. Marking the `progression.test.mjs`
+    test that six entries cite `{ expectFailure: … }`, with `assert.fail` as
+    its first line, left `node tools/content-registry.mjs` at exit 0. Option
+    keys are now an allowlist taken from Node 26's runner: `timeout`,
+    `concurrency`, `only`, `plan` and `signal` pass; `skip`, `todo` and
+    `expectFailure` pass only with the literal value `false`; any other key
+    fails closed. The repro now exits 1 with `dead-reference` (cited by 6
+    entries). CI runs Node 22 (`.github/workflows/ci.yml`); the review found no
+    `expectFailure` in Node 22's test-runner docs, so the gap concerns local
+    Node 26 runs. No Node 22 run was made here.
+  - Subtests: a cited test whose checks sat in `t.test('…', { skip: … }, fn)`
+    still resolved, while Node reported the outer test ok and the subtest
+    skipped. A subtest is now read by the same rules as a top-level test,
+    recursively; `t.test` stored, bound, called through `.call` or a computed
+    key, or given a title that may be options or a callback, fails. No current
+    test uses subtests.
+  - Context forms: `(t).skip()`, `(this).skip()` and
+    `const { skip } = t; skip.call(t)` resolved, although Node reports each
+    test skipped. Grouping parentheses around the context are now read through,
+    and a body that destructures its context fails, as a destructured first
+    parameter already did.
+  - Duplicate rows: the audit indexed checklist and brief rows by printId, so
+    only the last row for a printing was compared. A stale `lz01-004-aa1` row
+    naming 陸判 / INK and the removed `yingning-aa.png`, placed above the live
+    row, left the audit at exit 0 (placed below it, four findings); a stale
+    brief row above the live one did the same. A printId in more than one
+    checklist or brief row is now a `checklist-mismatch` finding wherever the
+    row sits; both repros exit 1.
+  - `contentDigest`: a preview special hashed its base card's record, so
+    retitling 小倩 TR in the module, checklist and brief kept its digest, and
+    editing the base card changed every special's. Each preview entry now
+    hashes its own authored record (the card for a BASE preview, the special's
+    record otherwise). All 30 LZ-01/HL-01 preview digests change value once;
+    nothing compares digests across runs.
+  - Numbering: 小倩 TR renamed `lz01-004-tr1` (嬰寧's number) in the module,
+    checklist and brief audited clean, though `tests/liaozhai-content.test.mjs`
+    failed. The audit now checks a bound special's number against its
+    `cardId`; `planned-card-mismatch` is renamed `card-number-mismatch` and
+    covers bound and planned specials (still 27 finding codes). The repro now
+    exits 1 with that finding.
+  - Docs: HANDOVER's Q4 "Checked" bullet said VALIDATION holds "all three
+    review rounds"; it now says every review round.
+  - Regression cases: 31 unit assertions in the reference test; seven
+    source-fault cases (`{ expectFailure }`, a skipped subtest, `(t).skip()`,
+    a destructured `skip`, a stale checklist row, a stale brief row and a
+    bound special numbered for another character); and one new digest test.
+  - Mutation check in the clone: reverting each of nine parts of the fix (the
+    option allowlist, `expectFailure` as a skipping key, subtest reading, the
+    computed `test` member, grouping parentheses, the destructuring rule,
+    duplicate rows, the own-record digest and the bound number check) made
+    `node --test tests/content-registry.test.mjs` exit 1 (9 of 9).
+  - Checks on the fix, Node 26.0.0: `node --test tests/*.test.mjs` **476/476**,
+    exit 0, 0 skipped (475 plus the digest test). `npm run audit:content` exit
+    0, `findings: []`, 120 local-playable and 30 preview; apart from
+    `contentDigest`, every entry and the summary match `2edc2d9`'s output.
+    `npm run build` exit 0, 80 public files.
+    `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai` and
+    `npm run test:honglou`: each exit 0, 14/14 checks in Chromium (system
+    Google Chrome 154.0.8037.98) and 14/14 in WebKit (Playwright 1.63.0), no
+    errors or forbidden requests; the loopback server was not restarted (no
+    allowlist changed).
+  - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
+    check and human review. Still unseen by the reader: a file-level hook that
+    skips (`beforeEach(t => t.skip())`), which Node 26 counts as a skipped
+    test; the docs now list it beside the other blind spots.
 
 ## LZ-01 special printings · 2026-10-11
 

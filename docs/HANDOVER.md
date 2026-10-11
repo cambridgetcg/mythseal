@@ -87,8 +87,8 @@ Roadmap packet Q4's registry and audit are on the local branch
 **`q4/content-registry`**, started from `origin/main` `8afbabc`. Source
 commits: **`4265039`** (the registry), review fixes **`7291880`** and
 **`cf63bec`**, merge commit **`d1f0f91`** (adapts the registry and its tests to
-PR #8's LZ-01 specials), third-review fixes **`6bc784a`** and fourth-review
-fixes **`092f1fd`**. Merge commit `d606447` brings in `origin/main` `daf18ed`
+PR #8's LZ-01 specials), third-review fixes **`6bc784a`**, fourth-review
+fixes **`092f1fd`** and the fifth-review fix commit (below). Merge commit `d606447` brings in `origin/main` `daf18ed`
 (PRs #6–#8, documentation only); the other commits change documentation only. The branch is not merged into
 `main`, pushed or deployed, and no hosted check was made.
 
@@ -105,7 +105,7 @@ fixes **`092f1fd`**. Merge commit `d606447` brings in `origin/main` `daf18ed`
   and at `d606447`, the audit (exit 0, no findings), an 80-file build and the
   LZ-01/HL-01 preview smokes in Chromium and WebKit;
   [VALIDATION](VALIDATION.md#q4-content-registry--2026-10-11) has the receipts
-  and all three review rounds.
+  and every review round.
 - **When content changes:** run `npm run audit:content`. If you bind an LZ-01
   special, update its row in the [EXPANSION-LZ01](EXPANSION-LZ01.md) checklist
   in the same change, or the audit fails.
@@ -140,6 +140,20 @@ fixes **`092f1fd`**. Merge commit `d606447` brings in `origin/main` `daf18ed`
   path audits instead of printing nothing with exit 0. Still 27 finding codes.
   Checked: 475/475 Node tests, the audit (exit 0, no findings), an 80-file
   build and the LZ-01/HL-01 preview smokes in Chromium and WebKit.
+- **Fifth review (fix commit not yet named here):** a cited test marked
+  `{ expectFailure }` no longer counts: Node 26 reports its throwing body as a
+  pass and counts nothing as skipped. Option keys are now an allowlist
+  (`timeout`, `concurrency`, `only`, `plan` and `signal`, plus `skip`, `todo`
+  and `expectFailure` only when literally `false`), so an unknown key fails
+  closed. A subtest `t.test(...)` is read by the same rules, recursively, and
+  `(t).skip()` and a destructured context (`const { skip } = t`) no longer
+  count. The audit reports an LZ-01 checklist or brief row listed twice (a
+  stale row above the live one had passed unseen) and a bound special whose
+  number belongs to another character (`planned-card-mismatch` is renamed
+  `card-number-mismatch` and covers both). A preview special's
+  `contentDigest` now hashes its own record, not its base card. Still 27
+  finding codes. Checked: 476/476 Node tests, the audit (exit 0, no findings),
+  an 80-file build and the LZ-01/HL-01 preview smokes in Chromium and WebKit.
 - **Merging into `main`:** `docs/README.md` now qualifies the Experience modules,
   Roadmap, Handover and Validation rows for Q4. When the branch merges, update
   the "not merged" status lines here, in ROADMAP, EXPERIENCE-MODULES and

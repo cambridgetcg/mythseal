@@ -124,6 +124,18 @@ test('capabilities separate preview from playable, state every unavailable reaso
   assert.equal(entry('encounter:mist-gate').unlock.requires, null);
 });
 
+test('a preview printing\'s contentDigest follows its own authored record', () => {
+  const digests = content => new Map(buildContentRegistry({ ...sources, content: { ...sources.content, ...content } }).entries.map(item => [item.id, item.contentDigest]));
+  const before = digests({});
+  const changed = content => { const after = digests(content); return [...before.keys()].filter(id => before.get(id) !== after.get(id)); };
+  assert.deepEqual(changed({ LZ01_SPECIALS: LZ01_SPECIALS.map(print => print.printId === 'lz01-001-tr1' ? { ...print, name: '聶小倩 · 燈歸處', title: '燈歸處' } : print) }),
+    ['print:lz01-001-tr1'], 'a retitled special changes its own digest');
+  assert.deepEqual(changed({ LZ01_CARDS: LZ01_CARDS.map(card => card.id === 'niexiaoqian' ? { ...card, lore: `${card.lore}。` } : card) }),
+    ['print:lz01-001-base'], 'editing a BASE card leaves its specials\' records, and digests, unchanged');
+  const hl = [].concat(sources.content.HL01_AA);
+  assert.deepEqual(changed({ HL01_AA: hl.map((print, index) => index ? print : { ...print, sourceUrl: `${print.sourceUrl}#moved` }) }), [`print:${hl[0].printId}`], 'an HL-01 special\'s own source is part of its record');
+});
+
 test('the current source passes the content audit', () => {
   const findings = auditContent(sources, registry);
   assert.deepEqual(findings, [], findings.map(finding => `${finding.code} ${finding.id ?? ''} ${finding.message}`).join('\n'));
@@ -146,6 +158,18 @@ const nodes = (id, change) => NODES.map(node => node.id === id ? { ...node, ...c
 const evidenceTitle = 'six map locations unlock sequentially on wins and move the traveller on entry';
 const redeemTitle = 'seal redemption charges its advertised tier once and creates a fresh copy beside a trained sibling';
 const withoutKey = (record, key) => Object.fromEntries(Object.entries(record).filter(([name]) => name !== key));
+/** progression.test.mjs with the cited evidence test's body moved into a subtest `t.test('checks', <options>…)`. */
+const inSubtest = options => rewrite('tests/progression.test.mjs', text => {
+  const header = `test('${evidenceTitle}', () => {`, start = text.indexOf(header), end = text.indexOf('\n});\n', start);
+  return `${text.slice(0, start)}test('${evidenceTitle}', async t => {\n  await t.test('checks', ${options}() => {${text.slice(start + header.length, end)}\n  });\n});\n${text.slice(end + 5)}`;
+});
+/** The live checklist or brief row for a printing, so a fault can copy it. */
+const docRow = (markdown, printId) => new RegExp('^\\| `' + printId + '` \\|.*$', 'm').exec(markdown)[0];
+/** 小倩 TR renumbered as 004 (嬰寧's number) in the module, its checklist row and its brief, all three agreeing. */
+const renumbered = {
+  content: { LZ01_SPECIALS: LZ01_SPECIALS.map(print => print.printId === 'lz01-001-tr1' ? { ...print, printId: 'lz01-004-tr1' } : print) },
+  docs: { lz01Checklist: sources.docs.lz01Checklist.replace('| `lz01-001-tr1` |', '| `lz01-004-tr1` |'), lz01Briefs: sources.docs.lz01Briefs.replace('| `lz01-001-tr1` |', '| `lz01-004-tr1` |') },
+};
 /** [label, broken sources, codes that must fire, a message one finding must match] */
 const SOURCE_FAULTS = [
   ['a referenced public map dropped from the allowlist', { publicAssets: sources.publicAssets.filter(path => path !== 'assets/maps/westward.png') },
@@ -203,7 +227,7 @@ const SOURCE_FAULTS = [
   ['a planned image allowlisted before it exists', planned({ previewAssets: sources.previewAssets }),
     ['planned-asset-listed'], /huapi-ink\.png is allowlisted while the checklist says no image/],
   ['a checklist row numbered for the wrong character', planned({ docs: { lz01Checklist: plannedChecklist.replace('| `lz01-008-ink1` | 畫皮之鬼 / INK', '| `lz01-008-ink1` | 小倩 / INK') } }),
-    ['planned-card-mismatch'], /lz01-008-ink1 number does not match 小倩/],
+    ['card-number-mismatch'], /lz01-008-ink1 number does not match 小倩/],
   ['a design document without its printing checklist', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace('## Proposed printing checklist', '## Printing notes') } },
     ['checklist-missing'], /no "Proposed printing checklist" table/],
   ['a printing listed twice', { content: { PRINTINGS: [...sources.content.PRINTINGS, sources.content.PRINTINGS.find(print => print.id === 'wx01-005-tr1')] } },
@@ -260,6 +284,22 @@ const SOURCE_FAULTS = [
     ['checklist-mismatch'], /checklist treatment AA differs from LZ01_PLANNED_SPECIALS ink/],
   ['a bound special whose brief still names its superseded file', { docs: { ...sources.docs, lz01Briefs: sources.docs.lz01Briefs.replace(/^(\| `lz01-004-aa1` \|(?:[^|\n]*\|){2} )`assets\/lz01\/yingning-aa2\.png`/m, '$1`assets/lz01/yingning-aa.png`') } },
     ['checklist-mismatch'], /docs\/ART-LZ01\.md brief file assets\/lz01\/yingning-aa\.png differs from bound assets\/lz01\/yingning-aa2\.png/],
+  ['an evidence test marked { expectFailure }, which the runner reports as a pass when its checks throw', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', `, `test('${evidenceTitle}', { expectFailure: 'unlock regression under review' }, `)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test whose checks moved into a skipped subtest', inSubtest("{ skip: 'awaiting review' }, "),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test skipped through its parenthesised context', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', () => {`, `test('${evidenceTitle}', t => { (t).skip('disabled'); return;`)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test skipped through skip destructured from its context', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', () => {`, `test('${evidenceTitle}', t => { const { skip } = t; skip.call(t, 'disabled'); return;`)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['a stale checklist row above the live one for the same printing', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace(docRow(sources.docs.lz01Checklist, 'lz01-004-aa1'),
+    '| `lz01-004-aa1` | 陸判 / INK | 舊稿 | stale | Generated local preview image: `assets/lz01/yingning-aa.png` |\n$&') } },
+    ['checklist-mismatch'], /docs\/EXPANSION-LZ01\.md checklist lists lz01-004-aa1 in more than one row/],
+  ['a stale brief row above the live one for the same printing', { docs: { ...sources.docs, lz01Briefs: sources.docs.lz01Briefs.replace(docRow(sources.docs.lz01Briefs, 'lz01-004-aa1'),
+    '| `lz01-004-aa1` | 嬰寧 · AA 異畫 | 花間藏笑 | `assets/lz01/yingning-aa.png` (bound) | stale | stale |\n$&') } },
+    ['checklist-mismatch'], /docs\/ART-LZ01\.md briefs lz01-004-aa1 in more than one row/],
+  ['a bound special numbered for another character, with checklist and brief agreeing', { content: renumbered.content, docs: { ...sources.docs, ...renumbered.docs } },
+    ['card-number-mismatch'], /lz01-004-tr1 number belongs to yingning, but LZ01_SPECIALS binds it to niexiaoqian/],
 ];
 /** [label, how the registry is altered after derivation, codes that must fire, a message one finding must match] */
 const REGISTRY_FAULTS = [
@@ -356,6 +396,41 @@ test('rule, resume and evidence references must name real code or real tests', (
   assert.equal(runs("test('a sample', ({ skip }) => {});"), false, 'a destructured context cannot be followed');
   assert.equal(runs("test('a sample' + ' again', () => {});"), false, 'a longer title names another test');
   assert(runs("test('a sample', async (t = {}) => { t.diagnostic('x'); },);"), 'a defaulted context and a trailing comma still run');
+  // Node 26 reports a throwing body under expectFailure as a pass, and ignores option keys it does not know.
+  assert.equal(runs("test('a sample', { expectFailure: 'under review' }, () => { assert.fail('x'); });"), false, 'an expected failure inverts its checks');
+  assert.equal(runs("test('a sample', { 'expectFailure': true }, () => {});"), false);
+  assert(runs("test('a sample', { expectFailure: false }, () => {});"));
+  assert(runs("test('a sample', { timeout: 50, concurrency: 1, only: true, plan: 1, signal }, () => {});"), 'options that never stop or invert the body still run');
+  assert.equal(runs("test('a sample', { retry: 2 }, () => {});"), false, 'an option this reader does not know may be a newer runner\'s skip');
+  assert.equal(runs("test('a sample', { __proto__: { skip: true } }, () => {});"), false);
+  // A subtest's checks count only if the subtest itself would run them.
+  const sub = (call, params = 't') => runs(`test('a sample', async ${params} => {\n  await ${call};\n});`);
+  assert(sub("t.test('the real checks', () => { assert.equal(1, 1); })"), 'a plain subtest runs its checks');
+  assert(sub("t.test('the real checks', { timeout: 50 }, st => { st.diagnostic('x'); })") && sub('t.test(() => {})') && sub('t?.test?.(`case ${n}`, () => {})'));
+  assert.equal(sub("t.test('the real checks', { skip: 'awaiting review' }, () => { assert.equal(1, 2); })"), false, 'a skipped subtest hides its checks behind a passing outer test');
+  assert.equal(sub("t.test('the real checks', { todo: true }, () => {})"), false);
+  assert.equal(sub("t.test('the real checks', { expectFailure: true }, () => {})"), false);
+  assert.equal(sub("t.test('the real checks', st => { st.skip(); })"), false, 'a subtest that skips itself');
+  assert.equal(sub("t.test('the real checks', function () { this.todo(); })"), false);
+  assert.equal(sub("t.test('a', async st => { await st.test('b', { skip: true }, () => {}); })"), false, 'subtests are read recursively');
+  assert.equal(sub("t.test(name, () => {})"), false, 'a title that may be options or a callback cannot be read');
+  assert.equal(sub("t.test('the real checks', checks)"), false, 'a subtest callback passed by name cannot be read');
+  assert.equal(sub("t.test.call(t, 'the real checks', { skip: true }, () => {})"), false);
+  assert.equal(sub("t['test']('the real checks', () => {})"), false);
+  assert.equal(sub("(t).test('the real checks', { skip: true }, () => {})"), false);
+  assert.equal(runs("test('a sample', t => { const sub = t.test; });"), false, 'a stored subtest method cannot be followed');
+  assert.equal(runs("test('a sample', async function () { await this.test('x', { skip: true }, () => {}); });"), false);
+  // The context in grouping parentheses, or destructured, is still the context.
+  assert.equal(runs("test('a sample', t => { (t).skip('x'); });"), false, 'a parenthesised context still skips');
+  assert.equal(runs("test('a sample', t => { return ((t)).todo(); });"), false);
+  assert.equal(runs("test('a sample', function () { (this).skip(); });"), false);
+  assert.equal(runs("test('a sample', t => { void (t)?.['skip']?.(); });"), false);
+  assert(runs("test('a sample', t => { log(t).skip(); f?.(t).todo(); });"), 'a call that receives the context returns something else (a helper is a stated blind spot)');
+  assert.equal(runs("test('a sample', t => { const { skip } = t; skip.call(t, 'x'); });"), false, 'skip destructured from the context still skips');
+  assert.equal(runs("test('a sample', t => { let { todo: later } = (t); later.call(t); });"), false);
+  assert.equal(runs("test('a sample', function () { const { skip } = this; skip.call(this); });"), false);
+  assert.equal(runs("test('a sample', t => { const { mock } = t; mock.fn(); });"), false, 'a destructured context cannot be followed, whatever it names');
+  assert(runs("test('a sample', t => { const { fn } = t.mock; fn(); });"), 'destructuring a member of the context is not destructuring the context');
   const defines = text => resolveReference('sample.mjs:gone', () => text);
   assert(defines('export function gone() {}') && defines('const gone = () => 1;') && defines('function other() {}\nexport { other, gone };'));
   assert.equal(defines('// Renamed from: export function gone(profile) {}'), false, 'a definition left in a comment is not code');

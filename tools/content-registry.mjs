@@ -533,7 +533,8 @@ function previewOwnership(ctx, pages) {
   if (!writers.length) return `${mints}, and ${listed(pages)} never load${pages.length === 1 ? 's' : ''} the profile store (${PROFILE_WRITER}).`;
   return `${mints}. ${listed(writers)} load${writers.length === 1 ? 's' : ''} the profile store (${PROFILE_WRITER}) but cannot mint this printing${readers.length ? `; ${listed(readers)} never load${readers.length === 1 ? 's' : ''} it` : ''}.`;
 }
-function previewEntry(ctx, { setId, sourceModule, card, printId, treatment, src, name, evidence }) {
+/** `record` is the authored record the entry stands for: the card for a BASE preview, the special's own record for a special. */
+function previewEntry(ctx, { setId, sourceModule, card, record, printId, treatment, src, name, evidence }) {
   const pages = ctx.servedBy(sourceModule);
   const blockers = [...(src ? ctx.assetBlockers(src, 'served') : ['printing has no art']), ...(pages.length ? [] : [`${sourceModule} is not reachable from any served page`])];
   const integrated = ctx.prints.has(printId);
@@ -546,7 +547,7 @@ function previewEntry(ctx, { setId, sourceModule, card, printId, treatment, src,
   };
   return {
     id: `print:${printId}`, kind: 'printing', group: setId, name, status: statusOf(capabilities), sourceModule,
-    contentVersion: null, contentDigest: digest({ card, printId, treatment, src }), rulesVersion: null, cardId: card.id, printId, setId, treatment,
+    contentVersion: null, contentDigest: digest(record), rulesVersion: null, cardId: card.id, printId, setId, treatment,
     assets: src ? [src] : [], pages, rules: {}, capabilities,
   };
 }
@@ -559,9 +560,9 @@ function previewEntries(ctx) {
   const hlAA = [].concat(content.HL01_AA);
   const lzCard = id => content.LZ01_CARDS.find(card => card.id === id), hlCard = id => content.HL01_CARDS.find(card => card.id === id);
   const lz = [
-    ...content.LZ01_CARDS.map(card => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card, printId: card.printId, treatment: 'base', src: card.art?.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.lz01 })),
+    ...content.LZ01_CARDS.map(card => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card, record: card, printId: card.printId, treatment: 'base', src: card.art?.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.lz01 })),
     // LZ01_SPECIALS is keyed by printId (and cardId:treatment); one card can have several specials.
-    ...content.LZ01_SPECIALS.map(print => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card: lzCard(print.cardId) ?? { id: print.cardId }, printId: print.printId, treatment: print.treatment, src: print.src, name: print.name, evidence: EVIDENCE.lz01 })),
+    ...content.LZ01_SPECIALS.map(print => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card: lzCard(print.cardId) ?? { id: print.cardId }, record: print, printId: print.printId, treatment: print.treatment, src: print.src, name: print.name, evidence: EVIDENCE.lz01 })),
   ];
   const bound = new Set(lz.map(entry => entry.printId));
   const briefs = new Map((ctx.lzBriefs ?? []).map(row => [row.printId, row]));
@@ -585,8 +586,8 @@ function previewEntries(ctx) {
     };
   });
   const hl = [
-    ...content.HL01_CARDS.map(card => previewEntry(ctx, { setId: 'hl01', sourceModule: 'honglou-cards.mjs', card, printId: card.printId, treatment: 'base', src: card.art?.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.hl01 })),
-    ...hlAA.map(print => previewEntry(ctx, { setId: 'hl01', sourceModule: 'honglou-cards.mjs', card: hlCard(print.cardId) ?? { id: print.cardId }, printId: print.printId, treatment: print.treatment ?? 'aa', src: print.src, name: print.name, evidence: EVIDENCE.hl01 })),
+    ...content.HL01_CARDS.map(card => previewEntry(ctx, { setId: 'hl01', sourceModule: 'honglou-cards.mjs', card, record: card, printId: card.printId, treatment: 'base', src: card.art?.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.hl01 })),
+    ...hlAA.map(print => previewEntry(ctx, { setId: 'hl01', sourceModule: 'honglou-cards.mjs', card: hlCard(print.cardId) ?? { id: print.cardId }, record: print, printId: print.printId, treatment: print.treatment ?? 'aa', src: print.src, name: print.name, evidence: EVIDENCE.hl01 })),
   ];
   return [...lz, ...planned, ...hl];
 }
@@ -697,17 +698,30 @@ function topLevelItems(code, from, to) {
 }
 
 /**
+ * Test options Node's runner reads that never stop a test's body or invert its result
+ * (Node 26 reads concurrency, expectFailure, only, plan, signal, skip, timeout and todo).
+ * An aborted `signal`, a broken `plan` or a `timeout` fails the test visibly.
+ */
+const RUNNING_OPTIONS = /^(?:timeout|concurrency|only|plan|signal)$/;
+/** Options that skip a test or report a throwing body as a pass; each runs only with the literal value `false`. */
+const SKIPPING_OPTIONS = /^(?:skip|todo|expectFailure)$/;
+
+/**
  * Can a `test()` options object literal (the masked range [from, to), braces included)
- * switch the test off? Only its own keys count, read from the source so a quoted key
- * is seen. A `skip` or `todo` key passes only with the literal value `false`; a
- * spread, a computed key or a key this reader cannot parse may hide one, so it fails.
+ * switch the test off or invert its result? Only its own keys count, read from the
+ * source so a quoted key is seen. A key passes only when it is one of RUNNING_OPTIONS,
+ * or one of SKIPPING_OPTIONS (`skip`, `todo`, `expectFailure`) with the literal value
+ * `false`. Any other key may be an option this reader does not know (a newer runner's),
+ * and a spread, a computed key or a key it cannot parse may hide one, so each fails.
  */
 function optionsMaySkip(source, code, [from, to]) {
   for (const [start, end] of topLevelItems(code, from + 1, to - 1)) {
     if (/^(?:\.\.\.|\[)/.test(code.slice(start, end))) return true;
     const key = /^(?:(?:get|set|async)\s+|\*\s*)*(?:(['"])([^'"\\\n]*)\1|([A-Za-z_$][\w$]*))/.exec(source.slice(start, end));
     if (!key) return true;
-    if (/^(?:skip|todo)$/.test(key[2] ?? key[3]) && !/^\s*:\s*false\s*$/.test(code.slice(start + key[0].length, end))) return true;
+    const name = key[2] ?? key[3];
+    if (RUNNING_OPTIONS.test(name)) continue;
+    if (!SKIPPING_OPTIONS.test(name) || !/^\s*:\s*false\s*$/.test(code.slice(start + key[0].length, end))) return true;
   }
   return false;
 }
@@ -729,44 +743,107 @@ function inlineCallback(code, [from, to]) {
   return single ? { keyword: false, params: [from + prefix, from + prefix + single[1].length] } : null;
 }
 
+/** Words after which `(` opens a grouping, not a call. */
+const GROUPING_AFTER = /^(?:return|typeof|await|void|yield|in|of|new|delete|throw|case|do|else|instanceof)$/;
 /**
- * Does the callback body (the masked range [from, to)) reach its context's `skip` or
- * `todo`? Any access counts, called or not (`t.skip()`, `t?.skip?.()`,
- * `t.skip.call(t)`), and so does a computed member (`t['skip']`, `t[name]`) unless it
- * is a plain string naming something else.
+ * Masked code (same length) with grouping parentheses around a bare context blanked,
+ * so `(t).skip()` and `((this)).todo()` read as the context itself. A call such as
+ * `f(t)` keeps its parentheses.
+ */
+function ungroupContext(code, names) {
+  const group = new RegExp(`\\(\\s*(?:${names})\\s*\\)`, 'g');
+  for (let changed = true; changed;) {
+    changed = false;
+    code = code.replace(group, (match, offset, whole) => {
+      const before = /([\w$]+|[)\].'"`])\s*$/.exec(whole.slice(Math.max(0, offset - 64), offset));
+      if (before && !GROUPING_AFTER.test(before[1])) return match;
+      changed = true;
+      return ` ${match.slice(1, -1)} `;
+    });
+  }
+  return code;
+}
+
+/**
+ * Can the callback body (the masked range [from, to)) skip itself, or hide its checks
+ * in a subtest that does not run? Through any of its contexts, written bare or in
+ * grouping parentheses (`(t)`):
+ * - any access to `skip` or `todo`, called or not (`t.skip()`, `t?.skip?.()`,
+ *   `t.skip.call(t)`), and any computed member (`t['skip']`, `t[name]`) unless it is
+ *   a plain string naming something other than `skip`, `todo` or `test`;
+ * - destructuring the context (`const { skip } = t`), which cannot be followed, like
+ *   a destructured first parameter;
+ * - a subtest, unless it is a plain `t.test(...)` call whose title is a string or
+ *   template literal (or absent) and whose options and inline callback pass the same
+ *   rules as a top-level test (runsChecks), recursively. `t.test` stored, bound or
+ *   called through `.call`, and a title that might be options or a callback, fail.
  */
 function contextMaySkip(source, code, [from, to], contexts) {
-  const names = contexts.map(name => name.replace(/\$/g, '\\$')).join('|'), body = code.slice(from, to);
-  if (new RegExp(`(?<![\\w$.])(?:${names})\\s*\\??\\.\\s*(?:skip|todo)\\b`).test(body)) return true;
-  for (const match of body.matchAll(new RegExp(`(?<![\\w$.])(?:${names})\\s*(?:\\?\\.\\s*)?\\[`, 'g'))) {
+  const names = contexts.map(name => name.replace(/\$/g, '\\$')).join('|'), body = ungroupContext(code.slice(from, to), names);
+  const context = `(?<![\\w$.])(?:${names})`;
+  if (new RegExp(`${context}\\s*\\??\\.\\s*(?:skip|todo)\\b`).test(body)) return true;
+  if (new RegExp(`\\}\\s*=\\s*(?:${names})(?![\\w$]|\\s*(?:\\??\\.|\\[))`).test(body)) return true;
+  for (const match of body.matchAll(new RegExp(`${context}\\s*(?:\\?\\.\\s*)?\\[`, 'g'))) {
     const open = from + match.index + match[0].length - 1;
     const key = /^\s*(['"`])([\w$]*)\1\s*$/.exec(source.slice(open + 1, closingBracket(code, open)));
-    if (!key || /^(?:skip|todo)$/.test(key[2])) return true;
+    if (!key || /^(?:skip|todo|test)$/.test(key[2])) return true;
+  }
+  for (const match of body.matchAll(new RegExp(`${context}\\s*\\??\\.\\s*test\\b\\s*(?:\\?\\.\\s*)?`, 'g'))) {
+    const open = from + match.index + match[0].length;
+    if (code[open] !== '(') return true;
+    const items = topLevelItems(code, open + 1, closingBracket(code, open));
+    const titled = Boolean(items[0]) && /['"`]/.test(code[items[0][0]]);
+    if (!titled && items[0] && code[items[0][0]] !== '{' && !inlineCallback(code, items[0])) return true;
+    if (!runsChecks(source, code, titled ? items.slice(1) : items)) return true;
   }
   return false;
 }
 
 /**
+ * Does a test or subtest whose arguments after its title are `items` (masked ranges)
+ * run its checks? Options, if given, must be one object literal that cannot skip
+ * (optionsMaySkip); the callback must be written inline; and its body must not skip
+ * through its context (contextMaySkip). The context is the callback's first
+ * parameter (a destructured or rest first parameter cannot be followed, so it
+ * fails), and `this` in a `function` callback.
+ */
+function runsChecks(source, code, [first, second]) {
+  const options = first && code[first[0]] === '{' ? first : null;
+  if (options && (closingBracket(code, options[0]) !== options[1] - 1 || optionsMaySkip(source, code, options))) return false;
+  const callback = options ? second : first;
+  const fn = callback && inlineCallback(code, callback);
+  if (!fn) return false;
+  const [param] = topLevelItems(code, ...fn.params);
+  const context = param && /^([A-Za-z_$][\w$]*)\s*(?:=|$)/.exec(code.slice(...param));
+  if (param && !context) return false;
+  const contexts = [context?.[1], fn.keyword && 'this'].filter(Boolean);
+  return !contexts.length || !contextMaySkip(source, code, callback, contexts);
+}
+
+/**
  * Does `source` declare a top-level `test('<title>', ...)` that the runner will
- * execute? These do not count: a declaration nested in any bracket (a `describe`
- * or `suite` callback, which `.skip` or `{ skip }` can switch off without counting
- * the test as skipped; another test's body; a block or function), a
- * `test.skip`/`test.todo` call, a declaration inside a comment or string, and:
- * - options that may skip: a `skip` or `todo` key, quoted or not, unless literally
- *   `false`; and options this reader cannot see into, which is anything but an
- *   object literal (a variable, a conditional, a call) or one with a spread or a
- *   computed key;
+ * execute and report on its own checks? These do not count: a declaration nested in
+ * any bracket (a `describe` or `suite` callback, which `.skip` or `{ skip }` can
+ * switch off without counting the test as skipped; another test's body; a block or
+ * function), a `test.skip`/`test.todo` call, a declaration inside a comment or
+ * string, and (runsChecks, contextMaySkip):
+ * - options that may skip or invert the result: a `skip`, `todo` or `expectFailure`
+ *   key, quoted or not, unless literally `false` (under `expectFailure` a throwing
+ *   body is reported as a pass); any key other than those and `timeout`,
+ *   `concurrency`, `only`, `plan` and `signal`; and options this reader cannot see
+ *   into, which is anything but an object literal (a variable, a conditional, a
+ *   call) or one with a spread or a computed key;
  * - a callback that is missing (the test runs nothing) or not written inline (a
  *   name or a call), since its body cannot be read;
  * - a body that reaches its context's `skip` or `todo` anywhere, even
- *   conditionally or through `?.`, `.call` or a computed key, since the runner may
- *   then report it skipped. The context is the callback's first parameter (a
- *   destructured or rest first parameter cannot be followed, so it fails), and
- *   `this` in a `function` callback.
+ *   conditionally or through `?.`, `.call`, grouping parentheses or a computed key,
+ *   or that destructures its context, since the runner may then report it skipped;
+ * - a body whose subtest (`t.test(...)`) fails any of these rules, or cannot be
+ *   read, since the outer test then passes without running the subtest's checks.
  * A test hidden behind runtime control flow without brackets
- * (`if (false) test(...)`), or skipped through a helper it hands its context to or
- * an alias of the context, cannot be seen from the text; the runner's own test and
- * skip counts show it.
+ * (`if (false) test(...)`), or skipped through a helper it hands its context to, a
+ * hook such as `beforeEach(t => t.skip())` or an alias of the context, cannot be
+ * seen from the text; the runner's own test and skip counts show it.
  */
 function declaresRunningTest(source, title) {
   const code = maskCode(source);
@@ -776,18 +853,7 @@ function declaresRunningTest(source, title) {
       if (/[\w$.]/.test(source[at - 1] ?? '') || !code.startsWith('test(', at) || bracketDepth(code, at) !== 0) continue;
       const end = closingBracket(code, at + 4), afterTitle = at + call.length;
       if (!/^\s*(?:,|$)/.test(code.slice(afterTitle, end))) continue; // the title goes on (`'…' + x`): another test
-      const [first, second] = topLevelItems(code, afterTitle, end);
-      const options = first && code[first[0]] === '{' ? first : null;
-      if (options && (closingBracket(code, options[0]) !== options[1] - 1 || optionsMaySkip(source, code, options))) continue;
-      const callback = options ? second : first;
-      const fn = callback && inlineCallback(code, callback);
-      if (!fn) continue;
-      const [param] = topLevelItems(code, ...fn.params);
-      const context = param && /^([A-Za-z_$][\w$]*)\s*(?:=|$)/.exec(code.slice(...param));
-      if (param && !context) continue;
-      const contexts = [context?.[1], fn.keyword && 'this'].filter(Boolean);
-      if (contexts.length && contextMaySkip(source, code, callback, contexts)) continue;
-      return true;
+      if (runsChecks(source, code, topLevelItems(code, afterTitle, end))) return true;
     }
   }
   return false;
@@ -873,8 +939,14 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
     const bound = lzEntries.filter(entry => entry.status === 'preview');
     const boundBase = bound.filter(entry => entry.treatment === 'base').map(entry => entry.printId);
     if (JSON.stringify(boundBase) !== JSON.stringify(checklist.baseRange)) add('checklist-mismatch', null, `BASE checklist ${checklist.baseRange.join(',')} differs from liaozhai-cards.mjs ${boundBase.join(',')}`);
+    // One row per printing: a leftover row (say, from a rebinding) would otherwise be compared or ignored by its position.
+    const repeated = list => unique(list.map(row => row.printId).filter((id, index, ids) => ids.indexOf(id) !== index));
+    for (const id of repeated(checklist.rows)) add('checklist-mismatch', `print:${id}`, `docs/EXPANSION-LZ01.md checklist lists ${id} in more than one row`);
+    for (const id of repeated(briefs ?? [])) add('checklist-mismatch', `print:${id}`, `docs/ART-LZ01.md briefs ${id} in more than one row`);
     const rows = new Map(checklist.rows.map(row => [row.printId, row]));
     const briefed = new Map((briefs ?? []).map(row => [row.printId, row]));
+    /** The LZ-01 card a printing's number names: `lz01-004-aa1` is numbered for the card printed as `lz01-004-base`. */
+    const numberedCard = printId => ctx.content.LZ01_CARDS.find(card => card.printId === printId.replace(/-[a-z]+\d*$/, '-base')) ?? null;
     /** A row's character, treatment and working-title columns against the printing liaozhai-cards.mjs holds under `list`. */
     const columnDrift = (entry, row, print, list) => {
       const character = checklistCharacter(ctx.content.LZ01_CARDS.find(card => card.id === print.cardId));
@@ -883,6 +955,9 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
       if (print.title !== undefined && print.title !== row.title) add('checklist-mismatch', entry.id, `checklist working title ${row.title} differs from ${list} ${print.title}`);
     };
     for (const entry of bound.filter(item => item.treatment !== 'base')) {
+      // A special reuses its character's number (docs/EXPANSION-LZ01.md), bound or planned.
+      const numbered = numberedCard(entry.printId);
+      if (numbered?.id !== entry.cardId) add('card-number-mismatch', entry.id, `${entry.printId} number belongs to ${numbered?.id ?? 'no LZ-01 card'}, but LZ01_SPECIALS binds it to ${entry.cardId}`);
       const row = rows.get(entry.printId);
       if (!row) add('checklist-mismatch', entry.id, 'bound special printing is missing from the checklist');
       else if (row.planned) add('planned-bound', entry.id, 'checklist still says "Planned · no image" for a printing liaozhai-cards.mjs binds');
@@ -906,7 +981,7 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
     for (const row of briefs ?? []) if (!rows.has(row.printId)) add('checklist-mismatch', `print:${row.printId}`, 'docs/ART-LZ01.md briefs a printing the checklist does not list');
     for (const entry of planned) {
       const row = rows.get(entry.printId), card = ctx.content.LZ01_CARDS.find(item => item.id === entry.cardId);
-      if (checklistCharacter(card) !== row.character) add('planned-card-mismatch', entry.id, `${entry.printId} number does not match ${row.character}`);
+      if (checklistCharacter(card) !== row.character) add('card-number-mismatch', entry.id, `${entry.printId} number does not match ${row.character}`);
       if (plannedInModule.has(entry.printId)) columnDrift(entry, row, plannedInModule.get(entry.printId), 'LZ01_PLANNED_SPECIALS');
       if (!entry.plannedAssets.length) add('checklist-mismatch', entry.id, briefs ? 'planned special has no brief with a proposed file in docs/ART-LZ01.md' : 'planned special has no brief: docs/ART-LZ01.md has no "Specials briefs" section');
       if (!/no image/.test(row.status)) continue;

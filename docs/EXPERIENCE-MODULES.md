@@ -276,25 +276,39 @@ subset that the build generates, not import this file.
     `.skip` or `{ skip }` drops the test without counting it as skipped, another
     test, a block or a function), `test.skip`, and a declaration inside a `//`
     or block comment or a string;
-  - options with a `skip` or `todo` key, quoted or not, unless its value is
-    literally `false`; and options that are not an object literal (a variable,
-    a conditional, a call) or that hold a spread or a computed key;
+  - options with a `skip`, `todo` or `expectFailure` key, quoted or not,
+    unless its value is literally `false` (under `expectFailure`, Node 26
+    reports a throwing body as a pass and counts nothing as skipped); options
+    with any key other than those and `timeout`, `concurrency`, `only`, `plan`
+    and `signal`, since it may be a newer runner's skip; and options that are
+    not an object literal (a variable, a conditional, a call) or that hold a
+    spread or a computed key;
   - a missing callback (the test runs nothing) and a callback passed by name or
     built by a call, whose body cannot be read;
   - a body that reaches its context's `skip` or `todo` anywhere, even
-    conditionally: `t.skip()`, `t?.skip?.()`, `t.skip.call(t)`, `t['skip']()`,
-    or any computed member such as `t[name]`. The context is the callback's
-    first parameter, or `this` in a `function` callback; a destructured or rest
-    first parameter cannot be followed, so it does not resolve either.
+    conditionally: `t.skip()`, `t?.skip?.()`, `t.skip.call(t)`, `(t).skip()`,
+    `t['skip']()`, or any computed member such as `t[name]`; and a body that
+    destructures its context (`const { skip } = t`). The context is the
+    callback's first parameter, or `this` in a `function` callback; a
+    destructured or rest first parameter cannot be followed, so it does not
+    resolve either;
+  - a body with a subtest that may not run its checks, since the outer test
+    then passes without them. A subtest counts only as a plain `t.test(...)`
+    call whose title is a string or template literal (or absent) and whose
+    options and inline callback pass these same rules, read recursively;
+    `t.test` stored, bound, called through `.call` or a computed key, and a
+    title that might be options or a callback, do not resolve.
 
   A test hidden behind bracketless runtime control flow, such as
-  `if (false) test(...)`, or skipped through a helper that receives its context
-  or an alias of the context, cannot be seen statically; only the runner's test
-  count (which drops) or skip count shows it.
+  `if (false) test(...)`, or skipped through a helper that receives its context,
+  a hook such as `beforeEach(t => t.skip())`, or an alias of the context, cannot
+  be seen statically; only the runner's test count (which drops) or skip count
+  shows it.
   `cardId`, `printId` and the absent `uid` stay distinct. Only
   `FIRE_MOUNTAIN.version` exists as a declared content version, and no rules
-  version exists. `contentDigest` (SHA-256 of each authored record) detects
-  change without inventing either version.
+  version exists. `contentDigest` (SHA-256 of each authored record: a
+  special's own record, not its base card's) detects change without inventing
+  either version.
 - **Audit:** `npm run audit:content` and `tests/content-registry.test.mjs` fail
   on several kinds of inconsistency. They cover a public page loading an unlisted
   file through a reference the walker can see, and an allowlisted file nothing
@@ -312,9 +326,11 @@ subset that the build generates, not import this file.
   still names a different file than the one `LZ01_SPECIALS` binds, and a
   checklist row whose character, treatment or working title differs from the
   printing `LZ01_SPECIALS` or `LZ01_PLANNED_SPECIALS` holds (a planned entry
-  takes its treatment from the module, not the row's label). A printing, world
-  or activity whose art or map path is missing is a `capability-inconsistent`
-  finding, not a crash. They also cover a dead rule or evidence reference. Every one of the 27 finding codes has an injected-fault case, and a
+  takes its treatment from the module, not the row's label). Each printing has
+  one checklist row and at most one brief row, so a leftover row is reported
+  wherever it sits, and a special must reuse its character's number, bound or
+  planned (`card-number-mismatch`). A printing, world or activity whose art or
+  map path is missing is a `capability-inconsistent` finding, not a crash. They also cover a dead rule or evidence reference. Every one of the 27 finding codes has an injected-fault case, and a
   test fails if a new code lacks one. Four codes guard the registry's own shape
   (an owned-copy `uid`, a server-authority claim, a missing reason and an
   embedded reference); the current derivation does not produce them, so their
