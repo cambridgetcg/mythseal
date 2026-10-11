@@ -12,6 +12,7 @@
     "test:liaozhai": "node tools/liaozhai-smoke.mjs && BROWSER=webkit node tools/liaozhai-smoke.mjs",
     "test:honglou": "node tools/honglou-smoke.mjs && BROWSER=webkit node tools/honglou-smoke.mjs",
     "analyze:wx01": "node tools/analyze-wx01-drops.mjs",
+    "audit:content": "node tools/content-registry.mjs",
     "build": "node tools/build.mjs",
     "deploy": "node tools/deploy.mjs",
     "verify:hosting": "node tools/verify-hosting.mjs",
