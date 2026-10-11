@@ -216,6 +216,23 @@ new renderer to make local play clearer.
   playable route has a start → completion → receipt → return test. Preview
   browsing leaves profile bytes unchanged; duplicate completion pays once.
   Human difficulty review remains separate from strong-fixture completion tests.
+- **Status 2026-10-11 · registry and audit done locally; exit not yet met.**
+  Branch `q4/content-registry` (from `origin/main` `8afbabc`, with `origin/main`
+  `daf18ed` merged in) is not merged into `main` or deployed.
+  `tools/content-registry.mjs` is tooling only; the public build is unchanged.
+  It derives 150 entries (120 local-playable, 30 preview; no LZ-01
+  special is planned since `art/lz01-specials-images` was merged into the
+  branch), and every unavailable capability states a reason. The audit
+  finds no inconsistency in current content. Against the exit: at rules level,
+  every advertised encounter and activity route starts and completes, and a
+  duplicate completion is rejected and pays once. The LZ-01/HL-01 preview
+  smokes leave seeded profile storage unread and unchanged in Chromium and
+  WebKit. Still open: feature views do not show the reasons, there is no
+  browser-level start → completion → receipt → return test, and the
+  deeper-encounter sample and human difficulty review have not started.
+  [Registry states](docs/EXPERIENCE-MODULES.md#q4-registry-states) defines the
+  statuses; [VALIDATION](docs/VALIDATION.md#q4-content-registry--2026-10-11)
+  has the checks.
 
 ### Q5 · Fair agent practice interface
 

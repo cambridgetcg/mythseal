@@ -25,9 +25,28 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 The separate local LZ-01 preview uses three original 2×2 portrait atlases (twelve
 characters) and one full-scene 小倩 AA under `assets/lz01/`. All four images were
 generated with the built-in imagegen tool, with no reference images supplied.
-They are preview-only and do not grant or change owned cards. See
-[exact prompts, cell mappings and provenance](ART-LZ01.md) and the
-[set design](EXPANSION-LZ01.md). No underlying model identifier was exposed.
+On 2026-10-11 six special printings were generated with the owner's approval:
+嬰寧, 陳氏 and 王六郎 AA, 畫皮之鬼 and 陸判 墨卷 INK, and 聶小倩 天工 TR. They were
+generated with Codex CLI's built-in imagegen tool (`image_gen__imagegen`), again
+with no reference images, and copied byte-for-byte. All six are bound in the
+preview; 陸判 INK (`assets/lz01/lupan-ink.png`) came from a third prompt, after
+two earlier prompts gave red marks that read as letters or numerals, and was
+checked on the card before binding. The first 嬰寧 AA was unbound the same day
+because the card's title and name are printed over 王子服, and none of three
+candidates from its revised card-fit brief was selected. A round-four prompt
+then gave `assets/lz01/yingning-aa2.png`, which keeps 王子服 above the card text
+and was checked on the card before binding; the unbound `yingning-aa.png` was
+removed from the tree (its bytes stay in Git history and the private archive).
+No special printing is still planned.
+All ten images in `assets/lz01/` are preview-only and do not grant or change
+owned cards.
+See [exact prompts, cell mappings and provenance](ART-LZ01.md) and the
+[set design](EXPANSION-LZ01.md). No exact image-model identifier was exposed:
+the tool results have no model field. Each of the ten files does embed a
+signed C2PA content credential from the generating service, naming the
+creating agent `ChatGPT`, version `gpt-image` (a model-family label), and
+recording an invisible watermark; see
+[ART-LZ01](ART-LZ01.md#embedded-content-credentials-c2pa).
 
 ## 西行 printing studies · 2026-09-22
 

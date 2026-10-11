@@ -223,6 +223,228 @@ promoted through the existing pipeline. No dynamic remote code loading is needed
 Asset budgets, artwork provenance and release identities remain owned by
 [CONTENT-RELEASE-PIPELINE](CONTENT-RELEASE-PIPELINE.md) and the expansion documents.
 
+**Implemented locally 2026-10-11 (branch `q4/content-registry`, not merged or
+deployed).** The registry is `tools/content-registry.mjs`, not a root runtime
+module. It is **tooling only** for two reasons. It describes the LZ-01/HL-01
+preview identities, so a served copy would have to import `liaozhai-cards.mjs`
+and `honglou-cards.mjs` into the public graph, which their isolation tests forbid,
+or duplicate their lists. And it reads the two allowlists and the LZ-01 docs,
+which a static browser module cannot. No runtime view consumes it yet, so the public
+build is unchanged at 80 files. A future runtime label view should take a public
+subset that the build generates, not import this file.
+
+- **Derived, not maintained:** encounters come from `progression.mjs:NODES`
+  (6 original, 12 story, 48 campaign), the activity from `FIRE_MOUNTAIN`, the 24
+  legacy and 29 WX-01 printings from `PRINTINGS`, the LZ-01/HL-01 previews from
+  their card modules (LZ-01 specials from `LZ01_SPECIALS`), and any planned
+  LZ-01 special from the "Proposed printing checklist" in
+  [EXPANSION-LZ01](EXPANSION-LZ01.md), with its proposed file from the
+  "Specials briefs" table in [ART-LZ01](ART-LZ01.md). That makes 150 entries:
+  120 `local-playable` and 30 `preview`. Since `art/lz01-specials-images` was
+  merged, all seven LZ-01 specials are bound (小倩 AA since 2026-09-23, plus the
+  six that branch planned and bound), so none is `planned`.
+- **Acquisition mirrors a few hard-coded grants:** pack pools, seal treatments,
+  campaign reward characters, activity drops and the starter (`ORIGINAL_CARD_IDS`)
+  and welcome (`WELCOME_CARD_IDS`) card lists come from the content modules.
+  `progression.mjs` hard-codes the rest: the westward story AA gift
+  (`claimWX01StoryPrint`), the campaign-final AA choice
+  (`campaign:westward-echo:aa`), the fire-mountain first-clear BASE, and the
+  routes that mint a new journey's 16 starter and welcome copies (`createProfile`)
+  or turn a v2 save's counts into copies (`hydrateProfile`). The registry mirrors
+  those as named constants. One test clears every encounter, wins a looting
+  fire-mountain run and tries every grant route on every WX-01 printing; another
+  creates a journey and migrates three v2 saves. In both, the printings each route
+  mints must match the listed routes exactly. Moving or restoring an existing copy
+  (merchant buyback, a v3+ save, a backup restore) mints nothing and is not listed.
+- **Reward rules are per entry:** an encounter lists `claimExpansionGrant` only if
+  its first clear can bank a grant (a reward character, or the campaign's last
+  node), `openWX01Ticket` only if it banks a ticket (the six volume finals), and
+  `claimWX01StoryPrint` only if its first clear can open the westward story gift.
+  The gift opens once all four westward nodes are cleared, and they unlock in a
+  chain, so only `west-spirit-mountain` lists it; the gift's acquisition route
+  still names all four. The activity lists `claimExpansionGrant` and
+  `openWX01Ticket`, for its first-clear grant and weekly tickets. A test clears
+  every encounter and wins a run, and the lists must match exactly what each
+  clear banks or opens.
+- **Capabilities and status:** each entry carries all five capabilities, each in
+  one of four states, and its status is computed from them.
+  [Q4 registry states](#q4-registry-states) below defines both and lists today's
+  values by kind.
+- **References, not copies:** entry, completion, reward, resume and unlock rules
+  are `file.mjs:function` references. Evidence names `tests/file › title`, and a
+  capability limit keeps its references beside its prose (`{ text, references }`).
+  The audit resolves every reference-shaped string anywhere in an entry, so no
+  field escapes it, and it rejects prose that embeds a reference. A code reference
+  resolves only to a definition in code, not one left in a comment or a string. A
+  test counts only if it is a top-level `test(...)` that runs, and the reader
+  fails closed on what it cannot see into. These do not resolve:
+  - a declaration nested in any bracket (inside `describe`/`suite`, whose
+    `.skip` or `{ skip }` drops the test without counting it as skipped, another
+    test, a block or a function), `test.skip`, and a declaration inside a `//`
+    or block comment or a string;
+  - options with a `skip`, `todo` or `expectFailure` key, quoted or not,
+    unless its value is literally `false` (under `expectFailure`, Node 26
+    reports a throwing body as a pass and counts nothing as skipped); options
+    with any key other than those and `timeout`, `concurrency`, `only`, `plan`
+    and `signal`, since it may be a newer runner's skip; and options that are
+    not an object literal (a variable, a conditional, a call) or that hold a
+    spread or a computed key;
+  - a missing callback (the test runs nothing) and a callback passed by name or
+    built by a call, whose body cannot be read;
+  - a body that reaches its context's `skip` or `todo` anywhere, even
+    conditionally: `t.skip()`, `t?.skip?.()`, `t.skip.call(t)`, `(t).skip()`
+    (also as the bare body of `if`, `while` or `for`: `if (slow) (t).skip()`),
+    `t['skip']()`, or any computed member such as `t[name]`; and a body that
+    destructures its context (`const { skip } = t`). The context is the
+    callback's first parameter, or `this` in a `function` callback; a
+    destructured or rest first parameter cannot be followed, so it does not
+    resolve either;
+  - a body with a subtest that may not run its checks, since the outer test
+    then passes without them. A subtest is a `t.test(...)` call or a call to
+    the runner's own `test`, `it`, `describe` or `suite`, which Node attaches
+    to the test that is running. It counts only as a plain call (or the
+    runner's `.only`) whose title is a string or template literal (or absent)
+    and whose options and inline callback pass these same rules, read
+    recursively; `t.test` stored, bound, called through `.call` or a computed
+    key, the runner's `.skip`, `.todo` and `.expectFailure`, any other use of
+    those four names in the body, and a title that might be options or a
+    callback, do not resolve.
+
+  A test hidden behind bracketless runtime control flow, such as
+  `if (false) test(...)`, or skipped through a helper that receives its context,
+  a hook such as `beforeEach(t => t.skip())`, an alias of the context, or the
+  runner's functions imported under other names (`import { test as check }`, a
+  default or namespace import, the bare `skip` export), cannot be seen
+  statically; only the runner's test count (which drops) or skip count shows
+  it.
+  `cardId`, `printId` and the absent `uid` stay distinct. Only
+  `FIRE_MOUNTAIN.version` exists as a declared content version, and no rules
+  version exists. `contentDigest` (SHA-256 of each authored record: a
+  special's own record, not its base card's) detects change without inventing
+  either version.
+- **Audit:** `npm run audit:content` and `tests/content-registry.test.mjs` fail
+  on several kinds of inconsistency. They cover a public page loading an unlisted
+  file through a reference the walker can see, and an allowlisted file nothing
+  uses. The walker follows HTML `src`/`href`/`poster`/`srcset` on loading tags and
+  inline scripts; CSS `url()`, `@import "..."` and `image-set()`; and JS imports,
+  `assets/...` and `./` paths, and literal paths given to `new Audio`/`Worker`/`URL`,
+  `fetch` or `.src`. A path built at runtime (`${...}`, concatenation, a variable)
+  is invisible to it. Content art is covered by entry assets instead, and
+  `tools/serve.py` returns 404 for unlisted files, which the browser smokes record
+  as failures on the paths they exercise. They cover preview data or art
+  reaching the public build and a planned special that is bound, allowlisted or
+  present while its checklist row still says "no image". They also cover drift
+  between the LZ-01 checklist, its briefs and `LZ01_PLANNED_SPECIALS` (the list
+  `liaozhai.html` prints as still planned), including a bound special whose brief
+  still names a different file than the one `LZ01_SPECIALS` binds, and a
+  checklist row whose character, treatment or working title differs from the
+  printing `LZ01_SPECIALS` or `LZ01_PLANNED_SPECIALS` holds (a planned entry
+  takes its treatment from the module, not the row's label). Each printing has
+  one checklist row and at most one brief row, so a leftover row is reported
+  wherever it sits, and a special must reuse its character's number, bound or
+  planned (`card-number-mismatch`). A printing, world or activity whose art or
+  map path is missing is a `capability-inconsistent` finding, not a crash. They also cover a dead rule or evidence reference. Every one of the 27 finding codes has an injected-fault case, and a
+  test fails if a new code lacks one. Four codes guard the registry's own shape
+  (an owned-copy `uid`, a server-authority claim, a missing reason and an
+  embedded reference); the current derivation does not produce them, so their
+  cases alter a registry after it is built.
+- **Rules-level routes:** every advertised encounter route (66 owned plus 2
+  borrowed decks) starts, completes, pays its first clear once, rejects a duplicate
+  completion and unlocks its next step. Both activity routes complete twice with
+  one first-clear grant. A cloud-snapshot round trip keeps all 66 clears, the
+  activity record and one copy of each of the 53 ownable printings.
+
+### Q4 registry states
+
+Registry schema version 1. No state is written by hand: `buildContentRegistry`
+derives each capability's state from the source, then computes the entry's
+status from those states. `npm run audit:content` prints the counts
+(`summary.byStatus`, `summary.byCapability`); `node tools/content-registry.mjs --json`
+prints every entry with its reasons, limits and evidence.
+
+| Capability state | Meaning | Fields | Audit |
+| --- | --- | --- | --- |
+| `available` | The source wires it, and every requirement the registry checks holds | `evidence`; `limits` as `{ text, references }` where they apply | Every reference must resolve (`dead-reference`) |
+| `unavailable` | This source does not offer it | `reason` | No reason → `missing-reason` |
+| `not-applicable` | It does not fit the kind of entry: an encounter has no preview surface and is never owned | `reason` | The audit does not check this reason; the suite does for today's entries |
+| `inconsistent` | The source wires it, but a requirement fails. Examples: missing art or an invalid PNG, an asset outside its allowlist, an unknown card or illegal deck, a dangling prerequisite, a module its page cannot reach, a printing with no acquisition route, or a preview module holding a catalogue printing | `blockers`, plus any `evidence`/`limits` | Each blocker is a `capability-inconsistent` finding; the audit exits 1 |
+
+An entry's **status** is the first that applies:
+
+1. `local-playable`: its `local-playable` or `local-owned` capability is
+   `available` or `inconsistent`;
+2. `preview`: otherwise, its `preview` capability is `available` or `inconsistent`;
+3. `planned`: otherwise.
+
+An `inconsistent` capability still counts, so a broken playable item keeps its
+status and fails the audit instead of quietly becoming a preview. No status or
+state means deployed: the registry's `evidenceScope` is `source`, and only
+release-manifest evidence (`dist/release.json`, [HOSTING](HOSTING.md)) shows
+what is live.
+
+The current source (content as at the merge of `art/lz01-specials-images`,
+which bound the six planned LZ-01 specials, so all seven are bound) has 150
+entries and no `inconsistent` capability:
+
+| Entries | Status | `preview` | `local-playable` | `local-owned` | `backup-compatible` | `server-authoritative` |
+| --- | --- | --- | --- | --- | --- | --- |
+| 66 encounters: 6 original, 12 story, 48 campaign | `local-playable` | not-applicable | available | not-applicable | available, with limits | unavailable |
+| 1 activity: 火焰山三連戰 | `local-playable` | not-applicable | available | not-applicable | available, with limits | unavailable |
+| 53 printings: 24 legacy, 29 WX-01 | `local-playable` | available | available | available | available | unavailable |
+| 30 bound previews: 19 LZ-01 (12 BASE, 4 AA, 2 INK, 1 TR), 11 HL-01 | `preview` | available | unavailable | unavailable | unavailable | unavailable |
+| Planned LZ-01 specials (none since all seven were bound) | `planned` | unavailable | unavailable | unavailable | unavailable | unavailable |
+
+What today's reasons and limits say:
+
+- **`server-authoritative`**, every entry: no authoritative game server exists
+  yet (ROADMAP M2), and an account backup is a private, editable copy of local
+  progress.
+- **Encounter and activity backup limits:** an unfinished battle or an active run
+  blocks backup export and restore. Snapshot formats v1/v2 cannot carry
+  campaign or activity progress.
+- **Bound previews, `local-playable`:** 28 are candidates absent from
+  `engine.mjs` `CARDS`, with no rules, deck or AI integration. The two HL-01
+  林黛玉 printings name a card that exists, but the catalogue lacks them, so
+  林黛玉 plays only as `legacy/lindaiyu`.
+- **Bound previews, `local-owned` and `backup-compatible`:** `collection.mjs`
+  mints only `printing-catalogue.mjs` printings, and the page that serves each
+  preview (`liaozhai.html` or `honglou.html`) never loads the profile store
+  (`profile-store.mjs`). The reason is computed from the pages that actually serve
+  the module. The preview-allowlisted `playtest.html` does load the store and
+  writes coins and a gift marker, but it serves no preview printing. No profile
+  stores preview data, so no backup carries it.
+- **Planned specials:** none today. A checklist row marked "Planned · … no
+  image" in [EXPANSION-LZ01](EXPANSION-LZ01.md) would give an entry with every
+  capability unavailable; its `preview` reason quotes that status, and its
+  proposed file from [ART-LZ01](ART-LZ01.md) is kept as `plannedAssets`, not
+  `assets`. The test suite rebuilds that state from a bound special to keep the
+  planned-path checks exercised.
+
+**Changing state means changing the source.** Editing the registry does not do it:
+
+- **planned → preview:** move the printing from `LZ01_PLANNED_SPECIALS` to
+  `LZ01_SPECIALS` in `liaozhai-cards.mjs` with its selected image, add the image
+  to `hosting/preview-assets.json`, and in the same change replace the checklist
+  row's "Planned · … no image" status with the image path. Otherwise
+  `planned-bound`, `planned-asset-exists`, `planned-asset-listed` or
+  `checklist-mismatch` fails the audit.
+- **preview → local-playable:** needs rules integration: a card in `engine.mjs`
+  `CARDS`, a printing in `printing-catalogue.mjs` with publicly allowlisted art,
+  and an acquisition route. Then remove the printing from its preview module.
+  While a preview module still holds a catalogue printing, its `local-playable`
+  capability is `inconsistent` and the two entries share a `duplicate-id`.
+- **any → inconsistent:** a requirement in the table above breaks. Fix the
+  source or the allowlist, not the registry.
+- **server-authoritative** stays unavailable until an authoritative server
+  exists. Any other state is a `false-authority` finding.
+
+**Still open for Q4:** feature views do not show these reasons yet. Start →
+completion → receipt → return is covered at rules level, not in the browser UI.
+The "one deeper encounter" sample and human difficulty review are not started.
+`art/lz01-specials-images` (PR #8) is merged into `q4/content-registry`; the
+registry reads its `LZ01_SPECIALS`, `LZ01_PLANNED_SPECIALS` and renamed
+"Specials briefs" section.
+
 ## Q5 · a fair observation and legal-command boundary
 
 **Proposed `agent-observation.mjs`** exposes `observePublic(position, phase)` and

@@ -1,7 +1,9 @@
 # Mythseal agent handover
 
-Start here when joining development. Updated **2026-09-29**, with a local Q0
-checkpoint added on **2026-10-11**. The last recorded
+Start here when joining development. Updated **2026-09-29**, with local Q0
+and Q4 checkpoints and the LZ-01 special-art addenda (under
+[LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
+**2026-10-11**. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -78,6 +80,96 @@ pushed, merged or deployed**. The last recorded public release is still
   540 px tall; the plan's remaining clipping notes; and merge/build/release.
   The [battle-table plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
   lists them.
+
+## Q4 content registry checkpoint · 2026-10-11 (local only)
+
+Roadmap packet Q4's registry and audit are on the local branch
+**`q4/content-registry`**, started from `origin/main` `8afbabc`. Source
+commits: **`4265039`** (the registry), review fixes **`7291880`** and
+**`cf63bec`**, merge commit **`d1f0f91`** (adapts the registry and its tests to
+PR #8's LZ-01 specials), third-review fixes **`6bc784a`**, fourth-review
+fixes **`092f1fd`**, fifth-review fixes **`2d44071`** and sixth-review fixes **`2a04859`**. Merge commit `d606447` brings in `origin/main` `daf18ed`
+(PRs #6–#8, documentation only); the other commits change documentation only. The branch is not merged into
+`main`, pushed or deployed, and no hosted check was made.
+
+- **What it is:** `tools/content-registry.mjs` (Node tooling, never served),
+  `tests/content-registry.test.mjs` and `npm run audit:content`. From the content
+  modules, both asset allowlists and the LZ-01 docs, it derives what each
+  encounter, the activity, each legacy/WX-01 printing, each LZ-01/HL-01 preview
+  and each planned LZ-01 special can do. The registry's own commits change no
+  runtime, save, content, art or allowlist file; the PR #8 merge brought in that
+  branch's LZ-01 content, art and preview-allowlist changes.
+  [Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states)
+  defines statuses and capability states.
+- **Checked:** 473/473 Node tests before the PR #8 merge and 474/474 after it
+  and at `d606447`, the audit (exit 0, no findings), an 80-file build and the
+  LZ-01/HL-01 preview smokes in Chromium and WebKit;
+  [VALIDATION](VALIDATION.md#q4-content-registry--2026-10-11) has the receipts
+  and every review round.
+- **When content changes:** run `npm run audit:content`. If you bind an LZ-01
+  special, update its row in the [EXPANSION-LZ01](EXPANSION-LZ01.md) checklist
+  in the same change, or the audit fails.
+- **Merged with `art/lz01-specials-images` (PR #8, at `35ab891`):** that
+  branch replaces `LZ01_AA` with `LZ01_SPECIALS` (keyed by printId or
+  `cardId:treatment`) and `LZ01_PLANNED_SPECIALS`, and renames ART-LZ01's
+  "Pending specials briefs" section to "Specials briefs · 2026-10-10". The
+  registry now reads both lists and the new heading, and the audit checks that
+  `LZ01_PLANNED_SPECIALS` names exactly the checklist's planned rows. With all
+  seven specials bound (小倩 AA since 2026-09-23, plus the six PR #8 planned and
+  bound), it derives 120 local-playable and 30 preview entries and none planned. The tests derive the LZ-01 split from `liaozhai-cards.mjs`
+  instead of pinning it, and rebuild a planned special from a bound one to keep
+  the planned-path faults exercised.
+- **Third review (`6bc784a`):** a cited test must now be a top-level
+  `test(...)` (one nested in `describe.skip` had counted while the runner
+  reported 0 skipped), `this.skip()` in a `function` callback disqualifies it,
+  and a code reference must be defined in code, not a comment or string. Only
+  `west-spirit-mountain` lists the story-gift claim, since the four westward
+  nodes unlock in a chain. The audit compares a bound special's brief file with
+  its binding.
+- **Fourth review (`092f1fd`):** evidence
+  reading fails closed. A cited test whose options are not an object literal (a
+  variable, a conditional, a spread or a computed key), use a quoted
+  `'skip'`/`'todo'` key, or whose callback is missing or passed by name no longer
+  counts, nor does any access to its context's `skip`/`todo` (`t.skip?.()`,
+  `t['skip']()`, `t.skip.call(t)`). Each checklist row's character, treatment
+  and working title are compared with `LZ01_SPECIALS` (bound) or
+  `LZ01_PLANNED_SPECIALS` (planned), and a planned entry takes its treatment
+  from the module. A special, world or activity without an art or map path is a
+  `capability-inconsistent` finding instead of a `TypeError`. The CLI resolves
+  symlinks before deciding it is the main script, so a run through a symlinked
+  path audits instead of printing nothing with exit 0. Still 27 finding codes.
+  Checked: 475/475 Node tests, the audit (exit 0, no findings), an 80-file
+  build and the LZ-01/HL-01 preview smokes in Chromium and WebKit.
+- **Fifth review (`2d44071`):** a cited test marked
+  `{ expectFailure }` no longer counts: Node 26 reports its throwing body as a
+  pass and counts nothing as skipped. Option keys are now an allowlist
+  (`timeout`, `concurrency`, `only`, `plan` and `signal`, plus `skip`, `todo`
+  and `expectFailure` only when literally `false`), so an unknown key fails
+  closed. A subtest `t.test(...)` is read by the same rules, recursively, and
+  `(t).skip()` and a destructured context (`const { skip } = t`) no longer
+  count. The audit reports an LZ-01 checklist or brief row listed twice (a
+  stale row above the live one had passed unseen) and a bound special whose
+  number belongs to another character (`planned-card-mismatch` is renamed
+  `card-number-mismatch` and covers both). A preview special's
+  `contentDigest` now hashes its own record, not its base card. Still 27
+  finding codes. Checked: 476/476 Node tests, the audit (exit 0, no findings),
+  an 80-file build and the LZ-01/HL-01 preview smokes in Chromium and WebKit.
+- **Sixth review (`2a04859`):** a subtest declared through
+  the runner's own `test`, `it`, `describe` or `suite` inside a cited test (Node
+  attaches it to the running test) is now read like `t.test(...)`, so a
+  skipped one no longer counts, with or without a context parameter; and
+  `if (slow) (t).skip()` (a grouped context after an `if`, `while` or `for`
+  head) no longer counts. The runner's functions imported under other names
+  join the listed blind spots. Checked: 476/476 Node tests, the audit (exit 0,
+  no findings, registry unchanged) and an 80-file build; the preview smokes
+  were not re-run (no served file changed).
+- **Merging into `main`:** `docs/README.md` now qualifies the Experience modules,
+  Roadmap, Handover and Validation rows for Q4. When the branch merges, update
+  the "not merged" status lines here, in ROADMAP, EXPERIENCE-MODULES and
+  VALIDATION, then those rows.
+- **Open:** feature views do not show unavailable reasons yet; there is no
+  browser-level start → completion → receipt → return test; the
+  deeper-encounter sample and human difficulty review are not started.
 
 ## Q1 local-commands checkpoint · 2026-10-11 (local only)
 
@@ -176,7 +268,10 @@ above. Pushing a branch does not deploy the game.
   火焰山 activity and WX-01's 29 printings. Its owned-copy/pack/progression systems
   are implemented locally; the coherent client/Worker/backup release gates below
   still separate it from the recorded public v0.5.1 snapshot.
-- **Completed standalone previews:** LZ-01 has 12 BASE candidates + 1 AA available;
+- **Completed standalone previews:** at this checkpoint LZ-01 had 12 BASE
+  candidates + 1 AA available (all 19 of 19 printings since the 2026-10-11
+  round-four addendum under
+  [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23));
   HL-01 has 8 BASE + 3 AA, including the unchanged 黛玉 identity and seven new
   candidates. Each has inspection, filters and a fixed opening. Neither adds
   new engine characters, ownership, actual booster acquisition or profile fields.
@@ -248,16 +343,60 @@ source anchors, tradeoffs, nineteen proposed printings and later integration.
 `liaozhai.html` / `liaozhai.css` / `liaozhai.mjs` and `liaozhai-cards.mjs` form a
 standalone preview served by `python3 tools/serve.py`. It has story/faction
 filters, full card inspection, 小倩 BASE/AA and a fixed three-card opening with
-skip/restart. Three 2×2 atlases plus one AA supply thirteen currently available
-illustrations; six special works remain planned. See [ART-LZ01](ART-LZ01.md)
+skip/restart. On 2026-09-23 three 2×2 atlases plus one AA supplied thirteen
+available illustrations and six special works were planned; all six are bound
+now (19 of 19 printings), as the 2026-10-11 addenda below record. See [ART-LZ01](ART-LZ01.md)
 for exact built-in imagegen prompts, mapping and hashes.
 
 The preview imports no engine, account, profile or progression code; it reads
 and writes no player storage and has no RNG, payment or card grant. LZ candidates
-are absent from the game's 39-card roster. All eight new preview files/assets
-are in `hosting/preview-assets.json` only; the public build still has 80 assets.
+are absent from the game's 39-card roster. On 2026-09-23 all eight new preview
+files/assets were in `hosting/preview-assets.json` only (fourteen paths since the
+round-four addendum below) and the public build had 80 assets.
 Gold purchases, owned copies, story integration and the **餘願** keyword are
 explicit later tasks, not implemented rules. No deployment or service change.
+
+**2026-10-11 addendum:** five of the six special works were generated and four
+are bound in the preview (陳氏, 王六郎 AA; 畫皮之鬼 墨卷 INK; 聶小倩 天工 TR), keyed
+by `${cardId}:${treatment}` in `LZ01_SPECIALS`. 嬰寧 AA was unbound after a
+card-fit review, because the card's title and name cover 王子服; its file stays
+in the tree unchanged but is in neither allowlist, and it is planned again
+beside 陸判 INK, both with card-fit briefs. The LZ preview now has twelve paths
+in `hosting/preview-assets.json` (four code, eight images), still none in the
+public list. Provenance, including each file's embedded C2PA credential, is in
+[ART-LZ01](ART-LZ01.md#provenance--special-printings--2026-10-11).
+
+**2026-10-11 round-three addendum:** 陸判 墨卷 INK (`lz01-006-ink1`) is now bound
+as `assets/lz01/lupan-ink.png`, round three candidate 3 of 3 from the
+strike-only prompt, after five earlier candidates were rejected because their
+red marks read as letters or numerals. It passed the card-fit check in the
+dialog at 1440 and 390 in Chromium and WebKit. Six special works are bound, and
+the preview shows eighteen of the nineteen printings; the rendered count is
+「12 款本畫＋6 款特別畫作先行（異畫 3、墨卷 2、天工 1）；嬰寧異畫仍在規劃中。」. The
+three 嬰寧 AA candidates from its card-fit brief were reviewed and none was
+selected: each puts 王子服's feet below the card-fit line, and one also shows the
+excluded blossom in his hand. The slot stays planned, `yingning-aa.png` stays
+unbound in the tree, and its brief records all three hashes and reasons. The LZ
+preview now has thirteen paths in `hosting/preview-assets.json` (four code, nine
+images), still none in the public list. The 4196 loopback server was restarted
+from this worktree to reread the allowlist.
+
+**2026-10-11 round-four addendum:** 嬰寧 異畫 AA (`lz01-004-aa1`) is bound again,
+as `assets/lz01/yingning-aa2.png`: round four candidate 2 of 3 from a prompt that
+puts 王子服 on a raised path with his feet above 52% of the image height and both
+hands open and empty. It passed the card-fit check in the hero and the dialog at
+1440 and 390 in Chromium and WebKit (his feet at about 50.5%, about 96 image px
+above the title). All seven special works are bound, `LZ01_PLANNED_SPECIALS` is
+empty, and the preview shows all 19 of 19 printings; the rendered count is
+「12 款本畫＋7 款特別畫作先行（異畫 4、墨卷 2、天工 1）。」. The unbound first file,
+`yingning-aa.png`, was removed from the tree in the same commit (its bytes stay
+in Git history at `3c07dfe` and in the private archive); its provenance block
+is kept and marked superseded. The content test now also fails if the
+ART-LZ01 hash table names a file that is not in `assets/lz01/`. The LZ preview
+now has fourteen paths in `hosting/preview-assets.json` (four code, ten
+images), still none in the public list. The 4196 loopback server was restarted
+from this worktree to reread the allowlist. Physical phones, native Safari and
+the owner's art review remain open.
 
 Use `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` (or the server's actual
 loopback URL) for isolated Chromium/WebKit preview checks. `npm test` includes

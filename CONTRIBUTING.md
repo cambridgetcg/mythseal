@@ -1,23 +1,114 @@
-# Working on Shanhai Duel
+# Contributing to 萬象契 · Mythseal
 
-This private repository contains the playable v0.4 prototype and a proposed release roadmap. Brand, blockchain and commercial terms are still decisions, not shipping commitments.
+Read [AGENTS.md](AGENTS.md) first, then the [agent handover](docs/HANDOVER.md)
+for architecture, infrastructure and setup. The
+[documentation library](docs/README.md) lists every guide and says whether it
+describes current behavior, a dated proposal or a dated record. Choose a bounded
+task from the [roadmap](ROADMAP.md).
+
+The last recorded public release at [mythseal.com](https://mythseal.com) is
+**v0.5.1** (see [HOSTING.md](docs/HOSTING.md), which records actual releases):
+the browser card game with email-code accounts and private backups of offline
+journeys. `main` is ahead of it. WX-01, the longer campaign, the game lobby, the
+Q0 battle table and the literary previews exist in source but are not deployed.
+A merge, push or documentation change does not deploy the game or show that a
+service is healthy.
 
 ## Local development
 
-Use Node.js 22 or newer for `npm test` and Python 3 for `python3 tools/serve.py --open`. There are no runtime JavaScript dependencies and no install step for the unit suite. For optional browser checks, install Playwright in your development environment and set `PLAYWRIGHT_MODULE` / `CHROME_PATH` as described in the README.
+Use Node.js 22 or newer (CI runs 22), npm, Python 3.9 or newer and Git. From the
+repository root:
 
-Read `AGENTS.md`. Keep pure battle rules in `engine.mjs`, exact-copy ownership/XP/decks in `collection.mjs`, and economy/migration/rewards in `progression.mjs`. The app owns storage and DOM behavior. Avoid a framework rewrite as part of unrelated changes.
+```sh
+npm ci
+npm test
+python3 tools/serve.py --open
+```
+
+`npm ci` installs pinned development and server tooling, including optional
+platform binaries: the Playwright package, Wrangler, the Supabase SDK for the
+Worker and the other `devDependencies`. Do not pass `--omit` to it. It does not
+install Playwright's browsers, Foundry, Docker, Xcode or Android toolchains.
+Chromium browser suites use installed Google Chrome on macOS, or the executable
+in `CHROME_PATH`; for WebKit runs or a machine without Chrome, run
+`npx --no-install playwright install chromium webkit`. The browser runtime stays
+dependency-free HTML, CSS and native JavaScript modules; do not add runtime
+packages. The Python server serves guest play on loopback, normally at
+`http://127.0.0.1:4177`, and does not run `/api/*`. For account work, use
+`npm run preview` (`http://127.0.0.1:8791`) as described in the handover's
+[local account Worker preview](docs/HANDOVER.md#local-account-worker-preview).
+
+The local server and the public build serve only allowlisted files. The game's
+files are listed in `hosting/public-assets.json`, which also defines `dist`. The
+local-only literary, art and playtest pages are listed in
+`hosting/preview-assets.json` and never enter the public build. Add any new
+runtime module, stylesheet or asset to the right list in the same change.
+Otherwise the local server returns 404 for it, and a game file is missing from
+`dist`.
+
+## Module boundaries
+
+- `engine.mjs` owns pure battle rules and card data. Keep randomness injectable
+  and never give the AI access to the player's hidden move.
+- `collection.mjs` owns exact card copies, XP and decks; `progression.mjs` owns
+  the local economy, migrations and rewards.
+- `profile-store.mjs` owns versioned local persistence; `app.mjs` and the
+  `*-ui.mjs` modules own browser storage access and DOM behavior.
+  `server/account-api.mjs` owns authenticated backup access.
+- The [code ownership map](docs/HANDOVER.md#code-ownership-map) lists the rest.
+  Preserve these boundaries, and avoid framework rewrites inside unrelated changes.
 
 ## Changes and checks
 
-- Make a focused branch and describe the user-visible change, validation and any migration consequence in its pull request.
-- Run `npm test` for rules, collection or economy changes. Use the relevant browser script when changing interactive flows; keep deterministic fixtures separate from real player saves.
-- Preserve old storage keys during migrations and keep rewards, minting and ownership operations atomic and idempotent.
-- Update the relevant design document when changing behavior. Roadmap checkboxes describe completed evidence, not intentions.
-- Do not commit private saves, `.env` files, wallet material, signing credentials or test screenshots. Use synthetic fixtures.
+- Check the working tree first (`git status --short`), preserve other people's
+  uncommitted work and keep one writer per artifact. Branch from current `main`
+  (`git switch -c agent/<task>`) and open the pull request against `main`.
+- Run the smallest checks that cover your change. The handover's
+  [checks matched to the change](docs/HANDOVER.md#checks-matched-to-the-change)
+  lists them. `npm test` runs the full Node suite;
+  `python3 -m unittest discover -s tests -p '*_test.py'` runs the Python tests.
+  Browser suites need a running local server and an explicit `GAME_URL`; see
+  the [README checks](README.md#checks).
+- CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml), Node 22) runs
+  `npm ci`, `npm test`, the private-backup SQL tests on disposable PostgreSQL,
+  the Python tests, the Forge contract fixture, `npm run build`, the preview and
+  deploy dry runs and syntax checks. It runs no browser suite, so run the
+  browser checks your change needs yourself and say which ones in the pull
+  request.
+- Preserve individual card IDs, XP, deck assignments, the legacy `shanhai.*` save
+  namespaces and their migrations. Keep reward, settlement, sale/buyback,
+  ownership and backup writes atomic and idempotent: a completed encounter pays
+  once, and a retried grant or claim returns its original result instead of
+  granting again. Offline saves and private backups never establish trusted
+  online ownership or NFT rights.
+- Fill in the [pull request template](.github/pull_request_template.md): the
+  problem and resulting behavior, the checks you actually ran, and any save,
+  ownership or platform impact.
+- Update the document that owns the behavior you change. Add new documents to
+  the [documentation library](docs/README.md). Record local checks in
+  [VALIDATION.md](docs/VALIDATION.md) and deployments in
+  [HOSTING.md](docs/HOSTING.md), keeping local, CI, hosted and browser evidence
+  separate. A roadmap item is complete only with evidence.
+- Deployment, hosted migrations and provider configuration are separate,
+  explicitly authorized maintainer operations that follow
+  [the release procedure](docs/HOSTING.md#build-and-deploy). Dry runs
+  (`npm run deploy -- --dry-run`) build and bundle locally without hosted
+  identity or binding calls, and deploy nothing.
+- Never commit player saves, `.env` or `.dev.vars` files, wallet material,
+  signing credentials, test screenshots or other generated output such as
+  `test-results/` and `dist/`. Use synthetic fixtures.
 
-## Planned services and assets
+## Future work and assets
 
-Keep future contracts, backend APIs and native packaging behind explicit milestones. Local UIDs and localStorage are not trusted evidence of scarcity or ownership. Recheck current mobile-store rules before introducing purchases, wallets or token utility.
+Accounts and private backup APIs exist. An authoritative economy, player
+trading and native applications remain optional roadmap work; follow their
+dependencies and acceptance criteria before implementing them, and recheck
+current store rules before introducing purchases, wallets or token utility.
+Collectible commercialization was retired as a delivery objective on
+2026-09-23; the dated NFT designs are kept for understanding only.
 
-Record art prompts and provenance with assets. Existing assets were generated for this project; traditional character inspiration does not grant rights to modern adaptations, actor likenesses, fonts or third-party artwork. No repository-wide open-source license has been selected.
+Record art prompts and provenance in the matching `docs/ART*.md` file (start at
+[ART.md](docs/ART.md)). Existing assets were generated for this project.
+Traditional character inspiration does not grant rights to modern adaptations,
+actor likenesses, fonts or third-party artwork. The repository is private, and
+no open-source license has been selected.

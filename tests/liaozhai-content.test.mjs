@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { CARDS } from '../engine.mjs';
+import { PRINT_TREATMENTS } from '../card-presentation.mjs';
 import * as content from '../liaozhai-cards.mjs';
 
-const { LZ01_CARDS, LZ01_SET, LZ01_AA, LZ01_SAMPLE, LZ01_FACTIONS, LZ01_RARITIES, LZ01_DECKS } = content;
+const { LZ01_CARDS, LZ01_SET, LZ01_SPECIALS, LZ01_PLANNED_SPECIALS, LZ01_TREATMENTS, LZ01_SAMPLE, LZ01_FACTIONS, LZ01_RARITIES, LZ01_DECKS } = content;
 const root = new URL('../', import.meta.url);
 const read = path => readFileSync(new URL(path, root), 'utf8');
 const ids = ['niexiaoqian', 'ningcaichen', 'yanchixia', 'yingning', 'wangzifu', 'lupan', 'zhuerdan', 'huapi', 'chenshi', 'huapidaoshi', 'wangliulang', 'xuyuren'];
@@ -88,19 +90,15 @@ test('the preview module graph cannot import game, profile, progression, account
   assert.doesNotMatch(JSON.stringify(allowlist), /liaozhai|assets\/lz01/, 'The standalone preview is not a public release');
 });
 
-test('preview-only content exports have a fixed sample and one alternate-art identity', () => {
+test('preview-only content exports have a fixed sample and bind only the selected special printings', () => {
   assert.deepEqual(LZ01_SAMPLE, [
     { cardId: 'ningcaichen', treatment: 'base' },
     { cardId: 'yanchixia', treatment: 'base' },
     { cardId: 'niexiaoqian', treatment: 'aa' },
   ]);
-  assert.equal(LZ01_AA.cardId, 'niexiaoqian');
-  assert.equal(LZ01_AA.printId, 'lz01-001-aa1');
-  for (const field of ['power', 'damage', 'stars', 'ability', 'rarity']) assert.equal(Object.hasOwn(LZ01_AA, field), false, 'Alternate art must reuse the identity rules');
   assert(Object.isFrozen(LZ01_SAMPLE));
-  assert(Object.isFrozen(LZ01_AA));
   assert.equal(new Set(LZ01_CARDS.map(card => card.printId)).size, 12);
-  const imagePaths = new Set([LZ01_AA.src]);
+  const imagePaths = new Set();
   for (const card of LZ01_CARDS) {
     assert.match(card.printId, /^lz01-\d{3}-base$/);
     const { src, columns, rows, index } = card.art;
@@ -113,11 +111,67 @@ test('preview-only content exports have a fixed sample and one alternate-art ide
     assert.equal(source.origin, 'https://zh.wikisource.org');
     assert.equal(decodeURIComponent(source.hash.slice(1)), card.story);
   }
-  assert.equal(imagePaths.size, 4, 'Three four-portrait atlases and one AA are the first slice');
+  assert.equal(imagePaths.size, 3, 'Three four-portrait BASE atlases');
+
+  for (const [treatment, copy] of Object.entries(LZ01_TREATMENTS)) assert.deepEqual(copy, PRINT_TREATMENTS[treatment], `${treatment} copy drifted from the game labels`);
+  assert.deepEqual(LZ01_SPECIALS.map(print => [print.printId, print.src]), [
+    ['lz01-001-aa1', 'assets/lz01/xiaoqian-aa.png'],
+    ['lz01-001-tr1', 'assets/lz01/xiaoqian-treasure.png'],
+    ['lz01-004-aa1', 'assets/lz01/yingning-aa2.png'],
+    ['lz01-006-ink1', 'assets/lz01/lupan-ink.png'],
+    ['lz01-008-ink1', 'assets/lz01/huapi-ink.png'],
+    ['lz01-009-aa1', 'assets/lz01/chenshi-aa.png'],
+    ['lz01-011-aa1', 'assets/lz01/liulang-aa.png'],
+  ], 'Bind only selected files; 小倩 AA stays first');
+  assert.deepEqual(LZ01_PLANNED_SPECIALS.map(print => print.printId), [], 'All seven special printings are bound; 嬰寧 AA came back in round four as yingning-aa2.png');
+  const code = { aa: 'aa', ink: 'ink', treasure: 'tr' };
+  const all = [...LZ01_SPECIALS, ...LZ01_PLANNED_SPECIALS];
+  assert.equal(LZ01_CARDS.length + all.length, 19, 'The set checklist is 12 BASE + 4 AA + 2 INK + 1 TR');
+  assert.equal(new Set(all.map(print => print.printId)).size, all.length);
+  assert.equal(new Set(all.map(print => `${print.cardId}:${print.treatment}`)).size, all.length, 'Lookups by card and treatment must not collide');
+  for (const print of all) {
+    const card = LZ01_CARDS.find(item => item.id === print.cardId);
+    assert(card, print.printId);
+    const match = print.printId.match(/^lz01-(\d{3})-(aa|ink|tr)1$/);
+    assert(match, print.printId);
+    assert.equal(`lz01-${match[1]}-base`, card.printId, `${print.printId} must reuse its card number`);
+    assert.equal(match[2], code[print.treatment], print.printId);
+    assert.equal(print.name, `${card.name.replace(/（.*）$/, '')} · ${print.title}`);
+    for (const field of ['power', 'damage', 'stars', 'ability', 'rarity']) assert.equal(Object.hasOwn(print, field), false, 'Special printings reuse the identity rules');
+    assert(Object.isFrozen(print));
+  }
+  for (const print of LZ01_SPECIALS) {
+    assert.deepEqual(Object.keys(print), ['cardId', 'printId', 'treatment', 'name', 'title', 'src', 'label']);
+    assert.match(print.src, /^assets\/lz01\/[a-z0-9-]+\.png$/);
+    assert.equal(print.label, `${LZ01_TREATMENTS[print.treatment].name} ${LZ01_TREATMENTS[print.treatment].code}`);
+    const bytes = readFileSync(new URL(print.src, root));
+    assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [1024, 1536], `${print.src} must stay the untouched 1024x1536 original`);
+    imagePaths.add(print.src);
+  }
+  for (const print of LZ01_PLANNED_SPECIALS) assert.equal(Object.hasOwn(print, 'src'), false, `${print.printId} is planned, not bound`);
+  assert(Object.isFrozen(LZ01_SPECIALS) && Object.isFrozen(LZ01_PLANNED_SPECIALS) && Object.isFrozen(LZ01_TREATMENTS));
+  assert.equal(imagePaths.size, 10, 'Three atlases and seven bound special printings');
+
+  const preview = new Set(JSON.parse(read('hosting/preview-assets.json')));
+  const publicAssets = new Set(JSON.parse(read('hosting/public-assets.json')));
+  const recorded = new Map([...read('docs/ART-LZ01.md').matchAll(/^\| `([a-z0-9-]+\.png)` \| `([0-9a-f]{64})` \|$/gm)].map(match => [match[1], match[2]]));
   for (const path of imagePaths) {
     const bytes = readFileSync(new URL(path, root));
     assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10], `${path} must be a PNG`);
     assert(bytes.readUInt32BE(16) > 0 && bytes.readUInt32BE(20) > 0);
+    assert(preview.has(path), `${path} must be in the preview allowlist`);
+    assert.equal(publicAssets.has(path), false, `${path} must stay out of the public build`);
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), recorded.get(path.split('/').at(-1)), `${path} must match its recorded SHA-256 in docs/ART-LZ01.md`);
   }
+  // A PNG kept in the tree but not bound keeps its recorded hash and is served by neither list. None is left: the
+  // unbound first 嬰寧 AA (yingning-aa.png) was removed from the tree when yingning-aa2.png was bound.
+  for (const name of readdirSync(new URL('assets/lz01/', root)).filter(file => file.endsWith('.png'))) {
+    const path = `assets/lz01/${name}`;
+    if (imagePaths.has(path)) continue;
+    assert.equal(createHash('sha256').update(readFileSync(new URL(path, root))).digest('hex'), recorded.get(name), `${path} must match its recorded SHA-256 in docs/ART-LZ01.md`);
+    assert.equal(preview.has(path) || publicAssets.has(path), false, `${path} is not bound, so no allowlist may serve it`);
+  }
+  for (const path of preview) if (path.startsWith('assets/lz01/')) assert(imagePaths.has(path), `${path} is allowlisted but not bound`);
+  for (const name of recorded.keys()) assert(existsSync(fileURLToPath(new URL(`assets/lz01/${name}`, root))), `docs/ART-LZ01.md records ${name}, which is not in assets/lz01/`);
   assert(existsSync(fileURLToPath(new URL('docs/EXPANSION-LZ01.md', root))));
 });
