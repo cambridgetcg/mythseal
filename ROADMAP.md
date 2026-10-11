@@ -356,8 +356,8 @@ opponent cards/commitment while choosing a move. Follow the
 cards, current confrontation, own hand and move controls together; keep played
 cards visible through reveal details. Preserve hidden bids and add direct
 simultaneous-visibility assertions to the existing viewport checks. *2026-10-11:*
-implemented locally as Q0 on branch `q0/battle-table` and not deployed; see the
-Q0 status above.
+implemented as Q0 on branch `q0/battle-table` and merged into `main` in PR #5
+(`bca9ab4`); not deployed; see the Q0 status above.
 
 **Carved map-piece study (2026-09-23):** [青玉行旅棋](docs/MAP-PIECE-PROTOTYPE.md)
 now provides a local CSS/SVG prototype across all maps: lift, follow each route
