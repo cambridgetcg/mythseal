@@ -526,6 +526,29 @@ test('N32 a "writing" record that IndexedDB cannot heal names its cause, never a
   assert.equal((await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true))).status, 'committed');
 });
 
+test('N32 on a full disk a settled record keeps its digest: lenient writes wait for nothing until one changes the profile, then each waits its budget', async () => {
+  // §10.1 Limits: which lenient writes pay the full-disk wait when the record is settled, not
+  // "writing". A virtual clock counts the time each one waits.
+  const base = rich(), o = origin(base), a = o.tab();
+  let elapsed = 0; const waits = [];
+  const lenient = createFencedLock({ request: o.lock, fence: o.fence, read: () => a.storage.getItem(PROFILE_KEY), strict: false, sleep: async ms => { elapsed += ms; }, clock: () => elapsed });
+  const waited = async change => { const start = elapsed; await lenient(change); waits.push(elapsed - start >= FENCE_LENIENT_MS ? 'budget' : elapsed - start); };
+  const same = () => a.store.save(a.store.load()); // a startup save that writes back the same text
+  const bump = () => { const profile = a.store.load(); profile.dust += 1; a.store.save(profile); };
+  await waited(same);
+  const current = { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) };
+  assert.deepEqual(o.record(), current);
+  o.faults.write = () => new DOMException('Full', 'QuotaExceededError'); waits.length = 0;
+  for (const change of [same, same, bump, bump, bump, same]) await waited(change);
+  assert.deepEqual(waits, [0, 0, 0, 'budget', 'budget', 'budget'], 'the first change waits for nothing; every lenient write after it waits its budget');
+  assert.equal(o.saved().dust, base.dust + 3, 'lenient writers still save');
+  assert.deepEqual(o.record(), current, 'nothing is recorded, so the digest is out of date');
+  o.faults.write = null; waits.length = 0;
+  await waited(bump); await waited(same);
+  assert.deepEqual(waits, ['budget', 0], 'the first write once space returns heals it; the next waits for nothing');
+  assert.deepEqual(o.record(), { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) });
+});
+
 /** A small in-memory IndexedDB: one database, one object store, async events. While
  * `options.refuseWrites` names a DOMException, every readwrite transaction aborts with it
  * and stores nothing, as a full disk does; it is read per transaction, so it can change. */
