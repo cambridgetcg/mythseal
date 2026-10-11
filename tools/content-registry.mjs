@@ -24,7 +24,7 @@ import { FIRE_MOUNTAIN } from '../activity-content.mjs';
 import { PRINTINGS, getPrintForCard, defaultPrintId } from '../printing-catalogue.mjs';
 import { WX01_RATES, WX01_SEAL_COSTS } from '../wx01-pack.mjs';
 import { basePrintFor } from '../expansion-state.mjs';
-import { LZ01_CARDS, LZ01_AA } from '../liaozhai-cards.mjs';
+import { LZ01_CARDS, LZ01_SPECIALS, LZ01_PLANNED_SPECIALS } from '../liaozhai-cards.mjs';
 import { HL01_CARDS, HL01_AA } from '../honglou-cards.mjs';
 
 export const REGISTRY_SCHEMA_VERSION = 1;
@@ -144,7 +144,7 @@ export function loadContentSources(...unexpected) {
     content: {
       CARDS, LEGACY_CARD_IDS, ORIGINAL_CARD_IDS, WELCOME_CARD_IDS, validateDeck, NODES, PACK_SETS, STORY_NODES, WORLDS, CAMPAIGN_NODES, FIRE_MOUNTAIN,
       PRINTINGS, getPrintForCard, defaultPrintId, WX01_RATES, WX01_SEAL_COSTS, basePrintFor,
-      LZ01_CARDS, LZ01_AA, HL01_CARDS, HL01_AA,
+      LZ01_CARDS, LZ01_SPECIALS, LZ01_PLANNED_SPECIALS, HL01_CARDS, HL01_AA,
     },
     readText,
     fileKind: relative => fileKind(root, relative),
@@ -248,9 +248,9 @@ export function parsePrintingChecklist(markdown, setId) {
   return { rows, baseRange };
 }
 
-/** The pending-brief table records each planned special's proposed file. */
-export function parsePendingBriefs(markdown, setId) {
-  const section = markdown.split(/^## /m).find(part => part.startsWith('Pending specials briefs'));
+/** The "Specials briefs" table records each special's file: proposed while planned, bound once generated. */
+export function parseSpecialsBriefs(markdown, setId) {
+  const section = markdown.split(/^## /m).find(part => part.startsWith('Specials briefs'));
   if (!section) return null;
   const single = new RegExp(`^\`(${setId}-\\d{3}-[a-z]+\\d*)\`$`);
   return section.split('\n').filter(line => line.startsWith('|')).map(line => line.split('|').slice(1, -1).map(cell => cell.trim()))
@@ -282,7 +282,7 @@ function analyze(sources) {
   const pageReaches = (page, module) => (previewGraphs[page] ?? publicGraph).reached.has(module);
   const servedBy = module => [...(publicGraph.reached.has(module) ? publicPages : []), ...previewPages.filter(page => previewGraphs[page].reached.has(module))];
   const lzChecklist = parsePrintingChecklist(sources.docs.lz01Checklist, 'lz01');
-  const lzBriefs = parsePendingBriefs(sources.docs.lz01Briefs, 'lz01');
+  const lzBriefs = parseSpecialsBriefs(sources.docs.lz01Briefs, 'lz01');
   return { sources, content, publicSet, previewSet, publicPages, previewPages, publicGraph, previewGraphs, cards, prints, nodeIds, defaultPrint, assetBlockers, pageReaches, servedBy, lzChecklist, lzBriefs };
 }
 
@@ -546,11 +546,12 @@ function previewEntry(ctx, { setId, sourceModule, card, printId, treatment, src,
 
 function previewEntries(ctx) {
   const { content } = ctx;
-  const lzAA = [].concat(content.LZ01_AA), hlAA = [].concat(content.HL01_AA);
+  const hlAA = [].concat(content.HL01_AA);
   const lzCard = id => content.LZ01_CARDS.find(card => card.id === id), hlCard = id => content.HL01_CARDS.find(card => card.id === id);
   const lz = [
     ...content.LZ01_CARDS.map(card => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card, printId: card.printId, treatment: 'base', src: card.art.src, name: `${card.name} · 本畫`, evidence: EVIDENCE.lz01 })),
-    ...lzAA.map(print => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card: lzCard(print.cardId) ?? { id: print.cardId }, printId: print.printId, treatment: print.treatment ?? 'aa', src: print.src, name: print.name, evidence: EVIDENCE.lz01 })),
+    // LZ01_SPECIALS is keyed by printId (and cardId:treatment); one card can have several specials.
+    ...content.LZ01_SPECIALS.map(print => previewEntry(ctx, { setId: 'lz01', sourceModule: 'liaozhai-cards.mjs', card: lzCard(print.cardId) ?? { id: print.cardId }, printId: print.printId, treatment: print.treatment, src: print.src, name: print.name, evidence: EVIDENCE.lz01 })),
   ];
   const bound = new Set(lz.map(entry => entry.printId));
   const briefs = new Map((ctx.lzBriefs ?? []).map(row => [row.printId, row]));
@@ -758,7 +759,7 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
   for (const path of ctx.previewSet) if (!previewReached.has(path) && !previewRefs.has(path)) add('preview-orphan', null, `${path} is preview-allowlisted but no preview page or entry uses it`);
   if ([...ctx.publicSet, ...ctx.previewSet].some(path => path.startsWith('tools/'))) add('tooling-served', null, 'tooling must never be allowlisted');
 
-  // LZ-01 printing checklist (docs) against what liaozhai-cards.mjs binds.
+  // LZ-01 printing checklist (docs) against what liaozhai-cards.mjs binds (LZ01_SPECIALS) and plans (LZ01_PLANNED_SPECIALS).
   const checklist = ctx.lzChecklist, briefs = ctx.lzBriefs;
   if (!checklist) add('checklist-missing', null, 'docs/EXPANSION-LZ01.md has no "Proposed printing checklist" table');
   else {
@@ -778,12 +779,17 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
       if (!row.treatment) add('checklist-mismatch', `print:${row.printId}`, `unknown treatment label ${row.label}`);
     }
     const planned = lzEntries.filter(entry => entry.status === 'planned');
+    // liaozhai.html prints LZ01_PLANNED_SPECIALS as still planned (仍在規劃中), so it must name exactly the checklist's planned rows.
+    const plannedRows = new Set(checklist.rows.filter(row => row.planned).map(row => row.printId));
+    const plannedInModule = new Set(ctx.content.LZ01_PLANNED_SPECIALS.map(print => print.printId));
+    for (const id of plannedInModule) if (!plannedRows.has(id)) add('checklist-mismatch', `print:${id}`, 'liaozhai-cards.mjs LZ01_PLANNED_SPECIALS lists a printing the checklist does not mark planned');
+    for (const id of plannedRows) if (!plannedInModule.has(id)) add('checklist-mismatch', `print:${id}`, 'checklist marks this printing planned but liaozhai-cards.mjs LZ01_PLANNED_SPECIALS omits it');
     // A brief may outlive its generation (then it describes a bound printing); a planned special may not lack one.
     for (const row of briefs ?? []) if (!rows.has(row.printId)) add('checklist-mismatch', `print:${row.printId}`, 'docs/ART-LZ01.md briefs a printing the checklist does not list');
     for (const entry of planned) {
       const row = rows.get(entry.printId), card = ctx.content.LZ01_CARDS.find(item => item.id === entry.cardId);
       if (!card || !card.name.startsWith(row.character)) add('planned-card-mismatch', entry.id, `${entry.printId} number does not match ${row.character}`);
-      if (!entry.plannedAssets.length) add('checklist-mismatch', entry.id, 'planned special has no brief with a proposed file in docs/ART-LZ01.md');
+      if (!entry.plannedAssets.length) add('checklist-mismatch', entry.id, briefs ? 'planned special has no brief with a proposed file in docs/ART-LZ01.md' : 'planned special has no brief: docs/ART-LZ01.md has no "Specials briefs" section');
       if (!/no image/.test(row.status)) continue;
       for (const path of entry.plannedAssets) {
         if (ctx.publicSet.has(path) || ctx.previewSet.has(path)) add('planned-asset-listed', entry.id, `${path} is allowlisted while the checklist says no image`);

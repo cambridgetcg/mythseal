@@ -7,7 +7,7 @@ import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { nextNodeInWorld } from '../stories.mjs';
 import { mintInstance } from '../collection.mjs';
 import { createSnapshot, restoreSnapshot } from '../cloud-save.mjs';
-import { LZ01_AA } from '../liaozhai-cards.mjs';
+import { LZ01_CARDS, LZ01_SPECIALS, LZ01_PLANNED_SPECIALS } from '../liaozhai-cards.mjs';
 import { PRINTINGS } from '../printing-catalogue.mjs';
 
 const now = '2026-09-22T12:00:00.000Z';
@@ -21,6 +21,27 @@ const audit = changes => auditContent({ ...sources, ...changes, content: { ...so
 const forged = mutate => { const copy = structuredClone(registry); mutate(copy.entries); return auditContent(sources, copy); };
 /** Source text with one file rewritten, as a renamed test, rule or page would leave it. */
 const rewrite = (file, change) => ({ readText: path => path === file ? change(sources.readText(path)) : sources.readText(path) });
+/**
+ * A consistent planned special, rebuilt from a bound one: the tree as it stood before that image was
+ * generated (checklist "Planned · no image", listed in LZ01_PLANNED_SPECIALS, no file, binding or
+ * allowlist entry). Since 2026-10-11 every LZ-01 special is bound, so the planned-path faults start here.
+ */
+const PLANNED_ID = 'lz01-008-ink1';
+const plannedPrint = LZ01_SPECIALS.find(print => print.printId === PLANNED_ID);
+const plannedChecklist = sources.docs.lz01Checklist.replace(new RegExp('^(\\| `' + PLANNED_ID + '` \\|(?:[^|\\n]*\\|){3}) [^|\\n]* \\|$', 'm'), '$1 Planned · brief only (2026-10-10), no image |');
+const PLANNED = (() => {
+  const { src, label, ...unbound } = plannedPrint;
+  return {
+    src,
+    content: { LZ01_SPECIALS: LZ01_SPECIALS.filter(print => print !== plannedPrint), LZ01_PLANNED_SPECIALS: [...LZ01_PLANNED_SPECIALS, unbound] },
+    previewAssets: sources.previewAssets.filter(path => path !== src),
+    fileKind: path => path === src ? 'missing' : sources.fileKind(path),
+    readText: path => path === 'liaozhai-cards.mjs' ? sources.readText(path).replace(`src: '${src}', `, '') : sources.readText(path),
+    docs: { ...sources.docs, lz01Checklist: plannedChecklist },
+  };
+})();
+/** The planned baseline with some sources changed further. */
+const planned = (change = {}) => ({ ...PLANNED, ...change, content: { ...PLANNED.content, ...change.content }, docs: { ...PLANNED.docs, ...change.docs } });
 const AUDIT_CODES = [...new Set([...readFileSync(new URL('../tools/content-registry.mjs', import.meta.url), 'utf8').matchAll(/\badd\('([a-z-]+)'/g)].map(match => match[1]))].sort();
 
 test('the registry derives every encounter, the activity and each printing exactly once with honest statuses', () => {
@@ -28,7 +49,11 @@ test('the registry derives every encounter, the activity and each printing exact
     'encounter:original': 6, 'encounter:story': 12, 'encounter:campaign': 48, 'activity:fire-mountain': 1,
     'printing:legacy': 24, 'printing:wx01': 29, 'printing:lz01': 19, 'printing:hl01': 11,
   });
-  assert.deepEqual(registry.summary.byStatus, { 'local-playable': 120, preview: 24, planned: 6 });
+  // LZ-01 is 19 printings by design; which are preview and which planned follows liaozhai-cards.mjs.
+  const lzBound = [...LZ01_CARDS.map(card => card.printId), ...LZ01_SPECIALS.map(print => print.printId)];
+  const lzPlanned = LZ01_PLANNED_SPECIALS.map(print => print.printId);
+  assert.equal(lzBound.length + lzPlanned.length, 19);
+  assert.deepEqual(registry.summary.byStatus, { 'local-playable': 120, preview: lzBound.length + 11, ...(lzPlanned.length ? { planned: lzPlanned.length } : {}) });
   assert.equal(new Set(registry.entries.map(item => item.id)).size, registry.entries.length);
   assert.deepEqual(registry.entries.filter(item => item.kind === 'encounter').map(item => item.nodeId), NODES.map(node => node.id));
   for (const item of [...byGroup('encounter', 'original'), ...byGroup('encounter', 'story'), ...byGroup('encounter', 'campaign'), ...byGroup('printing', 'wx01'), ...byGroup('printing', 'legacy')]) {
@@ -37,9 +62,8 @@ test('the registry derives every encounter, the activity and each printing exact
   assert.equal(entry('activity:fire-mountain').status, 'local-playable');
   assert.equal(entry('activity:fire-mountain').contentVersion, 1, 'the only declared content version is copied, never invented');
   const lz = byGroup('printing', 'lz01');
-  assert.deepEqual(lz.filter(item => item.status === 'planned').map(item => item.printId).sort(),
-    ['lz01-001-tr1', 'lz01-004-aa1', 'lz01-006-ink1', 'lz01-008-ink1', 'lz01-009-aa1', 'lz01-011-aa1']);
-  assert.equal(lz.filter(item => item.status === 'preview').length, 13, 'twelve BASE and the one generated AA');
+  assert.deepEqual(lz.filter(item => item.status === 'planned').map(item => item.printId).sort(), [...lzPlanned].sort());
+  assert.deepEqual(lz.filter(item => item.status === 'preview').map(item => item.printId).sort(), [...lzBound].sort(), 'every BASE and every bound special');
   assert(byGroup('printing', 'hl01').every(item => item.status === 'preview'));
   for (const item of registry.entries) {
     assert.equal(Object.hasOwn(item, 'uid'), false, `${item.id} must not carry an owned-copy identity`);
@@ -66,9 +90,11 @@ test('capabilities separate preview from playable, state every unavailable reaso
     'collection.mjs only mints printing-catalogue.mjs printings, and liaozhai.html never loads the profile store (profile-store.mjs).',
     'the profile claim names the pages that serve this printing, not every preview page (playtest.html writes the profile)');
   assert.match(entry('print:hl01-001-base').capabilities['local-playable'].reason, /legacy\/lindaiyu/, 'a preview reprint names the identity that already plays');
-  assert.match(entry('print:lz01-009-aa1').capabilities.preview.reason, /no image/);
-  assert.equal(entry('print:lz01-009-aa1').cardId, 'chenshi');
-  assert.deepEqual(entry('print:lz01-001-tr1').plannedAssets, ['assets/lz01/xiaoqian-treasure.png']);
+  for (const print of LZ01_SPECIALS) {
+    const item = entry(`print:${print.printId}`);
+    assert.deepEqual([item.status, item.cardId, item.treatment, item.assets, item.capabilities.preview.state], ['preview', print.cardId, print.treatment, [print.src], 'available'], print.printId);
+  }
+  assert.deepEqual(['print:lz01-001-aa1', 'print:lz01-001-tr1'].map(id => entry(id).cardId), ['niexiaoqian', 'niexiaoqian'], 'one card keeps two specials apart by printId');
   const owned = entry('print:wx01-005-tr1');
   assert.deepEqual(owned.acquisition.map(route => route.rule), ['progression.mjs:buyPack', 'progression.mjs:buyWX01Box', 'progression.mjs:openWX01Ticket', 'progression.mjs:redeemWX01Print']);
   assert.deepEqual(entry('print:wx01-006-base').acquisition.map(route => route.detail),
@@ -98,6 +124,16 @@ test('the current source passes the content audit', () => {
   assert.deepEqual(findings, [], findings.map(finding => `${finding.code} ${finding.id ?? ''} ${finding.message}`).join('\n'));
 });
 
+test('a consistent planned special audits clean and reports its brief, not an image', () => {
+  assert.notEqual(plannedChecklist, sources.docs.lz01Checklist, 'the planned baseline rewrote its checklist row');
+  const changed = { ...sources, ...PLANNED, content: { ...sources.content, ...PLANNED.content } };
+  const findings = auditContent(changed);
+  assert.deepEqual(findings, [], findings.map(finding => `${finding.code} ${finding.id ?? ''} ${finding.message}`).join('\n'));
+  const item = buildContentRegistry(changed).entries.find(candidate => candidate.id === `print:${PLANNED_ID}`);
+  assert.deepEqual([item.status, item.cardId, item.treatment, item.assets, item.plannedAssets, item.brief], ['planned', plannedPrint.cardId, plannedPrint.treatment, [], [PLANNED.src], 'docs/ART-LZ01.md']);
+  assert.match(item.capabilities.preview.reason, /no image/);
+});
+
 const nodes = (id, change) => NODES.map(node => node.id === id ? { ...node, ...change(node) } : node);
 const evidenceTitle = 'six map locations unlock sequentially on wins and move the traveller on entry';
 /** [label, broken sources, codes that must fire, a message one finding must match] */
@@ -118,13 +154,19 @@ const SOURCE_FAULTS = [
     ['capability-inconsistent'], /printing has no art/],
   ['an activity drop that is not the boss BASE', { content: { FIRE_MOUNTAIN: { ...sources.content.FIRE_MOUNTAIN, stages: sources.content.FIRE_MOUNTAIN.stages.map((stage, index) => index ? stage : { ...stage, dropPrintId: 'wx01-010-base' }) } } },
     ['capability-inconsistent'], /not honghaier's WX-01 BASE printing/],
-  ['a planned special bound without its image or docs', { content: { LZ01_AA: [LZ01_AA, { cardId: 'yingning', printId: 'lz01-004-aa1', treatment: 'aa', name: '嬰寧 · 花間藏笑', src: 'assets/lz01/yingning-aa.png' }] } },
-    ['capability-inconsistent', 'planned-bound'], /yingning-aa\.png is missing/],
-  ['a planned special that lost its brief', { docs: { ...sources.docs, lz01Briefs: sources.docs.lz01Briefs.replace(/^\| `lz01-011-aa1` .*\n/m, '') } },
+  ['a planned special bound without its image or docs', planned({ content: { LZ01_SPECIALS: [...PLANNED.content.LZ01_SPECIALS, plannedPrint] } }),
+    ['capability-inconsistent', 'planned-bound'], /huapi-ink\.png is missing/],
+  ['a planned special that lost its brief', planned({ docs: { lz01Briefs: sources.docs.lz01Briefs.replace(/^\| `lz01-008-ink1` .*\n/m, '') } }),
     ['checklist-mismatch'], /no brief with a proposed file/],
-  ['a checklist that claims an unbound image', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace(/(\| `lz01-009-aa1` [^\n]*\| )Planned · brief only \(2026-10-10\), no image \|/, '$1Generated local preview image: `assets/lz01/chenshi-aa.png` |') } },
-    ['checklist-mismatch'], /lz01-009-aa1|nothing binds it/],
-  ['a planned image added without binding or docs', { fileKind: path => path === 'assets/lz01/huapi-ink.png' ? 'file' : sources.fileKind(path) },
+  ['a planned special whose briefs heading was renamed', planned({ docs: { lz01Briefs: sources.docs.lz01Briefs.replace('## Specials briefs', '## Special printing notes') } }),
+    ['checklist-mismatch'], /has no "Specials briefs" section/],
+  ['a checklist that claims an unbound image', { content: { LZ01_SPECIALS: PLANNED.content.LZ01_SPECIALS } },
+    ['checklist-mismatch'], /checklist marks this special available but nothing binds it/],
+  ['a planned printing missing from LZ01_PLANNED_SPECIALS', planned({ content: { LZ01_PLANNED_SPECIALS } }),
+    ['checklist-mismatch'], /checklist marks this printing planned but liaozhai-cards\.mjs LZ01_PLANNED_SPECIALS omits it/],
+  ['LZ01_PLANNED_SPECIALS naming a printing the checklist calls generated', { content: { LZ01_PLANNED_SPECIALS: PLANNED.content.LZ01_PLANNED_SPECIALS } },
+    ['checklist-mismatch'], /LZ01_PLANNED_SPECIALS lists a printing the checklist does not mark planned/],
+  ['a planned image added without binding or docs', planned({ fileKind: sources.fileKind }),
     ['planned-asset-exists'], /huapi-ink\.png exists/],
   ['the public game importing an unlisted module', { readText: path => sources.readText(path) + (path === 'app.mjs' ? "\nimport './q4-unlisted.mjs';\n" : '') },
     ['public-graph-unlisted'], /q4-unlisted\.mjs/],
@@ -148,10 +190,10 @@ const SOURCE_FAULTS = [
     ['preview-orphan'], /README\.md is preview-allowlisted/],
   ['tooling on an allowlist', { publicAssets: [...sources.publicAssets, 'tools/content-registry.mjs'] },
     ['tooling-served'], /tooling must never be allowlisted/],
-  ['a planned image allowlisted before it exists', { previewAssets: [...sources.previewAssets, 'assets/lz01/huapi-ink.png'] },
+  ['a planned image allowlisted before it exists', planned({ previewAssets: sources.previewAssets }),
     ['planned-asset-listed'], /huapi-ink\.png is allowlisted while the checklist says no image/],
-  ['a checklist row numbered for the wrong character', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace('| `lz01-004-aa1` | 嬰寧 / AA', '| `lz01-004-aa1` | 小倩 / AA') } },
-    ['planned-card-mismatch'], /lz01-004-aa1 number does not match 小倩/],
+  ['a checklist row numbered for the wrong character', planned({ docs: { lz01Checklist: plannedChecklist.replace('| `lz01-008-ink1` | 畫皮之鬼 / INK', '| `lz01-008-ink1` | 小倩 / INK') } }),
+    ['planned-card-mismatch'], /lz01-008-ink1 number does not match 小倩/],
   ['a design document without its printing checklist', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace('## Proposed printing checklist', '## Printing notes') } },
     ['checklist-missing'], /no "Proposed printing checklist" table/],
   ['a printing listed twice', { content: { PRINTINGS: [...sources.content.PRINTINGS, sources.content.PRINTINGS.find(print => print.id === 'wx01-005-tr1')] } },

@@ -1,7 +1,9 @@
 # Mythseal agent handover
 
 Start here when joining development. Updated **2026-09-29**, with local Q0
-and Q4 checkpoints added on **2026-10-11**. The last recorded
+and Q4 checkpoints and the LZ-01 special-art addenda (under
+[LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
+**2026-10-11**. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -94,22 +96,24 @@ deployed, and no hosted check was made.
   and each planned LZ-01 special can do. No runtime, save, content, art or
   allowlist file changed. [Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states)
   defines statuses and capability states.
-- **Checked:** 473/473 Node tests, the audit (exit 0, no findings), an 80-file
-  build and the LZ-01/HL-01 preview smokes in Chromium and WebKit;
+- **Checked:** 473/473 Node tests before the merge and 474/474 after it, the
+  audit (exit 0, no findings), an 80-file build and the LZ-01/HL-01 preview
+  smokes in Chromium and WebKit;
   [VALIDATION](VALIDATION.md#q4-content-registry--2026-10-11) has the receipts
   and both review rounds.
 - **When content changes:** run `npm run audit:content`. If you bind an LZ-01
   special, update its row in the [EXPANSION-LZ01](EXPANSION-LZ01.md) checklist
   in the same change, or the audit fails.
-- **Merging with `art/lz01-specials-images` (at `3f8851b`, also unmerged):**
-  that branch replaces the `LZ01_AA` export with `LZ01_SPECIALS` and
-  `LZ01_PLANNED_SPECIALS`, and renames ART-LZ01's "Pending specials briefs"
-  section to "Specials briefs · 2026-10-10". In a scratch merge the registry
-  tool and its tests failed to load. Whichever branch merges second must update
-  the registry's import and the brief section it parses, then the three tests
-  that pin today's LZ-01 state (counts, the planned list and a fault case that
-  binds 嬰寧 AA). Expected after that: 120 local-playable, 29 preview, 1 planned.
-  `docs/VALIDATION.md` also conflicts.
+- **Merged with `art/lz01-specials-images` (PR #8, at `35ab891`):** that
+  branch replaces `LZ01_AA` with `LZ01_SPECIALS` (keyed by printId or
+  `cardId:treatment`) and `LZ01_PLANNED_SPECIALS`, and renames ART-LZ01's
+  "Pending specials briefs" section to "Specials briefs · 2026-10-10". The
+  registry now reads both lists and the new heading, and the audit checks that
+  `LZ01_PLANNED_SPECIALS` names exactly the checklist's planned rows. With all
+  six specials bound, it derives 120 local-playable and 30 preview entries and
+  none planned. The tests derive the LZ-01 split from `liaozhai-cards.mjs`
+  instead of pinning it, and rebuild a planned special from a bound one to keep
+  the planned-path faults exercised.
 - **Open:** feature views do not show unavailable reasons yet; there is no
   browser-level start → completion → receipt → return test; the
   deeper-encounter sample and human difficulty review are not started.
@@ -156,7 +160,10 @@ above. Pushing a branch does not deploy the game.
   火焰山 activity and WX-01's 29 printings. Its owned-copy/pack/progression systems
   are implemented locally; the coherent client/Worker/backup release gates below
   still separate it from the recorded public v0.5.1 snapshot.
-- **Completed standalone previews:** LZ-01 has 12 BASE candidates + 1 AA available;
+- **Completed standalone previews:** at this checkpoint LZ-01 had 12 BASE
+  candidates + 1 AA available (all 19 of 19 printings since the 2026-10-11
+  round-four addendum under
+  [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23));
   HL-01 has 8 BASE + 3 AA, including the unchanged 黛玉 identity and seven new
   candidates. Each has inspection, filters and a fixed opening. Neither adds
   new engine characters, ownership, actual booster acquisition or profile fields.
@@ -228,16 +235,60 @@ source anchors, tradeoffs, nineteen proposed printings and later integration.
 `liaozhai.html` / `liaozhai.css` / `liaozhai.mjs` and `liaozhai-cards.mjs` form a
 standalone preview served by `python3 tools/serve.py`. It has story/faction
 filters, full card inspection, 小倩 BASE/AA and a fixed three-card opening with
-skip/restart. Three 2×2 atlases plus one AA supply thirteen currently available
-illustrations; six special works remain planned. See [ART-LZ01](ART-LZ01.md)
+skip/restart. On 2026-09-23 three 2×2 atlases plus one AA supplied thirteen
+available illustrations and six special works were planned; all six are bound
+now (19 of 19 printings), as the 2026-10-11 addenda below record. See [ART-LZ01](ART-LZ01.md)
 for exact built-in imagegen prompts, mapping and hashes.
 
 The preview imports no engine, account, profile or progression code; it reads
 and writes no player storage and has no RNG, payment or card grant. LZ candidates
-are absent from the game's 39-card roster. All eight new preview files/assets
-are in `hosting/preview-assets.json` only; the public build still has 80 assets.
+are absent from the game's 39-card roster. On 2026-09-23 all eight new preview
+files/assets were in `hosting/preview-assets.json` only (fourteen paths since the
+round-four addendum below) and the public build had 80 assets.
 Gold purchases, owned copies, story integration and the **餘願** keyword are
 explicit later tasks, not implemented rules. No deployment or service change.
+
+**2026-10-11 addendum:** five of the six special works were generated and four
+are bound in the preview (陳氏, 王六郎 AA; 畫皮之鬼 墨卷 INK; 聶小倩 天工 TR), keyed
+by `${cardId}:${treatment}` in `LZ01_SPECIALS`. 嬰寧 AA was unbound after a
+card-fit review, because the card's title and name cover 王子服; its file stays
+in the tree unchanged but is in neither allowlist, and it is planned again
+beside 陸判 INK, both with card-fit briefs. The LZ preview now has twelve paths
+in `hosting/preview-assets.json` (four code, eight images), still none in the
+public list. Provenance, including each file's embedded C2PA credential, is in
+[ART-LZ01](ART-LZ01.md#provenance--special-printings--2026-10-11).
+
+**2026-10-11 round-three addendum:** 陸判 墨卷 INK (`lz01-006-ink1`) is now bound
+as `assets/lz01/lupan-ink.png`, round three candidate 3 of 3 from the
+strike-only prompt, after five earlier candidates were rejected because their
+red marks read as letters or numerals. It passed the card-fit check in the
+dialog at 1440 and 390 in Chromium and WebKit. Six special works are bound, and
+the preview shows eighteen of the nineteen printings; the rendered count is
+「12 款本畫＋6 款特別畫作先行（異畫 3、墨卷 2、天工 1）；嬰寧異畫仍在規劃中。」. The
+three 嬰寧 AA candidates from its card-fit brief were reviewed and none was
+selected: each puts 王子服's feet below the card-fit line, and one also shows the
+excluded blossom in his hand. The slot stays planned, `yingning-aa.png` stays
+unbound in the tree, and its brief records all three hashes and reasons. The LZ
+preview now has thirteen paths in `hosting/preview-assets.json` (four code, nine
+images), still none in the public list. The 4196 loopback server was restarted
+from this worktree to reread the allowlist.
+
+**2026-10-11 round-four addendum:** 嬰寧 異畫 AA (`lz01-004-aa1`) is bound again,
+as `assets/lz01/yingning-aa2.png`: round four candidate 2 of 3 from a prompt that
+puts 王子服 on a raised path with his feet above 52% of the image height and both
+hands open and empty. It passed the card-fit check in the hero and the dialog at
+1440 and 390 in Chromium and WebKit (his feet at about 50.5%, about 96 image px
+above the title). All seven special works are bound, `LZ01_PLANNED_SPECIALS` is
+empty, and the preview shows all 19 of 19 printings; the rendered count is
+「12 款本畫＋7 款特別畫作先行（異畫 4、墨卷 2、天工 1）。」. The unbound first file,
+`yingning-aa.png`, was removed from the tree in the same commit (its bytes stay
+in Git history at `3c07dfe` and in the private archive); its provenance block
+is kept and marked superseded. The content test now also fails if the
+ART-LZ01 hash table names a file that is not in `assets/lz01/`. The LZ preview
+now has fourteen paths in `hosting/preview-assets.json` (four code, ten
+images), still none in the public list. The 4196 loopback server was restarted
+from this worktree to reread the allowlist. Physical phones, native Safari and
+the owner's art review remain open.
 
 Use `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` (or the server's actual
 loopback URL) for isolated Chromium/WebKit preview checks. `npm test` includes

@@ -230,10 +230,12 @@ subset that the build generates, not import this file.
 - **Derived, not maintained:** encounters come from `progression.mjs:NODES`
   (6 original, 12 story, 48 campaign), the activity from `FIRE_MOUNTAIN`, the 24
   legacy and 29 WX-01 printings from `PRINTINGS`, the LZ-01/HL-01 previews from
-  their card modules, and the six planned LZ-01 specials from the "Proposed
-  printing checklist" in [EXPANSION-LZ01](EXPANSION-LZ01.md), with proposed files
-  from [ART-LZ01](ART-LZ01.md). That makes 150 entries: 120 `local-playable`,
-  24 `preview` and 6 `planned`.
+  their card modules (LZ-01 specials from `LZ01_SPECIALS`), and any planned
+  LZ-01 special from the "Proposed printing checklist" in
+  [EXPANSION-LZ01](EXPANSION-LZ01.md), with its proposed file from the
+  "Specials briefs" table in [ART-LZ01](ART-LZ01.md). That makes 150 entries:
+  120 `local-playable` and 30 `preview`. Since `art/lz01-specials-images` was
+  merged, all six LZ-01 specials are bound, so none is `planned`.
 - **Acquisition mirrors a few hard-coded grants:** pack pools, seal treatments,
   campaign reward characters, activity drops and the starter (`ORIGINAL_CARD_IDS`)
   and welcome (`WELCOME_CARD_IDS`) card lists come from the content modules.
@@ -284,7 +286,8 @@ subset that the build generates, not import this file.
   as failures on the paths they exercise. They cover preview data or art
   reaching the public build and a planned special that is bound, allowlisted or
   present while its checklist row still says "no image". They also cover drift
-  between the LZ-01 checklist and its briefs, and a dead rule or evidence
+  between the LZ-01 checklist, its briefs and `LZ01_PLANNED_SPECIALS` (the list
+  `liaozhai.html` prints as still planned), and a dead rule or evidence
   reference. Every one of the 27 finding codes has an injected-fault case, and a
   test fails if a new code lacks one. Four codes guard the registry's own shape
   (an owned-copy `uid`, a server-authority claim, a missing reason and an
@@ -324,16 +327,17 @@ state means deployed: the registry's `evidenceScope` is `source`, and only
 release-manifest evidence (`dist/release.json`, [HOSTING](HOSTING.md)) shows
 what is live.
 
-The current source (content as at `8afbabc`) has 150 entries and no
-`inconsistent` capability:
+The current source (content as at the merge of `art/lz01-specials-images`,
+which bound the six LZ-01 specials) has 150 entries and no `inconsistent`
+capability:
 
 | Entries | Status | `preview` | `local-playable` | `local-owned` | `backup-compatible` | `server-authoritative` |
 | --- | --- | --- | --- | --- | --- | --- |
 | 66 encounters: 6 original, 12 story, 48 campaign | `local-playable` | not-applicable | available | not-applicable | available, with limits | unavailable |
 | 1 activity: 火焰山三連戰 | `local-playable` | not-applicable | available | not-applicable | available, with limits | unavailable |
 | 53 printings: 24 legacy, 29 WX-01 | `local-playable` | available | available | available | available | unavailable |
-| 24 bound previews: 13 LZ-01, 11 HL-01 | `preview` | available | unavailable | unavailable | unavailable | unavailable |
-| 6 planned LZ-01 specials | `planned` | unavailable | unavailable | unavailable | unavailable | unavailable |
+| 30 bound previews: 19 LZ-01 (12 BASE, 4 AA, 2 INK, 1 TR), 11 HL-01 | `preview` | available | unavailable | unavailable | unavailable | unavailable |
+| Planned LZ-01 specials (none since the six were bound) | `planned` | unavailable | unavailable | unavailable | unavailable | unavailable |
 
 What today's reasons and limits say:
 
@@ -343,7 +347,7 @@ What today's reasons and limits say:
 - **Encounter and activity backup limits:** an unfinished battle or an active run
   blocks backup export and restore. Snapshot formats v1/v2 cannot carry
   campaign or activity progress.
-- **Bound previews, `local-playable`:** 22 are candidates absent from
+- **Bound previews, `local-playable`:** 28 are candidates absent from
   `engine.mjs` `CARDS`, with no rules, deck or AI integration. The two HL-01
   林黛玉 printings name a card that exists, but the catalogue lacks them, so
   林黛玉 plays only as `legacy/lindaiyu`.
@@ -354,14 +358,17 @@ What today's reasons and limits say:
   the module. The preview-allowlisted `playtest.html` does load the store and
   writes coins and a gift marker, but it serves no preview printing. No profile
   stores preview data, so no backup carries it.
-- **Planned specials:** every capability is unavailable. The `preview` reason
-  quotes the checklist status in [EXPANSION-LZ01](EXPANSION-LZ01.md), today
-  "Planned · brief only (2026-10-10), no image". The proposed file from
-  [ART-LZ01](ART-LZ01.md) is kept as `plannedAssets`, not `assets`.
+- **Planned specials:** none today. A checklist row marked "Planned · … no
+  image" in [EXPANSION-LZ01](EXPANSION-LZ01.md) would give an entry with every
+  capability unavailable; its `preview` reason quotes that status, and its
+  proposed file from [ART-LZ01](ART-LZ01.md) is kept as `plannedAssets`, not
+  `assets`. The test suite rebuilds that state from a bound special to keep the
+  planned-path checks exercised.
 
 **Changing state means changing the source.** Editing the registry does not do it:
 
-- **planned → preview:** bind the selected image in `liaozhai-cards.mjs`, add it
+- **planned → preview:** move the printing from `LZ01_PLANNED_SPECIALS` to
+  `LZ01_SPECIALS` in `liaozhai-cards.mjs` with its selected image, add the image
   to `hosting/preview-assets.json`, and in the same change replace the checklist
   row's "Planned · … no image" status with the image path. Otherwise
   `planned-bound`, `planned-asset-exists`, `planned-asset-listed` or
@@ -379,10 +386,9 @@ What today's reasons and limits say:
 **Still open for Q4:** feature views do not show these reasons yet. Start →
 completion → receipt → return is covered at rules level, not in the browser UI.
 The "one deeper encounter" sample and human difficulty review are not started.
-The unmerged `art/lz01-specials-images` branch changes the LZ-01 module's exports
-and the brief section the registry parses; see the
-[handover](HANDOVER.md#q4-content-registry-checkpoint--2026-10-11-local-only)
-before merging the two branches.
+`art/lz01-specials-images` (PR #8) is merged into `q4/content-registry`; the
+registry reads its `LZ01_SPECIALS`, `LZ01_PLANNED_SPECIALS` and renamed
+"Specials briefs" section.
 
 ## Q5 · a fair observation and legal-command boundary
 
