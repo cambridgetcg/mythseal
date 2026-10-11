@@ -2,6 +2,92 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## D1 Back model · 2026-10-12
+
+Branch `d1/back-model`, from `origin/main` `7712a7b`; packet D1, approved by the
+owner on 2026-10-11 for the proposed v0.6.0 scope. Source commits `17a64e0`,
+`97543e8`, `37ca36c`, `c86e529` (comments only), `cf14ee7` and `e2e1474`
+(smoke messages only); the documentation commits after them change no served,
+test or tool file. Not merged, pushed or deployed; no hosted check, no network
+request beyond the loopback server. Design and decision table:
+[NAVIGATION](NAVIGATION.md#back-model--2026-10-12).
+
+**Environment.** macOS 26.6.2 (Darwin 25.6.0), Node 26.0.0, Python 3.14.6,
+Playwright 1.63.0, installed Google Chrome 154.0.8037.98 for Chromium and
+Playwright WebKit 26.6, all headless. `python3 tools/serve.py --port 4201` from
+the worktree, started after `nav-stack.mjs` entered the allowlist;
+`GAME_URL=http://127.0.0.1:4201` for every browser suite. Synthetic saves only.
+
+**Problem reproduced.** With `7712a7b`'s `app.mjs` served (everything else as
+on the branch), a scratch Playwright script opened the game, then either tapped
+遊歷 in the dock or opened the quest panel, then called `page.goBack()`. In
+Chrome (Pixel 7 descriptor) and WebKit (iPhone 15 descriptor) both cases landed
+on `about:blank`. With the branch's `app.mjs` all four stayed on the game.
+
+**Checks at `e2e1474`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **548/548** (530 on `7712a7b`, plus
+  17 in `tests/nav-stack.test.mjs`, N1–N17, and one in `tests/hosting.test.mjs`).
+  N1–N3 cover every row of the decision table; N5 checks that each Back closes
+  one layer and only the root leaves; N6 replaceState for destination switches;
+  N7 that ×/Escape/backdrop consume their own entry and that popstate is not a
+  second close; N8 that a result holds, the guard entry is re-armed with
+  `history.go(+1)`, there is no push from popstate and the settlement count is
+  unchanged; N9 the battle guard; N10 pushes only on a user turn; N11–N12 stale
+  entries after a reload (the root leaves in one Back); N13 Forward and a
+  bfcache `pageshow`; N14 a user Back racing the game's own walk; N15
+  `requestBack()` for native shells; N16 a seeded 30-step walk (25 runs) keeping
+  `history.length` ≤ initial + 4; N17 recovery from a walk that never lands.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, **84 public files** (83 plus `nav-stack.mjs`),
+  manifest `91a83554…998b`.
+- `git diff --check 7712a7b HEAD`: exit 0.
+- `npm run test:back` (new; `tools/back-smoke.mjs`, Chrome with the Pixel 7
+  descriptor, then WebKit with the iPhone 15 descriptor): exit 0, **11/11
+  checks in each engine**, about 12 s per engine. From 遊歷, 對弈, 藏卡, 市集,
+  the codex tab, a collection group, a card page, quests, settings, rules,
+  preparation, its deck editor, the lobby's two-layer continue and 旅程閣
+  (from 洞府 and from 遊歷), each `page.goBack()` closed exactly one layer, and
+  no `about:blank` occurred before the 洞府 root. After Back closed a card page
+  opened from the second page of a 雲-filtered copy list, the same copies (by
+  UID) and the filter were shown. A seeded 30-step walk (3 ×, 2 Escape,
+  2 backdrop and 4 Back steps, 19 openings, up to three layers) kept
+  `history.length` at most 5 against 2 on load (≤ initial + 4). In a battle,
+  Back opened keep/abandon twice, closed it in between, and left the profile
+  bytes and write count unchanged. On the round and the match result, two
+  Backs each held the dialog. The save equaled exactly one `finishBattle`
+  computed in Node on the same synthetic save (+90 coins, `stats.played` 1),
+  with one profile write. A reload with a card page open, and a reload on the
+  match result, then Back: the page opened at 洞府 and Back left it in one
+  step past the earlier load's entries, with no prompt and no write; Forward
+  came back with the same save bytes and no second settlement.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:commands`: exit 0, 13/13 groups (B1–B11) in Chrome and in WebKit.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit.
+- `npm run test:browser` (Chrome, the 14 suites chained with `&&`): exit 0,
+  91 `PASS` lines; every suite that prints an error list printed an empty one.
+
+Also run earlier: `npm run test:browser` at `37ca36c`, before `cf14ee7`
+changed `nav-stack.mjs` (and while `c86e529` changed two comments): exit 0,
+the same 91 `PASS` lines. A sibling packet's suites shared the machine for part
+of that run.
+
+**Not run or not shown:** physical Android phones with gesture navigation
+(including Android 16 predictive back) and the iOS Safari edge swipe, which are
+M5.1 items not yet verified. Also not covered: whether a real Back button skips
+any entry under Chrome's or WebKit's history-manipulation rules, since
+Playwright's `goBack()` steps to the previous entry by index; a real bfcache
+restore: in both engines Forward loaded a new document (a scratch script saw
+`pageshow.persisted` false and navigation type `back_forward`), so the bfcache
+path is covered only by the Node test N13; Firefox; desktop sizes in
+`test:back`; the Capacitor back-button wiring (M5.2); the literary preview
+smokes, since no preview file changed; the WebKit runs in `test:wx01`,
+`test:inheritance` and `test:collection-display` (their Chrome suites ran
+inside `test:browser`); `test:expansion` and `test:map-piece`; deploy dry runs,
+the SQL harness and CI.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings
