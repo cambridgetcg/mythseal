@@ -91,6 +91,21 @@ the 嬰寧 section, in both the rendered page and its raw wikitext. Each brief s
 the **verified anchor** from the **invented composition**. Rain, lamps, poses,
 footpaths and framing are Mythseal art direction unless the quote says otherwise.
 
+**Source-alignment revision · 2026-10-11.** The owner asked that the four briefs
+which had departed from the text on purpose follow it instead. 陳氏 AA now bows
+at the door rather than standing upright. 畫皮之鬼 INK shows the green-faced
+ghost lifting the sheet before it becomes a woman, not the woman already holding
+it. 王六郎 AA is set at noon, when the woman climbs out on her own, not at dusk.
+嬰寧 AA no longer shows the plum blossom in 王子服's sleeve. Two smaller
+readings were corrected at the same time: the 嬰寧 garden's three-bay thatched
+hut stands inside the garden among its trees, and the 陳氏 Daoist carries his
+bag and wooden sword rather than a gourd at the hip. Each quote added in this
+revision was matched exactly once, inside its own story section, in both the
+raw wikitext (`action=raw`) and the rendered volume page on 2026-10-11.
+「如鋸」 and 「而窗窺之」 are quoted short because the characters just before them
+carry variant readings (「齒巉{{另|巉|然}}」 and 「躡{{另|跡|足}}」). The 陸判 INK
+and 聶小倩 TR briefs are unchanged.
+
 | Print ID | Card · slot | Title | Proposed file (not yet existing) | Source section | Verified quote (≤20 字) |
 | --- | --- | --- | --- | --- | --- |
 | `lz01-004-aa1` | 嬰寧 · AA 異畫 | 花間藏笑 | `assets/lz01/yingning-aa.png` | [卷二・嬰寧](https://zh.wikisource.org/wiki/聊齋志異/第02卷#嬰寧) | 「仰視，則嬰寧在上。見生來，狂笑欲墮」 |
@@ -127,56 +142,84 @@ The names are proposals; nothing may point at them until the files exist.
 
 ### lz01-004-aa1 · 嬰寧 AA · 花間藏笑
 
-- **Verified anchor:** In the small garden behind the house, 王子服 hears rustling
-  overhead and finds 嬰寧 laughing in a tree: 「仰視，則嬰寧在上。見生來，狂笑欲墮」.
-  He calls up to her: 「生曰：『勿爾，墮矣！』」. The garden itself:
-  「有園半畝，細草鋪氈，楊花糝徑」. Only after her laughter has stopped does he
-  show the flower: 「生俟其笑歇，乃出袖中花示之」. 「懷梅袖中」 comes from an
-  earlier passage, when he set out alone to find her (「懷梅袖中，負氣自往」), not
-  from the garden scene.
+- **Verified anchor:** The next day (「次日，至舍後」) 王子服 walks into the small
+  garden behind the house: 「有園半畝，細草鋪氈，楊花糝徑」, and inside it
+  「有草舍三楹，花木四合其所」. He hears rustling overhead and finds 嬰寧 laughing
+  in a tree: 「仰視，則嬰寧在上。見生來，狂笑欲墮」. He calls up to her:
+  「生曰：『勿爾，墮矣！』」. That call is the drawn moment. Only after her
+  laughter has stopped does he show the flower: 「生俟其笑歇，乃出袖中花示之」,
+  so the blossom stays out of the picture and his hands are drawn empty.
+  「懷梅袖中」 comes from an earlier passage, when he set out alone to find her
+  (「懷梅袖中，負氣自往」), not from the garden scene.
 - **Invented:** The tree's blossom species (the text does not name it), the
-  light, the scale relationship and the camera distance. The dried plum blossom
-  is drawn still half-tucked in his sleeve, a foreshadowing of the later
-  reveal; in the text it stays out of sight until her laughter stops.
-- **Excluded:** the courtship dialogue that follows, the wrist-holding, the
-  neighbour episode and any fox features. In this story 嬰寧 is sixteen
-  (「年已十六」) and 王子服 seventeen (「阿甥已十七」), so keep the scene playful
-  and non-romantic.
+  light (the text gives 「次日」 but no hour), the scale relationship, the camera
+  distance and the softly shaded corner of the garden. The 2026-10-10 draft
+  drew the dried plum blossom half-tucked in his sleeve as foreshadowing; that
+  is removed so the picture stays inside this moment.
+- **Excluded:** the plum blossom, which he brings out only after this moment;
+  her fall from the tree and his steadying her (「方將及地，失手而墮」); the
+  courtship dialogue that follows, the wrist-holding, the neighbour episode and
+  any fox features. In this story 嬰寧 is sixteen (「年已十六」) and 王子服
+  seventeen (「阿甥已十七」), so keep the scene playful and non-romantic.
 
 ```text
-Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Yingning: Laughter Hidden among Flowers. A half-acre walled back garden behind a small three-bay thatched cottage, enclosed on all sides by flowering trees; fine grass like a soft carpet, a narrow path dusted with drifting willow catkins, abundant pale pink and white spring blossom filling much of the canvas as breathing space. High in a blossoming tree in the upper middle, Yingning, a fully clothed Chinese teenage girl from the classical story, simple fresh green robes and half-tied dark hair, is caught laughing so helplessly she almost loses her balance, one hand gripping a branch, petals shaken loose around her; her bright natural laughing face catches soft warm spring light and stays clearly readable at small card size; her head is about one tenth of the image height, placed in the upper middle. Far below on the path, small in scale, Wang Zifu, a fully clothed teenage scholar in muted warm russet cotton robes, looks up in alarm with one hand raised as if calling to her to be careful, a single dried plum blossom still half-tucked in his sleeve; a respectful distance separates them. Humour, surprise and gentle concern, with one softly dim shaded corner of the garden hinting at a quieter hidden history. Strong vertical depth: only Wang Zifu is small, Yingning stays large enough to read, and generous negative space of blossom surrounds them; bottom fifth is quiet grass and fallen petals, not cropped limbs. Exquisite painterly Chinese literary fantasy with ink wash texture under fine detail; restrained celadon, blossom ivory, pale peach, warm amber and a touch of aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, non-sexual, no fox ears or tails, no embrace or touching, no romantic gaze, no gore. No text, signatures, logos, watermark, numbers, borders or UI.
+Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Yingning: Laughter Hidden among Flowers. A half-acre back garden behind a country house: fine grass like a soft carpet, a narrow path dusted with drifting willow catkins, and a small three-bay thatched hut ringed on all sides by flowering trees; abundant pale pink and white spring blossom fills much of the canvas as breathing space. High in a blossoming tree in the upper middle, Yingning, a fully clothed Chinese teenage girl from the classical story, simple fresh green robes and half-tied dark hair, is caught laughing so helplessly she almost loses her balance, one hand gripping a branch, petals shaken loose around her; her bright natural laughing face catches soft warm spring light and stays clearly readable at small card size; her head is about one tenth of the image height, placed in the upper middle. Far below on the path, small in scale, Wang Zifu, a fully clothed teenage scholar in muted warm russet cotton robes, has stopped mid-stroll and looks up in alarm, calling to her to be careful, one empty hand raised and the other empty at his side; a respectful distance separates them. Humour, surprise and gentle concern, with one softly dim shaded corner of the garden hinting at a quieter hidden history. Strong vertical depth: only Wang Zifu is small, Yingning stays large enough to read, and generous negative space of blossom surrounds them; bottom fifth is quiet grass and fallen petals, not cropped limbs. Exquisite painterly Chinese literary fantasy with ink wash texture under fine detail; restrained celadon, blossom ivory, pale peach, warm amber and a touch of aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, non-sexual, no fox ears or tails, no embrace or touching, no romantic gaze, no gore. No text, signatures, logos, watermark, numbers, borders or UI.
 ```
 
 ### lz01-009-aa1 · 陳氏 AA · 仍有人守門
 
-- **Verified anchor:** After the Daoist has dealt with the ghost and is leaving,
-  陳氏 meets him at the gate and begs for a way to restore her husband:
-  「陳氏拜迎于門，哭求回生之法」. Her persistence continues: 「陳固哀之」 and
+- **Verified anchor:** The day after 王生's death, 陳氏 sends 二郎 for the Daoist
+  (「明日，使弟二郎奔告道士」). The Daoist arrives with a wooden sword
+  (「仗木劍，立庭心」), destroys the ghost, stoppers the gourd and puts it in his
+  bag (「道士塞口入囊」), rolls up the skin, bags that too and takes his leave
+  (「亦囊之，乃別欲去」). 陳氏 then bows to him at the door and, weeping, begs
+  for a way to bring her husband back: 「陳氏拜迎于門，哭求回生之法」. That is
+  the drawn moment. Only after he declines does she fall prostrate:
+  「道士謝不能；陳益悲，伏地不起」. Her persistence continues: 「陳固哀之」 and
   「陳忍痛受之」.
-- **Invented:** The upright pose follows the set's direction to give 陳氏 agency
-  and a face, not only a kneeling grief pose. The text has her bowing and then
-  prostrate. The lamp left burning, the morning mist and the lane are also invented.
+- **Invented:** The form of the bow. The text says only 拜, so the prompt draws
+  a low kneeling bow on the threshold, not yet prostrate, with her tear-marked
+  face lifted toward the Daoist so it stays readable at card size. That lifted
+  face, not an upright pose, now carries the set's direction to give 陳氏 agency
+  and a face. The hour (the text gives 「明日」 but no time), the grey weather
+  after rain, the lamp left burning from the night, the lane, the Daoist's pause
+  and his back view are also invented. His BASE fly whisk is left out because
+  the ghost had already smashed it (「取拂碎之」). The 2026-10-10 draft stood her
+  upright and sent the Daoist far down the lane; both are removed.
 - **Excluded:** the husband's body and wound, the beggar's humiliation, the heart
-  episode and any monster. The Daoist appears only as a tiny departing back view,
-  is not named and is not shown restoring life.
+  episode and any monster. The gourd and the rolled skin stay inside the
+  Daoist's bag. He is not named, his face is not shown, and he is not shown
+  restoring life.
 
 ```text
-Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Madam Chen: Someone Still Keeps the Door. Madam Chen from Painted Skin, a resilient adult Chinese woman in her thirties, practical sage-green and linen robes, dark hair pinned simply, no glamorous jewelry. She stands fully upright in the open doorway of a modest household gate on a grey morning after rain, one hand firm on the weathered door post, the other closed at her chest; her face is tired and tear-marked yet composed, eyes steady and resolved, looking out toward the lane: dignity and agency, not collapse. Just inside the threshold behind her, a small oil lamp from the night's vigil still burns low, warming the door edge and her sleeve; the house beyond is quiet shadow with no figure visible. Far down the wet stone lane, a tiny back-view silhouette of a departing Daoist with a gourd at his hip walks into morning mist, no identifiable face. Strong architectural composition: the door frame and her upright figure hold the centre-right, the lane recedes to the left, and the bottom fifth is calm wet paving and threshold stone. Exquisite painterly Chinese literary fantasy with ink wash texture; restrained ink-blue morning, celadon, worn timber brown, one warm amber lamp and faint aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no gore, no blood, no corpse, no wound, no monster. No text, signatures, logos, watermark, numbers, borders or UI; door hangings carry no writing.
+Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Madam Chen: Someone Still Keeps the Door. Madam Chen from Painted Skin, a resilient adult Chinese woman in her thirties, practical sage-green and linen robes, dark hair pinned simply, no glamorous jewelry. In grey daylight after rain, she kneels in a low formal bow on the threshold stone of her modest household gate, both hands joined before her, weeping as she begs a departing Daoist for help; her head is inclined in the bow, but her tear-marked face lifts toward him in clear three-quarter view, readable at small card size: grief and pleading held together by resolve, not collapse; she is bowing, not lying on the ground. Just inside the threshold behind her, a small oil lamp left from the night still burns low, warming the door edge and her sleeve; the house beyond is quiet shadow with no figure visible. A few paces down the wet stone lane, the Daoist has paused, half turned back toward her: a lean elderly man in a weathered indigo-blue robe with a plain topknot, a plain wooden sword held low and a small tied cloth bag at his side, seen in three-quarter back view with no visible face. Strong architectural composition: the door frame and her bowing figure hold the centre-right, the Daoist and the lane recede to the left, and the bottom fifth is calm wet paving in front of the threshold. Exquisite painterly Chinese literary fantasy with ink wash texture; restrained ink-blue daylight, celadon, worn timber brown, one warm amber lamp and faint aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no gore, no blood, no corpse, no wound, no monster. No text, signatures, logos, watermark, numbers, borders or UI; door hangings carry no writing.
 ```
 
 ### lz01-011-aa1 · 王六郎 AA · 留人間一岸
 
-- **Verified anchor:** 六郎 turns down his replacement because of the woman's
-  infant: 「僕憐其抱中兒，代弟一人，遂殘二命」. That evening 許 fishes at the old
-  place and 六郎 comes back: 「抵暮，漁舊處」. 許 habitually pours wine for the
-  river's drowned: 「飲則酹地」.
-- **Invented:** The open footpath standing for the life he let pass, the untouched
-  cup arrangement, the distant lit window and the light.
-- **Excluded:** the woman's fall into the river and the crying infant. Show no
-  drowning or distress, and no other identifiable person.
+- **Verified anchor:** On their last night 六郎 tells 許 who will replace him and
+  when: 「亭午，有女子渡河而溺者，是也」. The next day 許 waits by the river to
+  watch (「明日，敬伺河邊，以覘其異」): 「果有婦人抱嬰兒來，及河而墮」, and the
+  child is thrown onto the bank, 「兒拋岸上，揚手擲足而啼」. She then climbs out
+  on her own, rests on the ground a moment and leaves with the child:
+  「忽淋淋攀岸以出，藉地少息，抱兒徑去」 (「及婦自出」). That evening 六郎
+  explains that he let her go for the infant's sake:
+  「僕憐其抱中兒，代弟一人，遂殘二命，故捨之」. The drawn moment is 「藉地少息」,
+  at the hour the text gives: noon (亭午).
+- **Invented:** 六郎's visible presence. At noon the text shows only the woman
+  and the child, so he is drawn faint and translucent in the shallows, standing
+  back with open empty hands, a presence the living do not see. The viewpoint is
+  the bank where 許 waits, but 許 is not drawn. The footpath home, the weather
+  and the light are also invented. The 2026-10-10 draft moved the scene to the
+  dusk meeting afterwards (「抵暮，漁舊處」) with wine cups (「飲則酹地」); that
+  framing is removed.
+- **Excluded:** her fall and the struggle in the water (「婦沉浮者屢矣」). Show no
+  one submerged and no drowning. The woman is unnamed and stays secondary,
+  small and side-on, with no detailed portrait face. No 許, no wine or cups, and
+  no other identifiable person.
 
 ```text
-Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Wang Liulang: A Shore Left for the Living. Dusk at a quiet river fishing place. Wang Liulang, an adult male river spirit with a quiet wistful face, simple faded ink-blue fisherman clothing, damp hair and subtly translucent trailing sleeves, stands ankle-deep at the waterline, turned slightly aside so the bank beside him stays open; open relaxed hands, gentle humane expression, his face clearly readable at small card size; his figure fills at least a third of the image height. On a flat stone at the shore rest a small rustic wine jar and two shallow cups, one filled and untouched, waiting for a friend; a fishing net hangs drying on reeds. A narrow footpath climbs the damp bank from the water's edge toward a distant village with one warm window, clear and unobstructed: room for the living to pass safely. Broad calm water reflects the last amber light while mist gathers in midnight jade. Liulang upper-middle-left, the glowing cups lower-centre-right, the path rising diagonally; bottom fifth is soft ripples and stones. Exquisite painterly Chinese literary fantasy with ink wash texture; restrained ink blue, river jade, warm amber and ivory. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no drowning figure, no distress, no chains, no gore, no other identifiable face. No text, signatures, logos, watermark, numbers, borders or UI.
+Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Wang Liulang: A Shore Left for the Living. High noon at a broad quiet river crossing: the sun stands overhead, shadows are short, and the water glitters in clear light. A little way out from the bank, Wang Liulang, an adult male river spirit with a quiet wistful face, simple faded ink-blue fisherman clothing, damp hair and subtly translucent trailing sleeves, stands calmly knee-deep in the bright shallows, his whole figure faintly translucent like light on water, a presence the living do not see; he has stepped back and turned slightly aside so the bank stays open, open empty hands lowered, his gentle humane gaze resting on the mother and child he has let go; his face is clearly readable at small card size and his figure fills at least a third of the image height. On the grassy bank nearby, a young peasant mother who has just climbed out of the river on her own sits on the ground catching her breath, her modest loose cotton clothes dark with river water and fully covering her, damp hair pinned up; tired but safe, she reaches toward her swaddled infant lying on the grass beside her, kicking and crying. She is small and side-on, secondary, without a detailed portrait face. A narrow footpath climbs the bank from her toward a distant village, clear and unobstructed: room for the living to go home. Broad calm water, pale noon haze, reeds and stones. Liulang upper-middle-left, the mother and child on the bank lower-middle-right above the bottom fifth, the path rising diagonally; bottom fifth is soft ripples and stones. Relief, not panic. Exquisite painterly Chinese literary fantasy with ink wash texture; restrained ink blue, river jade, pale noon gold and ivory. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, non-sexual, no one in the water except Liulang, no drowning figure, no struggle, no chains, no gore, no figures besides Liulang, the mother and her infant. No text, signatures, logos, watermark, numbers, borders or UI.
 ```
 
 ### lz01-006-ink1 · 陸判 INK · 夜酌朱批
@@ -198,20 +241,31 @@ Use case: stylized-concept. Asset type: full scene INK SCROLL special-print port
 
 ### lz01-008-ink1 · 畫皮之鬼 INK · 墨下另一面
 
-- **Verified anchors:** The ghost paints a skin, then 「舉皮如振衣狀，披于身，遂化為女子」.
-  The skin is spread on the couch and painted with a coloured brush:
-  「鋪人皮于榻上，執彩筆」. Its true face: 「見一獰鬼，面翠色」.
-- **Invented:** The sheet is drawn as blank painted silk, not skin. The
-  disagreeing shadow and negative space, and the coloured brush tip as the only
-  colour, are also invented. She is shown already in human form while lifting
-  the sheet; in the text the green-faced ghost dons the skin and only then
-  becomes a woman. The cast shadow carries the ghost's true shape instead.
-- **Excluded:** flayed skin, flesh, anatomy, the later killing, the beheading and
-  smoke capture. The figure keeps an adult human appearance and stays clothed.
-  Reject any output where the sheet reads as skin, a mask or a face.
+- **Verified anchors:** 王生 looks in through the window (「而窗窺之」) and sees
+  the ghost's true face: 「見一獰鬼，面翠色」, its teeth jagged 「如鋸」. It has
+  spread a human skin on the couch and paints it with a coloured brush:
+  「鋪人皮于榻上，執彩筆」. Then, in this order:
+  「已而擲筆，舉皮如振衣狀，披于身，遂化為女子」. It tosses the brush aside,
+  lifts the skin as if shaking out a garment, puts it on, and only then becomes
+  a woman. The drawn moment is 「舉皮如振衣狀」: the brush is already down and the
+  ghost still has its own face.
+- **Invented:** The sheet is drawn as blank painted silk, not skin. The ghost's
+  build and robes are invented: the text describes only its face and teeth, the
+  shared rules keep every figure clothed, and the robes repeat the BASE ivory
+  and indigo so the printing reads as the same identity. The lattice window
+  stands for 王生's view, but he is not drawn. The colour rule is also
+  invented: a pale jade-green wash on the face keeps 「面翠色」 in an ink print,
+  and the tossed brush tip is the only other colour. The 2026-10-10 draft showed
+  the figure already in human form while lifting the sheet, with a disagreeing
+  cast shadow carrying the true shape; that reversal of the text's order is
+  removed.
+- **Excluded:** the woman it becomes, flayed skin, flesh, anatomy, any attack,
+  the later killing, the beheading and smoke capture. Reject any output where
+  the sheet reads as skin, a mask or a face, or where the ghost reads as gore or
+  a jump-scare rather than uncanny calm.
 
 ```text
-Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally The Painted-Skin Ghost: The Other Side beneath the Ink. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, wet-ink bleeds, dry-brush texture and abundant empty paper. The only colour is the tip of one painting brush, a tiny touch of jade green and vermilion. A quiet study glimpsed through a lattice window. In the centre, the Painted-Skin Ghost in its human appearance, an eerily composed adult woman in muted layered robes, lifts a long pale painted sheet in both hands as if shaking out a garment before putting it on; the sheet reads as blank painted silk with a few loose unfinished colour washes; no face, no features, no mask, no skin texture and no anatomy. Her calm face is readable in the upper middle. Behind her on a paper screen, her own cast shadow disagrees with her: the ink shadow has a jagged, saw-toothed, unmistakably non-human silhouette, while bare paper outlines her gentle human form; ink and emptiness tell two different stories. The coloured brush lies set down on a low couch beside an ink stone. Quiet, uncanny and ambiguous: horror through mismatch, not violence. Bottom fifth is quiet paper and floor. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no flayed skin, no exposed flesh, no blood, no gore, no attack, no nudity. No text, calligraphy, seals, signatures, logos, watermark, numbers, borders or UI.
+Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally The Painted-Skin Ghost: The Other Side beneath the Ink. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, wet-ink bleeds, dry-brush texture and abundant empty paper. The only colours are a pale jade-green wash on the ghost's face and the tip of one painting brush, a tiny touch of jade green and vermilion. A quiet study glimpsed through a lattice window, as if peering in from outside. In the centre stands the Painted-Skin Ghost in its own true shape, before it has put on the sheet: a gaunt, eerily composed non-human figure in plain muted ivory and indigo layered robes, its face tinted by that pale jade-green wash, jagged saw-like teeth just showing between thin lips, its expression calm and absorbed; the face is readable at small card size in the upper middle. With both hands it lifts a long pale sheet high to one side, keeping its face clear, and shakes it out like a garment it is about to put on; the sheet reads as blank painted silk with a few faint unfinished grey washes; no face, no features, no mask, no skin texture and no anatomy. Beside it stands the low couch where the sheet lay, and the painting brush has been tossed down on it beside an ink stone. Quiet, uncanny and ambiguous: horror through a strange domestic calm, like someone shaking out laundry, not violence; the ghost threatens no one and no one else is present. Bottom fifth is quiet paper and floor. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no flayed skin, no exposed flesh, no blood, no gore, no attack, no claws, no nudity. No text, calligraphy, seals, signatures, logos, watermark, numbers, borders or UI.
 ```
 
 ### lz01-001-tr1 · 聶小倩 TR · 歸燈

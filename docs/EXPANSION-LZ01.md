@@ -152,10 +152,10 @@ These are design/preview identifiers, not entries in the live printing catalogue
 | `lz01-001-base`–`lz01-012-base` | Twelve BASE portraits | 本畫 | Distinct portrait/action compositions following the rooms above | Twelve candidate BASE cards |
 | `lz01-001-aa1` | 聶小倩 / AA | 燈前相守 | A lit threshold answering a distant traveller's lantern; original composition, not a reproduced film scene | Generated local preview image: `assets/lz01/xiaoqian-aa.png` |
 | `lz01-004-aa1` | 嬰寧 / AA | 花間藏笑 | Garden distance, little figures and a large breathing space of blossoms | Planned · brief only (2026-10-10), no image |
-| `lz01-009-aa1` | 陳氏 / AA | 仍有人守門 | Her upright figure and a domestic doorway hold the composition | Planned · brief only (2026-10-10), no image |
-| `lz01-011-aa1` | 王六郎 / AA | 留人間一岸 | Water, an unoccupied cup and room for living people to pass safely | Planned · brief only (2026-10-10), no image |
+| `lz01-009-aa1` | 陳氏 / AA | 仍有人守門 | She bows at her doorway, weeping, to the departing Daoist; her lifted face keeps her readable | Planned · brief only (2026-10-10), no image |
+| `lz01-011-aa1` | 王六郎 / AA | 留人間一岸 | Noon: the mother has climbed out on her own while 六郎, unseen in the shallows, lets her go; the bank stays open | Planned · brief only (2026-10-10), no image |
 | `lz01-006-ink1` | 陸判 / INK | 夜酌朱批 | Mostly monochrome brushwork; spare vermilion annotation | Planned · brief only (2026-10-10), no image |
-| `lz01-008-ink1` | 畫皮之鬼 / INK | 墨下另一面 | Ink and negative space disagree about the figure's silhouette | Planned · brief only (2026-10-10), no image |
+| `lz01-008-ink1` | 畫皮之鬼 / INK | 墨下另一面 | In the text's order, the green-faced ghost lifts the blank painted sheet before putting it on; ink and empty paper, no skin | Planned · brief only (2026-10-10), no image |
 | `lz01-001-tr1` | 聶小倩 / TR | 歸燈 | Layered frame/light study; the lamp is an original set motif, not a claimed named relic | Planned · brief only (2026-10-10), no image |
 
 TR is a proposed visual treatment, not proof of scarcity or a minted object.
