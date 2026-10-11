@@ -22,7 +22,8 @@ export const FENCE_LENIENT_MS = 500;
 export const FENCE_IO_MS = 1500;
 
 /** Codes name what the player can do: `missing` needs another browser, `quota` needs space,
- * the rest a retry or a reload. */
+ * the rest a retry or a reload. `unsettled` is given only when IndexedDB accepts writes, so
+ * the reload it asks for can heal the record. */
 export const FENCE_MESSAGES = Object.freeze({
   missing: '此瀏覽器未能提供安全儲存，未能確認各分頁的最新旅程；未有更改旅程。',
   quota: '儲存空間不足，未能確認各分頁的最新旅程；未有更改旅程，請先匯出旅程備份。',
@@ -110,7 +111,9 @@ async function caughtUp(read, digest, { budget, sleep, clock }) {
  * its result. A failure to record the bytes afterwards does not hide that result: the
  * fence then stays "writing", which a strict holder refuses until a lenient write; that
  * write waits its whole budget first, and a tab still behind after it can lose the
- * unrecorded write (docs/LOCAL-COMMANDS.md §10.1 Limits). */
+ * unrecorded write. While IndexedDB refuses fence writes (a full disk), nothing heals the
+ * record, so every lenient holder waits that budget and strict holders name the cause
+ * (docs/LOCAL-COMMANDS.md §10.1 Limits). */
 export function createFencedLock({ request, fence, read, strict = true, budget, ioBudget = FENCE_IO_MS, sleep = defaultSleep, clock = defaultClock }) {
   const wait = { budget: budget ?? (strict ? FENCE_STRICT_MS : FENCE_LENIENT_MS), sleep, clock };
   const load = () => within(signal => fence.read({ signal }), ioBudget);
@@ -123,7 +126,13 @@ export function createFencedLock({ request, fence, read, strict = true, budget, 
     let verified = readable && record === null;
     if (readable && record !== null) {
       if (!isSettled(record)) {
-        if (strict) throw new ProfileFenceError('unsettled');
+        if (strict) {
+          // A reload heals this record only while IndexedDB accepts writes. Writing the mark
+          // again changes nothing for any holder and shows whether it does, so a full disk is
+          // told it needs space instead of a reload that cannot help (§10.1).
+          try { await recordFence(WRITING); } catch (error) { throw fenceFailure(error); }
+          throw new ProfileFenceError('unsettled');
+        }
         // "writing" or malformed: a holder may have saved and then failed to record its bytes
         // (a failed settle, a closed tab). There is no digest to wait for, so give that write
         // the whole lenient budget to reach this tab before this write heals the fence.

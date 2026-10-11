@@ -980,7 +980,9 @@ document.addEventListener('click', event=>{
   if(action==='restore-recovery'){
     if(profile.pending||economyBusy)return toast('請先完成或放棄未完對局。');
     const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
-    recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
+    // A dialog reopened while a restore is in flight keeps that restore's draft, so a press in
+    // it is ignored too, not queued as a second restore that is refused after the first lands.
+    if(!recoveryDraft?.restoring)recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
     modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>');return;
   }
   if(action==='confirm-restore-recovery'){

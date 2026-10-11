@@ -322,7 +322,8 @@ try {
       const put = IDBObjectStore.prototype.put;
       window.fenceRefusals = 0;
       window.restoreFencePut = () => { IDBObjectStore.prototype.put = put; };
-      IDBObjectStore.prototype.put = function() { window.fenceRefusals++; throw new DOMException('Synthetic fence quota', 'QuotaExceededError'); };
+      window.refuseFencePut = () => { IDBObjectStore.prototype.put = function() { window.fenceRefusals++; throw new DOMException('Synthetic fence quota', 'QuotaExceededError'); }; };
+      window.refuseFencePut();
     });
     const bytes = await raw(page), startWrites = await writes(page), from = await toastCount(page);
     await press(page, upgradeButton(page, target), QUOTA);
@@ -332,8 +333,29 @@ try {
     await page.evaluate(() => window.restoreFencePut());
     await press(page, upgradeButton(page, target), COMMITTED);
     assert.equal(card(await read(page), target).level, 2); assert.equal(await writes(page), startWrites + 1);
+    // A "writing" record on that full disk (it filled between a holder's two fence writes,
+    // §10.1) cannot be healed by a reload: the upgrade and a restore name the space instead
+    // of asking for one, and the next load heals the record once IndexedDB accepts writes.
+    const fenceState = () => page.evaluate(async () => (await (await import('/profile-fence.mjs')).createIndexedDBFence(indexedDB).read())?.state ?? null);
+    await page.evaluate(async () => (await import('/profile-fence.mjs')).createIndexedDBFence(indexedDB).write({ v: 1, state: 'writing' }));
+    const recovery = JSON.stringify({ savedAt: now, snapshot: createSnapshot({ ...profile, coins: 777 }) });
+    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: RECOVERY_KEY, value: recovery });
+    await page.evaluate(() => window.refuseFencePut());
+    const fullBytes = await raw(page), fullWrites = await writes(page), fullFrom = await toastCount(page);
+    await press(page, upgradeButton(page, target), QUOTA);
+    await close(page);
+    await page.evaluate(() => { const button = document.createElement('button'); button.dataset.action = 'restore-recovery'; document.body.append(button); button.click(); button.remove(); });
+    await press(page, page.locator('.modal [data-action="confirm-restore-recovery"]'), FENCE_MESSAGES.quota);
+    const fullToasts = await toastsSince(page, fullFrom);
+    assert(!fullToasts.some(message => message === FENCE_MESSAGES.unsettled || message.includes(UNSYNCED)), `never told to reload: ${JSON.stringify(fullToasts)}`);
+    assert.equal(await raw(page), fullBytes); assert.equal(await writes(page), fullWrites, 'neither wrote the profile');
+    assert.equal(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY), recovery, 'the recovery copy is unchanged');
+    assert.equal(await fenceState(), 'writing');
+    await page.evaluate(() => window.restoreFencePut());
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await fenceState(), 'settled', 'once IndexedDB accepts writes, the next load heals it');
     await release(page);
-    passed('B9 IndexedDB refusing the fence write for lack of space refuses the upgrade with the storage copy, not the browser copy, and no write; it then commits');
+    passed('B9 IndexedDB refusing the fence write for lack of space refuses the upgrade with the storage copy, not the browser copy, and no write; it then commits. A "writing" record on that full disk gives the upgrade and a restore the storage copy, never a reload, and the next load heals it once writes work');
   }
 
   {
@@ -385,6 +407,34 @@ try {
     assert.deepEqual(JSON.parse(await readRecovery()).snapshot, createSnapshot(JSON.parse(bytes)), 'the replaced journey became the recovery copy');
     await release(page);
     passed('B10 a local recovery restore refused by the fence (unavailable, then unsynced) changes nothing and keeps its dialog; pressing it again restores once, never claiming the backup changed, and a press during the restore is ignored, not refused after it');
+  }
+
+  {
+    // The dialog closed and opened again while its restore waits for the lock: a press in the
+    // reopened dialog must be ignored too. Before, the reopened dialog had a fresh draft, so
+    // the press queued a second restore whose fingerprint predates the first, and its refusal
+    // (本機旅程剛有更新) replaced the success toast.
+    const { profile } = fixture(), page = await pageIn(await contextFor(profile));
+    const recovery = JSON.stringify({ savedAt: now, snapshot: createSnapshot({ ...profile, coins: 777, dust: 11 }) });
+    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: RECOVERY_KEY, value: recovery });
+    const open = () => page.evaluate(() => { const button = document.createElement('button'); button.dataset.action = 'restore-recovery'; document.body.append(button); button.click(); button.remove(); });
+    const confirm = page.locator('.modal [data-action="confirm-restore-recovery"]');
+    const bytes = await raw(page), startWrites = await writes(page), from = await toastCount(page);
+    await holdLock(page);
+    await open(); await confirm.click();
+    await close(page);
+    await open(); await confirm.click();
+    assert.equal(await raw(page), bytes, 'nothing restored while the lock is held');
+    await releaseLock(page);
+    await waitToast(page, '已復原上次本機旅程', from);
+    await page.locator('.modal').waitFor({ state: 'hidden' });
+    await idleLock(page); await page.waitForTimeout(300);
+    assert.deepEqual(await toastsSince(page, from), ['已復原上次本機旅程。'], 'the press in the reopened dialog is ignored, not refused after the restore');
+    const saved = await read(page);
+    assert.equal(saved.coins, 777); assert.equal(saved.dust, 11); assert.equal(await writes(page), startWrites + 1, 'one restore, one write');
+    assert.deepEqual(JSON.parse(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY)).snapshot, createSnapshot(JSON.parse(bytes)));
+    await release(page);
+    passed('B11 a local recovery dialog closed and reopened while its restore waits for the lock ignores a press, so the restore lands once and its success toast is the only one');
   }
 
   {

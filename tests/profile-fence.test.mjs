@@ -471,6 +471,61 @@ test('N31 a lenient writer that finds a failed settle\'s "writing" record waits 
   }
 });
 
+test('N32 a "writing" record that IndexedDB cannot heal names its cause, never a reload; lenient writes wait their budget each time until it heals', async () => {
+  // The disk filled between a holder's two fence writes (§10.1): the record stays "writing",
+  // and no reload heals it while IndexedDB refuses writes.
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  a.store.save(a.store.load());
+  const backup = createSnapshot({ ...base, coins: 777 }), bytes = o.bytes();
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  const cases = [
+    [new DOMException('Full', 'QuotaExceededError'), 'quota', 'quota'],
+    [new DOMException('Full', 'NS_ERROR_DOM_QUOTA_REACHED'), 'quota', 'quota'],
+    [new DOMException('Denied', 'SecurityError'), 'missing', 'no-lock'],
+    [new DOMException('Aborted', 'AbortError'), 'unavailable', 'unsynced'],
+    [null, 'unsettled', 'unsynced'], // IndexedDB accepts writes: a reload can heal it
+  ];
+  for (const [error, code, copy] of cases) {
+    const label = error?.name ?? 'writes accepted';
+    o.setRecord(WRITING); o.faults.write = () => error;
+    await assert.rejects(a.fenced(true)(() => assert.fail('the callback ran')), { name: 'ProfileFenceError', code, message: FENCE_MESSAGES[code] }, label);
+    const refused = await commitIn(a, request, a.fenced(true));
+    assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES[copy]], label);
+    const lookup = await readCommandReceipt(request, { store: a.store, lock: a.fenced(true) });
+    assert.deepEqual([lookup.status, lookup.message], ['unavailable', FENCE_MESSAGES[code]], label);
+    await assert.rejects(restoreIn(a, backup, fingerprintProfile(a.store.load()), a.fenced(true)), { name: 'ProfileFenceError', code, message: FENCE_MESSAGES[code] }, label);
+    assert.equal(o.bytes(), bytes, label); assert.equal(o.stored(RECOVERY_KEY), null, label);
+    assert.deepEqual(o.record(), WRITING, `${label}: the record is unchanged`);
+  }
+  o.faults.write = null; o.setRecord({ v: 2, state: 'settled', digest: 'x' });
+  await assert.rejects(a.fenced(true)(() => assert.fail('the callback ran')), { code: 'unsettled' });
+  assert.deepEqual(o.record(), WRITING, 'a malformed record becomes the mark that every holder already treats it as');
+
+  // The real adapter, whose refused transaction aborts with the quota error.
+  const options = {}, fence = createIndexedDBFence(fakeIndexedDB(options));
+  const adapter = createFencedLock({ request: o.lock, fence, read: () => a.storage.getItem(PROFILE_KEY), strict: true });
+  await fence.write(WRITING); options.refuseWrites = 'QuotaExceededError';
+  await assert.rejects(adapter(() => assert.fail('the callback ran')), { name: 'ProfileFenceError', code: 'quota' });
+  options.refuseWrites = null;
+  await assert.rejects(adapter(() => assert.fail('the callback ran')), { name: 'ProfileFenceError', code: 'unsettled' });
+
+  // Lenient holders (each page load's startup save, each economy action) cannot heal it
+  // either, so each one waits its whole budget until IndexedDB accepts writes (§10.1 Limits).
+  const slept = [];
+  const lenient = createFencedLock({ request: o.lock, fence: o.fence, read: () => a.storage.getItem(PROFILE_KEY), strict: false, sleep: async ms => { slept.push(ms); } });
+  const bump = () => { const profile = a.store.load(); profile.dust += 1; a.store.save(profile); };
+  o.setRecord(WRITING); o.faults.write = () => new DOMException('Full', 'QuotaExceededError');
+  for (let index = 0; index < 3; index++) await lenient(bump);
+  assert.equal(o.saved().dust, base.dust + 3, 'lenient writers still save');
+  assert.deepEqual(slept, [FENCE_LENIENT_MS, FENCE_LENIENT_MS, FENCE_LENIENT_MS]);
+  assert.deepEqual(o.record(), WRITING);
+  o.faults.write = null; slept.length = 0;
+  await lenient(bump); await lenient(bump);
+  assert.deepEqual(slept, [FENCE_LENIENT_MS], 'the first write once space returns heals it; the next waits for nothing');
+  assert.deepEqual(o.record(), { v: PROFILE_FENCE_VERSION, state: 'settled', digest: profileDigest(o.bytes()) });
+  assert.equal((await commitIn(a, previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request, a.fenced(true))).status, 'committed');
+});
+
 /** A small in-memory IndexedDB: one database, one object store, async events. While
  * `options.refuseWrites` names a DOMException, every readwrite transaction aborts with it
  * and stores nothing, as a full disk does; it is read per transaction, so it can change. */
