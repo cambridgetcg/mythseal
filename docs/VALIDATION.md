@@ -10,8 +10,8 @@ commit **`4265039`** adds `tools/content-registry.mjs`,
 fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
 (below). Four later commits also change source: merge commit **`d1f0f91`**
 adapts the registry and its tests to PR #8's LZ-01 specials, **`6bc784a`**
-fixes a third review's findings, **`092f1fd`** a fourth's, and the
-fifth-review fix commit (below) a fifth's. Merge commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
+fixes a third review's findings, **`092f1fd`** a fourth's, and
+**`2d44071`** a fifth's. Merge commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
 the remaining commits change documentation only; each source step below lists the checks run on it. The branch is not
 merged into `main`, pushed or deployed, and there was no hosted check. The
 registry's own commits change no game runtime, save schema, content, art or
@@ -312,7 +312,7 @@ statuses and capability states are defined in
     allowlist changed).
   - Not run: `npm run test:browser`, the other WebKit suites, CI, any hosted
     check and human review.
-- **Fifth review fixes · 2026-10-11** (tooling and documentation only; no
+- **Fifth review fixes in `2d44071` · 2026-10-11** (tooling and documentation only; no
   player, save, content, art, allowlist or build effect). The reviewers
   reproduced each gap on `2edc2d9`; after the fix, each original repro was
   re-run in process or through the CLI in an APFS-clone scratch copy (deleted
@@ -371,7 +371,7 @@ statuses and capability states are defined in
     computed `test` member, grouping parentheses, the destructuring rule,
     duplicate rows, the own-record digest and the bound number check) made
     `node --test tests/content-registry.test.mjs` exit 1 (9 of 9).
-  - Checks on the fix, Node 26.0.0: `node --test tests/*.test.mjs` **476/476**,
+  - Checks on `2d44071`, Node 26.0.0: `node --test tests/*.test.mjs` **476/476**,
     exit 0, 0 skipped (475 plus the digest test). `npm run audit:content` exit
     0, `findings: []`, 120 local-playable and 30 preview; apart from
     `contentDigest`, every entry and the summary match `2edc2d9`'s output.

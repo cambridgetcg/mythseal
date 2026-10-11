@@ -88,7 +88,7 @@ Roadmap packet Q4's registry and audit are on the local branch
 commits: **`4265039`** (the registry), review fixes **`7291880`** and
 **`cf63bec`**, merge commit **`d1f0f91`** (adapts the registry and its tests to
 PR #8's LZ-01 specials), third-review fixes **`6bc784a`**, fourth-review
-fixes **`092f1fd`** and the fifth-review fix commit (below). Merge commit `d606447` brings in `origin/main` `daf18ed`
+fixes **`092f1fd`** and fifth-review fixes **`2d44071`**. Merge commit `d606447` brings in `origin/main` `daf18ed`
 (PRs #6–#8, documentation only); the other commits change documentation only. The branch is not merged into
 `main`, pushed or deployed, and no hosted check was made.
 
@@ -140,7 +140,7 @@ fixes **`092f1fd`** and the fifth-review fix commit (below). Merge commit `d6064
   path audits instead of printing nothing with exit 0. Still 27 finding codes.
   Checked: 475/475 Node tests, the audit (exit 0, no findings), an 80-file
   build and the LZ-01/HL-01 preview smokes in Chromium and WebKit.
-- **Fifth review (fix commit not yet named here):** a cited test marked
+- **Fifth review (`2d44071`):** a cited test marked
   `{ expectFailure }` no longer counts: Node 26 reports its throwing body as a
   pass and counts nothing as skipped. Option keys are now an allowlist
   (`timeout`, `concurrency`, `only`, `plan` and `signal`, plus `skip`, `todo`
