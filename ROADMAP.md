@@ -167,9 +167,11 @@ new renderer to make local play clearer.
   `local-commands.mjs` under the shared lock, with its receipt in the same
   profile write. [LOCAL-COMMANDS](docs/LOCAL-COMMANDS.md) is the contract and
   records the deviations; the checks are in
-  [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11). Owner
-  decisions on restore, retention and release ordering remain open, and Q2/Q3
-  consumers wait for that review.
+  [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11). After the
+  first review, the shared lock is paired with an IndexedDB read-after-write
+  fence, restore checks its result before keeping a recovery copy, and a
+  duplicate names its receipt. Owner decisions on restore, retention and
+  release ordering remain open, and Q2/Q3 consumers wait for that review.
 
 ### Q2 · Previewed care for selected companions
 

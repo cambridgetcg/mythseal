@@ -45,6 +45,52 @@ processes, a real `QuotaExceededError`, `npm run build`, deploy dry runs,
 `test:viewport`, `test:expansion`, `test:collection-display` and the literary
 preview suites.
 
+### Q1 review fixes · 2026-10-11
+
+Source commits `7a7d03e`, `19aa648` and `6f58d83` on the same branch fix the
+three defects a review of `b6410e9` reported; the commit that adds this entry
+changes documentation only. Still not pushed, merged or deployed, and no hosted
+check. Synthetic headless evidence on Node 26.0.0;
+[LOCAL-COMMANDS §18.4–18.5](LOCAL-COMMANDS.md#184-fixes-after-the-first-review-2026-10-11)
+has the detail.
+
+- **Cross-tab stale read (medium).** The next holder of the Web Lock could read
+  `localStorage` bytes from before the previous holder's write, so two tabs
+  could both report a fresh upgrade and one was overwritten. Every holder of
+  `PROFILE_LOCK` now goes through an IndexedDB read-after-write fence
+  (`profile-fence.mjs`); commands refuse as `rejected/unsynced` when it cannot
+  prove their bytes are current.
+- **Restore order (low).** A restore now checks the profile it will save before
+  writing the recovery copy, and puts the previous copy back if the save fails.
+- **Duplicate receipt (low).** A duplicate upgrade now names the accepted
+  receipt, for example Lv.1 → Lv.2 · 120 金幣 · 6 靈砂.
+
+Checks, against a separate `python3 tools/serve.py --port 4311`:
+
+- `node --test tests/*.test.mjs`: exit 0, **498/498**; each commit's contents
+  gave 496, 497 and 498. Python: 9 tests OK. `git diff --check b6410e9..HEAD`:
+  clean.
+- `npm run test:commands`: exit 0, **10/10 groups in each engine**, including B4
+  repeated at about 60 KB and the fence across two real pages (30/30 handoffs
+  current; the plain-lock control on the same run was stale in 30/30 Chromium
+  and 24/30 WebKit handoffs). A scratch copy with the plain lock restored for
+  commands failed the new B4 group. The reviewers' UI repros gave 0/10
+  violations each (5/10 before).
+- `npm run test:browser` (14 Chromium suites): exit 0, 4 min 53 s against 4 min
+  55 s for `b6410e9`. `test:inheritance`, `test:wx01`, `test:battle-table` and
+  `test:collection-display`: exit 0 in both engines; `test:viewport`: both
+  engines passed (WebKit on a re-run; the first stopped while the disk was full).
+- `test:expansion` fails in WebKit only, on a 43.08 px module tab at 360×740;
+  `b6410e9` fails identically. `test:map-piece` passed in Chromium; its WebKit
+  half needs a `test-results/webkit-runtime` this worktree lacks.
+- First lobby paint, median, `b6410e9` → fixes: Chromium 89 → 92 ms (first load)
+  and 56 → 67 ms (reload); WebKit 95 → 102 ms and 78 → 78 ms.
+
+Not checked: separate browser windows or processes, the Safari app, Firefox,
+physical devices, Node 22, `npm run build`, deploy dry runs, a real browser
+without IndexedDB or with IndexedDB refusing writes, and a real
+`QuotaExceededError`.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

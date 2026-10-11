@@ -637,6 +637,11 @@ reason to replay or reverse the existing migrations casually.
   `commitCommand` and restore may change it, backups never contain it, and a v5
   build from before Q1 refuses a save that has one, so release Q1 no later than
   the first public v5 build.
+- On that branch every writer under `PROFILE_LOCK` goes through the fenced lock
+  in `profile-fence.mjs`: `localStorage` is only eventually consistent between
+  tabs, so the next lock holder waits for a digest the previous one recorded in
+  IndexedDB ([LOCAL-COMMANDS §10.1](LOCAL-COMMANDS.md#101-read-after-write-fence-added-after-review)).
+  A new writer that bypasses it makes upgrades refuse until the next fenced write.
 - Keep private-backup writes revision-checked. **`PT409` is intentional**;
   replacing it with SQLSTATE `40001` caused PostgREST transaction retries.
   Ownership comes from `auth.uid()`; the account header only guards stale tabs.
