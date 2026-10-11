@@ -3,8 +3,8 @@
  * can do in this source tree. Every entry is derived from the content modules,
  * hosting/public-assets.json, hosting/preview-assets.json and the LZ-01 printing
  * checklist; nothing here is a second rules, reward or printing database. The
- * only mirrored facts are the few grants progression.mjs hard-codes (see the
- * grant constants below), and a test plays those routes to keep them exact.
+ * only mirrored facts are the few grants and tickets progression.mjs hard-codes
+ * (see the grant constants below), and tests play those routes to keep them exact.
  *
  * Node tooling only. It reads repository files (allowlists, docs, module text),
  * and it describes LZ-01/HL-01 preview identities, so it is never served:
@@ -16,8 +16,8 @@ import { closeSync, lstatSync, openSync, readFileSync, readSync } from 'node:fs'
 import { createHash } from 'node:crypto';
 import { posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CARDS, LEGACY_CARD_IDS, validateDeck } from '../engine.mjs';
-import { NODES, PACK_SETS } from '../progression.mjs';
+import { CARDS, LEGACY_CARD_IDS, ORIGINAL_CARD_IDS, validateDeck } from '../engine.mjs';
+import { NODES, PACK_SETS, WELCOME_CARD_IDS } from '../progression.mjs';
 import { STORY_NODES, WORLDS } from '../stories.mjs';
 import { CAMPAIGN_NODES } from '../campaign-content.mjs';
 import { FIRE_MOUNTAIN } from '../activity-content.mjs';
@@ -45,6 +45,8 @@ const EVIDENCE = Object.freeze({
   activityRoutes: T('content-registry.test.mjs', 'the fire-mountain activity completes on both routes and pays its first clear once'),
   backup: T('content-registry.test.mjs', 'a backup round trip keeps every playable clear, the activity record and every ownable printing'),
   grantRoutes: T('content-registry.test.mjs', 'acquisition lists exactly the printings each story and expansion grant route mints'),
+  startRoutes: T('content-registry.test.mjs', 'acquisition lists exactly the printings a new journey and a v2 save migration mint'),
+  rewardRules: T('content-registry.test.mjs', 'reward rules name exactly the grant and ticket claims each clear can bank'),
   original: [
     T('progression.test.mjs', 'six map locations unlock sequentially on wins and move the traveller on entry'),
     T('progression.test.mjs', 'expedition first clear and daily cache are paid once; repeat battles retain base rewards'),
@@ -82,7 +84,15 @@ const STORY_GIFT_TREATMENT = 'aa';
 const CAMPAIGN_FINAL_GRANT = Object.freeze({ id: 'campaign:westward-echo:aa', treatment: 'aa' }); // bankCampaignMilestones
 const FIRE_MOUNTAIN_FIRST_CLEAR = Object.freeze({ id: 'fire-mountain:first-clear', cardId: 'niumowang' }); // settleActivity
 const FIRE_MOUNTAIN_LOOT = index => `activity-*:stage-${index}:loot`; // settleActivity: `${run.id}:stage-${run.stage}:loot`
-export const GRANT_RULES = Object.freeze(['progression.mjs:claimWX01StoryPrint', 'progression.mjs:claimExpansionGrant']);
+// bankCampaignMilestones banks a ticket on each `volumeFinal` first clear, and settleActivity on the
+// 1st and 3rd weekly fire-mountain clears; openWX01Ticket is the only rule that spends one.
+const CLAIM_GRANT = 'progression.mjs:claimExpansionGrant', OPEN_TICKET = 'progression.mjs:openWX01Ticket';
+export const GRANT_RULES = Object.freeze(['progression.mjs:claimWX01StoryPrint', CLAIM_GRANT]);
+// createProfile mints one copy of each ORIGINAL_CARD_IDS (starter) and WELCOME_CARD_IDS (welcome)
+// card; hydrateProfile turns a v2 save's inventory counts into copies, with the same floor and gift.
+export const START_RULES = Object.freeze(['progression.mjs:createProfile', 'progression.mjs:hydrateProfile']);
+/** The only module that writes the local profile (createProfileStore). */
+const PROFILE_WRITER = 'profile-store.mjs';
 
 const deepFreeze = value => {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.values(value).forEach(deepFreeze); Object.freeze(value); }
@@ -132,7 +142,7 @@ export function loadContentSources(...unexpected) {
     previewAssets: JSON.parse(readText('hosting/preview-assets.json')),
     docs: { lz01Checklist: readText('docs/EXPANSION-LZ01.md'), lz01Briefs: readText('docs/ART-LZ01.md') },
     content: {
-      CARDS, LEGACY_CARD_IDS, validateDeck, NODES, PACK_SETS, STORY_NODES, WORLDS, CAMPAIGN_NODES, FIRE_MOUNTAIN,
+      CARDS, LEGACY_CARD_IDS, ORIGINAL_CARD_IDS, WELCOME_CARD_IDS, validateDeck, NODES, PACK_SETS, STORY_NODES, WORLDS, CAMPAIGN_NODES, FIRE_MOUNTAIN,
       PRINTINGS, getPrintForCard, defaultPrintId, WX01_RATES, WX01_SEAL_COSTS, basePrintFor,
       LZ01_CARDS, LZ01_AA, HL01_CARDS, HL01_AA,
     },
@@ -142,7 +152,27 @@ export function loadContentSources(...unexpected) {
   };
 }
 
-/** Local files a page, module or stylesheet loads. Template-built paths are covered by entry art instead. */
+// File types a page can fetch. A quoted path ending in one counts as a reference
+// in the load forms below; a bare file name elsewhere (a download name) does not.
+const LOADABLE = 'png|svg|webp|avif|jpe?g|gif|ico|bmp|mp3|ogg|oga|opus|wav|m4a|aac|flac|mp4|webm|ogv|mov|vtt|woff2?|ttf|otf|eot|json|webmanifest|wasm|mjs|js|css|html?|txt|csv|xml';
+const HAS_EXTENSION = new RegExp(`\\.(?:${LOADABLE})(?:[?#].*)?$`, 'i');
+const SCANNED = /\.(?:mjs|js|css|html)$/;
+
+/**
+ * Local files a page, module or stylesheet loads, in every statically visible form:
+ * - HTML: `src`, `href`, `poster`, `srcset` and `imagesrcset` on script, link, img,
+ *   source, video, audio, track, iframe, embed and input; inline `<script>` bodies
+ *   are read as modules. (`<a href>` is navigation, not a load.)
+ * - CSS (also inline in HTML or JS): `url(...)`, `@import "..."` and `image-set("...")`.
+ * - JS: static/dynamic `import` and `export ... from`; any quoted `assets/...` path;
+ *   any quoted `./` or `../` path with a loadable extension; and a loadable literal
+ *   passed to `new Audio/Worker/SharedWorker/EventSource/URL`, `fetch`,
+ *   `importScripts` or `.register`, assigned to `.src`/`.srcset`/`.poster`, set
+ *   through `setAttribute`, or written in markup inside a string.
+ * A path built at runtime (`${...}`, concatenation, a variable) cannot be seen here:
+ * content art is covered by entry assets, and tools/serve.py's allowlist 404 plus the
+ * browser smokes' failed-response checks catch the rest on the paths they exercise.
+ */
 export function localReferences(path, text) {
   const references = new Set();
   const add = specifier => {
@@ -151,13 +181,39 @@ export function localReferences(path, text) {
     if (!clean || clean === '/') return;
     references.add(posix.normalize(clean.startsWith('/') ? clean.slice(1) : posix.join(posix.dirname(path), clean)));
   };
+  const addLoadable = specifier => { if (HAS_EXTENSION.test(specifier.trim())) add(specifier.trim()); };
+  const addSrcset = value => value.split(',').map(candidate => candidate.trim().split(/\s+/)[0]).forEach(addLoadable);
+  const markup = source => {
+    for (const [, attributes] of source.matchAll(/<(?:script|link|img|source|video|audio|track|iframe|embed|input)\b([^>]*)>/gi)) {
+      for (const [, name, double, single, bare] of attributes.matchAll(/\b(src|href|poster|srcset|imagesrcset)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) {
+        const value = double ?? single ?? bare;
+        if (/srcset$/i.test(name)) addSrcset(value); else add(value);
+      }
+    }
+  };
+  const stylesheet = source => {
+    for (const match of source.matchAll(/url\(\s*['"]?([^'")]+?)['"]?\s*\)/g)) add(match[1]);
+    for (const match of source.matchAll(/@import\s+(["'])([^"']+)\1/g)) add(match[2]);
+    for (const [, set] of source.matchAll(/image-set\(((?:[^()]|\([^()]*\))*)\)/g)) {
+      for (const match of set.replace(/\btype\([^)]*\)/g, '').matchAll(/(["'])([^"']+)\1/g)) add(match[2]);
+    }
+  };
+  const script = source => {
+    for (const match of source.matchAll(/(?:\bimport\s*(?:[^'";]*?\bfrom\s*)?|\bexport\s+[^'";]*?\bfrom\s*|\bimport\s*\()(['"])([^'"]+)\1/g)) add(match[2]);
+    for (const match of source.matchAll(/(['"`])((?:\.\/)?assets\/[\w./-]+\.[A-Za-z0-9]+)\1/g)) add(match[2]);
+    for (const match of source.matchAll(/(['"`])(\.{1,2}\/[^'"`\s]+)\1/g)) addLoadable(match[2]);
+    for (const match of source.matchAll(/(?:\bnew\s+(?:Audio|Worker|SharedWorker|EventSource|URL)|\bfetch|\bimportScripts|\.register)\s*\(\s*(['"`])([^'"`]+)\1/g)) addLoadable(match[2]);
+    for (const match of source.matchAll(/\.(src|srcset|poster)\s*=\s*(['"`])([^'"`]+)\2/g)) { if (match[1] === 'srcset') addSrcset(match[3]); else addLoadable(match[3]); }
+    for (const match of source.matchAll(/\.setAttribute\(\s*(['"])(src|srcset|poster)\1\s*,\s*(['"`])([^'"`]+)\3/g)) { if (match[2] === 'srcset') addSrcset(match[4]); else addLoadable(match[4]); }
+    markup(source);
+  };
   const body = text.replace(/(["'])data:[\s\S]*?\1/g, '""');
-  if (path.endsWith('.html')) for (const match of body.matchAll(/<(?:script|link|img|source)\b[^>]*?\b(?:src|href)=["']([^"']+)["']/g)) add(match[1]);
-  if (path.endsWith('.mjs')) {
-    for (const match of body.matchAll(/(?:\bimport\s*(?:[^'";]*?\bfrom\s*)?|\bexport\s+[^'";]*?\bfrom\s*|\bimport\s*\()(['"])([^'"]+)\1/g)) add(match[2]);
-    for (const match of body.matchAll(/['"`]((?:\.\/)?assets\/[\w./-]+\.(?:png|svg|webp|avif|jpg|jpeg))['"`]/g)) add(match[1]);
+  if (path.endsWith('.html')) {
+    markup(body);
+    for (const [, attributes, inline] of body.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) if (!/\bsrc\s*=/i.test(attributes)) script(inline);
   }
-  if (/\.(?:css|mjs|html)$/.test(path)) for (const match of body.matchAll(/url\(\s*['"]?([^'")]+?)['"]?\s*\)/g)) add(match[1]);
+  if (/\.(?:mjs|js)$/.test(path)) script(body);
+  if (SCANNED.test(path)) stylesheet(body);
   return [...references];
 }
 
@@ -167,7 +223,7 @@ function walkGraph(sources, roots) {
     const path = stack.pop();
     if (reached.has(path)) continue;
     reached.add(path);
-    if (/\.(?:mjs|css|html)$/.test(path) && sources.fileKind(path) === 'file') stack.push(...localReferences(path, sources.readText(path)));
+    if (SCANNED.test(path) && sources.fileKind(path) === 'file') stack.push(...localReferences(path, sources.readText(path)));
   }
   return { reached };
 }
@@ -223,10 +279,11 @@ function analyze(sources) {
     if (scope === 'served' && !publicSet.has(path) && !previewSet.has(path)) blockers.push(`asset ${path} is in neither asset allowlist`);
     return blockers;
   };
+  const pageReaches = (page, module) => (previewGraphs[page] ?? publicGraph).reached.has(module);
   const servedBy = module => [...(publicGraph.reached.has(module) ? publicPages : []), ...previewPages.filter(page => previewGraphs[page].reached.has(module))];
   const lzChecklist = parsePrintingChecklist(sources.docs.lz01Checklist, 'lz01');
   const lzBriefs = parsePendingBriefs(sources.docs.lz01Briefs, 'lz01');
-  return { sources, content, publicSet, previewSet, publicPages, previewPages, publicGraph, previewGraphs, cards, prints, nodeIds, defaultPrint, assetBlockers, servedBy, lzChecklist, lzBriefs };
+  return { sources, content, publicSet, previewSet, publicPages, previewPages, publicGraph, previewGraphs, cards, prints, nodeIds, defaultPrint, assetBlockers, pageReaches, servedBy, lzChecklist, lzBriefs };
 }
 
 function capability(claimed, { blockers = [], evidence = [], limits = [], reason = '' } = {}) {
@@ -258,16 +315,33 @@ function cardArt(ctx, cardIds) {
   return { assets: unique(assets), blockers };
 }
 
+/** Mirrors progression.mjs:hasClearedPrerequisites; the audit separately checks the chain. */
+const prerequisiteOf = (nodes, index) => Object.hasOwn(nodes[index], 'requiresNode') ? nodes[index].requiresNode : nodes[index - 1]?.id ?? null;
+
+/**
+ * Campaign encounters whose first clear can be the one that completes the campaign
+ * (bankCampaignMilestones then banks CAMPAIGN_FINAL_GRANT): those that no campaign
+ * encounter has in its prerequisite chain, so they can be cleared last.
+ */
+function campaignFinalNodeIds(content) {
+  const requires = new Map(content.NODES.map((node, index) => [node.id, prerequisiteOf(content.NODES, index)]));
+  const earlier = new Set();
+  for (const node of content.CAMPAIGN_NODES) {
+    const seen = new Set();
+    for (let current = requires.get(node.id); current != null && !seen.has(current); current = requires.get(current)) { seen.add(current); earlier.add(current); }
+  }
+  return content.CAMPAIGN_NODES.map(node => node.id).filter(id => !earlier.has(id));
+}
+
 function encounterEntries(ctx) {
   const { content } = ctx;
   const storyIds = new Set(content.STORY_NODES.map(node => node.id)), campaignIds = new Set(content.CAMPAIGN_NODES.map(node => node.id));
-  const storyGiftNodes = new Set(storyGiftNodeIds(content));
+  const storyGiftNodes = new Set(storyGiftNodeIds(content)), finalNodes = new Set(campaignFinalNodeIds(content));
   return content.NODES.map((node, index) => {
     const group = campaignIds.has(node.id) ? 'campaign' : storyIds.has(node.id) ? 'story' : 'original';
     const sourceModule = { campaign: 'campaign-content.mjs', story: 'stories.mjs', original: 'progression.mjs' }[group];
     const world = content.WORLDS.find(item => item.nodeIds.includes(node.id)) ?? null;
-    // Mirrors progression.mjs:hasClearedPrerequisites; the audit separately checks the chain.
-    const requires = Object.hasOwn(node, 'requiresNode') ? node.requiresNode : content.NODES[index - 1]?.id ?? null;
+    const requires = prerequisiteOf(content.NODES, index);
     // Nodes without an authored deck meet a random legal deck from the legacy roster (app.mjs:opponentDeck).
     const opponentPool = node.opponentDeck ?? content.LEGACY_CARD_IDS;
     const art = cardArt(ctx, opponentPool);
@@ -282,7 +356,7 @@ function encounterEntries(ctx) {
       ...assets.flatMap(path => ctx.assetBlockers(path, 'public')),
       ...[sourceModule, 'progression.mjs'].filter(module => !ctx.publicGraph.reached.has(module)).map(module => `${module} is not reachable from the public game page`),
     ];
-    const playable = { blockers, evidence: [EVIDENCE.routes, ...EVIDENCE[group]] };
+    const playable = { blockers, evidence: [EVIDENCE.routes, EVIDENCE.rewardRules, ...EVIDENCE[group]] };
     const capabilities = {
       preview: notApplicable('Encounters are entered from the journey map; there is no separate preview surface.'),
       'local-playable': capability(true, playable),
@@ -303,9 +377,12 @@ function encounterEntries(ctx) {
       routes: node.loanerDeck ? ['owned', 'loaner'] : ['owned'],
       rules: {
         entry: 'progression.mjs:beginBattle', completion: 'progression.mjs:finishBattle',
+        // Exactly the claims this node's first clear can open, as tests/content-registry.test.mjs plays them.
         reward: [
           'progression.mjs:finishBattle',
-          ...(group === 'campaign' ? ['progression.mjs:bankCampaignMilestones', 'progression.mjs:claimExpansionGrant'] : []),
+          ...(group === 'campaign' ? ['progression.mjs:bankCampaignMilestones'] : []),
+          ...(group === 'campaign' && (node.rewardCharacter || finalNodes.has(node.id)) ? [CLAIM_GRANT] : []),
+          ...(group === 'campaign' && node.volumeFinal ? [OPEN_TICKET] : []),
           ...(storyGiftNodes.has(node.id) ? ['progression.mjs:claimWX01StoryPrint'] : []),
         ],
         resume: group === 'campaign' ? 'progression.mjs:getPendingBattleOptions' : 'app.mjs:resumeBattle',
@@ -339,7 +416,7 @@ function activityEntries(ctx) {
   ];
   const capabilities = {
     preview: notApplicable('The activity is entered from its journey panel; there is no separate preview surface.'),
-    'local-playable': capability(true, { blockers, evidence: [EVIDENCE.activityRoutes, ...EVIDENCE.activity] }),
+    'local-playable': capability(true, { blockers, evidence: [EVIDENCE.activityRoutes, EVIDENCE.rewardRules, ...EVIDENCE.activity] }),
     'local-owned': notApplicable('An activity records runs and clears; owned copies come from its grants (see printing entries).'),
     'backup-compatible': capability(true, { evidence: [EVIDENCE.backup], limits: [
       limit('An active run blocks backup export and restore.', EVIDENCE.activityBackup),
@@ -355,7 +432,7 @@ function activityEntries(ctx) {
     routes: ['owned', 'loaner'],
     rules: {
       entry: 'progression.mjs:startActivity', advance: 'progression.mjs:advanceActivity', completion: 'progression.mjs:finishBattle',
-      reward: ['progression.mjs:settleActivity', 'progression.mjs:claimExpansionGrant'], resume: 'progression.mjs:getActivityBattleOptions', abandon: 'progression.mjs:abandonActivity',
+      reward: ['progression.mjs:settleActivity', CLAIM_GRANT, OPEN_TICKET], resume: 'progression.mjs:getActivityBattleOptions', abandon: 'progression.mjs:abandonActivity',
     },
     capabilities,
   }];
@@ -367,14 +444,25 @@ function storyGiftNodeIds(content) {
 }
 
 /**
- * Every route that mints this printing into a profile. Pack pools and reward
+ * Every route that mints this printing into a profile: a new journey's starter and
+ * welcome copies, a v2 save migration, packs, boxes, tickets, the NPC market, seal
+ * redemption and the story and expansion grants. Card lists, pack pools and reward
  * content are read from the content modules; the grant facts progression.mjs
  * hard-codes are the constants above. A `grant` names the expansion grant the
- * route claims (`activity-*` stands for the run-specific prefix).
+ * route claims (`activity-*` stands for the run-specific prefix). Moving or
+ * restoring an existing copy (merchant buyback, a v3+ save, a backup restore) mints nothing.
  */
 function acquisitionFor(ctx, print) {
   const { content } = ctx, routes = [];
   if (print.setId === 'legacy') {
+    // A new journey and a v2 migration mint each card's default printing (collection.mjs:hydrateCollection).
+    const isDefault = content.defaultPrintId(print.cardId) === print.id;
+    const starter = isDefault && content.ORIGINAL_CARD_IDS.includes(print.cardId), welcome = isDefault && content.WELCOME_CARD_IDS.includes(print.cardId);
+    if (starter) routes.push({ rule: START_RULES[0], detail: 'starter copy in every new journey' });
+    if (welcome) routes.push({ rule: START_RULES[0], detail: 'welcome gift in every new journey' });
+    if (isDefault && content.LEGACY_CARD_IDS.includes(print.cardId)) {
+      routes.push({ rule: START_RULES[1], detail: ['v2 save migration: one copy per saved count', ...(starter ? ['at least one'] : []), ...(welcome ? ['plus the welcome gift for a save from before the collection expansion'] : [])].join(', ') });
+    }
     // buyPack routes the `wx01` set to drawWX01Pack; every other set mints the card's default (legacy) printing.
     for (const [set, pack] of Object.entries(content.PACK_SETS)) if (set !== 'wx01' && pack.cardIds.includes(print.cardId)) routes.push({ rule: 'progression.mjs:buyPack', detail: `${set} pack` });
     if (content.LEGACY_CARD_IDS.includes(print.cardId)) routes.push({ rule: 'progression.mjs:buyCard', detail: 'daily NPC market (legacy roster)' });
@@ -409,7 +497,8 @@ function printingEntries(ctx) {
       preview: capability(true, { blockers: [...artBlockers, ...moduleBlockers], evidence: [special ? 'pack-ui.mjs:wx01RedeemMarkup' : 'codex-ui.mjs:codexMarkup'] }),
       'local-playable': capability(true, { blockers: [...identity, ...artBlockers, ...moduleBlockers], evidence: [EVIDENCE.printArt] }),
       'local-owned': capability(true, { blockers: [...identity, ...(acquisition.length ? [] : ['no acquisition route grants this printing'])],
-        evidence: print.setId === 'wx01' ? [EVIDENCE.packReach, ...(special ? [EVIDENCE.redeem] : []), ...(acquisition.some(route => GRANT_RULES.includes(route.rule)) ? [EVIDENCE.grantRoutes] : [])] : [EVIDENCE.legacyPack] }),
+        evidence: print.setId === 'wx01' ? [EVIDENCE.packReach, ...(special ? [EVIDENCE.redeem] : []), ...(acquisition.some(route => GRANT_RULES.includes(route.rule)) ? [EVIDENCE.grantRoutes] : [])]
+          : [EVIDENCE.legacyPack, ...(acquisition.some(route => START_RULES.includes(route.rule)) ? [EVIDENCE.startRoutes] : [])] }),
       'backup-compatible': capability(true, { evidence: [EVIDENCE.backup, EVIDENCE.printBackup] }),
       'server-authoritative': capability(false, { reason: NO_SERVER }),
     };
@@ -428,6 +517,15 @@ function previewUnavailable(ctx, cardId, printId) {
   if (!ctx.prints.has(printId)) return `${printId} is absent from printing-catalogue.mjs; ${cardId} plays only as ${ctx.content.defaultPrintId(cardId)}.`;
   return '';
 }
+const listed = items => items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+/** Why a preview printing cannot be owned, with the profile claim derived from the pages that serve it. */
+function previewOwnership(ctx, pages) {
+  const mints = 'collection.mjs only mints printing-catalogue.mjs printings';
+  if (!pages.length) return `${mints}, and no served page loads this preview.`;
+  const writers = pages.filter(page => ctx.pageReaches(page, PROFILE_WRITER)), readers = pages.filter(page => !writers.includes(page));
+  if (!writers.length) return `${mints}, and ${listed(pages)} never load${pages.length === 1 ? 's' : ''} the profile store (${PROFILE_WRITER}).`;
+  return `${mints}. ${listed(writers)} load${writers.length === 1 ? 's' : ''} the profile store (${PROFILE_WRITER}) but cannot mint this printing${readers.length ? `; ${listed(readers)} never load${readers.length === 1 ? 's' : ''} it` : ''}.`;
+}
 function previewEntry(ctx, { setId, sourceModule, card, printId, treatment, src, name, evidence }) {
   const pages = ctx.servedBy(sourceModule);
   const blockers = [...ctx.assetBlockers(src, 'served'), ...(pages.length ? [] : [`${sourceModule} is not reachable from any served page`])];
@@ -435,7 +533,7 @@ function previewEntry(ctx, { setId, sourceModule, card, printId, treatment, src,
   const capabilities = {
     preview: capability(true, { blockers, evidence }),
     'local-playable': integrated ? capability(true, { blockers: ['a preview module claims a catalogue printing; move it to printing-catalogue.mjs'] }) : capability(false, { reason: previewUnavailable(ctx, card.id, printId) }),
-    'local-owned': capability(false, { reason: 'collection.mjs only mints printing-catalogue.mjs printings; preview pages never write a profile.' }),
+    'local-owned': capability(false, { reason: previewOwnership(ctx, pages) }),
     'backup-compatible': capability(false, { reason: 'Preview data is never stored in a profile, so no backup carries it.' }),
     'server-authoritative': capability(false, { reason: NO_SERVER }),
   };
@@ -501,21 +599,90 @@ export function buildContentRegistry(sources = loadContentSources()) {
   });
 }
 
+const REGEX_MAY_FOLLOW = /^(?:[(,=:[!&|?{};+\-*%<>~^]|return|typeof|case|do|else|in|of|new|delete|void|throw|yield|await)$/;
+/**
+ * JavaScript source with comments, string and template text and regex bodies blanked
+ * (same length and line breaks; quotes and template `${...}` code kept), so a match
+ * position can be told apart as code. Regex literals are recognised heuristically by
+ * the preceding token, which is enough for this repository's test files.
+ */
+function maskCode(source) {
+  const out = source.split(''), interpolations = []; // UTF-16 units, matching source indices
+  const blank = (from, to) => { for (let index = from; index < to && index < out.length; index++) if (out[index] !== '\n') out[index] = ' '; };
+  let depth = 0, last = '', at = 0;
+  const templateText = from => { // from: index after the opening backtick or the `}` closing an interpolation
+    let index = from;
+    while (index < source.length && source[index] !== '`' && !(source[index] === '$' && source[index + 1] === '{')) index += source[index] === '\\' ? 2 : 1;
+    blank(from, index);
+    if (source[index] === '$') { interpolations.push(depth); last = '{'; return index + 2; }
+    last = '`'; return index + 1;
+  };
+  while (at < source.length) {
+    const char = source[at], next = source[at + 1];
+    if (char === '/' && next === '/') { const end = source.indexOf('\n', at); const stop = end < 0 ? source.length : end; blank(at, stop); at = stop; continue; }
+    if (char === '/' && next === '*') { const end = source.indexOf('*/', at + 2); const stop = end < 0 ? source.length : end + 2; blank(at, stop); at = stop; continue; }
+    if (char === '"' || char === "'") {
+      let index = at + 1;
+      while (index < source.length && source[index] !== char && source[index] !== '\n') index += source[index] === '\\' ? 2 : 1;
+      blank(at + 1, index); at = index + 1; last = char; continue;
+    }
+    if (char === '`') { at = templateText(at + 1); continue; }
+    if (char === '}' && interpolations.length && interpolations.at(-1) === depth) { interpolations.pop(); at = templateText(at + 1); continue; }
+    if (char === '/' && (last === '' || REGEX_MAY_FOLLOW.test(last))) {
+      let index = at + 1, inClass = false;
+      while (index < source.length && source[index] !== '\n' && (inClass || source[index] !== '/')) {
+        if (source[index] === '\\') index++; else if (source[index] === '[') inClass = true; else if (source[index] === ']') inClass = false;
+        index++;
+      }
+      blank(at + 1, index); at = index + 1;
+      while (/[a-z]/i.test(source[at] ?? '')) at++;
+      last = 'regex'; continue;
+    }
+    if (/\s/.test(char)) { at++; continue; }
+    if (/[\w$]/.test(char)) { let end = at; while (/[\w$]/.test(source[end] ?? '')) end++; last = source.slice(at, end); at = end; continue; }
+    if (char === '{') depth++;
+    if (char === '}') depth--;
+    last = char; at++;
+  }
+  return out.join('');
+}
+/** Index of the bracket closing the one at `open` in masked code, or the end of the text. */
+function closingBracket(code, open) {
+  const pairs = { '(': ')', '[': ']', '{': '}' }, stack = [];
+  for (let index = open; index < code.length; index++) {
+    if (pairs[code[index]]) stack.push(pairs[code[index]]);
+    else if (code[index] === stack.at(-1)) { stack.pop(); if (!stack.length) return index; }
+  }
+  return code.length;
+}
+
 /**
  * Does `source` declare a top-level `test('<title>', ...)` that the runner will
- * execute? A `test.skip`/`test.todo` call, `{ skip }`/`{ todo }` options (unless
- * literally `false`) or a `//`-commented line do not count. A test hidden behind
- * runtime control flow (`if (false) test(...)`) or inside a block comment cannot be
- * seen from the text; the runner's own test and skip counts show it.
+ * execute? These do not count: a `test.skip`/`test.todo` call, `{ skip }`/`{ todo }`
+ * options (unless literally `false`), a declaration inside a comment or string, and
+ * a test whose body calls its context's `skip()` or `todo()` anywhere, even
+ * conditionally, since the runner may then report it skipped. A test hidden behind
+ * runtime control flow around the declaration (`if (false) test(...)`) or skipped
+ * through an indirect call cannot be seen from the text; the runner's own test and
+ * skip counts show it.
  */
 function declaresRunningTest(source, title) {
+  const code = maskCode(source);
   for (const quote of ["'", '"', '`']) {
     const call = `test(${quote}${title}${quote}`;
     for (let at = source.indexOf(call); at >= 0; at = source.indexOf(call, at + 1)) {
-      if (/[\w$.]/.test(source[at - 1] ?? '')) continue;
-      if (/^\s*\/\//.test(source.slice(source.lastIndexOf('\n', at) + 1, at))) continue;
-      const options = /^\s*,\s*(\{[^{}]*\})/.exec(source.slice(at + call.length));
-      if (options && /\b(?:skip|todo)\b(?!\s*:\s*false\b)/.test(options[1])) continue;
+      if (/[\w$.]/.test(source[at - 1] ?? '') || !code.startsWith('test(', at)) continue;
+      const end = closingBracket(code, at + 4);
+      let rest = at + call.length;
+      const options = /^\s*,\s*(?=\{)/.exec(code.slice(rest, end));
+      if (options) {
+        const open = rest + options[0].length, close = closingBracket(code, open);
+        if (/\b(?:skip|todo)\b(?!\s*:\s*false\b)/.test(code.slice(open, close + 1))) continue;
+        rest = close + 1;
+      }
+      const callback = /^\s*,\s*(?:async\s+)?(?:function\b\s*\*?\s*[\w$]*\s*\(\s*([A-Za-z_$][\w$]*)|\(\s*([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*)\s*=>)/.exec(code.slice(rest, end));
+      const context = callback && (callback[1] ?? callback[2] ?? callback[3]);
+      if (context && new RegExp(`(?<![\\w$.])${context.replace(/\$/g, '\\$')}\\s*(?:\\?\\.|\\.)\\s*(?:skip|todo)\\s*\\(`).test(code.slice(rest, end))) continue;
       return true;
     }
   }

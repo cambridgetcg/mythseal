@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildContentRegistry, auditContent, loadContentSources, resolveReference, localReferences, CAPABILITIES, GRANT_RULES } from '../tools/content-registry.mjs';
-import { createProfile, beginBattle, finishBattle, startActivity, advanceActivity, isNodeUnlocked, claimWX01StoryPrint, claimExpansionGrant, NODES } from '../progression.mjs';
+import { buildContentRegistry, auditContent, loadContentSources, resolveReference, localReferences, CAPABILITIES, GRANT_RULES, START_RULES } from '../tools/content-registry.mjs';
+import { createProfile, hydrateProfile, beginBattle, finishBattle, startActivity, advanceActivity, isNodeUnlocked, claimWX01StoryPrint, claimExpansionGrant, NODES } from '../progression.mjs';
+import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { nextNodeInWorld } from '../stories.mjs';
 import { mintInstance } from '../collection.mjs';
 import { createSnapshot, restoreSnapshot } from '../cloud-save.mjs';
@@ -61,6 +62,9 @@ test('capabilities separate preview from playable, state every unavailable reaso
   assert.equal(preview.capabilities.preview.state, 'available');
   assert.deepEqual(preview.pages, ['liaozhai.html']);
   for (const name of ['local-playable', 'local-owned', 'backup-compatible']) assert.equal(preview.capabilities[name].state, 'unavailable');
+  assert.equal(preview.capabilities['local-owned'].reason,
+    'collection.mjs only mints printing-catalogue.mjs printings, and liaozhai.html never loads the profile store (profile-store.mjs).',
+    'the profile claim names the pages that serve this printing, not every preview page (playtest.html writes the profile)');
   assert.match(entry('print:hl01-001-base').capabilities['local-playable'].reason, /legacy\/lindaiyu/, 'a preview reprint names the identity that already plays');
   assert.match(entry('print:lz01-009-aa1').capabilities.preview.reason, /no image/);
   assert.equal(entry('print:lz01-009-aa1').cardId, 'chenshi');
@@ -75,6 +79,11 @@ test('capabilities separate preview from playable, state every unavailable reaso
   ], 'an AA lists the story gift and the campaign-final choice as well as packs and seals');
   assert.deepEqual(entry('print:wx01-015-base').acquisition.filter(route => route.grant).map(route => route.grant), ['activity-*:stage-2:loot', 'fire-mountain:first-clear']);
   assert.deepEqual(entry('encounter:west-spirit-mountain').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:claimWX01StoryPrint']);
+  assert.deepEqual(entry('encounter:echo-1-3').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:bankCampaignMilestones'], 'a clear that banks nothing lists no claim');
+  assert.deepEqual(entry('encounter:echo-1-8').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:bankCampaignMilestones', 'progression.mjs:openWX01Ticket']);
+  assert.deepEqual(entry('encounter:echo-6-8').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:bankCampaignMilestones', 'progression.mjs:claimExpansionGrant', 'progression.mjs:openWX01Ticket']);
+  assert.deepEqual(entry('activity:fire-mountain').rules.reward, ['progression.mjs:settleActivity', 'progression.mjs:claimExpansionGrant', 'progression.mjs:openWX01Ticket']);
+  assert.deepEqual(entry('print:legacy/qingxiao').acquisition.map(route => route.rule), ['progression.mjs:createProfile', 'progression.mjs:hydrateProfile', 'progression.mjs:buyPack', 'progression.mjs:buyCard']);
   assert.deepEqual(entry('encounter:echo-1-1').capabilities['backup-compatible'].limits.map(item => item.references), [
     ['tests/cloud-save.test.mjs › unfinished battles cannot be uploaded or restored and original pending remains untouched'],
     ['cloud-save.mjs:assertLegacyExpansionBoundary'],
@@ -121,6 +130,10 @@ const SOURCE_FAULTS = [
     ['public-graph-unlisted'], /q4-unlisted\.mjs/],
   ['the public game importing preview-only data', { readText: path => sources.readText(path) + (path === 'app.mjs' ? "\nimport './liaozhai-cards.mjs';\n" : '') },
     ['preview-module-public', 'public-graph-unlisted'], /liaozhai-cards\.mjs/],
+  ['a public stylesheet importing an unlisted one with a plain @import string', rewrite('styles.css', text => `@import "q4-theme.css";\n${text}`),
+    ['public-graph-unlisted'], /the public game loads q4-theme\.css/],
+  ['the public game playing an unlisted sound', rewrite('app.mjs', text => `${text}\nconst sealSound = new Audio('assets/sfx/seal.mp3');\n`),
+    ['public-graph-unlisted'], /the public game loads assets\/sfx\/seal\.mp3/],
   ['a circular unlock chain', { content: { NODES: nodes('jade-forest', () => ({ requiresNode: 'ember-pass' })) } },
     ['unlock-cycle'], /loops at/],
   ['a second starting encounter', { content: { NODES: nodes('jade-forest', () => ({ requiresNode: null })) } },
@@ -157,6 +170,12 @@ const SOURCE_FAULTS = [
     ['dead-reference'], /progression\.mjs:claimWX01StoryPrint no longer resolves/],
   ['an evidence test switched off with { skip }', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', `, `test('${evidenceTitle}', { skip: 'disabled' }, `)),
     ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test skipped inside its body with t.skip()', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', () => {`, `test('${evidenceTitle}', t => { t.skip('disabled'); return;`)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test inside a block comment', rewrite('tests/progression.test.mjs', text => {
+    const start = text.indexOf(`test('${evidenceTitle}', `), end = text.indexOf('\n});\n', start) + 5;
+    return `${text.slice(0, start)}/* disabled\n${text.slice(start, end)}*/\n${text.slice(end)}`;
+  }), ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
 ];
 /** [label, how the registry is altered after derivation, codes that must fire, a message one finding must match] */
 const REGISTRY_FAULTS = [
@@ -210,8 +229,37 @@ test('rule, resume and evidence references must name real code or real tests', (
   assert.equal(runs("  // test('a sample', () => {});"), false, 'a commented-out test is not evidence');
   assert.equal(runs("xtest('a sample', () => {});"), false);
   assert(runs("// test('a sample', () => {});\ntest('a sample', () => {});"), 'a later live declaration still counts');
+  assert.equal(runs("/*\ntest('a sample', () => {});\n*/"), false, 'a test inside a block comment is not evidence');
+  assert.equal(runs("const note = \"test('a sample', () => {})\";"), false, 'a declaration quoted in a string is not evidence');
+  assert.equal(runs("test('a sample', t => { t.skip('disabled'); return; });"), false, 'a test that skips itself at run time is not evidence');
+  assert.equal(runs("test('a sample', async (t) => { await setup(); t.todo(); });"), false);
+  assert.equal(runs("test('a sample', function (context) { if (slow) context.skip(); });"), false, 'a conditional skip may skip, so it does not count');
+  assert.equal(runs("test('a sample', { timeout: 50 }, async t => { t?.skip(); });"), false);
+  assert(runs("test('a sample', t => { assert.match(text, /'\\}/); t.diagnostic('skip(') });\ntest('another', t => t.skip());"), 'a skip in a later test, a string or a regex does not disqualify this one');
+  assert(runs("test('a sample', t => { subject.skip(); st.skip(); });"), 'only the test context skipping counts');
+  assert(runs("test('a sample', { timeout: 50, plan: { at: 1 } }, () => {});"), 'nested option objects still run');
+  assert.equal(runs("test('a sample', { timeout: { at: 1 }, skip: true }, () => {});"), false);
+  assert.equal(runs("test(`a sample`, () => {}); // `test('a sample'` is quoted here"), true);
+});
+
+test('the asset walker follows every statically visible load form', () => {
+  const refs = (path, text) => localReferences(path, text).sort();
   assert.deepEqual(localReferences('styles.css', `a{background:url("data:image/svg+xml,%3Csvg filter='url(%23n)'%3E")} b{background:url('assets/mark.svg')}`), ['assets/mark.svg']);
   assert.deepEqual(localReferences('page.html', '<link rel="canonical" href="https://mythseal.com/"><script type="module" src="./app.mjs?v=1"></script>'), ['app.mjs']);
+  assert.deepEqual(refs('styles.css', `@import "theme.css"; @import 'print.css' print; @import url("x.css");
+    a{background:image-set("assets/a.avif" type("image/avif"), "assets/a.png" 1x)} @font-face{src:url(fonts/a.woff2)}`),
+  ['assets/a.avif', 'assets/a.png', 'fonts/a.woff2', 'print.css', 'theme.css', 'x.css']);
+  assert.deepEqual(refs('app.mjs', `const s = new Audio('assets/sfx/seal.mp3'), g = 'assets/fx/spark.gif'; new Worker('./worker.mjs', { type: 'module' });
+    fetch('data/cards.json'); img.src = 'media/x.webp'; el.setAttribute('poster', 'media/poster.jpg'); el.srcset = 'a.png 1x, b.png 2x';
+    new URL('./art.png', import.meta.url); const view = '<audio src="sfx/hum.ogg"></audio><video poster="cover.jpg"></video>';`),
+  ['a.png', 'art.png', 'assets/fx/spark.gif', 'assets/sfx/seal.mp3', 'b.png', 'cover.jpg', 'data/cards.json', 'media/poster.jpg', 'media/x.webp', 'sfx/hum.ogg', 'worker.mjs']);
+  assert.deepEqual(refs('ui/panel.mjs', "import '../engine.mjs'; import('./part.mjs'); new Audio('../assets/sfx/seal.mp3');"), ['assets/sfx/seal.mp3', 'engine.mjs', 'ui/part.mjs']);
+  assert.deepEqual(refs('app.mjs', "fetch('/api/session'); a.download = 'mythseal-recovery-originals.json'; fetch(url); const art = `assets/${id}.png`;"), [],
+    'an API path, a download name and a runtime-built path are not file loads');
+  assert.deepEqual(refs('page.html', `<img src="a.png" srcset="a-2x.png 2x, a-3x.png 3x"><video poster="p.jpg" src="v.webm"><track src="c.vtt"></video><audio src='s.mp3'></audio>
+    <picture><source srcset="x.avif" type="image/avif"></picture><a href="other.html">x</a><style>@import "inline.css";</style>
+    <script type="module">import "./inline.mjs";</script><link rel="preload" as="image" imagesrcset="hero.webp 1x">`),
+  ['a-2x.png', 'a-3x.png', 'a.png', 'c.vtt', 'hero.webp', 'inline.css', 'inline.mjs', 'p.jpg', 's.mp3', 'v.webm', 'x.avif']);
 });
 
 function ancestors(id) {
@@ -300,6 +348,76 @@ test('acquisition lists exactly the printings each story and expansion grant rou
   assert.equal(minted.filter(route => route.includes('claimWX01StoryPrint')).length, 6, 'the story gift offers each of the six AA');
   assert.equal(minted.filter(route => route.includes('westward-echo')).length, 6, 'the campaign-final grant offers each of the six AA');
   assert.deepEqual(listed.sort(), minted.sort(), 'every grant route that mints a printing is listed on it, and every listed grant route mints it');
+});
+
+test('acquisition lists exactly the printings a new journey and a v2 save migration mint', () => {
+  const printsOf = (profile, origin) => [...new Set(profile.instances.filter(instance => instance.origin === origin).map(instance => instance.printId))].sort();
+  const listing = (rule, detail) => registry.entries.filter(item => (item.acquisition ?? []).some(route => route.rule === rule && detail.test(route.detail))).map(item => item.printId).sort();
+  const fresh = createProfile({ now });
+  assert.equal(fresh.instances.length, 16);
+  assert.deepEqual(printsOf(fresh, 'starter'), listing(START_RULES[0], /^starter copy/));
+  assert.deepEqual(printsOf(fresh, 'welcome'), listing(START_RULES[0], /^welcome gift/));
+  assert.equal(listing(START_RULES[0], /./).length, 16);
+  // A v2 save keeps its inventory counts; hydrateProfile mints them with a starter floor and, before the collection expansion, the welcome gift.
+  const migrated = raw => printsOf(hydrateProfile({ version: 2, ...raw }, { now }), 'migration');
+  assert.deepEqual(migrated({ collectionExpansion: 1, inventory: Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, 2])) }), listing(START_RULES[1], /^v2 save migration/));
+  assert.deepEqual(migrated({ collectionExpansion: 1 }), listing(START_RULES[1], /at least one/));
+  assert.deepEqual(migrated({}), [...listing(START_RULES[1], /at least one/), ...listing(START_RULES[1], /welcome gift/)].sort());
+  assert.equal(listing(START_RULES[1], /./).length, 24, 'every legacy printing can come from a v2 save');
+  assert.equal(registry.entries.some(item => item.setId !== 'legacy' && (item.acquisition ?? []).some(route => START_RULES.includes(route.rule))), false);
+});
+
+test('reward rules name exactly the grant and ticket claims each clear can bank', () => {
+  const claim = 'progression.mjs:claimExpansionGrant', ticket = 'progression.mjs:openWX01Ticket';
+  const encounters = registry.entries.filter(item => item.kind === 'encounter');
+  /** Clear encounters in this order; what each first clear banks. */
+  const clearAll = order => {
+    let profile = createProfile({ now });
+    const banked = new Map();
+    for (const item of order) {
+      const grants = profile.expansion.grants.length, tickets = profile.expansion.tickets;
+      profile = play(profile, item.nodeId, 'owned').settled.profile;
+      banked.set(item.nodeId, { [claim]: profile.expansion.grants.length > grants, [ticket]: profile.expansion.tickets > tickets });
+    }
+    return banked;
+  };
+  const inOrder = clearAll(encounters);
+  const lists = { [claim]: [], [ticket]: [] }, banks = { [claim]: [], [ticket]: [] };
+  for (const item of encounters) {
+    for (const rule of [claim, ticket]) {
+      let banked = inOrder.get(item.nodeId)[rule];
+      // Another campaign end would bank the final grant only when cleared last; try that order too.
+      if (!banked && rule === claim && item.rules.reward.includes(rule)) {
+        try { banked = clearAll([...encounters.filter(other => other !== item), item]).get(item.nodeId)[rule]; } catch { banked = false; }
+      }
+      if (banked) banks[rule].push(item.nodeId);
+      if (item.rules.reward.includes(rule)) lists[rule].push(item.nodeId);
+    }
+  }
+  assert.deepEqual(lists[claim], banks[claim], 'an encounter lists claimExpansionGrant exactly when its clear banks a grant');
+  assert.deepEqual(lists[ticket], banks[ticket], 'an encounter lists openWX01Ticket exactly when its clear banks a ticket');
+  assert.deepEqual(banks[claim], ['echo-1-1', 'echo-1-2', 'echo-1-4', 'echo-1-6', 'echo-2-8', 'echo-3-8', 'echo-4-8', 'echo-5-8', 'echo-6-8']);
+  assert.deepEqual(banks[ticket], ['echo-1-8', 'echo-2-8', 'echo-3-8', 'echo-4-8', 'echo-5-8', 'echo-6-8']);
+
+  const activity = entry('activity:fire-mountain');
+  let profile = createProfile({ now }); profile.cleared = [activity.unlock.requires];
+  const before = structuredClone(profile.expansion);
+  profile = startActivity(profile, { route: 'loaner', rng: () => .2, now }).profile;
+  for (let stage = 0; stage < activity.stageIds.length; stage++) {
+    profile = finishBattle(profile, { encounterId: profile.pending.id, winner: 'player', playedCardIds: [], finalResources: { hp: 12, pills: 12 }, now }).profile;
+    if (stage < activity.stageIds.length - 1) profile = advanceActivity(profile, { supply: 'none', expectedRunId: profile.expansion.fireMountain.run.id, expectedStage: stage, now }).profile;
+  }
+  assert.equal(activity.rules.reward.includes(claim), profile.expansion.grants.length > before.grants.length, 'a first run banks the first-clear grant');
+  assert.equal(activity.rules.reward.includes(ticket), profile.expansion.tickets > before.tickets, 'the first weekly clear banks a ticket');
+});
+
+test('a preview printing\'s ownership reason follows the pages that serve it', () => {
+  for (const item of registry.entries.filter(candidate => candidate.status === 'preview')) {
+    assert.match(item.capabilities['local-owned'].reason, new RegExp(`${item.pages.join(' and ').replaceAll('.', '\\.')} never loads? the profile store`), item.id);
+  }
+  const writing = buildContentRegistry({ ...sources, ...rewrite('liaozhai.html', text => text.replace('</body>', '<script type="module" src="./playtest-supply-ui.mjs"></script></body>')) });
+  assert.equal(writing.entries.find(item => item.id === 'print:lz01-001-aa1').capabilities['local-owned'].reason,
+    'collection.mjs only mints printing-catalogue.mjs printings. liaozhai.html loads the profile store (profile-store.mjs) but cannot mint this printing.');
 });
 
 test('the story gift opens only after the encounters that list it as a reward', () => {
