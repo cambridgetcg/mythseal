@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildContentRegistry, auditContent, loadContentSources, resolveReference, localReferences, CAPABILITIES } from '../tools/content-registry.mjs';
-import { createProfile, beginBattle, finishBattle, startActivity, advanceActivity, isNodeUnlocked, NODES } from '../progression.mjs';
+import { buildContentRegistry, auditContent, loadContentSources, resolveReference, localReferences, CAPABILITIES, GRANT_RULES } from '../tools/content-registry.mjs';
+import { createProfile, beginBattle, finishBattle, startActivity, advanceActivity, isNodeUnlocked, claimWX01StoryPrint, claimExpansionGrant, NODES } from '../progression.mjs';
 import { nextNodeInWorld } from '../stories.mjs';
 import { mintInstance } from '../collection.mjs';
 import { createSnapshot, restoreSnapshot } from '../cloud-save.mjs';
 import { LZ01_AA } from '../liaozhai-cards.mjs';
+import { PRINTINGS } from '../printing-catalogue.mjs';
 
 const now = '2026-09-22T12:00:00.000Z';
 const sources = loadContentSources();
@@ -15,6 +16,11 @@ const entry = id => registry.entries.find(item => item.id === id);
 const byGroup = (kind, group) => registry.entries.filter(item => item.kind === kind && item.group === group);
 const codes = findings => [...new Set(findings.map(finding => finding.code))].sort();
 const audit = changes => auditContent({ ...sources, ...changes, content: { ...sources.content, ...changes.content } });
+/** Audit the current sources against a registry altered after derivation: the only way to reach the registry-shape guards. */
+const forged = mutate => { const copy = structuredClone(registry); mutate(copy.entries); return auditContent(sources, copy); };
+/** Source text with one file rewritten, as a renamed test, rule or page would leave it. */
+const rewrite = (file, change) => ({ readText: path => path === file ? change(sources.readText(path)) : sources.readText(path) });
+const AUDIT_CODES = [...new Set([...readFileSync(new URL('../tools/content-registry.mjs', import.meta.url), 'utf8').matchAll(/\badd\('([a-z-]+)'/g)].map(match => match[1]))].sort();
 
 test('the registry derives every encounter, the activity and each printing exactly once with honest statuses', () => {
   assert.deepEqual(registry.summary.byKind, {
@@ -60,9 +66,19 @@ test('capabilities separate preview from playable, state every unavailable reaso
   assert.equal(entry('print:lz01-009-aa1').cardId, 'chenshi');
   assert.deepEqual(entry('print:lz01-001-tr1').plannedAssets, ['assets/lz01/xiaoqian-treasure.png']);
   const owned = entry('print:wx01-005-tr1');
-  assert.deepEqual(owned.acquisition.map(route => route.rule), ['progression.mjs:buyPack', 'progression.mjs:redeemWX01Print']);
+  assert.deepEqual(owned.acquisition.map(route => route.rule), ['progression.mjs:buyPack', 'progression.mjs:buyWX01Box', 'progression.mjs:openWX01Ticket', 'progression.mjs:redeemWX01Print']);
   assert.deepEqual(entry('print:wx01-006-base').acquisition.map(route => route.detail),
-    ['WX-01 pack sampler (also buyWX01Box and openWX01Ticket)', 'fire-mountain-red loot']);
+    ['WX-01 pack', 'WX-01 box of 12 or 24 packs', 'WX-01 ticket pack', 'fire-mountain-red loot']);
+  assert.deepEqual(entry('print:wx01-001-aa1').acquisition.map(route => route.grant ?? route.rule), [
+    'progression.mjs:buyPack', 'progression.mjs:buyWX01Box', 'progression.mjs:openWX01Ticket', 'progression.mjs:redeemWX01Print',
+    'progression.mjs:claimWX01StoryPrint', 'campaign:westward-echo:aa',
+  ], 'an AA lists the story gift and the campaign-final choice as well as packs and seals');
+  assert.deepEqual(entry('print:wx01-015-base').acquisition.filter(route => route.grant).map(route => route.grant), ['activity-*:stage-2:loot', 'fire-mountain:first-clear']);
+  assert.deepEqual(entry('encounter:west-spirit-mountain').rules.reward, ['progression.mjs:finishBattle', 'progression.mjs:claimWX01StoryPrint']);
+  assert.deepEqual(entry('encounter:echo-1-1').capabilities['backup-compatible'].limits.map(item => item.references), [
+    ['tests/cloud-save.test.mjs › unfinished battles cannot be uploaded or restored and original pending remains untouched'],
+    ['cloud-save.mjs:assertLegacyExpansionBoundary'],
+  ], 'a limit keeps its references in a field the audit resolves, not in its prose');
   assert.deepEqual(entry('encounter:echo-1-7').routes, ['owned', 'loaner']);
   assert.equal(entry('encounter:mist-gate').opponent, 'random-legacy');
   assert.equal(entry('encounter:mist-gate').unlock.requires, null);
@@ -73,43 +89,105 @@ test('the current source passes the content audit', () => {
   assert.deepEqual(findings, [], findings.map(finding => `${finding.code} ${finding.id ?? ''} ${finding.message}`).join('\n'));
 });
 
+const nodes = (id, change) => NODES.map(node => node.id === id ? { ...node, ...change(node) } : node);
+const evidenceTitle = 'six map locations unlock sequentially on wins and move the traveller on entry';
+/** [label, broken sources, codes that must fire, a message one finding must match] */
+const SOURCE_FAULTS = [
+  ['a referenced public map dropped from the allowlist', { publicAssets: sources.publicAssets.filter(path => path !== 'assets/maps/westward.png') },
+    ['capability-inconsistent', 'public-graph-unlisted'], /assets\/maps\/westward\.png is not in hosting\/public-assets\.json/],
+  ['a preview atlas leaking into the public build', { publicAssets: [...sources.publicAssets, 'assets/lz01/base-01.png'] },
+    ['allowlist-overlap', 'preview-asset-public', 'public-orphan'], /lz01\/base-01\.png/],
+  ['an encounter naming a missing card', { content: { NODES: nodes('west-flower-mountain', node => ({ opponentDeck: ['ghost', ...node.opponentDeck.slice(1)] })) } },
+    ['capability-inconsistent'], /unknown card ghost/],
+  ['an authored deck the app would silently replace', { content: { NODES: nodes('gods-chentang', node => ({ opponentDeck: [...node.opponentDeck.slice(0, 7), node.opponentDeck[0]] })) } },
+    ['capability-inconsistent'], /not a legal deck/],
+  ['a dangling prerequisite', { content: { NODES: nodes('echo-2-3', () => ({ requiresNode: 'nowhere' })) } },
+    ['capability-inconsistent', 'unlock-dangling'], /nowhere/],
+  ['a playable printing without its art file', { content: { PRINTINGS: [...sources.content.PRINTINGS, { id: 'wx01-005-zz1', cardId: 'wukong', setId: 'wx01', treatment: 'aa', name: '測試', art: { src: 'assets/wx01/absent.png', columns: 1, rows: 1, index: 0 } }] } },
+    ['capability-inconsistent'], /assets\/wx01\/absent\.png is missing/],
+  ['a playable printing with no art at all', { content: { PRINTINGS: [...sources.content.PRINTINGS, { id: 'wx01-005-zz2', cardId: 'wukong', setId: 'wx01', treatment: 'aa', name: '測試' }] } },
+    ['capability-inconsistent'], /printing has no art/],
+  ['an activity drop that is not the boss BASE', { content: { FIRE_MOUNTAIN: { ...sources.content.FIRE_MOUNTAIN, stages: sources.content.FIRE_MOUNTAIN.stages.map((stage, index) => index ? stage : { ...stage, dropPrintId: 'wx01-010-base' }) } } },
+    ['capability-inconsistent'], /not honghaier's WX-01 BASE printing/],
+  ['a planned special bound without its image or docs', { content: { LZ01_AA: [LZ01_AA, { cardId: 'yingning', printId: 'lz01-004-aa1', treatment: 'aa', name: '嬰寧 · 花間藏笑', src: 'assets/lz01/yingning-aa.png' }] } },
+    ['capability-inconsistent', 'planned-bound'], /yingning-aa\.png is missing/],
+  ['a planned special that lost its brief', { docs: { ...sources.docs, lz01Briefs: sources.docs.lz01Briefs.replace(/^\| `lz01-011-aa1` .*\n/m, '') } },
+    ['checklist-mismatch'], /no brief with a proposed file/],
+  ['a checklist that claims an unbound image', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace(/(\| `lz01-009-aa1` [^\n]*\| )Planned · brief only \(2026-10-10\), no image \|/, '$1Generated local preview image: `assets/lz01/chenshi-aa.png` |') } },
+    ['checklist-mismatch'], /lz01-009-aa1|nothing binds it/],
+  ['a planned image added without binding or docs', { fileKind: path => path === 'assets/lz01/huapi-ink.png' ? 'file' : sources.fileKind(path) },
+    ['planned-asset-exists'], /huapi-ink\.png exists/],
+  ['the public game importing an unlisted module', { readText: path => sources.readText(path) + (path === 'app.mjs' ? "\nimport './q4-unlisted.mjs';\n" : '') },
+    ['public-graph-unlisted'], /q4-unlisted\.mjs/],
+  ['the public game importing preview-only data', { readText: path => sources.readText(path) + (path === 'app.mjs' ? "\nimport './liaozhai-cards.mjs';\n" : '') },
+    ['preview-module-public', 'public-graph-unlisted'], /liaozhai-cards\.mjs/],
+  ['a circular unlock chain', { content: { NODES: nodes('jade-forest', () => ({ requiresNode: 'ember-pass' })) } },
+    ['unlock-cycle'], /loops at/],
+  ['a second starting encounter', { content: { NODES: nodes('jade-forest', () => ({ requiresNode: null })) } },
+    ['unlock-roots'], /expected one starting encounter, found mist-gate, jade-forest/],
+  ['an allowlist listing a path twice', { publicAssets: [...sources.publicAssets, 'app.mjs'] },
+    ['allowlist-duplicate'], /public-assets\.json lists a path twice/],
+  ['an allowlisted file that does not exist', { previewAssets: [...sources.previewAssets, 'assets/lz01/q4-absent.png'] },
+    ['allowlist-missing-file'], /q4-absent\.png is missing/],
+  ['a preview page loading an unlisted module', rewrite('liaozhai.html', text => text.replace('</body>', '<script type="module" src="./q4-preview-unlisted.mjs"></script></body>')),
+    ['preview-graph-unlisted'], /liaozhai\.html loads q4-preview-unlisted\.mjs/],
+  ['a preview-allowlisted file nothing uses', { previewAssets: [...sources.previewAssets, 'README.md'] },
+    ['preview-orphan'], /README\.md is preview-allowlisted/],
+  ['tooling on an allowlist', { publicAssets: [...sources.publicAssets, 'tools/content-registry.mjs'] },
+    ['tooling-served'], /tooling must never be allowlisted/],
+  ['a planned image allowlisted before it exists', { previewAssets: [...sources.previewAssets, 'assets/lz01/huapi-ink.png'] },
+    ['planned-asset-listed'], /huapi-ink\.png is allowlisted while the checklist says no image/],
+  ['a checklist row numbered for the wrong character', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace('| `lz01-004-aa1` | 嬰寧 / AA', '| `lz01-004-aa1` | 小倩 / AA') } },
+    ['planned-card-mismatch'], /lz01-004-aa1 number does not match 小倩/],
+  ['a design document without its printing checklist', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace('## Proposed printing checklist', '## Printing notes') } },
+    ['checklist-missing'], /no "Proposed printing checklist" table/],
+  ['a printing listed twice', { content: { PRINTINGS: [...sources.content.PRINTINGS, sources.content.PRINTINGS.find(print => print.id === 'wx01-005-tr1')] } },
+    ['duplicate-id'], /wx01-005-tr1 appears twice/],
+  ['a printing id that is also a card id', { content: { PRINTINGS: [...sources.content.PRINTINGS, { ...sources.content.PRINTINGS.find(print => print.id === 'wx01-005-aa1'), id: 'wukong' }] } },
+    ['print-id-collides'], /printId wukong is also a card id/],
+  ['a renamed test behind a backup limit', rewrite('tests/cloud-save.test.mjs', text => text.replace('unfinished battles cannot be uploaded', 'unfinished battles stay local')),
+    ['dead-reference'], /unfinished battles cannot be uploaded .* no longer resolves \(cited by 66 entries\)/],
+  ['a renamed test behind the activity backup limit', rewrite('tests/cloud-save.test.mjs', text => text.replace('an active activity blocks cloud export', 'an active run blocks cloud export')),
+    ['dead-reference'], /an active activity blocks cloud export .* no longer resolves \(cited by 1 entry\)/],
+  ['a renamed snapshot boundary rule', rewrite('cloud-save.mjs', text => text.replaceAll('assertLegacyExpansionBoundary', 'assertOldBoundary')),
+    ['dead-reference'], /cloud-save\.mjs:assertLegacyExpansionBoundary no longer resolves \(cited by 49 entries\)/],
+  ['a renamed unlock rule', rewrite('progression.mjs', text => text.replaceAll('isNodeUnlocked', 'isStageOpen')),
+    ['dead-reference'], /progression\.mjs:isNodeUnlocked no longer resolves \(cited by 66 entries\)/],
+  ['a renamed story-gift rule', rewrite('progression.mjs', text => text.replaceAll('claimWX01StoryPrint', 'claimStoryGift')),
+    ['dead-reference'], /progression\.mjs:claimWX01StoryPrint no longer resolves/],
+  ['an evidence test switched off with { skip }', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', `, `test('${evidenceTitle}', { skip: 'disabled' }, `)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+];
+/** [label, how the registry is altered after derivation, codes that must fire, a message one finding must match] */
+const REGISTRY_FAULTS = [
+  ['an owned-copy uid inside the registry', entries => { entries[0].uid = 'u-forged'; }, ['owned-copy-in-registry'], /must not carry an owned-copy uid/],
+  ['a capability claiming server authority', entries => { entries[0].capabilities['server-authoritative'] = { state: 'available' }; }, ['false-authority'], /Nothing in this source is server-authoritative/],
+  ['an unavailable capability without a reason', entries => { entries.find(item => item.id === 'print:lz01-001-aa1').capabilities['local-owned'] = { state: 'unavailable' }; }, ['missing-reason'], /local-owned is unavailable without a stated reason/],
+  ['a reference written into prose', entries => { entries[0].capabilities['backup-compatible'].limits[0].text = 'Blocked (cloud-save.mjs:assertLegacyExpansionBoundary).'; }, ['embedded-reference'], /embeds a reference the audit cannot resolve/],
+];
+
 test('the audit catches unlisted, leaking, missing and drifting content', () => {
-  const nodes = (id, change) => NODES.map(node => node.id === id ? { ...node, ...change(node) } : node);
-  const cases = [
-    ['a referenced public map dropped from the allowlist', { publicAssets: sources.publicAssets.filter(path => path !== 'assets/maps/westward.png') },
-      ['capability-inconsistent', 'public-graph-unlisted'], /assets\/maps\/westward\.png is not in hosting\/public-assets\.json/],
-    ['a preview atlas leaking into the public build', { publicAssets: [...sources.publicAssets, 'assets/lz01/base-01.png'] },
-      ['allowlist-overlap', 'preview-asset-public', 'public-orphan'], /lz01\/base-01\.png/],
-    ['an encounter naming a missing card', { content: { NODES: nodes('west-flower-mountain', node => ({ opponentDeck: ['ghost', ...node.opponentDeck.slice(1)] })) } },
-      ['capability-inconsistent'], /unknown card ghost/],
-    ['an authored deck the app would silently replace', { content: { NODES: nodes('gods-chentang', node => ({ opponentDeck: [...node.opponentDeck.slice(0, 7), node.opponentDeck[0]] })) } },
-      ['capability-inconsistent'], /not a legal deck/],
-    ['a dangling prerequisite', { content: { NODES: nodes('echo-2-3', () => ({ requiresNode: 'nowhere' })) } },
-      ['capability-inconsistent', 'unlock-dangling'], /nowhere/],
-    ['a playable printing without its art file', { content: { PRINTINGS: [...sources.content.PRINTINGS, { id: 'wx01-005-zz1', cardId: 'wukong', setId: 'wx01', treatment: 'aa', name: '測試', art: { src: 'assets/wx01/absent.png', columns: 1, rows: 1, index: 0 } }] } },
-      ['capability-inconsistent'], /assets\/wx01\/absent\.png is missing/],
-    ['a playable printing with no art at all', { content: { PRINTINGS: [...sources.content.PRINTINGS, { id: 'wx01-005-zz2', cardId: 'wukong', setId: 'wx01', treatment: 'aa', name: '測試' }] } },
-      ['capability-inconsistent'], /printing has no art/],
-    ['an activity drop that is not the boss BASE', { content: { FIRE_MOUNTAIN: { ...sources.content.FIRE_MOUNTAIN, stages: sources.content.FIRE_MOUNTAIN.stages.map((stage, index) => index ? stage : { ...stage, dropPrintId: 'wx01-010-base' }) } } },
-      ['capability-inconsistent'], /not honghaier's WX-01 BASE printing/],
-    ['a planned special bound without its image or docs', { content: { LZ01_AA: [LZ01_AA, { cardId: 'yingning', printId: 'lz01-004-aa1', treatment: 'aa', name: '嬰寧 · 花間藏笑', src: 'assets/lz01/yingning-aa.png' }] } },
-      ['capability-inconsistent', 'planned-bound'], /yingning-aa\.png is missing/],
-    ['a planned special that lost its brief', { docs: { ...sources.docs, lz01Briefs: sources.docs.lz01Briefs.replace(/^\| `lz01-011-aa1` .*\n/m, '') } },
-      ['checklist-mismatch'], /no brief with a proposed file/],
-    ['a checklist that claims an unbound image', { docs: { ...sources.docs, lz01Checklist: sources.docs.lz01Checklist.replace(/(\| `lz01-009-aa1` [^\n]*\| )Planned · brief only \(2026-10-10\), no image \|/, '$1Generated local preview image: `assets/lz01/chenshi-aa.png` |') } },
-      ['checklist-mismatch'], /lz01-009-aa1|nothing binds it/],
-    ['a planned image added without binding or docs', { fileKind: path => path === 'assets/lz01/huapi-ink.png' ? 'file' : sources.fileKind(path) },
-      ['planned-asset-exists'], /huapi-ink\.png exists/],
-    ['the public game importing an unlisted module', { readText: path => sources.readText(path) + (path === 'app.mjs' ? "\nimport './q4-unlisted.mjs';\n" : '') },
-      ['public-graph-unlisted'], /q4-unlisted\.mjs/],
-    ['the public game importing preview-only data', { readText: path => sources.readText(path) + (path === 'app.mjs' ? "\nimport './liaozhai-cards.mjs';\n" : '') },
-      ['preview-module-public', 'public-graph-unlisted'], /liaozhai-cards\.mjs/],
-  ];
-  for (const [label, changes, expected, message] of cases) {
+  for (const [label, changes, expected, message] of SOURCE_FAULTS) {
     const findings = audit(changes);
     for (const code of expected) assert(codes(findings).includes(code), `${label}: expected ${code}, got ${codes(findings).join(', ')}`);
     assert(findings.some(finding => message.test(finding.message)), `${label}: no finding matched ${message}`);
   }
+});
+
+test('every audit finding code fires on an injected fault', () => {
+  for (const [label, mutate, expected, message] of REGISTRY_FAULTS) {
+    const findings = forged(mutate);
+    for (const code of expected) assert(codes(findings).includes(code), `${label}: expected ${code}, got ${codes(findings).join(', ')}`);
+    assert(findings.some(finding => message.test(finding.message)), `${label}: no finding matched ${message}`);
+  }
+  assert(AUDIT_CODES.length >= 27, `the source scan found only ${AUDIT_CODES.length} finding codes`);
+  const covered = new Set([...SOURCE_FAULTS, ...REGISTRY_FAULTS].flatMap(([, , expected]) => expected));
+  assert.deepEqual(AUDIT_CODES.filter(code => !covered.has(code)), [], 'a finding code without an injected-fault case');
+});
+
+test('loading sources takes no root, so an audit never mixes two trees', () => {
+  assert.throws(() => loadContentSources('/elsewhere/mythseal'), /reads this checkout only/);
+  assert.equal(loadContentSources().root, sources.root);
 });
 
 test('rule, resume and evidence references must name real code or real tests', () => {
@@ -121,6 +199,17 @@ test('rule, resume and evidence references must name real code or real tests', (
   assert.equal(resolveReference('progression.mjs:noSuchRule', read), false);
   assert.equal(resolveReference('tests/cloud-save.test.mjs › a renamed test', read), false);
   assert.equal(resolveReference('missing.mjs:anything', read), false);
+  const runs = text => resolveReference('tests/sample.test.mjs › a sample', () => text);
+  assert(runs("test('a sample', () => {});"));
+  assert(runs('test("a sample", { timeout: 50 }, () => {});'), 'options without skip or todo still run');
+  assert(runs("test('a sample', { skip: false }, () => {});"));
+  assert.equal(runs("test('a sample', { skip: 'disabled' }, () => {});"), false, 'a skipped test is not evidence');
+  assert.equal(runs("test('a sample', { todo: true }, () => {});"), false);
+  assert.equal(runs("test('a sample', { skip }, () => {});"), false);
+  assert.equal(runs("test.skip('a sample', () => {});"), false);
+  assert.equal(runs("  // test('a sample', () => {});"), false, 'a commented-out test is not evidence');
+  assert.equal(runs("xtest('a sample', () => {});"), false);
+  assert(runs("// test('a sample', () => {});\ntest('a sample', () => {});"), 'a later live declaration still counts');
   assert.deepEqual(localReferences('styles.css', `a{background:url("data:image/svg+xml,%3Csvg filter='url(%23n)'%3E")} b{background:url('assets/mark.svg')}`), ['assets/mark.svg']);
   assert.deepEqual(localReferences('page.html', '<link rel="canonical" href="https://mythseal.com/"><script type="module" src="./app.mjs?v=1"></script>'), ['app.mjs']);
 });
@@ -182,6 +271,44 @@ test('the fire-mountain activity completes on both routes and pays its first cle
       assert.equal(profile.expansion.grants.filter(grant => grant.id === 'fire-mountain:first-clear').length, 1, `${route} run ${run + 1}`);
     }
   }
+});
+
+test('acquisition lists exactly the printings each story and expansion grant route mints', () => {
+  // Clear every encounter, then win one fire-mountain run whose seeds drop loot on every stage,
+  // so every fixed grant is banked and the story gift is open.
+  let profile = createProfile({ now });
+  for (const item of registry.entries.filter(candidate => candidate.kind === 'encounter')) profile = play(profile, item.nodeId, 'owned').settled.profile;
+  profile = startActivity(profile, { route: 'loaner', rng: () => .99, now }).profile;
+  for (let stage = 0; stage < 3; stage++) {
+    profile = finishBattle(profile, { encounterId: profile.pending.id, winner: 'player', playedCardIds: [], finalResources: { hp: 12, pills: 12 }, now }).profile;
+    if (stage < 2) profile = advanceActivity(profile, { supply: 'none', expectedRunId: profile.expansion.fireMountain.run.id, expectedStage: stage, now }).profile;
+  }
+  const label = grant => grant.id.replace(/^activity-\d+:/, 'activity-*:');
+  assert.deepEqual(profile.expansion.grants.map(label).filter(id => !id.startsWith('campaign:echo-')),
+    ['campaign:westward-echo:aa', 'activity-*:stage-0:loot', 'activity-*:stage-1:loot', 'activity-*:stage-2:loot', 'fire-mountain:first-clear']);
+  const attempt = run => { try { return run(); } catch { return null; } };
+  const wx01 = PRINTINGS.filter(print => print.setId === 'wx01'), minted = [];
+  for (const print of wx01) {
+    if (attempt(() => claimWX01StoryPrint(profile, print.id, { now }))?.cards[0].printId === print.id) minted.push(`${print.id} progression.mjs:claimWX01StoryPrint`);
+    for (const grant of profile.expansion.grants) {
+      const claimed = attempt(() => claimExpansionGrant(profile, { id: grant.id, ...(grant.kind === 'base' ? {} : { printId: print.id }), now }));
+      if (claimed?.cards[0].printId === print.id) minted.push(`${print.id} progression.mjs:claimExpansionGrant ${label(grant)}`);
+    }
+  }
+  const listed = registry.entries.filter(item => item.kind === 'printing').flatMap(item => (item.acquisition ?? [])
+    .filter(route => GRANT_RULES.includes(route.rule)).map(route => [item.printId, route.rule, route.grant].filter(Boolean).join(' ')));
+  assert.equal(minted.filter(route => route.includes('claimWX01StoryPrint')).length, 6, 'the story gift offers each of the six AA');
+  assert.equal(minted.filter(route => route.includes('westward-echo')).length, 6, 'the campaign-final grant offers each of the six AA');
+  assert.deepEqual(listed.sort(), minted.sort(), 'every grant route that mints a printing is listed on it, and every listed grant route mints it');
+});
+
+test('the story gift opens only after the encounters that list it as a reward', () => {
+  const gift = registry.entries.filter(item => item.kind === 'encounter' && item.rules.reward.includes('progression.mjs:claimWX01StoryPrint')).map(item => item.nodeId);
+  assert.equal(gift.length, 4);
+  const aa = PRINTINGS.find(print => print.setId === 'wx01' && print.treatment === 'aa');
+  const after = cleared => { const profile = createProfile({ now }); profile.cleared = cleared; return profile; };
+  assert.equal(claimWX01StoryPrint(after(gift), aa.id, { now }).cards[0].printId, aa.id);
+  for (const id of gift) assert.throws(() => claimWX01StoryPrint(after(gift.filter(other => other !== id)), aa.id, { now }), /通過西行首卷四處地點/, `${id} gates the gift`);
 });
 
 test('a backup round trip keeps every playable clear, the activity record and every ownable printing', () => {

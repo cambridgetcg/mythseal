@@ -42,6 +42,7 @@ const EVIDENCE = Object.freeze({
   routes: T('content-registry.test.mjs', 'every advertised encounter route starts, completes once, rejects a duplicate and opens its next step'),
   activityRoutes: T('content-registry.test.mjs', 'the fire-mountain activity completes on both routes and pays its first clear once'),
   backup: T('content-registry.test.mjs', 'a backup round trip keeps every playable clear, the activity record and every ownable printing'),
+  grantRoutes: T('content-registry.test.mjs', 'acquisition lists exactly the printings each story and expansion grant route mints'),
   original: [
     T('progression.test.mjs', 'six map locations unlock sequentially on wins and move the traveller on entry'),
     T('progression.test.mjs', 'expedition first clear and daily cache are paid once; repeat battles retain base rewards'),
@@ -66,11 +67,27 @@ const EVIDENCE = Object.freeze({
   ],
 });
 
+// A reference is a whole string of one of these shapes; the audit resolves every one, wherever it sits in an entry.
+const CODE_REFERENCE = /^([\w.-]+\.mjs):([A-Za-z_$][\w$]*)$/;
+const TEST_REFERENCE = /^(tests\/[\w.-]+\.mjs) › (.+)$/;
+const EMBEDDED_REFERENCE = /[\w.-]+\.mjs:[A-Za-z_$]|tests\/[\w.-]+\.mjs › /;
+/** A capability limit: prose for people, plus the code or test references that back it, kept resolvable. */
+const limit = (text, ...references) => ({ text, references });
+// progression.mjs hard-codes these grant facts; the registry mirrors them and
+// tests/content-registry.test.mjs plays every grant route to keep the mirror exact.
+const STORY_GIFT_WORLD = 'westward'; // grantWX01Choice kind 'story': one AA after this world's story nodes
+const STORY_GIFT_TREATMENT = 'aa';
+const CAMPAIGN_FINAL_GRANT = Object.freeze({ id: 'campaign:westward-echo:aa', treatment: 'aa' }); // bankCampaignMilestones
+const FIRE_MOUNTAIN_FIRST_CLEAR = Object.freeze({ id: 'fire-mountain:first-clear', cardId: 'niumowang' }); // settleActivity
+const FIRE_MOUNTAIN_LOOT = index => `activity-*:stage-${index}:loot`; // settleActivity: `${run.id}:stage-${run.stage}:loot`
+export const GRANT_RULES = Object.freeze(['progression.mjs:claimWX01StoryPrint', 'progression.mjs:claimExpansionGrant']);
+
 const deepFreeze = value => {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.values(value).forEach(deepFreeze); Object.freeze(value); }
   return value;
 };
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const stringsIn = value => typeof value === 'string' ? [value] : value && typeof value === 'object' ? Object.values(value).flatMap(stringsIn) : [];
 const unique = values => [...new Set(values)];
 
 function fileKind(root, relative) {
@@ -95,8 +112,17 @@ function hasPNGSignature(root, relative) {
   } finally { closeSync(handle); }
 }
 
-/** Everything the registry reads, injectable so tests can audit a deliberately broken copy. */
-export function loadContentSources(root = ROOT) {
+/**
+ * Everything the registry reads from this checkout. Tests audit a deliberately
+ * broken copy by overriding fields of the returned object (content, readText,
+ * fileKind, allowlists, docs). There is no root parameter on purpose: the content
+ * modules are static imports of this checkout, so pointing only the file readers at
+ * another tree would audit a mix of two trees. To audit another copy, run that
+ * copy's own tools/content-registry.mjs.
+ */
+export function loadContentSources(...unexpected) {
+  if (unexpected.length) throw new TypeError('loadContentSources() reads this checkout only; run the other copy\'s own tools/content-registry.mjs.');
+  const root = ROOT;
   const readText = relative => readFileSync(resolve(root, relative), 'utf8');
   return {
     root,
@@ -233,6 +259,7 @@ function cardArt(ctx, cardIds) {
 function encounterEntries(ctx) {
   const { content } = ctx;
   const storyIds = new Set(content.STORY_NODES.map(node => node.id)), campaignIds = new Set(content.CAMPAIGN_NODES.map(node => node.id));
+  const storyGiftNodes = new Set(storyGiftNodeIds(content));
   return content.NODES.map((node, index) => {
     const group = campaignIds.has(node.id) ? 'campaign' : storyIds.has(node.id) ? 'story' : 'original';
     const sourceModule = { campaign: 'campaign-content.mjs', story: 'stories.mjs', original: 'progression.mjs' }[group];
@@ -259,8 +286,8 @@ function encounterEntries(ctx) {
       'local-playable': capability(true, playable),
       'local-owned': notApplicable('An encounter records progress; owned copies come from its reward grants (see printing entries).'),
       'backup-compatible': capability(true, { evidence: [EVIDENCE.backup], limits: [
-        `An unfinished battle blocks export (${EVIDENCE.pendingBackup}).`,
-        ...(group === 'campaign' ? ['Snapshot formats v1/v2 cannot carry campaign progress (cloud-save.mjs:assertLegacyExpansionBoundary).'] : []),
+        limit('An unfinished battle blocks backup export and restore.', EVIDENCE.pendingBackup),
+        ...(group === 'campaign' ? [limit('Snapshot formats v1/v2 cannot carry campaign progress.', 'cloud-save.mjs:assertLegacyExpansionBoundary')] : []),
       ] }),
       'server-authoritative': capability(false, { reason: NO_SERVER }),
     };
@@ -274,7 +301,11 @@ function encounterEntries(ctx) {
       routes: node.loanerDeck ? ['owned', 'loaner'] : ['owned'],
       rules: {
         entry: 'progression.mjs:beginBattle', completion: 'progression.mjs:finishBattle',
-        reward: group === 'campaign' ? ['progression.mjs:finishBattle', 'progression.mjs:bankCampaignMilestones', 'progression.mjs:claimExpansionGrant'] : ['progression.mjs:finishBattle'],
+        reward: [
+          'progression.mjs:finishBattle',
+          ...(group === 'campaign' ? ['progression.mjs:bankCampaignMilestones', 'progression.mjs:claimExpansionGrant'] : []),
+          ...(storyGiftNodes.has(node.id) ? ['progression.mjs:claimWX01StoryPrint'] : []),
+        ],
         resume: group === 'campaign' ? 'progression.mjs:getPendingBattleOptions' : 'app.mjs:resumeBattle',
         ...(node.opponentDeck ? {} : { opponent: 'app.mjs:opponentDeck' }),
       },
@@ -308,7 +339,10 @@ function activityEntries(ctx) {
     preview: notApplicable('The activity is entered from its journey panel; there is no separate preview surface.'),
     'local-playable': capability(true, { blockers, evidence: [EVIDENCE.activityRoutes, ...EVIDENCE.activity] }),
     'local-owned': notApplicable('An activity records runs and clears; owned copies come from its grants (see printing entries).'),
-    'backup-compatible': capability(true, { evidence: [EVIDENCE.backup], limits: [`An active run blocks export (${EVIDENCE.activityBackup}).`, 'Snapshot formats v1/v2 cannot carry activity progress (cloud-save.mjs:assertLegacyExpansionBoundary).'] }),
+    'backup-compatible': capability(true, { evidence: [EVIDENCE.backup], limits: [
+      limit('An active run blocks backup export and restore.', EVIDENCE.activityBackup),
+      limit('Snapshot formats v1/v2 cannot carry activity progress.', 'cloud-save.mjs:assertLegacyExpansionBoundary'),
+    ] }),
     'server-authoritative': capability(false, { reason: NO_SERVER }),
   };
   return [{
@@ -325,6 +359,17 @@ function activityEntries(ctx) {
   }];
 }
 
+/** Encounters whose clears open the WX-01 story gift (progression.mjs:grantWX01Choice, kind 'story'). */
+function storyGiftNodeIds(content) {
+  return content.STORY_NODES.filter(node => node.worldId === STORY_GIFT_WORLD).map(node => node.id);
+}
+
+/**
+ * Every route that mints this printing into a profile. Pack pools and reward
+ * content are read from the content modules; the grant facts progression.mjs
+ * hard-codes are the constants above. A `grant` names the expansion grant the
+ * route claims (`activity-*` stands for the run-specific prefix).
+ */
 function acquisitionFor(ctx, print) {
   const { content } = ctx, routes = [];
   if (print.setId === 'legacy') {
@@ -333,10 +378,18 @@ function acquisitionFor(ctx, print) {
     if (content.LEGACY_CARD_IDS.includes(print.cardId)) routes.push({ rule: 'progression.mjs:buyCard', detail: 'daily NPC market (legacy roster)' });
   }
   if (print.setId === 'wx01') {
-    if (print.treatment === 'base' || Object.hasOwn(content.WX01_RATES, print.treatment)) routes.push({ rule: 'progression.mjs:buyPack', detail: 'WX-01 pack sampler (also buyWX01Box and openWX01Ticket)' });
-    if (Object.hasOwn(content.WX01_SEAL_COSTS, print.treatment)) routes.push({ rule: 'progression.mjs:redeemWX01Print', detail: `seal redemption (${print.treatment})` });
-    for (const node of content.CAMPAIGN_NODES) if (node.rewardCharacter && content.basePrintFor(node.rewardCharacter) === print.id) routes.push({ rule: 'progression.mjs:claimExpansionGrant', detail: `first clear of ${node.id}` });
-    for (const stage of content.FIRE_MOUNTAIN.stages) if (stage.dropPrintId === print.id) routes.push({ rule: 'progression.mjs:claimExpansionGrant', detail: `${stage.id} loot` });
+    // drawWX01Pack samples BASE and every WX01_RATES treatment; three routes open such a pack.
+    if (print.treatment === 'base' || Object.hasOwn(content.WX01_RATES, print.treatment)) {
+      routes.push({ rule: 'progression.mjs:buyPack', detail: 'WX-01 pack' }, { rule: 'progression.mjs:buyWX01Box', detail: 'WX-01 box of 12 or 24 packs' },
+        { rule: 'progression.mjs:openWX01Ticket', detail: 'WX-01 ticket pack' });
+    }
+    const choosable = Object.hasOwn(content.WX01_SEAL_COSTS, print.treatment);
+    if (choosable) routes.push({ rule: 'progression.mjs:redeemWX01Print', detail: `seal redemption (${print.treatment})` });
+    if (choosable && print.treatment === STORY_GIFT_TREATMENT) routes.push({ rule: 'progression.mjs:claimWX01StoryPrint', detail: `one-time story gift of a chosen ${STORY_GIFT_TREATMENT.toUpperCase()} after clearing ${storyGiftNodeIds(content).join(', ')}` });
+    for (const node of content.CAMPAIGN_NODES) if (node.rewardCharacter && content.basePrintFor(node.rewardCharacter) === print.id) routes.push({ rule: 'progression.mjs:claimExpansionGrant', grant: `campaign:${node.id}:base`, detail: `first clear of ${node.id}` });
+    if (print.treatment === CAMPAIGN_FINAL_GRANT.treatment) routes.push({ rule: 'progression.mjs:claimExpansionGrant', grant: CAMPAIGN_FINAL_GRANT.id, detail: `a chosen ${CAMPAIGN_FINAL_GRANT.treatment.toUpperCase()} after all ${content.CAMPAIGN_NODES.length} campaign first clears` });
+    content.FIRE_MOUNTAIN.stages.forEach((stage, index) => { if (stage.dropPrintId === print.id) routes.push({ rule: 'progression.mjs:claimExpansionGrant', grant: FIRE_MOUNTAIN_LOOT(index), detail: `${stage.id} loot` }); });
+    if (content.basePrintFor(FIRE_MOUNTAIN_FIRST_CLEAR.cardId) === print.id) routes.push({ rule: 'progression.mjs:claimExpansionGrant', grant: FIRE_MOUNTAIN_FIRST_CLEAR.id, detail: `first ${content.FIRE_MOUNTAIN.id} clear` });
   }
   return routes;
 }
@@ -354,7 +407,7 @@ function printingEntries(ctx) {
       preview: capability(true, { blockers: [...artBlockers, ...moduleBlockers], evidence: [special ? 'pack-ui.mjs:wx01RedeemMarkup' : 'codex-ui.mjs:codexMarkup'] }),
       'local-playable': capability(true, { blockers: [...identity, ...artBlockers, ...moduleBlockers], evidence: [EVIDENCE.printArt] }),
       'local-owned': capability(true, { blockers: [...identity, ...(acquisition.length ? [] : ['no acquisition route grants this printing'])],
-        evidence: print.setId === 'wx01' ? [EVIDENCE.packReach, ...(special ? [EVIDENCE.redeem] : [])] : [EVIDENCE.legacyPack] }),
+        evidence: print.setId === 'wx01' ? [EVIDENCE.packReach, ...(special ? [EVIDENCE.redeem] : []), ...(acquisition.some(route => GRANT_RULES.includes(route.rule)) ? [EVIDENCE.grantRoutes] : [])] : [EVIDENCE.legacyPack] }),
       'backup-compatible': capability(true, { evidence: [EVIDENCE.backup, EVIDENCE.printBackup] }),
       'server-authoritative': capability(false, { reason: NO_SERVER }),
     };
@@ -446,15 +499,33 @@ export function buildContentRegistry(sources = loadContentSources()) {
   });
 }
 
-/** Does `file.mjs:name` (or `tests/file › title`) still name real code or a real test? */
+/**
+ * Does `source` declare a top-level `test('<title>', ...)` that the runner will
+ * execute? A `test.skip`/`test.todo` call, `{ skip }`/`{ todo }` options (unless
+ * literally `false`) or a `//`-commented line do not count. A test hidden behind
+ * runtime control flow (`if (false) test(...)`) or inside a block comment cannot be
+ * seen from the text; the runner's own test and skip counts show it.
+ */
+function declaresRunningTest(source, title) {
+  for (const quote of ["'", '"', '`']) {
+    const call = `test(${quote}${title}${quote}`;
+    for (let at = source.indexOf(call); at >= 0; at = source.indexOf(call, at + 1)) {
+      if (/[\w$.]/.test(source[at - 1] ?? '')) continue;
+      if (/^\s*\/\//.test(source.slice(source.lastIndexOf('\n', at) + 1, at))) continue;
+      const options = /^\s*,\s*(\{[^{}]*\})/.exec(source.slice(at + call.length));
+      if (options && /\b(?:skip|todo)\b(?!\s*:\s*false\b)/.test(options[1])) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Does `file.mjs:name` (or `tests/file › title`) still name real code or a real, running test? */
 export function resolveReference(reference, readText) {
   try {
-    const test = /^(tests\/[\w.-]+\.mjs) › (.+)$/.exec(reference);
-    if (test) {
-      const source = readText(test[1]), title = test[2];
-      return ["'", '"', '`'].some(quote => source.includes(`test(${quote}${title}${quote}`));
-    }
-    const code = /^([\w.-]+\.mjs):([A-Za-z_$][\w$]*)$/.exec(reference);
+    const test = TEST_REFERENCE.exec(reference);
+    if (test) return declaresRunningTest(readText(test[1]), test[2]);
+    const code = CODE_REFERENCE.exec(reference);
     if (!code) return false;
     const source = readText(code[1]), name = code[2];
     return new RegExp(`(?:\\bfunction\\s+${name}\\s*\\(|\\b(?:const|let)\\s+${name}\\s*=|\\bexport\\s*\\{[^}]*\\b${name}\\b)`).test(source);
@@ -552,14 +623,17 @@ export function auditContent(sources = loadContentSources(), registry = buildCon
     }
   }
 
-  // Every rule, resume and evidence reference must still name real code or a real test.
-  const references = new Set();
-  for (const entry of entries) {
-    for (const value of Object.values(entry.rules ?? {})) for (const reference of [].concat(value)) references.add(reference);
-    for (const route of entry.acquisition ?? []) references.add(route.rule);
-    for (const value of Object.values(entry.capabilities)) for (const reference of value.evidence ?? []) references.add(reference);
+  // Every reference must still name real code or a real, running test. Any string in an entry
+  // shaped like a reference is one (rules, unlock, acquisition, evidence, limits), so no field
+  // escapes the check; prose may not embed one, because embedded references are never resolved.
+  const references = new Map();
+  for (const entry of entries) for (const text of stringsIn(entry)) {
+    if (CODE_REFERENCE.test(text) || TEST_REFERENCE.test(text)) { if (!references.has(text)) references.set(text, new Set()); references.get(text).add(entry.id); }
+    else if (EMBEDDED_REFERENCE.test(text)) add('embedded-reference', entry.id, `"${text}" embeds a reference the audit cannot resolve; move it to a structured field`);
   }
-  for (const reference of references) if (!resolveReference(reference, sources.readText)) add('dead-reference', null, `${reference} no longer resolves`);
+  for (const [reference, ids] of references) {
+    if (!resolveReference(reference, sources.readText)) add('dead-reference', [...ids][0], `${reference} no longer resolves (cited by ${ids.size} ${ids.size === 1 ? 'entry' : 'entries'})`);
+  }
 
   return deepFreeze(findings);
 }
