@@ -74,28 +74,12 @@ function account(main) {
     list(content, `account-${id}`);
   }
 }
+/** One primary 對局 table: both public four-card rows, the confrontation and
+ * the move stay on a single module. No tabs and no pages; history and full card
+ * text remain in their dialogs. */
 function battle(main) {
   surface(main, 'battle');
-  const hud = box(main, 'scene-battle-hud');
-  hud.append(...many(main, ':scope > .combatant')); main.prepend(hud);
-  const hand = one(main, '.player-hand'), caption = one(main, '.hand-caption'), enemy = one(main, '.enemy-hand');
-  module(main, 'hand', '手牌', [caption, hand]); list(hand, 'hand');
-  module(main, 'move', '落子', [one(main, '.move-panel')]);
-  module(main, 'opponent', '對手', [one(main, '.enemy-thought'), enemy]); list(enemy, 'opponent');
-  const details = module(main, 'notes', '局勢', [one(main, '.battle-divider'), one(main, '.mist-resonance'), one(main, '.arena-bottom')]);
-  for (const node of [...main.children]) {
-    if (node.matches('.mist-battle-heading')) details.append(node);
-  }
-  one(main, '.player-area')?.remove(); one(main, '.enemy-zone')?.remove();
-  prepareMove(main);
-}
-export function prepareMove(root) {
-  const notes = one(root, '[data-viewport-module="notes"]'), panel = one(root, '.move-panel');
-  if (!notes || !panel) return;
-  const detail = one(panel, '.skill-detail');
-  if (detail) { one(notes, '.skill-detail')?.remove(); notes.append(detail); }
-  const offering = one(panel, '.mist-offering');
-  if (offering) { one(notes, '.mist-offering')?.remove(); notes.append(offering); }
+  module(main, 'table', '對局', [...main.children]);
 }
 export function prepareScene(root, { screen } = {}) {
   const main = one(root, 'main'); if (!main || main.dataset.sceneAdapted) return;

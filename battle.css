@@ -86,11 +86,16 @@
 .battle-reveal-footer>.modal-actions{margin:0;justify-content:center}
 .battle-reveal-footer>.battle-reveal-controls{margin-top:4px;padding-top:1px;border-top:0}
 .battle-reveal[data-reveal-state="complete"] .battle-resources,.battle-reveal[data-reveal-state="complete"] [data-hp-meter],.battle-reveal[data-reveal-state="complete"] .pill-capsule{transition:none!important}
+/* The inert table behind a round result already shows that round resolved, so its
+   backdrop dims and blurs it from the first frame; only the sealed dialog fades in. */
+.modal-backdrop:has(>.battle-reveal){animation:none}
+/* Without a drawn blur, the resolved table would stay readable behind the staged reveal. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.modal-backdrop:has(>.battle-reveal){background:#020805f5}}
+.modal-backdrop>.battle-reveal{animation:fade-in .2s}
 .battle-table .pill-control button{width:44px;height:44px;min-width:44px;min-height:44px}
 .battle-table .fury-toggle{min-height:44px}
 .battle-table .move-panel .primary{min-height:46px}
 .battle-table .pill-slider{height:44px;min-height:44px;margin:4px 0;background:linear-gradient(#c7b27b33,#c7b27b33) center/100% 3px no-repeat}
-.battle-table .combatant:has(.battle-resources){gap:18px}
 @media(prefers-reduced-motion:no-preference){
   body[data-motion="full"]:not([data-page-hidden="true"]) .battle-turn-enter .arena-heading{animation:battle-turn-arrive 180ms ease-out both}
   body[data-motion="full"]:not([data-page-hidden="true"]) .battle-turn-enter .player-hand>.card{animation:battle-hand-arrive 190ms ease-out both}
@@ -120,11 +125,6 @@
   .battle-resources.compact{min-width:0;grid-template-columns:47px minmax(0,1fr);gap:6px 10px}
 }
 @media(max-width:600px){
-  .battle-table .combatant:has(.battle-resources){gap:12px;align-items:center}
-  .battle-table .combatant:has(.battle-resources) .identity{gap:7px;flex:1;min-width:0}
-  .battle-table .combatant:has(.battle-resources) .identity .avatar{display:none}
-  .battle-table .combatant:has(.battle-resources) .identity h2{font-size:14px;letter-spacing:1px;line-height:1.55}
-  .battle-table .combatant:has(.battle-resources) .identity p{font-size:8px;letter-spacing:0;line-height:1.7;max-width:110px}
   .battle-resources.resources{min-width:199px;width:199px;max-width:199px;grid-template-columns:48px minmax(0,1fr);gap:5px 12px;flex-shrink:0}
   .battle-health{width:48px}
   .battle-health>.battle-resource-label{font-size:10px;margin-bottom:3px;gap:4px}

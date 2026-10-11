@@ -212,3 +212,21 @@ test('a direct list-item button keeps focus after keyed refresh, not just button
   assert.equal(target.closest('[hidden]'), null); assert.equal(env.document.activeElement, target);
   env.controller.destroy();
 });
+
+test('a single unpaged battle table gets no tab strip and no pager, and every card stays visible', () => {
+  const env = environment(), root = env.document.createElement('main');
+  root.dataset.viewportSurface = 'battle'; env.document.body.append(root);
+  const table = env.document.createElement('section'); table.dataset.viewportModule = 'table'; table.dataset.viewportLabel = '對局'; root.append(table);
+  for (const side of ['opponent', 'player']) {
+    const row = env.document.createElement('div'); table.append(row);
+    for (let slot = 0; slot < 4; slot++) {
+      const card = env.document.createElement('button'); card.dataset.action = side === 'player' ? 'select' : 'inspect'; card.dataset.id = `${side}-${slot}`; row.append(card);
+    }
+  }
+  env.controller.refresh({ key: 'battle', root }); env.tick();
+  assert.equal(root.querySelector('nav').hidden, true, 'one module never shows module tabs');
+  assert.equal(root.querySelectorAll('[data-viewport-action="next"]').length + root.querySelectorAll('[data-viewport-action="previous"]').length, 0);
+  assert.equal(table.hidden, false); assert.equal(table.inert, false);
+  assert.equal(table.querySelectorAll('[data-action]').filter(card => card.closest('[hidden]')).length, 0);
+  env.controller.destroy();
+});

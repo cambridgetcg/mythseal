@@ -100,6 +100,9 @@ function roundResult(anchor) {
   const status = anchor.querySelector('[data-reveal-status]'); fixed(status, 'dialog-reveal-status');
   const seal = anchor.querySelector('.mist-reveal-seal'), caption = anchor.querySelector('.mist-reveal-caption');
   fixed(seal, 'dialog-decorative-seal'); fixed(caption, 'dialog-reveal-caption');
+  // The compact played pair stays beside resource/effect pages; CSS hides it on
+  // the clash page, which already shows both full cards.
+  fixed(anchor.querySelector('.reveal-played-pair'), 'dialog-reveal-pair');
   const clash = anchor.querySelector('.battle-clash'); section(anchor, 'clash', '落子揭曉', [clash]);
   const resources = anchor.querySelector('.battle-resource-results'), resolution = anchor.querySelector('.resolution');
   const resourceModule = section(anchor, 'resources', '生命與仙丹', [resources]);

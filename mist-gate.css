@@ -30,36 +30,20 @@
 .game-shell.is-mist-gate{position:relative;isolation:isolate}
 .game-shell.is-mist-gate:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(0deg,#081813f5,#081916e8 45%,#0d2523e8),url('assets/world-map.png') 15% 68%/cover no-repeat}
 .game-shell.is-mist-gate .arena{padding-top:15px}
-.game-shell.is-mist-gate .enemy-zone{border-color:#b5c5b02b;background:linear-gradient(110deg,#112b276b,#0b1f1c70)}
 .game-shell.is-mist-gate .move-panel{border-color:#c5b7834d;background:linear-gradient(140deg,#213d315c,#10281f8c)}
-.game-shell.is-mist-gate .move-panel .move-subtitle{margin-bottom:12px}
 .game-shell.is-mist-gate .attack-preview{padding:10px 0}
-.game-shell.is-mist-gate .player-hand .card{transition:transform 160ms ease-out,border-color 160ms ease-out,box-shadow 160ms ease-out}
-.game-shell.is-mist-gate .player-hand .card.selected{transform:translateY(-4px);border-color:#e4ca8b;box-shadow:0 0 0 1px #d8bd834d,0 8px 20px #071a1666}
-.game-shell.is-mist-gate .player-hand .card.selectable:hover:not(:disabled){transform:translateY(-4px)}
 .game-shell.is-mist-gate .pill-control button{min-width:44px;min-height:44px;width:44px;height:44px;border-color:#bfb1834d;background:#0d211b;border-radius:50%;font-size:19px}
 .game-shell.is-mist-gate .pill-control button:active:not(:disabled){transform:scale(.96)}
 .game-shell.is-mist-gate .pill-slider{height:44px;min-height:44px;margin:4px 0;background:linear-gradient(#c7b27b33,#c7b27b33) center/100% 3px no-repeat}
 .game-shell.is-mist-gate .fury-toggle{min-height:44px}
 .game-shell.is-mist-gate .move-panel .primary{min-height:46px}
 .game-shell.is-mist-gate .game-utilities button{min-height:44px;min-width:44px}
-.game-shell.is-mist-gate .hand-caption button{min-height:44px}
 .mist-battle-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:68px;margin-bottom:19px;padding:3px 0 14px;border-bottom:1px solid #c0c5a72b}
 .mist-battle-place{display:flex;align-items:center;gap:12px;flex-shrink:0}
 .mist-battle-place>div>span{display:block;font:18px var(--serif);font-weight:400;letter-spacing:3px;color:#d8d4ba}
 .mist-battle-place small{display:block;font-size:9px;letter-spacing:.7px;margin-top:4px;color:#91a89b}
 .mist-battle-place small>span{margin:0 5px;color:#b3a478}
 .mist-battle-heading>p{font:12px var(--serif);letter-spacing:1px;line-height:1.8;color:#9fb4a8;margin:0;text-align:right}
-.mist-offering{margin:4px 0 14px;padding:9px 10px 10px;border:1px solid #c2b68520;border-radius:3px;background:#091b1573;grid-column:1/-1}
-.mist-offering-caption{display:flex;justify-content:space-between;gap:10px;color:#91a290;font-size:8px;letter-spacing:1px;margin-bottom:10px}
-.mist-offering-caption>span:first-child{color:#bdaf85}
-.mist-offering.has-fury .mist-offering-caption>span:last-child{color:#d1a183}
-.mist-offering-tray{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));align-items:center;justify-items:center;gap:5px;min-height:15px;padding-bottom:3px}
-.mist-offering-tray>i{display:block;position:relative;width:10px;height:10px;border:1px solid #96ac8754;border-radius:50%;background:transparent;box-shadow:0 2px 3px #020d0833}
-.mist-offering-tray>i.is-offered{border-color:#d4bb7d;background:radial-gradient(circle at 35% 30%,#e6d29c,#a68a4a 75%);box-shadow:0 2px 4px #0004}
-.mist-offering-tray>i.is-fury{border-color:#c69675;background:#bc7c523d;border-radius:3px;transform:rotate(45deg)}
-.mist-offering-tray>i.is-reserve{border-color:#94aa8980;background:#91a78810}
-.mist-offering-tray>i.is-spent{border-color:#96ac8724;background:#0001;box-shadow:none}
 .mist-resonance{display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap;border-top:1px solid #b5c2a324;padding:12px 0 0;margin:7px 0 16px}
 .mist-resonance-label{font-size:9px;letter-spacing:1.5px;color:#a9b39a}
 .mist-resonance>div{display:flex;align-items:center;gap:16px;flex-wrap:wrap;min-width:0}
@@ -121,15 +105,9 @@
 @keyframes mist-lantern-rest{from{transform:rotate(-.6deg)}to{transform:rotate(.6deg)}}
 @media(min-width:851px){
   .mist-battle-heading{min-height:54px;padding-bottom:9px;margin-bottom:15px}
-  .game-shell.is-mist-gate .enemy-zone{padding-top:15px;padding-bottom:15px}
-  .game-shell.is-mist-gate .battle-divider{margin-top:18px;margin-bottom:18px}
-  .game-shell.is-mist-gate .mist-offering-caption{display:none}
-  .game-shell.is-mist-gate .mist-offering{padding-top:8px;padding-bottom:7px;margin-bottom:10px}
 }
 @media(max-width:850px){
-  .game-shell.is-mist-gate .move-panel .mist-offering{grid-column:1/-1;grid-row:5;margin:8px 0 10px}
   .game-shell.is-mist-gate .move-panel .fury-toggle{grid-column:2;grid-row:2;gap:8px}
-  .game-shell.is-mist-gate .move-panel .skill-detail{grid-row:6}
   .mist-resonance>p{margin-left:0;flex-basis:100%}
 }
 @media(max-width:600px){
@@ -157,10 +135,6 @@
   .game-shell.is-mist-gate .fury-toggle{font-size:8px;gap:5px;line-height:1.6}
   .game-shell.is-mist-gate .fury-toggle .toggle-track{flex-shrink:0}
   .game-shell.is-mist-gate .move-panel .primary{min-height:46px;font-size:10px;letter-spacing:1px}
-  .game-shell.is-mist-gate .hand-caption{align-items:center}
-  .mist-offering{padding:9px 12px 10px}
-  .mist-offering-tray{gap:7px}
-  .mist-offering-tray>i{width:11px;height:11px}
   .mist-resonance{gap:10px;padding-top:11px;margin-top:5px;margin-bottom:14px}
   .mist-resonance-label{font-size:8px;letter-spacing:1px;flex-basis:100%}
   .mist-resonance>div{gap:10px 13px}
@@ -197,9 +171,7 @@
 body[data-motion="reduce"] *,body[data-motion="reduce"] *:before,body[data-motion="reduce"] *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 body[data-page-hidden="true"] *,body[data-page-hidden="true"] *:before,body[data-page-hidden="true"] *:after{animation-play-state:paused!important}
 body[data-motion="reduce"] .mist-reveal .duel-cards,body[data-motion="reduce"] .mist-reveal .resolution,body[data-motion="reduce"] .mist-reveal .result-effects,body[data-motion="reduce"] .mist-reveal>h2,body[data-page-hidden="true"] .mist-reveal .duel-cards,body[data-page-hidden="true"] .mist-reveal .resolution,body[data-page-hidden="true"] .mist-reveal .result-effects,body[data-page-hidden="true"] .mist-reveal>h2{opacity:1!important;visibility:visible!important;transform:none!important}
-body[data-motion="reduce"] .game-shell.is-mist-gate .player-hand .card,body[data-page-hidden="true"] .game-shell.is-mist-gate .player-hand .card{transform:none!important}
 @media(prefers-reduced-motion:reduce){
   .mist-arrival:after,.mist-arrival .mist-lantern{animation:none!important}
   .mist-reveal .duel-cards,.mist-reveal .resolution,.mist-reveal .result-effects,.mist-reveal>h2{opacity:1!important;visibility:visible!important;transform:none!important;transition:none!important}
-  .game-shell.is-mist-gate .player-hand .card{transform:none!important}
 }
