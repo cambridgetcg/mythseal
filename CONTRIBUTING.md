@@ -6,12 +6,13 @@ for architecture, infrastructure and setup. The
 describes current behavior, a dated proposal or a dated record. Choose a bounded
 task from the [roadmap](ROADMAP.md).
 
-The public site, [mythseal.com](https://mythseal.com), runs **v0.5.1**: the
-browser card game with email-code accounts and private backups of offline
+The last recorded public release at [mythseal.com](https://mythseal.com) is
+**v0.5.1** (see [HOSTING.md](docs/HOSTING.md), which records actual releases):
+the browser card game with email-code accounts and private backups of offline
 journeys. `main` is ahead of it. WX-01, the longer campaign, the game lobby, the
 Q0 battle table and the literary previews exist in source but are not deployed.
-[HOSTING.md](docs/HOSTING.md) records actual releases. A merge, push or
-documentation change does not deploy the game or show that a service is healthy.
+A merge, push or documentation change does not deploy the game or show that a
+service is healthy.
 
 ## Local development
 
@@ -24,10 +25,15 @@ npm test
 python3 tools/serve.py --open
 ```
 
-`npm ci` installs pinned development and server tooling: Playwright, Wrangler,
-the Supabase SDK for the Worker and the other `devDependencies`. The browser
-runtime stays dependency-free HTML, CSS and native JavaScript modules; do not add
-runtime packages. The Python server serves guest play on loopback, normally at
+`npm ci` installs pinned development and server tooling, including optional
+platform binaries: the Playwright package, Wrangler, the Supabase SDK for the
+Worker and the other `devDependencies`. Do not pass `--omit` to it. It does not
+install Playwright's browsers, Foundry, Docker, Xcode or Android toolchains.
+Chromium browser suites use installed Google Chrome on macOS, or the executable
+in `CHROME_PATH`; for WebKit runs or a machine without Chrome, run
+`npx --no-install playwright install chromium webkit`. The browser runtime stays
+dependency-free HTML, CSS and native JavaScript modules; do not add runtime
+packages. The Python server serves guest play on loopback, normally at
 `http://127.0.0.1:4177`, and does not run `/api/*`. For account work, use
 `npm run preview` (`http://127.0.0.1:8791`) as described in the handover's
 [local account Worker preview](docs/HANDOVER.md#local-account-worker-preview).
@@ -54,17 +60,27 @@ Otherwise the local server returns 404 for it, and a game file is missing from
 
 ## Changes and checks
 
-- Check the working tree first, preserve other people's uncommitted work and
-  keep one writer per artifact. Work on a focused branch.
+- Check the working tree first (`git status --short`), preserve other people's
+  uncommitted work and keep one writer per artifact. Branch from current `main`
+  (`git switch -c agent/<task>`) and open the pull request against `main`.
 - Run the smallest checks that cover your change. The handover's
   [checks matched to the change](docs/HANDOVER.md#checks-matched-to-the-change)
   lists them. `npm test` runs the full Node suite;
   `python3 -m unittest discover -s tests -p '*_test.py'` runs the Python tests.
   Browser suites need a running local server and an explicit `GAME_URL`; see
   the [README checks](README.md#checks).
+- CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml), Node 22) runs
+  `npm ci`, `npm test`, the private-backup SQL tests on disposable PostgreSQL,
+  the Python tests, the Forge contract fixture, `npm run build`, the preview and
+  deploy dry runs and syntax checks. It runs no browser suite, so run the
+  browser checks your change needs yourself and say which ones in the pull
+  request.
 - Preserve individual card IDs, XP, deck assignments, the legacy `shanhai.*` save
-  namespaces and their migrations. Offline saves and private backups never
-  establish trusted online ownership or NFT rights.
+  namespaces and their migrations. Keep reward, settlement, sale/buyback,
+  ownership and backup writes atomic and idempotent: a completed encounter pays
+  once, and a retried grant or claim returns its original result instead of
+  granting again. Offline saves and private backups never establish trusted
+  online ownership or NFT rights.
 - Fill in the [pull request template](.github/pull_request_template.md): the
   problem and resulting behavior, the checks you actually ran, and any save,
   ownership or platform impact.
@@ -76,7 +92,8 @@ Otherwise the local server returns 404 for it, and a game file is missing from
 - Deployment, hosted migrations and provider configuration are separate,
   explicitly authorized maintainer operations that follow
   [the release procedure](docs/HOSTING.md#build-and-deploy). Dry runs
-  (`npm run deploy -- --dry-run`) touch no hosted service.
+  (`npm run deploy -- --dry-run`) build and bundle locally without hosted
+  identity or binding calls, and deploy nothing.
 - Never commit player saves, `.env` or `.dev.vars` files, wallet material,
   signing credentials, test screenshots or other generated output such as
   `test-results/` and `dist/`. Use synthetic fixtures.
