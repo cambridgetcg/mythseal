@@ -1,5 +1,5 @@
 /**
- * Back model (docs/NAVIGATION.md#back-model). Which layer one Back closes, and the
+ * Back model (docs/NAVIGATION.md, "Back model"). Which layer one Back closes, and the
  * state-only history entries that let a browser or system Back reach the game
  * instead of leaving it. The URL never changes: no hash routing, no deep links.
  *
@@ -63,7 +63,7 @@ export function navLayers(view = {}) {
 
 export const navSignature = view => navLayers(view).map(layer => `${layer.kind}:${layer.id}`).join('>');
 
-/** One Back on this view: the decision table (docs/NAVIGATION.md#back-model). */
+/** One Back on this view: the decision table (docs/NAVIGATION.md, "Back model"). */
 export function backDecision(view = {}) {
   const layers = navLayers(view), top = layers.at(-1);
   if (!top) return { action: BACK.EXIT, layer: null };

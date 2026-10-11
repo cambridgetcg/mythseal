@@ -811,7 +811,7 @@ function navigate(destination) {
   if(screen==='account') account.init();
 }
 function viewKey(){return screen==='bag'?`bag-${bagView.tab}${bagView.tab==='cards'?`-${bagView.expandedCardId||bagView.layout}`:''}`:screen;}
-// Back model (docs/NAVIGATION.md#back-model). The layers are read from the existing return
+// Back model (docs/NAVIGATION.md, "Back model"). The layers are read from the existing return
 // state; Back calls the function each layer's own close control already calls, so it never
 // settles, pays or writes. State-only history entries: the URL never changes.
 function navView() {
