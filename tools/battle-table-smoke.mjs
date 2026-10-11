@@ -53,10 +53,10 @@ const HANDS = { player: ['yaoheng', 'qingxiao', 'yanxin', 'cangjiao'], opponent:
 // Four-character names; three moon cards in each hand also carry the ✧ resonance mark.
 const LONG_HANDS = { player: ['tieshan', 'yinjiao', 'liuer', 'puti'], opponent: ['yinjiao', 'tieshan', 'liuer', 'zhenyuan'] };
 const LONGEST_NAME = '五莊迎風童子';
-function table({ kind = 'arena', nodeId = null, initiative, opponentName = null, opponentLevels = {}, opponentHP = 12, hands = HANDS }) {
+function table({ kind = 'arena', nodeId = null, initiative, opponentName = null, opponentLevels = {}, playerHP = 12, opponentHP = 12, hands = HANDS }) {
   const started = beginBattle(createProfile({ now }), { kind, nodeId, now });
   const match = createMatch({ mode: kind, rng: () => 0.23, opponentName, opponentLevels });
-  match.player = { hp: 12, pills: 12, hand: [...hands.player], used: [] };
+  match.player = { hp: playerHP, pills: 12, hand: [...hands.player], used: [] };
   match.opponent = { hp: opponentHP, pills: 12, hand: [...hands.opponent], used: [] };
   match.initiative = initiative;
   return { started, match };
@@ -77,6 +77,7 @@ function fixtures() {
   const mist = table({ kind: 'expedition', nodeId: 'mist-gate', initiative: 'opponent', opponentName: '守渡弈者', opponentLevels: { chiling: 3 } });
   const legacy = table({ initiative: 'opponent' });
   const long = table({ initiative: 'opponent', opponentName: LONGEST_NAME, hands: LONG_HANDS }), longMove = { cardId: 'liuer', pills: 3, fury: false };
+  const lowLife = table({ initiative: 'opponent', playerHP: 2, opponentHP: 3 });
   const overkill = table({ initiative: 'opponent', opponentHP: 1 });
   const killing = { cardId: 'qingxiao', pills: 1, fury: true }, opener = { cardId: 'yanxin', pills: 0, fury: false };
   const finished = resolveRound(overkill.match, killing, opener);
@@ -89,6 +90,7 @@ function fixtures() {
     'q0-mist-gate': { seed: snapshot(mist.started, mist.match, announced), match: mist.match, aiMove: announced },
     'q0-legacy-unannounced': { seed: snapshot(legacy.started, legacy.match, null), match: legacy.match },
     'q0-long-names': { seed: snapshot(long.started, long.match, longMove), match: long.match, aiMove: longMove },
+    'q0-low-life': { seed: snapshot(lowLife.started, lowLife.match, announced), match: lowLife.match, aiMove: announced },
     'q0-overkill-finished': { seed: snapshot(overkill.started, overkill.match, opener, { selected: killing.cardId }), match: overkill.match, aiMove: opener, move: killing, expected: finished,
       finalProfile: finishBattle(overkill.started.profile, { encounterId: overkill.started.encounter.id, winner: finished.winner, playedCardIds: finished.player.used, now }).profile },
   };
@@ -275,6 +277,25 @@ async function assertDecisionVisible(page, label, { announced, selected }) {
   measurements.push({ browser: browserName, size: page.size, fixture: page.fixtureName, label, ...result.metrics });
   assert.deepEqual(result.problems, [], `${page.size} ${page.fixtureName} ${label}: ${JSON.stringify(result.problems)}`);
   return result.metrics;
+}
+
+/** Low life (3 or less) shows the 危 text mark beside each table orb, never colour alone. */
+async function assertLowLifeMark(page) {
+  const problems = await page.evaluate(() => {
+    const problems = [], overlap = (a, b) => a.right > b.left + 0.5 && b.right > a.left + 0.5 && a.bottom > b.top + 0.5 && b.bottom > a.top + 0.5;
+    for (const side of ['opponent', 'player']) {
+      const panel = document.querySelector(`#app .battle-table .battle-edge[data-side="${side}"] .battle-resources`), mark = panel?.querySelector('.life-low-label');
+      if (!panel?.classList.contains('is-low-life') || !mark) { problems.push(`${side}: low-life panel or mark missing`); continue; }
+      const rect = mark.getBoundingClientRect(), style = getComputedStyle(mark);
+      const shown = mark.checkVisibility({ checkVisibilityCSS: true, visibilityProperty: true }) && style.visibility === 'visible' && rect.width > 0 && rect.height > 0;
+      if (!shown || mark.textContent.trim() !== '危') problems.push(`${side}: 危 not shown`);
+      if (parseFloat(style.fontSize) < 10) problems.push(`${side}: 危 ${style.fontSize}`);
+      if (rect.left < -0.5 || rect.top < -0.5 || rect.right > innerWidth + 0.5 || rect.bottom > innerHeight + 0.5) problems.push(`${side}: 危 outside viewport`);
+      for (const selector of ['[data-hp-value]', '.battle-pill-reserve']) if (overlap(rect, panel.querySelector(selector).getBoundingClientRect())) problems.push(`${side}: 危 overlaps ${selector}`);
+    }
+    return problems;
+  });
+  assert.deepEqual(problems, [], `${page.size} low life: ${JSON.stringify(problems)}`);
 }
 
 /** Choose each legal card and adjust pills/Fury with real input; check after every action. */
@@ -632,8 +653,13 @@ try {
     await shot(page, 'long-names');
     await reveal(page, { round: 1, playerCard: 'tieshan', opponentCard: 'liuer', shotTab: 'resources' });
     await release(page);
+    const low = await open('q0-low-life', { width, height });
+    await resume(low);
+    await assertDecisionVisible(low, 'low life', { announced: 'chiling', selected: 'yaoheng' });
+    await assertLowLifeMark(low);
+    await release(low);
   }
-  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced and clear of their state labels; every decision input inside the viewport and hit-testable, with a whole Fury switch and no overlapping rows; no page or table overflow; the reveal's pages fit, every pager is tappable and both resource panels are reachable`);
+  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced and clear of their state labels; every decision input inside the viewport and hit-testable, with a whole Fury switch and no overlapping rows; no page or table overflow; low life shows 危; the reveal's pages fit, every pager is tappable and both resource panels are reachable`);
 
   // Finished overkill settles exactly once across Next and reload.
   const finished = FIXTURES['q0-overkill-finished'];

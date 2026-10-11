@@ -89,6 +89,10 @@
 .battle-table .battle-edge[data-side="player"] .battle-resources.resources{flex:1 1 auto;max-width:300px}
 .battle-table .battle-edge .battle-health{width:34px}
 .battle-table .battle-edge .battle-health>.battle-resource-label,.battle-table .battle-edge .life-lifeline,.battle-table .battle-edge .life-orb>small{display:none}
+/* Low life keeps its 危 text mark at the orb's top-right corner (the 生命 word stays
+   hidden), so danger never depends on the orb's colour alone. */
+.battle-table .battle-edge .battle-resources.is-low-life .battle-health>.battle-resource-label{display:block;position:absolute;top:-2px;right:-7px;z-index:2;margin:0;line-height:1;white-space:nowrap;visibility:hidden;pointer-events:none}
+.battle-table .battle-edge .battle-resources.is-low-life .life-low-label{visibility:visible;font-size:10px}
 .battle-table .battle-edge .life-orb{width:34px;height:34px;box-shadow:inset 0 0 0 3px #11291e}
 .battle-table .battle-edge .life-orb [data-hp-value]{font-size:17px}
 .battle-table .battle-edge .battle-pill-heading{gap:5px;margin:0 0 3px}
