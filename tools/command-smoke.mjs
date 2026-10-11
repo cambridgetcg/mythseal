@@ -433,8 +433,23 @@ try {
     const saved = await read(page);
     assert.equal(saved.coins, 777); assert.equal(saved.dust, 11); assert.equal(await writes(page), startWrites + 1, 'one restore, one write');
     assert.deepEqual(JSON.parse(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY)).snapshot, createSnapshot(JSON.parse(bytes)));
+    // When that restore is refused instead, the reopened dialog stays and retries it.
+    const restoredBytes = await raw(page), retryFrom = await toastCount(page);
+    await holdLock(page);
+    await open(); await confirm.click();
+    await close(page); await open();
+    await page.evaluate(() => {
+      const get = IDBObjectStore.prototype.get;
+      IDBObjectStore.prototype.get = function() { IDBObjectStore.prototype.get = get; throw new DOMException('Synthetic transient fence failure', 'UnknownError'); };
+    });
+    await releaseLock(page);
+    await waitToast(page, FENCE_MESSAGES.unavailable, retryFrom);
+    assert(await confirm.isVisible(), 'the reopened dialog stays open'); assert.equal(await raw(page), restoredBytes);
+    await press(page, confirm, '已復原上次本機旅程');
+    assert.deepEqual(await toastsSince(page, retryFrom), [FENCE_MESSAGES.unavailable, '已復原上次本機旅程。']);
+    assert.equal((await read(page)).coins, JSON.parse(bytes).coins, 'the retry restored the journey the first restore replaced');
     await release(page);
-    passed('B11 a local recovery dialog closed and reopened while its restore waits for the lock ignores a press, so the restore lands once and its success toast is the only one');
+    passed('B11 a local recovery dialog closed and reopened while its restore waits for the lock ignores a press, so the restore lands once and its success toast is the only one; when that restore is refused, the reopened dialog retries it');
   }
 
   {
