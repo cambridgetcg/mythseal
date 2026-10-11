@@ -22,18 +22,17 @@ const expectedSample = [
   { cardId: 'yanchixia', treatment: 'base' },
   { cardId: 'niexiaoqian', treatment: 'aa' },
 ];
-// Bound special printings, written out independently of liaozhai-cards.mjs. 陸判 INK is still planned.
+// Bound special printings, written out independently of liaozhai-cards.mjs. 嬰寧 AA (unbound) and 陸判 INK are planned.
 const expectedSpecials = [
   { cardId: 'niexiaoqian', treatment: 'aa', printId: 'lz01-001-aa1', src: 'assets/lz01/xiaoqian-aa.png' },
   { cardId: 'niexiaoqian', treatment: 'treasure', printId: 'lz01-001-tr1', src: 'assets/lz01/xiaoqian-treasure.png' },
-  { cardId: 'yingning', treatment: 'aa', printId: 'lz01-004-aa1', src: 'assets/lz01/yingning-aa.png' },
   { cardId: 'huapi', treatment: 'ink', printId: 'lz01-008-ink1', src: 'assets/lz01/huapi-ink.png' },
   { cardId: 'chenshi', treatment: 'aa', printId: 'lz01-009-aa1', src: 'assets/lz01/chenshi-aa.png' },
   { cardId: 'wangliulang', treatment: 'aa', printId: 'lz01-011-aa1', src: 'assets/lz01/liulang-aa.png' },
 ];
 const specialsFor = id => expectedSpecials.filter(print => print.cardId === id);
 const printLabels = { base: '本畫 BASE', aa: '異畫 AA', ink: '墨卷 INK', treasure: '天工 TR' };
-const expectedProgress = '12 款本畫＋6 款特別畫作先行（異畫 4、墨卷 1、天工 1）；陸判墨卷仍在規劃中。';
+const expectedProgress = '12 款本畫＋5 款特別畫作先行（異畫 3、墨卷 1、天工 1）；嬰寧異畫、陸判墨卷仍在規劃中。';
 await mkdir(output, { recursive: true });
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
 
@@ -235,16 +234,17 @@ try {
     await focusIs(page, 'filter-story');
     const chips = await page.locator('#catalogue-grid .print-chip').evaluateAll(buttons => buttons.map(button => ({ cardId: button.dataset.cardId, treatment: button.dataset.treatment })));
     assert.deepEqual(chips, expectedSpecials.map(({ cardId, treatment }) => ({ cardId, treatment })), 'Catalogue lists every bound special printing once');
-    const chip = page.locator('#catalogue-grid .print-chip[data-card-id="yingning"][data-treatment="aa"]');
+    const chip = page.locator('#catalogue-grid .print-chip[data-card-id="chenshi"][data-treatment="aa"]');
     await targetIsUsable(chip);
     await chip.focus();
     await page.keyboard.press('Enter');
     await page.locator('#card-dialog[open]').waitFor();
-    checkFace(await printedFace(page, '#dialog-content .printed-card'), 'yingning', specialsFor('yingning')[0], `${label} chip`);
+    checkFace(await printedFace(page, '#dialog-content .printed-card'), 'chenshi', specialsFor('chenshi')[0], `${label} chip`);
     await page.keyboard.press('Escape');
     await page.locator('#card-dialog[open]').waitFor({ state: 'hidden' });
-    await focusIs(page, 'inspect', { cardId: 'yingning', treatment: 'aa' });
-    passed(`${label}: twelve portraits, identical BASE/AA/TR hero stats, five stories, four factions, intersection, empty-state recovery and six special-printing links`);
+    await focusIs(page, 'inspect', { cardId: 'chenshi', treatment: 'aa' });
+    assert.equal(await page.locator('#catalogue-grid .print-chip[data-card-id="yingning"]').count(), 0, 'Unbound 嬰寧 AA must not be offered');
+    passed(`${label}: twelve portraits, identical BASE/AA/TR hero stats, five stories, four factions, intersection, empty-state recovery and five special-printing links`);
 
     const inspectIds = width === 1440 ? await catalogueIds(page) : ['niexiaoqian', 'yingning', 'huapi', 'chenshi', 'wangliulang', 'xuyuren'];
     for (const id of inspectIds) {
@@ -255,6 +255,13 @@ try {
       await page.locator('#card-dialog[open]').waitFor();
       assert.equal(await page.locator('#dialog-content .printed-card').getAttribute('data-card-id'), id);
       await focusIs(page, 'close-dialog');
+      const ring = await action(page, 'close-dialog').evaluate(close => {
+        const style = getComputedStyle(close), reach = style.outlineStyle === 'none' ? 0 : parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
+        const a = close.getBoundingClientRect(), b = document.querySelector('#dialog-content .printed-card').getBoundingClientRect();
+        return { reach, overlap: a.left - reach < b.right && a.right + reach > b.left && a.top - reach < b.bottom && a.bottom + reach > b.top };
+      });
+      assert(ring.reach > 0, `${label} ${id}: a keyboard-opened dialog shows the close button's focus ring`);
+      assert.equal(ring.overlap, false, `${label} ${id}: the close button's focus ring must not cover the card`);
       const href = new URL(await page.locator('.dialog-source').getAttribute('href'));
       assert.equal(href.origin, 'https://zh.wikisource.org');
       const stats = await page.locator('.dialog-stats').textContent();
@@ -281,7 +288,7 @@ try {
       await focusIs(page, 'inspect', { cardId: id });
       await noOverflow(page, `${label} closed dialog`);
     }
-    passed(`${label}: inspected ${inspectIds.length} characters, every bound printing shows its own file with unchanged rules, Escape restores visible opener focus`);
+    passed(`${label}: inspected ${inspectIds.length} characters, every bound printing shows its own file with unchanged rules, the close ring clears the card, Escape restores visible opener focus`);
 
     await targetIsUsable(action(page, 'open-sample'));
     await action(page, 'open-sample').focus();

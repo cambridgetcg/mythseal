@@ -52,6 +52,52 @@ and `liaozhai-{chromium,webkit}-smoke.json` with their screenshots. Physical
 phones, native Safari, the owner's art review and any hosted delivery remain
 open.
 
+**2026-10-11 review fixes · addendum.** A read-only review of `3f8851b` produced
+five verified findings. The commit that adds this addendum fixes them, and the
+checks below ran on that commit's tree.
+
+- Provenance: every LZ-01 PNG embeds a signed C2PA manifest (`caBX` chunk)
+  naming `ChatGPT`, version `gpt-image`, and recording
+  `c2pa.watermarked.unbound`. ART-LZ01 and ART now record this; the exact model
+  identifier stays "not exposed" because `gpt-image` is a family label. See
+  [ART-LZ01](ART-LZ01.md#embedded-content-credentials-c2pa).
+- The two second-round 陸判 INK candidates (prompt `9976af34…`) are now recorded
+  with their hashes, archive paths and the reasons neither is selectable.
+- 嬰寧 AA: the card's title and name cover 王子服, so `lz01-004-aa1` was
+  unbound in the data, the preview allowlist, the static count and both tests,
+  and planned again with a card-fit brief. The PNG is unchanged and served by
+  neither list. The shared rules gain a card-fit rule, and both planned
+  prompts follow it.
+- 天工 ornament: the `vector-effect` declaration on the outer `<svg>` had no
+  effect and was removed. Hero TR captures with and without it are
+  byte-identical in Chromium and WebKit at 1440 and 390.
+- Close-button focus ring: at 600 px and below the dialog content now starts at
+  66px instead of 57px, so the 3px ring at offset 5px ends 4px above the card.
+  A keyboard-open probe at ten widths from 320 to 1440 in both engines found
+  the ring over the card in 18 of 60 openings before the fix (all at 390, 360
+  and 320) and in none after, and over no dialog text either way. The smoke
+  now asserts this; with the old padding restored it failed at 390 in Chromium.
+
+Checks, on Node 26.0.0 and Playwright 1.63.0, with the loopback
+`serve.py --port 4196` restarted after the allowlist change
+(`assets/lz01/yingning-aa.png` now returns 404 there):
+
+- `node --test tests/*.test.mjs`: **456/456**, exit 0. The LZ content test now
+  also requires every PNG under `assets/lz01/` to match its recorded hash, and
+  every unbound file to be absent from both allowlists.
+- Python: **9 tests OK**.
+- `npm run build`: **80 public files**, manifest `98028a3a…`, unchanged; no
+  `dist` path or file content mentions `lz01` or `liaozhai`.
+- `GAME_URL=http://127.0.0.1:4196 npm run test:liaozhai`: **14 groups per
+  engine** in Chromium and WebKit, 18 screenshots each (two fewer, because 嬰寧
+  AA is no longer bound), with no errors and no forbidden requests. The
+  rendered count is 「12 款本畫＋5 款特別畫作先行（異畫 3、墨卷 1、天工 1）；嬰寧異畫、陸判墨卷仍在規劃中。」.
+
+Evidence (ignored): `test-results/lz01-fixes-{unit,python,build,browser}.log`.
+The C2PA, focus-ring and ornament probes were scratch scripts outside the
+repository. Physical phones, native Safari, the owner's art review and new
+generations for the two planned slots remain open.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

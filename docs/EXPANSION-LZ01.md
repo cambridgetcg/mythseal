@@ -19,10 +19,12 @@ completed Node/Python/build and Chromium/WebKit evidence is in
 [VALIDATION](VALIDATION.md#lz-01-literary-design-preview--2026-09-23).
 Generation-ready briefs (source-checked prompts) for the six remaining special
 artworks were added on **2026-10-10** in [ART-LZ01](ART-LZ01.md#specials-briefs--2026-10-10).
-**Special printings bound · 2026-10-11:** five of them now exist and are bound
-in the preview: 嬰寧, 陳氏 and 王六郎 AA, 畫皮之鬼 INK and 聶小倩 TR, so the preview
-shows eighteen of the nineteen printings. 陸判 INK and all game/economy
-integration remain planned.
+**Special printings bound · 2026-10-11:** five of them were generated and four
+remain bound in the preview: 陳氏 and 王六郎 AA, 畫皮之鬼 INK and 聶小倩 TR, so the
+preview shows seventeen of the nineteen printings. 嬰寧 AA was unbound the same
+day because the card's title and name are printed over 王子服, the second figure
+of its scene; it is planned again with a revised brief. 陸判 INK and all
+game/economy integration remain planned.
 
 ## The feeling of opening this set
 
@@ -154,18 +156,18 @@ These are design/preview identifiers, not entries in the live printing catalogue
 | --- | --- | --- | --- | --- |
 | `lz01-001-base`–`lz01-012-base` | Twelve BASE portraits | 本畫 | Distinct portrait/action compositions following the rooms above | Twelve candidate BASE cards |
 | `lz01-001-aa1` | 聶小倩 / AA | 燈前相守 | A lit threshold answering a distant traveller's lantern; original composition, not a reproduced film scene | Generated local preview image: `assets/lz01/xiaoqian-aa.png` |
-| `lz01-004-aa1` | 嬰寧 / AA | 花間藏笑 | Garden distance, little figures and a large breathing space of blossoms | Generated local preview image (2026-10-11): `assets/lz01/yingning-aa.png` |
+| `lz01-004-aa1` | 嬰寧 / AA | 花間藏笑 | Garden distance and a large breathing space of blossoms; 嬰寧 laughing in the tree and 王子服 calling up from the path both stay above the card text | Planned again · generated 2026-10-11 but unbound after the card-fit review (the card text covered 王子服); file kept, served by neither allowlist; brief revised |
 | `lz01-009-aa1` | 陳氏 / AA | 仍有人守門 | She bows at her doorway, weeping, to the departing Daoist; her lifted face keeps her readable | Generated local preview image (2026-10-11): `assets/lz01/chenshi-aa.png` |
 | `lz01-011-aa1` | 王六郎 / AA | 留人間一岸 | Noon: the mother has climbed out on her own while 六郎, unseen in the shallows, lets her go; the bank stays open | Generated local preview image (2026-10-11): `assets/lz01/liulang-aa.png` |
-| `lz01-006-ink1` | 陸判 / INK | 夜酌朱批 | Mostly monochrome brushwork; spare vermilion annotation | Planned · brief only (2026-10-10, revised 2026-10-11), no selected image |
+| `lz01-006-ink1` | 陸判 / INK | 夜酌朱批 | Mostly monochrome brushwork; spare vermilion annotation | Planned · five candidates from two prompts reviewed on 2026-10-11, none selected; brief revised again for card fit |
 | `lz01-008-ink1` | 畫皮之鬼 / INK | 墨下另一面 | In the text's order, the green-faced ghost lifts the blank painted sheet before putting it on; ink and empty paper, no skin | Generated local preview image (2026-10-11): `assets/lz01/huapi-ink.png` |
 | `lz01-001-tr1` | 聶小倩 / TR | 歸燈 | Layered frame/light study; the lamp is an original set motif, not a claimed named relic | Generated local preview image (2026-10-11): `assets/lz01/xiaoqian-treasure.png` |
 
 TR is a proposed visual treatment, not proof of scarcity or a minted object.
 The first standalone preview showed only the twelve BASE cards and one AA. Since
-2026-10-11 it shows eighteen printings (twelve BASE, four AA, one INK, one TR);
-its interface must still distinguish them from the one remaining planned
-special image, 陸判 INK.
+2026-10-11 it shows seventeen printings (twelve BASE, three AA, one INK, one
+TR); its interface must still distinguish them from the two planned special
+images, 嬰寧 AA and 陸判 INK.
 Record generated-image prompts, returned model/provenance information and asset
 paths separately when generation occurs. Do not claim all nineteen works exist.
 

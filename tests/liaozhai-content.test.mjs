@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { CARDS } from '../engine.mjs';
@@ -117,12 +117,11 @@ test('preview-only content exports have a fixed sample and bind only the selecte
   assert.deepEqual(LZ01_SPECIALS.map(print => [print.printId, print.src]), [
     ['lz01-001-aa1', 'assets/lz01/xiaoqian-aa.png'],
     ['lz01-001-tr1', 'assets/lz01/xiaoqian-treasure.png'],
-    ['lz01-004-aa1', 'assets/lz01/yingning-aa.png'],
     ['lz01-008-ink1', 'assets/lz01/huapi-ink.png'],
     ['lz01-009-aa1', 'assets/lz01/chenshi-aa.png'],
     ['lz01-011-aa1', 'assets/lz01/liulang-aa.png'],
   ], 'Bind only selected files; 小倩 AA stays first');
-  assert.deepEqual(LZ01_PLANNED_SPECIALS.map(print => print.printId), ['lz01-006-ink1'], '陸判 INK has no selected image');
+  assert.deepEqual(LZ01_PLANNED_SPECIALS.map(print => print.printId), ['lz01-004-aa1', 'lz01-006-ink1'], '嬰寧 AA was unbound after the card-fit review; 陸判 INK has no selected image');
   const code = { aa: 'aa', ink: 'ink', treasure: 'tr' };
   const all = [...LZ01_SPECIALS, ...LZ01_PLANNED_SPECIALS];
   assert.equal(LZ01_CARDS.length + all.length, 19, 'The set checklist is 12 BASE + 4 AA + 2 INK + 1 TR');
@@ -149,7 +148,7 @@ test('preview-only content exports have a fixed sample and bind only the selecte
   }
   for (const print of LZ01_PLANNED_SPECIALS) assert.equal(Object.hasOwn(print, 'src'), false, `${print.printId} is planned, not bound`);
   assert(Object.isFrozen(LZ01_SPECIALS) && Object.isFrozen(LZ01_PLANNED_SPECIALS) && Object.isFrozen(LZ01_TREATMENTS));
-  assert.equal(imagePaths.size, 9, 'Three atlases and six special printings');
+  assert.equal(imagePaths.size, 8, 'Three atlases and five bound special printings');
 
   const preview = new Set(JSON.parse(read('hosting/preview-assets.json')));
   const publicAssets = new Set(JSON.parse(read('hosting/public-assets.json')));
@@ -162,5 +161,13 @@ test('preview-only content exports have a fixed sample and bind only the selecte
     assert.equal(publicAssets.has(path), false, `${path} must stay out of the public build`);
     assert.equal(createHash('sha256').update(bytes).digest('hex'), recorded.get(path.split('/').at(-1)), `${path} must match its recorded SHA-256 in docs/ART-LZ01.md`);
   }
+  // A PNG kept in the tree but not bound (嬰寧 AA since 2026-10-11) keeps its recorded hash and is served by neither list.
+  for (const name of readdirSync(new URL('assets/lz01/', root)).filter(file => file.endsWith('.png'))) {
+    const path = `assets/lz01/${name}`;
+    if (imagePaths.has(path)) continue;
+    assert.equal(createHash('sha256').update(readFileSync(new URL(path, root))).digest('hex'), recorded.get(name), `${path} must match its recorded SHA-256 in docs/ART-LZ01.md`);
+    assert.equal(preview.has(path) || publicAssets.has(path), false, `${path} is not bound, so no allowlist may serve it`);
+  }
+  for (const path of preview) if (path.startsWith('assets/lz01/')) assert(imagePaths.has(path), `${path} is allowlisted but not bound`);
   assert(existsSync(fileURLToPath(new URL('docs/EXPANSION-LZ01.md', root))));
 });

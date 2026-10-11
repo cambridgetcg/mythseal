@@ -204,11 +204,14 @@ are in `hosting/preview-assets.json` only; the public build still has 80 assets.
 Gold purchases, owned copies, story integration and the **餘願** keyword are
 explicit later tasks, not implemented rules. No deployment or service change.
 
-**2026-10-11 addendum:** five of the six special works now exist and are bound
-in the preview (嬰寧, 陳氏, 王六郎 AA; 畫皮之鬼 墨卷 INK; 聶小倩 天工 TR), keyed by
-`${cardId}:${treatment}` in `LZ01_SPECIALS`. 陸判 INK remains planned. The LZ
-preview now has thirteen paths in `hosting/preview-assets.json` (four code, nine
-images), still none in the public list. Provenance is in
+**2026-10-11 addendum:** five of the six special works were generated and four
+are bound in the preview (陳氏, 王六郎 AA; 畫皮之鬼 墨卷 INK; 聶小倩 天工 TR), keyed
+by `${cardId}:${treatment}` in `LZ01_SPECIALS`. 嬰寧 AA was unbound after a
+card-fit review, because the card's title and name cover 王子服; its file stays
+in the tree unchanged but is in neither allowlist, and it is planned again
+beside 陸判 INK, both with card-fit briefs. The LZ preview now has twelve paths
+in `hosting/preview-assets.json` (four code, eight images), still none in the
+public list. Provenance, including each file's embedded C2PA credential, is in
 [ART-LZ01](ART-LZ01.md#provenance--special-printings--2026-10-11).
 
 Use `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` (or the server's actual

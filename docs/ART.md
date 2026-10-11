@@ -25,13 +25,21 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 The separate local LZ-01 preview uses three original 2×2 portrait atlases (twelve
 characters) and one full-scene 小倩 AA under `assets/lz01/`. All four images were
 generated with the built-in imagegen tool, with no reference images supplied.
-On 2026-10-11 five special printings were added with the owner's approval:
+On 2026-10-11 five special printings were generated with the owner's approval:
 嬰寧, 陳氏 and 王六郎 AA, 畫皮之鬼 墨卷 INK and 聶小倩 天工 TR. They were generated
 with Codex CLI's built-in imagegen tool (`image_gen__imagegen`), again with no
-reference images, and copied byte-for-byte. 陸判 INK is still planned and has no
-file. All nine images are preview-only and do not grant or change owned cards.
+reference images, and copied byte-for-byte. Four are bound in the preview. 嬰寧
+AA was unbound the same day because the card's title and name are printed over
+王子服; its file is kept unchanged, served by neither allowlist, and the slot is
+planned again with a revised brief. 陸判 INK is still planned and has no file.
+All nine images are preview-only and do not grant or change owned cards.
 See [exact prompts, cell mappings and provenance](ART-LZ01.md) and the
-[set design](EXPANSION-LZ01.md). No underlying image-model identifier was exposed.
+[set design](EXPANSION-LZ01.md). No exact image-model identifier was exposed:
+the tool results have no model field. Each of the nine files does embed a
+signed C2PA content credential from the generating service, naming the
+creating agent `ChatGPT`, version `gpt-image` (a model-family label), and
+recording an invisible watermark; see
+[ART-LZ01](ART-LZ01.md#embedded-content-credentials-c2pa).
 
 ## 西行 printing studies · 2026-09-22
 
