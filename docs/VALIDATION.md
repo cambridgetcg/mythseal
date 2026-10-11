@@ -2,6 +2,56 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## LZ-01 special printings · 2026-10-11
+
+Local branch `art/lz01-specials-images`, started from `origin/main` `8afbabc`.
+It is not merged, pushed or deployed, and this entry includes no hosted check.
+The checks below ran on source commit **`3c07dfe`** with a clean tree; the
+commit that adds this entry changes documentation only. A loopback
+`python3 tools/serve.py --port 4196` served the worktree (`Cache-Control:
+no-store`). It was restarted after the allowlist change, because `serve.py`
+reads `hosting/preview-assets.json` only at startup. All of this is synthetic
+headless evidence.
+
+Five selected images (嬰寧, 陳氏 and 王六郎 AA, 畫皮之鬼 INK, 聶小倩 TR) were bound
+in the standalone preview; 陸判 INK stays planned. The preview now has 本畫, 異畫,
+墨卷 and 天工 printings keyed by card and treatment. No engine, catalogue, save,
+service or public-file change. Provenance and the open art caveats are in
+[ART-LZ01](ART-LZ01.md#provenance--special-printings--2026-10-11).
+
+- Each repository copy equals its archive original (`cmp`, and SHA-256 equal
+  to the generation record). The committed blobs hash to the same values.
+- `node --test tests/*.test.mjs`: **456/456**, exit 0, on Node 26.0.0. The count
+  is unchanged because the LZ preview test was rewritten rather than added. It
+  now checks the six bound and one planned print IDs, card numbers, the copied
+  treatment labels against `PRINT_TREATMENTS`, 1024×1536 headers, preview-list
+  membership, absence from the public list and each file's SHA-256 against
+  ART-LZ01.
+- Python: **9 tests OK**.
+- `npm run build`: **80 public files**, manifest `98028a3a…`. No `dist` path or
+  file content mentions `assets/lz01` or `liaozhai`, and no public build input
+  changed since `8afbabc`.
+- `GAME_URL=http://127.0.0.1:4196 npm run test:liaozhai`: **14 groups per engine**
+  in Chromium and WebKit (Playwright 1.63.0), 20 screenshots each, with no
+  runtime, console or asset errors and no forbidden requests. New checks: hero
+  BASE/AA/TR with identical stats, six catalogue links in order, every bound
+  printing in the dialog showing its own file, print ID, label and frame
+  (dark 墨卷 text, double 天工 border) with unchanged stats, and the rendered
+  count 「12 款本畫＋6 款特別畫作先行（異畫 4、墨卷 1、天工 1）；陸判墨卷仍在規劃中。」.
+  The first WebKit run failed one new focus check because the smoke had opened
+  a catalogue link by mouse click, and WebKit does not focus a clicked button.
+  The check now uses the keyboard, like the existing opener checks, and both
+  engines pass.
+- Visual review: the smoke screenshots, plus viewport captures of each new
+  printing in the dialog at 1440×900 and 390×844 in both engines, were
+  inspected. Two adjustments followed: a stronger paper shade behind 墨卷 text,
+  and special-printing links placed above 「細讀此卡」 so those links align.
+
+Evidence (ignored): `test-results/lz01-specials-{unit,python,build,browser}.log`
+and `liaozhai-{chromium,webkit}-smoke.json` with their screenshots. Physical
+phones, native Safari, the owner's art review and any hosted delivery remain
+open.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not
