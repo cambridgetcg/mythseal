@@ -369,7 +369,9 @@ Use case: stylized-concept. Asset type: full scene alternate-art portrait for an
 **Status · 2026-10-11: still planned.** No candidate has been selected, so no
 file exists and nothing is bound or allowlisted. Five candidates were
 reviewed: three from the first prompt and two from the second (see the notes
-below). The prompt below adds the card-fit rule and has not been used yet.
+below). The prompt below is the round-three prompt: it keeps the card-fit rule
+and draws the red marks as strike-strokes only, with no rings. It has not been
+used yet.
 
 - **Verified anchors:** 陸判 marks 朱爾旦's essays in red and judges them all poor:
   「朱獻窗稿，陸輒紅勒之，都言不佳」. Their first night: 「挑燈獨酌。忽有人搴簾入」.
@@ -378,15 +380,23 @@ below). The prompt below adds the card-fit rule and has not been used yet.
 - **Invented:** Combining the drafts with the drinking table, the two background
   vignettes, and the colour rule: the only colours are spare vermilion and a
   barely perceptible grey-green tint on his face, which keeps 「綠面」 in an ink
-  print.
+  print. The form of the red marks is a reading, not a quote: the text says only
+  that 陸 marked the drafts in red (「紅勒之」). The prompt reads 勒 as a stroke
+  struck through the writing, so it draws one or two long sweeping vermilion
+  strike-strokes across the top draft and no rings. The steep, foreshortened
+  view that turns the drafts mostly away from the viewer is also invented; it
+  keeps their surface to faint illegible grey texture.
 - **Excluded:** the heart exchange, the head exchange and any blade or blood.
   Red marks must not become legible characters. Reject outputs with pseudo-text.
+  Also reject any output with a red ring, circle or dot, with marks set side by
+  side in a row, or with marks that, alone or together, read as a letter,
+  numeral or symbol, as in both earlier rounds.
 - **Prompt revision · 2026-10-11, after first generation:** none of the three
   candidates from the first prompt (SHA-256 `76bd79d7…`) was selected. Their
   vermilion circles and slashes sat in rows or were joined by thin lines, so
   they read as Latin letters, a percent sign or the number 100; two also
   filled the drafts with made-up characters, and a warm amber lantern broke the
-  colour rule. The prompt below keeps the scene and anchors and only adds
+  colour rule. The second prompt kept the scene and anchors and only added
   limits: ruled drafts with faint grey specks; one ring around a passage per
   sheet plus long strokes down whole columns, each a separate brushstroke never
   joined or set in a row; no yellow, amber or orange, with a vermilion lamp
@@ -418,13 +428,30 @@ below). The prompt below adds the card-fit rule and has not been used yet.
   the marked drafts also sit at about two thirds of the image height and below,
   under the 墨卷 paper shade and the card text. Neither was committed; both stay
   in the private archive.
-- **Prompt revision · 2026-10-11, card fit:** after the 嬰寧 AA review the prompt
-  also keeps the pair, the table top, the drafts and the brush above the lower
-  two fifths of the image, which stay quiet empty paper below the table edge.
-  Nothing else changed.
+- **Prompt revision · 2026-10-11, card fit:** after the 嬰寧 AA review a
+  further edit kept the pair, the table top, the drafts and the brush above the
+  lower two fifths of the image, which stay quiet empty paper below the table
+  edge. Nothing else changed. That text (SHA-256 `503dd609cc45…`, committed in
+  `0ab6819`) was never sent; its card-fit sentence carries into the round-three
+  prompt unchanged.
+- **Round-three prompt · 2026-10-11, strike-only marks:** both rounds failed on
+  the same point. Rings and strokes near one another read as Latin letters, a
+  percent sign or 100 in round one and as "0/0/", "010", "10" or "IO" in round
+  two, although the second prompt already forbade marks in a row or marks that
+  read as numerals. A ring beside a stroke already reads as a pair of digits, so the
+  prompt below no longer asks for any ring or circle. Its changes from the
+  card-fit text: the vermilion marks are only one or two long sweeping
+  strike-strokes across the top draft, each one unbroken sweep of the brush,
+  with no rings, no dots and no repeated marks in a row; the ring around a
+  passage, the strokes down whole columns and the ruled sheets with grey specks
+  are gone; the drafts lie on the table turned toward 陸判, seen at a steep
+  foreshortened angle mostly away from the viewer, and show only faint
+  illegible grey texture; his brush is held just above them after the strike.
+  The anchors, colour rule, figures, vignettes, card-fit sentence and closing
+  exclusions are unchanged.
 
 ```text
-Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Judge Lu: Vermilion Marks over Night Wine. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, dry-brush texture, fine woodblock-style hatching and disciplined empty paper; the only colours are spare vermilion and a barely perceptible grey-green tint on his face, and no yellow, amber or orange anywhere; the lamp flame is a touch of vermilion and its glow is left as bare paper. Judge Lu Pan, an imposing otherworldly adult male magistrate, his green face suggested only by that barely perceptible grey-green tint, long beard touched with a restrained vermilion wash, dignified broad features, dark ceremonial robe and plain black official hat, sits at a low lamp-lit night table, wine cup set aside, holding a fine brush loaded with vermilion over a stack of essay drafts; bold vermilion marks cross the pages: on each sheet one loose ring drawn around a whole passage and long sweeping strike-strokes drawn down through whole columns. Opposite him Zhu Erdan, a broad sturdy adult scholar with a friendly coarse face and short beard in a plain cotton gown with loose sleeves, leans forward with a wine cup, rueful and eager. Behind them a door curtain hangs half lifted. Two small asymmetrical brush-edged vignettes are woven into the upper background: a standing wooden judge statue alone in a dim temple side corridor, and the same scholar carrying that statue on his back through the night, its official hat and robed body plainly visible. Imagery only. The drafts are ruled manuscript sheets whose columns show only faint grey specks, never character shapes; the vermilion marks are abstract circles and slashes, not writing: each is one large separate brushstroke, never joined to another by thin connecting lines and never lined up side by side in a row, so no mark or group of marks reads as a letter, numeral or symbol. The central pair dominates with faces readable at small card size. The pair, the table top, the drafts and the brush all sit above the lower two fifths of the image, which stay quiet empty paper below the table edge, because card text is printed over them. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no surgery, no blood, no severed head, no gore. No text, lettering, pseudo-glyphs, calligraphy, seals, signatures, logos, watermark, numbers, speech balloons, borders or UI.
+Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Judge Lu: Vermilion Marks over Night Wine. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, dry-brush texture, fine woodblock-style hatching and disciplined empty paper; the only colours are spare vermilion and a barely perceptible grey-green tint on his face, and no yellow, amber or orange anywhere; the lamp flame is a touch of vermilion and its glow is left as bare paper. Judge Lu Pan, an imposing otherworldly adult male magistrate, his green face suggested only by that barely perceptible grey-green tint, long beard touched with a restrained vermilion wash, dignified broad features, dark ceremonial robe and plain black official hat, sits at a low lamp-lit night table, wine cup set aside, holding a fine brush loaded with vermilion just above a small stack of essay drafts; the drafts lie on the table turned toward him, seen at a steep foreshortened angle mostly away from the viewer, and he has just struck out the top draft with one or two long sweeping vermilion strike-strokes drawn right across it. Opposite him Zhu Erdan, a broad sturdy adult scholar with a friendly coarse face and short beard in a plain cotton gown with loose sleeves, leans forward with a wine cup, rueful and eager. Behind them a door curtain hangs half lifted. Two small asymmetrical brush-edged vignettes are woven into the upper background: a standing wooden judge statue alone in a dim temple side corridor, and the same scholar carrying that statue on his back through the night, its official hat and robed body plainly visible. Imagery only. The drafts show only faint, illegible grey texture, never character shapes. Those one or two long sweeping strike-strokes across the top draft are the only vermilion marks on the drafts, each one unbroken sweep of the brush: no rings, no dots, no repeated marks in a row, and nothing that could read as a letter, numeral, glyph or symbol. The central pair dominates with faces readable at small card size. The pair, the table top, the drafts and the brush all sit above the lower two fifths of the image, which stay quiet empty paper below the table edge, because card text is printed over them. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no surgery, no blood, no severed head, no gore. No text, lettering, pseudo-glyphs, calligraphy, seals, signatures, logos, watermark, numbers, speech balloons, borders or UI.
 ```
 
 ### lz01-008-ink1 · 畫皮之鬼 INK · 墨下另一面
