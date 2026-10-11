@@ -91,6 +91,41 @@ physical devices, Node 22, `npm run build`, deploy dry runs, a real browser
 without IndexedDB or with IndexedDB refusing writes, and a real
 `QuotaExceededError`.
 
+### Q1 second review fixes · 2026-10-11
+
+Source commits `dac1e0a` and `a8db57c` on the same branch fix two of the three
+low-severity defects a second review of `37dad64` reported; the commit that
+adds this entry corrects the third, which was documentation, and adds its test.
+Still not pushed, merged or deployed, and no hosted check. Synthetic headless
+evidence on Node 26.0.0;
+[LOCAL-COMMANDS §18.6](LOCAL-COMMANDS.md#186-fixes-after-the-second-review-2026-10-11)
+has the detail.
+
+- **Restore write that lands, then throws.** A restore now re-reads the profile
+  before undoing anything, so the replaced journey keeps its recovery copy
+  unless its bytes are confirmed still stored.
+- **Fence guarantee for bypassing writers.** The contract now says a write that
+  bypasses the fence can still be lost until it reaches the next tab, and adds
+  the rule never to serve a pre-fence v5 build on an origin that has served Q1.
+- **Identity-conflict copy.** When another card's upgrade took the slot, the
+  refusal now says so, and says whether this card is unchanged.
+
+Checks, against a separate `python3 tools/serve.py --port 4341`:
+
+- `node --test tests/*.test.mjs`: exit 0, **501/501**; the two code commits'
+  exported trees gave 499 and 500. The new restore test and N26 fail against
+  `37dad64`. Python: 9 tests OK. `git diff --check`: clean.
+- `npm run test:commands`: exit 0, **10/10 groups in each engine** (fenced
+  handoffs 30/30 current; plain-lock control 29/30 Chromium and 18/30 WebKit
+  stale).
+- `account-smoke`, `profile-recovery-smoke` and `backpack-smoke` (Chromium):
+  exit 0 each.
+
+Not checked: the remaining `test:browser` suites and per-engine smokes (the disk
+was nearly full), a browser whose `setItem` lands and then throws, separate
+browser processes, the Safari app, Firefox, devices, `npm run build`, deploy dry
+runs and any hosted service.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

@@ -240,6 +240,33 @@ test('N23 a stalled fence counts as unavailable and releases the lock instead of
   assert.equal(await o.lock(() => 'free'), 'free', 'the lock was released');
 });
 
+test('N27 a writer that bypasses the fence is refused only once its bytes arrive; before that it can be lost (§10.1 limit)', async () => {
+  // A pre-fence v5 build (or a devtools edit) writes under the plain PROFILE_LOCK and records nothing.
+  const base = rich(), [x] = spare(base);
+  async function bypassThenCommit({ arrived }) {
+    const o = origin(base, { lag: null }), old = o.tab(), fresh = o.tab();
+    await fresh.fenced(false)(() => fresh.store.save(fresh.store.load())); // the startup save records the fence
+    const request = previewCommand(fresh.store.load(), { type: UPGRADE, uid: x }).request;
+    await o.lock(() => { const profile = old.store.load(); profile.coins += 5000; old.store.save(profile); });
+    assert.equal(o.saved().coins, base.coins + 5000);
+    if (arrived) o.deliver();
+    return { o, fresh, request, result: await commitIn(fresh, request, fresh.fenced(true, 20)) };
+  }
+  {
+    const { o, fresh, request, result } = await bypassThenCommit({ arrived: true });
+    assert.deepEqual([result.status, result.reason], ['rejected', 'unsynced'], 'its bytes reached this tab: the strict holder refuses');
+    assert.equal(o.saved().coins, base.coins + 5000);
+    await fresh.fenced(false)(() => fresh.store.save(fresh.store.load())); // a reload's save records it
+    assert.equal((await commitIn(fresh, request, fresh.fenced(true, 20))).status, 'committed');
+    assert.equal(o.saved().coins, base.coins + 5000 - 120, 'and the bypassing write is kept');
+  }
+  {
+    const { o, result } = await bypassThenCommit({ arrived: false });
+    assert.deepEqual([result.status, result.duplicate], ['committed', false], 'its bytes had not arrived: the old record still matches');
+    assert.equal(o.saved().coins, base.coins - 120, 'the bypassing write is overwritten, as before the fence');
+  }
+});
+
 /** A small in-memory IndexedDB: one database, one object store, async events. */
 function fakeIndexedDB({ failOpen = false, abort = false } = {}) {
   const databases = new Map(), opened = [];

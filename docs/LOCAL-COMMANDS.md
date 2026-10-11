@@ -6,7 +6,8 @@ against `origin/main` `8afbabc`. It is implemented on the local branch
 `q1/local-commands`, which is not pushed, merged or deployed. It is not a release
 and changes no hosted service. [§18](#18-implementation-record-2026-10-11)
 records what was built, where it differs from the text below, and the checks;
-§18.4 records the fixes made after the first review, which this text now includes.
+§18.4 records the fixes made after the first review and §18.6 those after the
+second; this text now includes both.
 
 - It refines the illustrative Q1 sketch in [EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q1--one-local-command-and-its-accepted-receipt). Where the two differ, this document is the proposal; §13 lists every deviation.
 - [ROADMAP](../ROADMAP.md#q1--one-local-command-and-receipt-boundary) owns priority and the exit criteria.
@@ -171,6 +172,7 @@ const writerLock = () => fencedLock(false);   // transact, restoreLocalProfile
   - The rule never runs twice.
 - **Changed payload.** Same slot with a different intent is rejected as `identity-conflict`, and nothing is written.
   - This covers two tabs that previewed the same slot for different copies or levels.
+  - The player copy names the cause (§9): another copy's upgrade took the slot, or this copy's slot was taken at another level.
 - **Why a duplicate always means the same effect.** Within one lineage, a copy's level never goes down:
   - `setInstanceXP` refuses lower XP.
   - Selling and buying back keep the record.
@@ -331,7 +333,7 @@ A per-tab `sessionStorage` marker for in-flight work is out of scope. A Q3 queue
 | --- | --- | --- | --- | --- |
 | `committed` | Saved | One profile write | 此卡修練完成，另一張副本的等級不變。 (existing) | Sync, mark changed, render, re-open the card page with a new quote, announce, tone |
 | `committed` with `duplicate` | Same slot and intent were already accepted | Nothing | 這次修練早已入帳，未有再次扣除資源。已入帳的修練：Lv.1 → Lv.2 · 120 金幣 · 6 靈砂。 (levels and costs from the stored receipt) | Sync, render, re-open the card page; show the stored receipt's real before and after |
-| `rejected/identity-conflict` | Same slot, different intent | Nothing | 卡牌剛有變動，未有扣除資源；請查看更新後的修練預覽。 | Reload and preview again; no automatic retry |
+| `rejected/identity-conflict` | Same slot, different intent | Nothing | Names the cause. Another copy's receipt holds the slot and this copy's fresh preview still matches the request: 另一個分頁剛為另一張卡完成修練；這張卡未有變動，未有扣除資源，請再按一次修練升級。 Another copy holds it and this copy changed too or is now blocked: 另一個分頁剛為另一張卡完成修練，未有扣除資源；請查看更新後的修練預覽。 This copy's own receipt at another level holds it: 卡牌剛有變動，未有扣除資源；請查看更新後的修練預覽。 | Reload and preview again; no automatic retry |
 | `rejected/stale` | Fingerprint or `toLevel` differs, or the slot is ahead of the ledger | Nothing | Same as above | Same as above |
 | `rejected/expired` | Slot below `retiredBelow` | Nothing | 修練預覽已過期，未有扣除資源；請重新查看。 | Preview again |
 | `rejected/blocked` | Rule refusal, or the ledger is exhausted | Nothing | The rule's existing message | Repaint |
@@ -382,13 +384,19 @@ IndexedDB transactions are ordered by the browser, so the next holder's read see
 
 **Lenient holders** (`transact`, `restoreLocalProfile`, the playtest supply page) wait up to 0.5 s, then proceed as they did before the fence. They are writers, and their write records the fence again. That heals a `writing` record left by a closed tab and an edit made outside the lock. Every page load's startup save (`transact(p => p)`) is such a write.
 
-**Rules for new code.** Every writer under `PROFILE_LOCK` must use the fenced lock. A writer that bypasses it, such as a devtools edit or an old build, does not let a strict holder decide on old bytes; it makes the next strict holder refuse until a lenient write.
+**Rules for new code.** Every writer under `PROFILE_LOCK` must use the fenced lock. The fence knows only the writes recorded through it. A writer that bypasses it, such as a devtools edit or a v5 build from before the fence on the same origin, leaves the previous record in place:
+
+- once its bytes have reached a strict holder's tab, that holder refuses until a lenient write records them;
+- before they arrive, the tab's older bytes still match the old record, so a strict holder decides on them and overwrites the bypassing write, exactly as before the fence.
+
+N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fence v5 build must never be served on an origin that has served Q1 (§11).
 
 **What it is not.** The record holds a length and two 32-bit hashes of the stored text, never profile data. It is not exported, backed up or restored, and clearing site data clears it with the save. It does not change the profile, the snapshot or any hosted service.
 
 **Limits.**
 
 - A lenient holder that has not caught up within 0.5 s still writes from what it sees, as every writer did before the fence. Review measured catch-up under 50 ms.
+- A write that bypasses the fence can be lost until it reaches the next strict holder's tab (see the rules above).
 - If IndexedDB answers the read but refuses the `writing` record (for example a full disk), a lenient writer proceeds without recording. A strict holder in a renderer that is still behind can then match the older record.
 - Not checked: separate browser windows or processes, the Safari app, Firefox, physical devices.
 
@@ -419,7 +427,10 @@ IndexedDB transactions are ordered by the browser, so the next holder's read see
 
 - Inside the lock, if the profile being replaced has a ledger, the restored profile gets `retireCommandLedger(current.commands)`.
 - That uses up the slot an outstanding preview could hold, so every ID from before the restore becomes `expired`.
-- **Order (fixed after review).** `store.replace(current, restored)` in `profile-store.mjs` first builds the profile to save, with the retired ledger, and checks it with `assertLocalProfile`. Only then does it write the `RECOVERY_KEY` copy of `current`, and then the profile. A refused restore therefore leaves both untouched. If the profile write itself fails, the previous recovery copy is put back, or removed when there was none.
+- **Order (fixed after review).** `store.replace(current, restored)` in `profile-store.mjs` first builds the profile to save, with the retired ledger, and checks it with `assertLocalProfile`. Only then does it write the `RECOVERY_KEY` copy of `current`, and then the profile. A refused restore therefore leaves both untouched. If the profile write throws, the store reads the profile again under the same lock, because a throwing write may still have landed (§7 step 11):
+  - the replaced bytes are still stored: the previous recovery copy is put back, or removed when there was none;
+  - the restored bytes are stored: the restore landed and is reported as done;
+  - other bytes, or a re-read that throws: the new recovery copy is kept and the error is reported, because the replaced journey may now exist nowhere else.
 - **A backup within the retired ledger's bytes of the limit.** The retired ledger adds about 77–93 B, and it counts toward the 4 MiB envelope. A backup that fits alone but not with it is refused with 這份旅程備份未超過 4 MiB 上限，但加上此裝置的操作記錄後超過儲存上限；本機旅程及回復備份均未更改。 It still restores on a journey without a ledger. Excluding the ledger from the envelope was not done: the full-profile fingerprints used by restore confirmation are bounded by the same limit, and moving the backup limit would be a hosted change. Review measured the largest save the game can produce at 3.59 MB, so only a hand-made backup reaches this edge.
 - If the profile being replaced has no ledger, the restored profile stays without one. The existing restore smokes stay byte-equal, including the `deepEqual` at `tools/account-smoke.mjs:270`. See §15 decision 1.
 
@@ -432,6 +443,7 @@ IndexedDB transactions are ordered by the browser, so the next holder's read see
   - The bootstrap recovery screen then offers export.
 - Public v0.5.1 uses `shanhai.profile.v3` and snapshot v1, so it is unaffected.
 - **Release guidance:** ship Q1 no later than the first public release that uses profile v5. After players have committed commands, rolling back below Q1 needs a forward fix.
+- **Never serve a v5 build from before the fence** (`origin/main` `8afbabc`, or this branch before `7a7d03e`) on an origin that has served Q1. Such a build still opens a save without `commands`, and its writes bypass the fence, so a Q1 tab that has not yet received them can overwrite them (§10.1).
 
 ## 12. Backup validation impact
 
@@ -476,14 +488,14 @@ Test IDs refer to the [test matrix](#appendix--test-matrix): N is a Node test, B
 | A duplicate submission spends once | N5, N8, N22, and smokes B3, B4 (also at about 60 KB) and B7 |
 | Quota or storage refusal changes nothing | N11, N12, and smoke B5 |
 | A tab or reload interruption loses nothing | Single-write atomicity, N12 (write landed, then threw), N13, N22–N23 (another tab's write is seen, or the command refuses), B1's reload and B8 |
-| A changed payload under the same identity is rejected | N6 |
+| A changed payload under the same identity is rejected | N6, N26 |
 | New fields are versioned and backups stay compatible | §11, §12, and N15–N19 |
 
 ## 15. Owner decisions
 
 1. **Restore rule.** This contract retires only a lineage that has a ledger. The alternative, "always retire", closes the gap in §13 item 2. It costs the `account-smoke` `deepEqual` update and makes every restored profile Q1-only.
 2. **Browsers without Web Locks.** On Safari below 15.4, Firefox below 96 and insecure origins, the card-page upgrade is lost, as inheritance and restore already are.
-3. **Release ordering.** Ship Q1 in or before the first public v5 release.
+3. **Release ordering.** Ship Q1 in or before the first public v5 release, and never serve a pre-fence v5 build on an origin after Q1 (§11).
 4. **Retention.** Confirm that 32 receipts is enough.
 5. **Copies awaiting WX review.** Upgrading a copy that sits in an unacknowledged WX receipt stays allowed in Q1. Q2 decides whether to block it.
 
@@ -538,6 +550,9 @@ Branch `q1/local-commands`, from `8afbabc`. Not pushed, merged or deployed.
 | `7a7d03e` | After review: `profile-fence.mjs` and its allowlist entry; the fenced lock in `app.mjs` (commands strict; `transact` and restore lenient) and in `playtest-supply-ui.mjs`; the `unsynced` reason; `tests/profile-fence.test.mjs`; smoke B4 at about 60 KB, B7 and B8 |
 | `19aa648` | After review: `restoredLocalProfile` and `store.replace` in `profile-store.mjs`, used by `restoreLocalProfile`; N24 |
 | `6f58d83` | After review: `receiptSummary` and `duplicateMessage`; the duplicate toast; N25; the receipt checks in smokes B2 and B4 |
+| `dac1e0a` | After the second review: `store.replace` re-reads the profile after a throwing write; the N24 land-then-throw test |
+| `a8db57c` | After the second review: `identity-conflict` names its cause (`other-card`, `other-card-changed`); N26; the N6 and N22 copy checks; smokes B2 and B4 |
+| The commit that adds §18.6 | After the second review: the §10.1 bypass limit and the pre-fence release rule (§11, §15, HANDOVER); N27 |
 
 The public allowlist now has 83 files (82, plus `profile-fence.mjs` after review).
 
@@ -557,7 +572,7 @@ The public allowlist now has 83 files (82, plus `profile-fence.mjs` after review
 6. **Preview shape.** `previewCommand` deep-freezes its result. `costs` and `effects` are `null` for `missing` and `maxed`. For `in-journey`, `coins` and `dust` they are filled in for information, and `request` is `null`.
 7. **Lookup input.** `readCommandReceipt` accepts the whole request object and ignores extra keys. A malformed lookup returns `unavailable` instead of throwing.
 8. **Test matrix N7, pending battle.** §7 step 8 checks blockers before the fingerprint. So a copy that entered a pending battle after the preview gives `rejected/blocked` with the in-journey message, not `stale`. It still writes nothing, and the test pins that.
-9. **Test matrix B2, "stale toast".** Under §4, a page that previewed the same copy at the same level as another tab's accepted upgrade gets `duplicate` (這次修練早已入帳…), and that is what the smoke asserts for that case. The 卡牌剛有變動 toast is asserted for a record change in another tab (a lock toggle gives `stale`) and for another copy committed in the same slot (`identity-conflict`).
+9. **Test matrix B2, "stale toast".** Under §4, a page that previewed the same copy at the same level as another tab's accepted upgrade gets `duplicate` (這次修練早已入帳…), and that is what the smoke asserts for that case. The 卡牌剛有變動 toast is asserted for a record change in another tab (a lock toggle gives `stale`). Another copy committed in the same slot (`identity-conflict`) was asserted with it too until §18.6; it now gets its own copy, which names that cause.
 10. **Smoke details.** `tools/command-smoke.mjs` refuses to run without `GAME_URL`; the older smokes default to 4177. It writes no screenshots.
 11. **Test-only helper.** `tests/support/profile-envelope.mjs` builds a valid profile exactly N bytes under the 4 MiB envelope. Its accounting matches the store's to the byte. N11 and N16 use it.
 
@@ -593,7 +608,7 @@ A review of `b6410e9` reported three defects, and a second reviewer reproduced e
    - **Fix.** The IndexedDB fence in §10.1. Commands and lookups hold it strictly, so they refuse as `rejected/unsynced` (lookup: `unavailable`) rather than decide on unproven bytes. `transact`, restore and the playtest supply page hold it leniently. In the Node model (N22) that also closes the older lost update between two plain `transact` writes, which predates Q1; no browser check targets that case.
 2. **Low: a restore near the 4 MiB limit replaced the recovery copy and then refused** (`19aa648`, §11).
    - **Cause.** `restoreLocalProfile` wrote `RECOVERY_KEY` before building the profile with the retired ledger and saving it. A backup within about 77–93 B of the limit then failed the envelope check, with a message that blamed the backup, after the previous recovery copy was gone. The banner then offered a recovery copy for a restore that never happened.
-   - **Fix.** `store.replace` checks the profile to save first, names the ledger in its refusal, writes the recovery copy only after that, and puts the previous copy back if the profile write fails.
+   - **Fix.** `store.replace` checks the profile to save first, names the ledger in its refusal, writes the recovery copy only after that, and puts the previous copy back if the profile write fails. §18.6 item 1 narrows that put-back to a write that is confirmed not to have landed.
    - **Not changed, on purpose.** Such a backup still does not restore onto a journey that has a ledger. Making room would mean leaving the ledger out of the envelope, but the full-profile fingerprints used by restore confirmation are bounded by the same 4 MiB, or raising the backup limit, which is a hosted change. Review found that only a hand-made backup gets this close: the largest save the game can produce measured 3.59 MB.
 3. **Low: a duplicate did not show the accepted receipt** (`6f58d83`, §9).
    - **Cause.** `runUpgrade` showed only 這次修練早已入帳，未有再次扣除資源。 and never read `result.receipt`, although §9 asked for the receipt's real before and after.
@@ -604,7 +619,7 @@ A review of `b6410e9` reported three defects, and a second reviewer reproduced e
 - New reason `rejected/unsynced`, with its own copy (§9).
 - Every write under `PROFILE_LOCK`, including the startup save, now also does one IndexedDB read and two IndexedDB writes. It waits up to 0.5 s when this tab is behind, and longer only if IndexedDB stalls (1.5 s per operation). Measurements are in §18.5.
 - A new IndexedDB database, `shanhai.profile.fence`, holds one digest record per origin. It is never exported or backed up.
-- An edit made outside the lock (for example in devtools) now makes the next upgrade refuse until a lenient write, such as a reload, records the fence again. Smoke B8 pins this.
+- An edit made outside the lock (for example in devtools) now makes the next upgrade in a tab that has received it refuse until a lenient write, such as a reload, records the fence again. Smoke B8 pins this in one tab. A tab that has not yet received the edit can still overwrite it (§10.1, N27).
 
 ### 18.5 Checks for the review fixes (Node 26.0.0 on macOS; headless; synthetic data only)
 
@@ -623,6 +638,36 @@ Source commits `7a7d03e`, `19aa648` and `6f58d83`, on `b6410e9`. Browser runs us
 
 **Not checked:** separate browser windows or processes; the Safari app, Firefox and physical devices; Node 22; `npm run build` and deploy dry runs; a browser without IndexedDB or one whose IndexedDB refuses writes (both only with Node fakes); a real `QuotaExceededError`; any hosted service.
 
+### 18.6 Fixes after the second review (2026-10-11)
+
+A second review of `37dad64` reported three low-severity defects, and a second reviewer reproduced each one independently. All three are fixed; none was skipped. The text above now includes the fixes.
+
+1. **A restore whose profile write landed and then threw lost the replaced journey** (`dac1e0a`, §11).
+   - **Cause.** `store.replace` put the previous recovery copy back after any throw from the profile write, as if nothing had landed. §7 step 11 and N12 treat a write that lands and then throws as real. In that case the restored journey was saved, and the replaced journey, with its command receipts, had no copy anywhere: not in `RECOVERY_KEY`, and not in an export, which reads storage. This regressed in `19aa648`; at `8afbabc` the copy was written first and never rolled back.
+   - **Fix.** After a throw, `replace` reads the profile again under the same lock. It puts the previous copy back only while the replaced bytes are still stored. When the restored bytes are stored, the restore landed: `replace` returns normally and the tab syncs to it. Anything else, including a re-read that throws, keeps the new recovery copy and reports the error.
+   - **Not changed.** When the outcome is unknown, `restoreLocalProfile` still rejects and the tab keeps painting the old journey until its next load, as at `8afbabc`; the recovery banner then offers the replaced journey. No mainstream browser is known to land a `localStorage` write and then throw.
+2. **§10.1 overstated what the fence does for a writer that bypasses it** (documentation; §10.1, §11, §15, §18.4, HANDOVER).
+   - **Cause.** The text said such a writer "does not let a strict holder decide on old bytes". The fence knows only writes recorded through it. A strict holder whose tab has not yet received a bypassing write still sees bytes that match the old record, so it commits on them and overwrites that write. It refuses only once the bytes have arrived (smoke B8).
+   - **Fix.** The contract and HANDOVER now state that limit, and §11 and §15 add the release rule: never serve a v5 build from before the fence on an origin that has served Q1. N27 pins both halves in the Node model. No code changed: a writer that records nothing cannot be detected before its bytes arrive.
+   - **Exposure.** No public build uses the v5 key (public v0.5.1 uses `shanhai.profile.v3`). The other route is a devtools edit in one tab followed by a commit in another within the delivery lag.
+3. **An identity conflict caused by another card said this card had changed** (`a8db57c`, §9).
+   - **Cause.** Every `identity-conflict` reused 卡牌剛有變動，未有扣除資源；請查看更新後的修練預覽。 When another tab upgraded a different copy in the same slot, this card was unchanged, its repainted page looked identical, and the player had to press again.
+   - **Fix.** The refusal names its cause. When the slot's receipt is for another copy, `commitLocked` previews this copy again, which is pure and runs inside the same lock. If that preview still matches the request, the copy is 另一個分頁剛為另一張卡完成修練；這張卡未有變動，未有扣除資源，請再按一次修練升級。 If this copy changed too or is now blocked, it is 另一個分頁剛為另一張卡完成修練，未有扣除資源；請查看更新後的修練預覽。 A receipt for this same copy at another level keeps 卡牌剛有變動. The reason stays `identity-conflict`, nothing is written, and there is still no automatic retry, so the extra press remains by design (§9).
+
+**Checks** (Node 26.0.0 on macOS; headless; synthetic data only). The worktree's server on 4193 still returned 404 for the three Q1 modules, so it was left untouched; browser runs used a separate `python3 tools/serve.py --port 4341`, stopped afterwards.
+
+- `node --test tests/*.test.mjs`: exit 0, **501/501** (498 plus the N24 land-then-throw test, N26 and N27). The exported trees of `dac1e0a` and `a8db57c` gave 499/499 and 500/500.
+- **Negative controls.** The new N24 test fails against `37dad64`'s `profile-store.mjs`, and N26 fails against its `local-commands.mjs`.
+- **The reviewers' scratch repros, rerun:**
+  - The restore repro now stops at "Missing expected exception", because a write that landed is reported as a restore. Its scenario, with assertions for the fixed contract, passes 2/2: the profile holds the restored journey and the recovery copy holds the replaced one.
+  - The identity probe now gets 另一個分頁剛為另一張卡完成修練；這張卡未有變動…, the copy's record and repainted costs are unchanged, and the next press commits.
+  - The bypass repro still commits on older bytes (99880 coins, not 104880). That is the documented limit, which N27 now pins.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK. `git diff --check`: clean.
+- `GAME_URL=http://127.0.0.1:4341 npm run test:commands`: exit 0, **10/10 groups in each engine** (system Google Chrome, Playwright WebKit). B2 and B4 assert the new `other-card` copy. In B7 the fenced lock read the previous write in 30/30 handoffs in both engines; the plain-lock control was stale in 29/30 (Chromium) and 18/30 (WebKit).
+- `tools/account-smoke.mjs` (including the restore `deepEqual`), `tools/profile-recovery-smoke.mjs` and `tools/backpack-smoke.mjs` in Chromium, against 4341: exit 0 each. Their 13 screenshots were deleted afterwards.
+
+**Not checked:** the other 11 `test:browser` suites and the other per-engine smokes, because the disk had about 300 MiB free and filled completely once during this work; a real browser whose `setItem` lands and then throws (none is known to); separate browser processes; the Safari app, Firefox and devices; `npm run build`, deploy dry runs and any hosted service.
+
 ## Appendix · test matrix
 
 Where each row is implemented. The `N` rows are Node tests and the `B` rows browser smoke groups.
@@ -634,7 +679,7 @@ Where each row is implemented. The `N` rows are Node tests and the `B` rows brow
 | N3 | Happy path: one `setItem(PROFILE_KEY)`; the save minus `commands` equals `upgradeInstance`; exact ledger and receipt | `tests/local-commands.test.mjs` |
 | N4 | Every `getItem`/`setItem` happens inside the lock callback | `tests/local-commands.test.mjs` |
 | N5 | A duplicate returns the original receipt with no write, also after another tab changes `battles` or maxes the copy | `tests/local-commands.test.mjs` |
-| N6 | Same ID with another uid or `toLevel` gives `identity-conflict`; a malformed request gives `invalid` without reading storage | `tests/local-commands.test.mjs` |
+| N6 | Same ID with another uid or `toLevel` gives `identity-conflict`, with the copy for its cause; a malformed request gives `invalid` without reading storage | `tests/local-commands.test.mjs` |
 | N7 | Stale: XP, level, battles, lock, printing or inheritance on the target gives `stale`; pending battle, sale and a balance drop give `blocked` (§18.2 item 8); a future slot gives `stale`; a balance gain alone commits | `tests/local-commands.test.mjs` |
 | N8 | Two tabs: the same preview spends once, and the second is `duplicate`; different copies in one slot give `identity-conflict`. Its origin is one coherent Map, so N22 repeats it with late delivery | `tests/local-commands.test.mjs` |
 | N9 | No lock gives `no-lock`, with no storage access | `tests/local-commands.test.mjs` |
@@ -652,12 +697,14 @@ Where each row is implemented. The `N` rows are Node tests and the `B` rows brow
 | N21 | A quote painted before another tab's level-up is `stale`, never charged at the new level | `tests/local-commands.test.mjs` |
 | N22 | Tabs that see each other's writes late: with a plain lock both commit, one upgrade is lost and a lookup says `not-committed` (control); with the fenced lock one commit and a `duplicate` or `identity-conflict`, the lookup finds the receipt, and lenient writers no longer drop each other's saves | `tests/profile-fence.test.mjs` |
 | N23 | Fence failures: bytes not current within the budget, a `writing` or malformed record, no IndexedDB, a stalled or refused fence write all refuse a commit before it runs, with nothing written; a lenient write heals them; a failed settle keeps the real result; a lenient holder never records its old bytes; the IndexedDB adapter keys one record and fails closed | `tests/profile-fence.test.mjs` |
-| N24 | Restore order: a backup that fits alone but not with the retired ledger is refused before the recovery copy or the profile changes; it restores on a ledger-free journey; a failed profile write puts the previous recovery copy back | `tests/profile-store.test.mjs` |
+| N24 | Restore order: a backup that fits alone but not with the retired ledger is refused before the recovery copy or the profile changes; it restores on a ledger-free journey; a profile write that did not land puts the previous recovery copy back; one that landed and then threw counts as restored and keeps the new copy, and other bytes or an unreadable re-read keep it too | `tests/profile-store.test.mjs` |
 | N25 | A duplicate's message names the stored receipt's levels and costs, not the stale quote | `tests/local-commands.test.mjs` |
+| N26 | An identity conflict names its cause: another copy in the slot with this one unchanged (the repainted quote matches and the next press commits), with this one changed or no longer affordable, or this copy's slot taken at another level | `tests/local-commands.test.mjs` |
+| N27 | A writer that bypasses the fence: refused once its bytes reach the strict holder's tab and kept after a lenient write; before they arrive, the strict holder commits on older bytes and overwrites it (the §10.1 limit) | `tests/profile-fence.test.mjs` |
 | B1 | One click: one write, `nextSeq` 2, 120×L and 6×L at L1 then L2; it survives reload | `tools/command-smoke.mjs` |
-| B2 | A stale card page is not charged: same copy upgraded elsewhere gives `duplicate`, whose toast and announcement name the accepted Lv.1 → Lv.2 · 120 金幣 · 6 靈砂, and a repaint; a lock toggle or another copy in the slot gives 卡牌剛有變動 | `tools/command-smoke.mjs` |
+| B2 | A stale card page is not charged: same copy upgraded elsewhere gives `duplicate`, whose toast and announcement name the accepted Lv.1 → Lv.2 · 120 金幣 · 6 靈砂, and a repaint; a lock toggle gives 卡牌剛有變動, and another copy in the slot gives 另一個分頁剛為另一張卡完成修練 | `tools/command-smoke.mjs` |
 | B3 | Two dispatched clicks give one level, one spend and one write | `tools/command-smoke.mjs` |
-| B4 | Two pages behind a held native `PROFILE_LOCK`: one commit and one `duplicate` that names the receipt. Repeated with about 60 KB saved, four rounds for the same copy and four for sibling copies in one slot | `tools/command-smoke.mjs` |
+| B4 | Two pages behind a held native `PROFILE_LOCK`: one commit and one `duplicate` that names the receipt. Repeated with about 60 KB saved, four rounds for the same copy and four for sibling copies in one slot, where the other page is told another card took the slot | `tools/command-smoke.mjs` |
 | B5 | A synthetic quota error changes no byte; an explicit retry commits once and survives reload | `tools/command-smoke.mjs` |
 | B6 | Without Web Locks the click is refused before any profile read or write | `tools/command-smoke.mjs` |
 | B7 | The fence across two real pages at 50 KB: the next holder reads the previous write in every handoff (a plain-lock control is reported, not asserted) | `tools/command-smoke.mjs` |

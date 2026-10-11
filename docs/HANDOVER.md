@@ -641,7 +641,11 @@ reason to replay or reverse the existing migrations casually.
   in `profile-fence.mjs`: `localStorage` is only eventually consistent between
   tabs, so the next lock holder waits for a digest the previous one recorded in
   IndexedDB ([LOCAL-COMMANDS §10.1](LOCAL-COMMANDS.md#101-read-after-write-fence-added-after-review)).
-  A new writer that bypasses it makes upgrades refuse until the next fenced write.
+  A writer that bypasses it (a devtools edit, or a pre-fence v5 build such as
+  `8afbabc` on the same origin) makes upgrades refuse only once its bytes reach
+  that tab; before then an upgrade can decide on older bytes and overwrite it,
+  as before the fence. Never serve a pre-fence v5 build on an origin that has
+  served Q1.
 - Keep private-backup writes revision-checked. **`PT409` is intentional**;
   replacing it with SQLSTATE `40001` caused PostgREST transaction retries.
   Ownership comes from `auth.uid()`; the account header only guards stale tabs.
