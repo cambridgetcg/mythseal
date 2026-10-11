@@ -25,17 +25,20 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 The separate local LZ-01 preview uses three original 2×2 portrait atlases (twelve
 characters) and one full-scene 小倩 AA under `assets/lz01/`. All four images were
 generated with the built-in imagegen tool, with no reference images supplied.
-On 2026-10-11 five special printings were generated with the owner's approval:
-嬰寧, 陳氏 and 王六郎 AA, 畫皮之鬼 墨卷 INK and 聶小倩 天工 TR. They were generated
-with Codex CLI's built-in imagegen tool (`image_gen__imagegen`), again with no
-reference images, and copied byte-for-byte. Four are bound in the preview. 嬰寧
-AA was unbound the same day because the card's title and name are printed over
-王子服; its file is kept unchanged, served by neither allowlist, and the slot is
-planned again with a revised brief. 陸判 INK is still planned and has no file.
-All nine images are preview-only and do not grant or change owned cards.
+On 2026-10-11 six special printings were generated with the owner's approval:
+嬰寧, 陳氏 and 王六郎 AA, 畫皮之鬼 and 陸判 墨卷 INK, and 聶小倩 天工 TR. They were
+generated with Codex CLI's built-in imagegen tool (`image_gen__imagegen`), again
+with no reference images, and copied byte-for-byte. Five are bound in the
+preview; 陸判 INK (`assets/lz01/lupan-ink.png`) came from a third prompt, after
+two earlier prompts gave red marks that read as letters or numerals, and was
+checked on the card before binding. 嬰寧 AA was unbound the same day because the
+card's title and name are printed over 王子服; its file is kept unchanged and
+served by neither allowlist. Three candidates from its revised card-fit brief
+were reviewed and none was selected, so that slot is still planned.
+All ten images are preview-only and do not grant or change owned cards.
 See [exact prompts, cell mappings and provenance](ART-LZ01.md) and the
 [set design](EXPANSION-LZ01.md). No exact image-model identifier was exposed:
-the tool results have no model field. Each of the nine files does embed a
+the tool results have no model field. Each of the ten files does embed a
 signed C2PA content credential from the generating service, naming the
 creating agent `ChatGPT`, version `gpt-image` (a model-family label), and
 recording an invisible watermark; see

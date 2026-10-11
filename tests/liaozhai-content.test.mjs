@@ -117,11 +117,12 @@ test('preview-only content exports have a fixed sample and bind only the selecte
   assert.deepEqual(LZ01_SPECIALS.map(print => [print.printId, print.src]), [
     ['lz01-001-aa1', 'assets/lz01/xiaoqian-aa.png'],
     ['lz01-001-tr1', 'assets/lz01/xiaoqian-treasure.png'],
+    ['lz01-006-ink1', 'assets/lz01/lupan-ink.png'],
     ['lz01-008-ink1', 'assets/lz01/huapi-ink.png'],
     ['lz01-009-aa1', 'assets/lz01/chenshi-aa.png'],
     ['lz01-011-aa1', 'assets/lz01/liulang-aa.png'],
   ], 'Bind only selected files; 小倩 AA stays first');
-  assert.deepEqual(LZ01_PLANNED_SPECIALS.map(print => print.printId), ['lz01-004-aa1', 'lz01-006-ink1'], '嬰寧 AA was unbound after the card-fit review; 陸判 INK has no selected image');
+  assert.deepEqual(LZ01_PLANNED_SPECIALS.map(print => print.printId), ['lz01-004-aa1'], '嬰寧 AA was unbound after the card-fit review and no round-three candidate was selected');
   const code = { aa: 'aa', ink: 'ink', treasure: 'tr' };
   const all = [...LZ01_SPECIALS, ...LZ01_PLANNED_SPECIALS];
   assert.equal(LZ01_CARDS.length + all.length, 19, 'The set checklist is 12 BASE + 4 AA + 2 INK + 1 TR');
@@ -148,7 +149,7 @@ test('preview-only content exports have a fixed sample and bind only the selecte
   }
   for (const print of LZ01_PLANNED_SPECIALS) assert.equal(Object.hasOwn(print, 'src'), false, `${print.printId} is planned, not bound`);
   assert(Object.isFrozen(LZ01_SPECIALS) && Object.isFrozen(LZ01_PLANNED_SPECIALS) && Object.isFrozen(LZ01_TREATMENTS));
-  assert.equal(imagePaths.size, 8, 'Three atlases and five bound special printings');
+  assert.equal(imagePaths.size, 9, 'Three atlases and six bound special printings');
 
   const preview = new Set(JSON.parse(read('hosting/preview-assets.json')));
   const publicAssets = new Set(JSON.parse(read('hosting/public-assets.json')));

@@ -98,6 +98,67 @@ The C2PA, focus-ring and ornament probes were scratch scripts outside the
 repository. Physical phones, native Safari, the owner's art review and new
 generations for the two planned slots remain open.
 
+**2026-10-11 round three · addendum.** Started from `b42ee4a` (the
+strike-only 陸判 INK prompt). Three candidates were generated for each planned
+slot from the round-three prompts, and two read-only reviews judged them, one
+for fidelity and safety and one for craft and card fit. 陸判 INK
+(`lz01-006-ink1`) round-three candidate 3 was bound as
+`assets/lz01/lupan-ink.png`. None of the three 嬰寧 AA candidates was selected,
+so `lz01-004-aa1` stays planned and `yingning-aa.png` stays unbound. Hashes,
+archive paths and reasons for all six candidates are in the
+[嬰寧 AA](ART-LZ01.md#lz01-004-aa1--嬰寧-aa--花間藏笑) and
+[陸判 INK](ART-LZ01.md#lz01-006-ink1--陸判-ink--夜酌朱批) briefs, and the bound
+file has its own
+[provenance block](ART-LZ01.md#lz01-006-ink1--陸判-ink--夜酌朱批-1). No engine,
+catalogue, save, service or public-file change. The checks below ran on this
+commit's tree before it was committed.
+
+- The repository copy equals its archive original (`cmp`; SHA-256
+  `56cff3e4…` on both, 1024×1536, 3,266,124 bytes). For all six round-three
+  candidates, an independent read of each rollout found one
+  `image_gen__imagegen` call whose prompt equals the brief byte for byte,
+  `transparent_background: false` as its only other argument, an identical
+  `revisedPrompt`, no model field, and a base64 result that decodes to the
+  archive file. A read-only parse of the bound PNG found the chunks `IHDR`,
+  `caBX`, `IDAT` and `IEND` with valid CRCs. Its C2PA manifest names
+  `ChatGPT` / `gpt-image` (`c2pa.created` 2026-10-11T10:24:15Z) and records
+  `c2pa.watermarked.unbound`, and its data hash equals the file's SHA-256
+  without `caBX`.
+- Data: `lz01-006-ink1` moved from `LZ01_PLANNED_SPECIALS` to `LZ01_SPECIALS`
+  (between 小倩 TR and 畫皮 INK, in card order) with `src` and `墨卷 INK`; only
+  `assets/lz01/lupan-ink.png` was added to `hosting/preview-assets.json`. The
+  static count and meta description in `liaozhai.html` now read 「12 款本畫＋6
+  款特別畫作先行（異畫 3、墨卷 2、天工 1）；嬰寧異畫仍在規劃中。」 and 「六款」.
+- `node --test tests/*.test.mjs`: **456/456**, exit 0, on Node 26.0.0. The LZ
+  content test now expects six bound and one planned print IDs and nine image
+  paths, and checks the new file's header, preview-list membership, absence
+  from the public list and SHA-256 against ART-LZ01.
+- Python (3.14.6): **9 tests OK**.
+- `npm run build`: **80 public files**, manifest `98028a3a…`, unchanged; no
+  `dist` path or file content mentions `lz01`, `liaozhai` or `lupan`.
+- The loopback `serve.py --port 4196` was stopped and restarted from this
+  worktree, because it reads the allowlist only at startup. Afterwards
+  `assets/lz01/lupan-ink.png` returns 200 with the committed bytes and
+  `assets/lz01/yingning-aa.png` still returns 404.
+- `GAME_URL=http://127.0.0.1:4196 npm run test:liaozhai`: **14 groups per
+  engine** in Chromium and WebKit (Playwright 1.63.0), exit 0, 20 screenshots
+  each (two more than before, the 陸判 INK dialog at 1440×900 and 390×844), with
+  no errors and no forbidden requests. The smoke now lists six catalogue links
+  in card order, checks the new printing's own file, print ID, 墨卷 label and
+  dark text with unchanged stats, and now also opens 陸判 at the three phone
+  viewports (390×844, 360×740 and 844×390).
+- Visual review: the binding session read the new dialog captures in both
+  engines at both widths. Both faces and the brush hand sit clear of 夜酌朱批 and
+  陸判; the vermilion strike shows as faint pink under the paper shade, just
+  above the title. The ★ and faction chips partly cover the two small
+  background vignettes.
+
+Evidence (ignored): `test-results/lz01-r3-{unit,python,build,browser}.log`
+and `liaozhai-{chromium,webkit}-smoke.json` with their screenshots. The
+rollout and C2PA checks were scratch scripts outside the repository.
+Physical phones, native Safari, the owner's art review and a new 嬰寧 AA prompt
+revision and generation remain open.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

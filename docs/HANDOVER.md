@@ -214,6 +214,21 @@ in `hosting/preview-assets.json` (four code, eight images), still none in the
 public list. Provenance, including each file's embedded C2PA credential, is in
 [ART-LZ01](ART-LZ01.md#provenance--special-printings--2026-10-11).
 
+**2026-10-11 round-three addendum:** 陸判 墨卷 INK (`lz01-006-ink1`) is now bound
+as `assets/lz01/lupan-ink.png`, round three candidate 3 of 3 from the
+strike-only prompt, after five earlier candidates were rejected because their
+red marks read as letters or numerals. It passed the card-fit check in the
+dialog at 1440 and 390 in Chromium and WebKit. Six special works are bound, and
+the preview shows eighteen of the nineteen printings; the rendered count is
+「12 款本畫＋6 款特別畫作先行（異畫 3、墨卷 2、天工 1）；嬰寧異畫仍在規劃中。」. The
+three 嬰寧 AA candidates from its card-fit brief were reviewed and none was
+selected: each puts 王子服's feet below the card-fit line, and one also shows the
+excluded blossom in his hand. The slot stays planned, `yingning-aa.png` stays
+unbound in the tree, and its brief records all three hashes and reasons. The LZ
+preview now has thirteen paths in `hosting/preview-assets.json` (four code, nine
+images), still none in the public list. The 4196 loopback server was restarted
+from this worktree to reread the allowlist.
+
 Use `GAME_URL=http://127.0.0.1:4178 npm run test:liaozhai` (or the server's actual
 loopback URL) for isolated Chromium/WebKit preview checks. `npm test` includes
 the content/dependency boundary checks. During this session the original game

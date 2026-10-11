@@ -4,10 +4,10 @@ Created 2026-09-23 for the local LZ-01 concept preview. Direction selected by th
 owner: **詭美＋人情：雨夜、狐鬼、燈火與相守**.
 
 Generation uses the built-in imagegen tool, with no supplied reference images.
-The five special printings added on 2026-10-11 were generated with Codex CLI's
+The six special printings added on 2026-10-11 were generated with Codex CLI's
 built-in imagegen tool (see [their provenance](#provenance--special-printings--2026-10-11)).
 Neither tool record has a model field, and no exact image-model identifier is
-exposed. Each of the nine files does embed a signed C2PA content credential from
+exposed. Each of the ten files does embed a signed C2PA content credential from
 the generating service, which names the creating agent `ChatGPT`, version
 `gpt-image` (a model-family label, not an exact version), and records an
 invisible watermark; see [embedded content credentials](#embedded-content-credentials-c2pa).
@@ -25,11 +25,12 @@ compositions; see [the set design](EXPANSION-LZ01.md) for primary-text anchors.
 | `assets/lz01/xiaoqian-aa.png` | 聶小倩 · 燈前相守 — full scene AA (`lz01-001-aa1`) |
 | `assets/lz01/xiaoqian-treasure.png` | 聶小倩 · 歸燈 — 天工 TR (`lz01-001-tr1`, 2026-10-11) |
 | `assets/lz01/yingning-aa.png` | 嬰寧 · 花間藏笑 — full scene AA (`lz01-004-aa1`, 2026-10-11); unbound after the card-fit review, kept unchanged, served by neither allowlist |
+| `assets/lz01/lupan-ink.png` | 陸判 · 夜酌朱批 — 墨卷 INK (`lz01-006-ink1`, 2026-10-11, third prompt) |
 | `assets/lz01/huapi-ink.png` | 畫皮之鬼 · 墨下另一面 — 墨卷 INK (`lz01-008-ink1`, 2026-10-11) |
 | `assets/lz01/chenshi-aa.png` | 陳氏 · 仍有人守門 — full scene AA (`lz01-009-aa1`, 2026-10-11) |
 | `assets/lz01/liulang-aa.png` | 王六郎 · 留人間一岸 — full scene AA (`lz01-011-aa1`, 2026-10-11) |
 
-Atlas cells use an exact 2×2 grid in reading order. All nine selected files are
+Atlas cells use an exact 2×2 grid in reading order. All ten selected files are
 **1024×1536 PNG**, copied byte-for-byte from the tool's private image archive.
 The three atlases contain twelve 512×768 cells. Visual inspection confirmed
 the reading order, complete faces, clean grid boundaries and absence of baked
@@ -46,6 +47,7 @@ derivatives remain separate checks.
 | `xiaoqian-aa.png` | `6d4fcaca51d2aa65fb5e588bfa7d3bea39b26d5479fe1bc0c627c0457de81932` |
 | `xiaoqian-treasure.png` | `646a9fcd789907f645c3c6087c27881537ca3d87305099ed48df06d38929e588` |
 | `yingning-aa.png` | `ecf9df417029680a39ceb82983a67a36097141dcd897e21e8ee4208aa8f64249` |
+| `lupan-ink.png` | `56cff3e4384b3360f835e44daa27602e9be0cf4761dd0213a87542cb354d2f67` |
 | `huapi-ink.png` | `024f9d4be198a89d6ef6bba5c8529c44bc95160bb245c151a848fe00efe16e1d` |
 | `chenshi-aa.png` | `5dd7d6e52d058bd2ae6cc0bbfbbbafada766d5722d7b0fb4b0c9a9fe85b52ba3` |
 | `liulang-aa.png` | `277b2a156a073f9f9b1d8808051521ed7c41bb6a6c424b48d3a22a0eafbc695b` |
@@ -53,8 +55,8 @@ derivatives remain separate checks.
 `tests/liaozhai-content.test.mjs` reads this table and fails if the SHA-256 of
 any PNG under `assets/lz01/` differs from its row, if a bound file is missing
 from the preview allowlist, or if an unbound file is in either allowlist. The
-nine files total about 26.0 MiB (27,230,280 bytes). The eight bound files
-(23,578,177 bytes) are in the preview allowlist; `yingning-aa.png` has been
+ten files total about 29.1 MiB (30,496,404 bytes). The nine bound files
+(26,844,301 bytes) are in the preview allowlist; `yingning-aa.png` has been
 unbound since the 2026-10-11 card-fit review (see
 [its brief](#lz01-004-aa1--嬰寧-aa--花間藏笑)) and is in neither list. No image
 compression, crop rewriting or image editing was performed. Original generated
@@ -64,7 +66,7 @@ while retaining these originals and their hashes.
 
 ### Embedded content credentials (C2PA)
 
-Checked on 2026-10-11 with a read-only parse of each file. Every one of the nine
+Checked on 2026-10-11 with a read-only parse of each file. Every one of the ten
 PNGs has exactly the chunks `IHDR`, `caBX`, `IDAT` and `IEND`, all with valid
 CRCs. The `caBX` chunk holds a C2PA manifest whose claim generator is
 `OpenAI Media Service API` (`c2pa_rs` 0.79.2, C2PA 2.2.0), signed with an
@@ -79,7 +81,7 @@ timestamp tokens. Its `c2pa.actions.v2` assertion lists three actions:
 
 The manifest's `c2pa.hash.data` assertion equals the SHA-256 of each file with
 the `caBX` chunk excluded, so the credential is bound to these exact bytes. The
-COSE signature itself was not cryptographically verified. For the five
+COSE signature itself was not cryptographically verified. For the six
 2026-10-11 files, the base64 `result` of the image call in each rollout decodes
 to the repository bytes, `caBX` included, so the credential came from the tool
 and was not added afterwards. The files were copied unchanged, which keeps the
@@ -97,6 +99,7 @@ decision (see the [pipeline](CONTENT-RELEASE-PIPELINE.md#2-插畫製作與可重
 | `liulang-aa.png` | 2026-10-11T09:04:18Z |
 | `huapi-ink.png` | 2026-10-11T09:04:55Z |
 | `yingning-aa.png` | 2026-10-11T09:05:56Z |
+| `lupan-ink.png` | 2026-10-11T10:24:15Z |
 
 `gpt-image` names a model family, not an exact model version. Each provenance
 block below therefore records the credential and keeps the exact model
@@ -133,7 +136,7 @@ Use case: stylized-concept. Asset type: full scene alternate-art portrait for an
 
 ## Specials briefs · 2026-10-10
 
-**Status · 2026-10-11: four generated and bound, two planned.** These are
+**Status · 2026-10-11: five generated and bound, one planned.** These are
 the briefs for the six remaining LZ-01 special printings listed in
 [the set design](EXPANSION-LZ01.md#proposed-printing-checklist-19-not-19-rules-cards).
 The owner approved generating them with Codex's built-in imagegen. 嬰寧 AA,
@@ -142,14 +145,17 @@ from their unchanged brief prompt, and one candidate per slot was selected and
 copied byte-for-byte under `assets/lz01/` (see
 [provenance](#provenance--special-printings--2026-10-11)). 陳氏 AA, 王六郎 AA,
 畫皮之鬼 INK and 聶小倩 TR are bound in `liaozhai-cards.mjs` as `LZ01_SPECIALS`
-and listed in `hosting/preview-assets.json` only. **嬰寧 AA (`lz01-004-aa1`)
-was unbound the same day:** on the card face its title and name are printed
-over 王子服, the second figure of the drawn moment. Its file stays in the
-repository unchanged, but nothing points at it and neither allowlist lists it;
-the slot is planned again with a revised prompt (see its brief). **陸判 INK
-(`lz01-006-ink1`) is still planned:** five candidates from two prompts were
-reviewed and none was selected, so it has no file, no preview binding and no
-allowlist entry. The briefs below were written
+and listed in `hosting/preview-assets.json` only. **陸判 INK (`lz01-006-ink1`)
+was bound later the same day** as `assets/lz01/lupan-ink.png`, in the same
+way: after five candidates from two earlier prompts were rejected, candidate 3
+of 3 from the third (strike-only) prompt was selected after a card-fit check
+(see [its provenance](#lz01-006-ink1--陸判-ink--夜酌朱批-1)). **嬰寧 AA
+(`lz01-004-aa1`) was unbound the same day:** on the card face its title and
+name are printed over 王子服, the second figure of the drawn moment. Its file
+stays in the repository unchanged, but nothing points at it and neither
+allowlist lists it. Three candidates from the revised card-fit prompt were
+reviewed and none was selected, so the slot is still planned (see its brief).
+The briefs below were written
 by a session that could not generate images. The generating route is the
 repository's built-in imagegen ([pipeline](CONTENT-RELEASE-PIPELINE.md#2-插畫製作與可重建加工)).
 Treat each prompt as a plan: if the generation prompt changes, record the text
@@ -201,10 +207,10 @@ five slots were generated later that day; see the status note above.
 
 | Print ID | Card · slot | Title | File (status 2026-10-11) | Source section | Verified quote (≤20 字) |
 | --- | --- | --- | --- | --- | --- |
-| `lz01-004-aa1` | 嬰寧 · AA 異畫 | 花間藏笑 | `assets/lz01/yingning-aa.png` (unbound; planned again) | [卷二・嬰寧](https://zh.wikisource.org/wiki/聊齋志異/第02卷#嬰寧) | 「仰視，則嬰寧在上。見生來，狂笑欲墮」 |
+| `lz01-004-aa1` | 嬰寧 · AA 異畫 | 花間藏笑 | `assets/lz01/yingning-aa.png` (unbound; planned again; no round-three candidate selected) | [卷二・嬰寧](https://zh.wikisource.org/wiki/聊齋志異/第02卷#嬰寧) | 「仰視，則嬰寧在上。見生來，狂笑欲墮」 |
 | `lz01-009-aa1` | 陳氏 · AA 異畫 | 仍有人守門 | `assets/lz01/chenshi-aa.png` (bound) | [卷一・畫皮](https://zh.wikisource.org/wiki/聊齋志異/第01卷#畫皮) | 「陳氏拜迎于門，哭求回生之法」 |
 | `lz01-011-aa1` | 王六郎 · AA 異畫 | 留人間一岸 | `assets/lz01/liulang-aa.png` (bound) | [卷一・王六郎](https://zh.wikisource.org/wiki/聊齋志異/第01卷#王六郎) | 「僕憐其抱中兒，代弟一人，遂殘二命」 |
-| `lz01-006-ink1` | 陸判 · INK 墨卷 | 夜酌朱批 | `assets/lz01/lupan-ink.png` (planned; no file) | [卷二・陸判](https://zh.wikisource.org/wiki/聊齋志異/第02卷#陸判) | 「朱獻窗稿，陸輒紅勒之，都言不佳」 |
+| `lz01-006-ink1` | 陸判 · INK 墨卷 | 夜酌朱批 | `assets/lz01/lupan-ink.png` (bound; third prompt) | [卷二・陸判](https://zh.wikisource.org/wiki/聊齋志異/第02卷#陸判) | 「朱獻窗稿，陸輒紅勒之，都言不佳」 |
 | `lz01-008-ink1` | 畫皮之鬼 · INK 墨卷 | 墨下另一面 | `assets/lz01/huapi-ink.png` (bound) | [卷一・畫皮](https://zh.wikisource.org/wiki/聊齋志異/第01卷#畫皮) | 「舉皮如振衣狀，披于身，遂化為女子」 |
 | `lz01-001-tr1` | 聶小倩 · TR 天工 | 歸燈 | `assets/lz01/xiaoqian-treasure.png` (bound) | [卷二・聶小倩](https://zh.wikisource.org/wiki/聊齋志異/第02卷#聶小倩) | 「黃昏告退，輒過齋頭，就燭誦經」 |
 
@@ -213,10 +219,11 @@ File names follow the existing `xiaoqian-aa.png` pattern.
 pattern to BASE atlas paths and to every bound special `src`, and also checks
 each bound file's PNG signature, its 1024×1536 header and its SHA-256 against
 the table above. `-treasure` follows the WX-01 TR file
-`assets/expansion/wukong-treasure.png`. `lupan-ink.png` is still only a proposed
-name; nothing may point at it until a selected file exists. `yingning-aa.png`
-exists but is unbound. If a regenerated 嬰寧 AA is selected, give it a new name
-such as `yingning-aa2.png`, so that no committed path ever changes bytes; the
+`assets/expansion/wukong-treasure.png`. `lupan-ink.png` was first proposed with
+the brief and used only once a selected file existed (2026-10-11, third
+prompt). `yingning-aa.png` exists but is unbound. If a regenerated 嬰寧 AA is
+selected, give it a new name such as `yingning-aa2.png`, so that no committed
+path ever changes bytes; the
 unbound file can then be removed, because its bytes stay in Git history (commit
 `3c07dfe`) and in the private archive.
 
@@ -245,8 +252,12 @@ unbound file can then be removed, because its bytes stay in Git history (commit
   widths. The five prompts sent on 2026-10-11 asked only for a quiet bottom
   fifth. In the four still bound every face and the drawn action clear the
   text block (in 陳氏 AA only the faceless Daoist's lower robe sits behind the
-  title and name); 嬰寧 AA did not and was unbound. The two planned prompts
-  below include this rule.
+  title and name); 嬰寧 AA did not and was unbound. The two round-three
+  prompts below include this rule. In the 陸判 INK candidate bound from one of
+  them, every face, hand and the brush sit above about 55%, and only props, the
+  lower drafts and the strike's tail sit under the paper shade, clear of the
+  lettering. None of the three 嬰寧 AA candidates from the other kept 王子服
+  above 55%; see their record in the brief.
 - Reuse each character's BASE description from the prompts above so the
   printing reads as the same identity. Treatments do not change rules.
 - Do not invent proper names for the unnamed Daoist, the fisherman or the dead.
@@ -263,7 +274,8 @@ robe is behind 寧. His call 「勿爾，墮矣！」 is the drawn moment, so it
 figure is overprinted. Moving the crop cannot fix this (see the card-fit rule
 above). The file is kept unchanged but is unbound and in neither allowlist; its
 provenance block below remains the record. The prompt below was revised for
-card fit and has not been used yet.
+card fit. Three candidates were generated from it in round three and none was
+selected (see the round-three record below), so the slot stays planned.
 
 - **Verified anchor:** The next day (「次日，至舍後」) 王子服 walks into the small
   garden behind the house: 「有園半畝，細草鋪氈，楊花糝徑」, and inside it
@@ -294,6 +306,72 @@ card fit and has not been used yet.
   "only Wang Zifu is small" became "smaller than Yingning but not tiny", and
   the quiet zone grew from the bottom fifth to the lower two fifths. The scale
   relationship was always invented composition, not text.
+- **Round three · 2026-10-11, card-fit prompt:** three candidates were
+  generated from the prompt below (SHA-256 `00bdf1f605a8…`, the brief as
+  committed in `0ab6819`; 嬰寧 had no round two) by the route recorded in
+  [the 陸判 INK provenance block](#lz01-006-ink1--陸判-ink--夜酌朱批-1): Codex CLI
+  0.162.1, `image_gen__imagegen`, `transparent_background: false`, the tool
+  prompt and the returned `revisedPrompt` byte-identical to the brief, no model
+  field and no input images. The text sent to the agent is the fixed wrapper
+  used throughout this file around this prompt (SHA-256 `91291d2c765b…`). All
+  three are 1024×1536 and carry the same kind of C2PA credential as the bound
+  files (`ChatGPT` / `gpt-image`). The binding session re-read each rollout and
+  decoded each image result to the archive bytes.
+  - r3-c1: SHA-256 `639f2b079933ffb379e23efa507d6300b7692bee05ada1df895c1600663b3b43`,
+    3,666,408 bytes, generated 2026-10-11T10:22:07Z, session
+    `01a12a7a-8108-7730-b3fd-44b3e77a6368`, archive
+    `~/.codex/generated_images/01a12a7a-8108-7730-b3fd-44b3e77a6368/exec-8146d2c4-6544-44b9-a035-caa9876f67a6.png`
+  - r3-c2: SHA-256 `ac078ad0cc16c2800bf81c845c4c5f5862da97531ca274769a085ef2fdbe9a80`,
+    3,972,456 bytes, generated 2026-10-11T10:23:37Z, session
+    `01a12a7b-fc1b-7de2-8ea1-e52f570bb8cb`, archive
+    `~/.codex/generated_images/01a12a7b-fc1b-7de2-8ea1-e52f570bb8cb/exec-6f79c7fa-dd65-4df6-9c45-8da89c377a20.png`
+  - r3-c3: SHA-256 `94e1ba7f22c01f69a10e0c34df777bf4a7b02e9ef3ab2f7daf7cd372127a591c`,
+    3,953,161 bytes, generated 2026-10-11T10:25:08Z, session
+    `01a12a7d-5960-79c0-82c5-8f849fda0ae2`, archive
+    `~/.codex/generated_images/01a12a7d-5960-79c0-82c5-8f849fda0ae2/exec-91eaab38-c8cd-46bb-8f31-01e6ae6d41a3.png`
+
+  Two read-only reviews judged them, one for fidelity and safety and one for
+  craft and card fit. The craft review showed each candidate on the card in
+  the dialog at 1440 and 390 widths in Chromium and WebKit and measured the
+  lettering in image pixels: the title starts at about y871 (390) or y915
+  (1440) and the name at about y954 or y990, against the card-fit line at
+  y845 (55%). In all three the reviews found no text, numerals, seals,
+  signature or visible watermark, including in the corners (r3-c1's window is
+  borderline; see below); everyone is fully clothed and nothing is sexual or
+  gory; both figures have human ears and no fox features; there is no
+  touching and no fall. In each, 嬰寧 laughs in the tree with one hand on the
+  trunk and one on a branch, 王子服 stands on the path raising one open hand, and willows,
+  catkins and a thatched hut ringed by blossom match 「楊花糝徑」 and
+  「花木四合其所」. But in all three 王子服's lower robe and feet reach about
+  61–64% of the image height, below the card-fit line. None was selected; the
+  workflow orchestrator kept the slot planned.
+  - r3-c1 fails card fit at 390 in both engines. 王子服 runs from about y620 to
+    y988 (40–64%); his robe's left edge meets the end of the title 花間藏笑 and
+    his left foot runs into the top of the name box, so on the card it touches
+    寧. Its hut window is borderline: at 5–10× its slatted lattice loosely
+    resembles columns of pseudo-text, although at 1–3× it reads as a
+    paper-backed lattice. A Japanese-style stone lantern stands in the left
+    corner again, and the door panes look like glass.
+  - r3-c2 has the cleanest card fit (王子服 at y650–931, clear of every glyph
+    in all four renders), but his lowered hand holds a small reddish-brown
+    dried sprig, still attached at his fingers at 2×, 5× and 8×. It reads as
+    the withered blossom he brings out only after her laughter stops
+    (「生俟其笑歇，乃出袖中花示之」), which breaks the brief's main exclusion and
+    the prompt's empty hands.
+  - r3-c3 has the strongest moment: raised brows and an open mouth make
+    王子服 read as alarmed (「勿爾，墮矣！」), she leans furthest out with her
+    head thrown back (「狂笑欲墮」), and both his hands are empty. The fidelity
+    review picked it; the craft review ranked it only as a fallback. It clears
+    every glyph with little room: 王子服 runs to about y980 (64%), so his knees
+    and feet stand level with the title and name rows, about 10px right of the
+    390 name box, and he ends about 4% below the prompt's lower-two-fifths
+    line. An invented hooded grey stone statue in a small wooden shrine in the
+    dim left corner (about x80–110, y625–715) looks like a Jizō or Buddhist
+    figure and can read as a small third figure at card size.
+
+  None was committed; all three stay in the private archive. The prompt below
+  is unchanged. Another round needs a revision that keeps 王子服's feet above
+  about 55% (y845); that revision has not been written.
 
 ```text
 Use case: stylized-concept. Asset type: full scene alternate-art portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Yingning: Laughter Hidden among Flowers. A half-acre back garden behind a country house: fine grass like a soft carpet, a narrow path dusted with drifting willow catkins, and a small three-bay thatched hut ringed on all sides by flowering trees; abundant pale pink and white spring blossom fills much of the canvas as breathing space. High in a blossoming tree in the upper part of the image, Yingning, a fully clothed Chinese teenage girl from the classical story, simple fresh green robes and half-tied dark hair, is caught laughing so helplessly she almost loses her balance, one hand gripping a branch, petals shaken loose around her; her bright natural laughing face catches soft warm spring light and stays clearly readable at small card size; her head is about one tenth of the image height, placed in the upper third. On the path below the tree, a little to one side and in the middle distance, Wang Zifu, a fully clothed teenage scholar in muted warm russet cotton robes, has stopped mid-stroll and looks up in alarm, calling to her to be careful, one empty hand raised and the other empty at his side; a respectful distance separates them. His whole figure, from head to feet, stands in the middle band of the image and ends above the lower two fifths, and his face and raised hand stay readable at small card size. Humour, surprise and gentle concern, with one softly dim shaded corner of the garden hinting at a quieter hidden history. Clear vertical depth: Wang Zifu is smaller than Yingning but not tiny, Yingning stays large enough to read, and generous negative space of blossom surrounds them; the lower two fifths of the image are open quiet grass, path and fallen petals with no figure and no cropped limbs, because card text is printed over them. Exquisite painterly Chinese literary fantasy with ink wash texture under fine detail; restrained celadon, blossom ivory, pale peach, warm amber and a touch of aged vermilion. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, non-sexual, no fox ears or tails, no embrace or touching, no romantic gaze, no gore. No text, signatures, logos, watermark, numbers, borders or UI.
@@ -366,12 +444,13 @@ Use case: stylized-concept. Asset type: full scene alternate-art portrait for an
 
 ### lz01-006-ink1 · 陸判 INK · 夜酌朱批
 
-**Status · 2026-10-11: still planned.** No candidate has been selected, so no
-file exists and nothing is bound or allowlisted. Five candidates were
-reviewed: three from the first prompt and two from the second (see the notes
-below). The prompt below is the round-three prompt: it keeps the card-fit rule
-and draws the red marks as strike-strokes only, with no rings. It has not been
-used yet.
+**Status · 2026-10-11: generated and bound** as `assets/lz01/lupan-ink.png`
+(round three, candidate 3 of 3, preview only; see its
+[provenance block](#lz01-006-ink1--陸判-ink--夜酌朱批-1)). Eight candidates were
+reviewed: three from the first prompt, two from the second and three from the
+third (see the notes below). The prompt below is the round-three prompt that
+produced the bound file: it keeps the card-fit rule and draws the red marks
+as strike-strokes only, with no rings.
 
 - **Verified anchors:** 陸判 marks 朱爾旦's essays in red and judges them all poor:
   「朱獻窗稿，陸輒紅勒之，都言不佳」. Their first night: 「挑燈獨酌。忽有人搴簾入」.
@@ -449,6 +528,41 @@ used yet.
   illegible grey texture; his brush is held just above them after the strike.
   The anchors, colour rule, figures, vignettes, card-fit sentence and closing
   exclusions are unchanged.
+- **Third round · 2026-10-11:** three candidates were generated from that
+  prompt (SHA-256 `1fb40e5dc8c9…`, the brief as committed in `b42ee4a`) by the
+  route recorded in the provenance block. Two read-only reviews judged them,
+  one for fidelity and safety and one for craft and card fit; the craft
+  review showed each on the card in the dialog at 1440 and 390 widths in
+  Chromium and WebKit. In all three the only vermilion is the beard wash, the
+  lamp flame, the ink box or brush and the strike itself, with no seal, ring
+  or dot; the lower paper carries no signature; 陸判's face has the faint
+  grey-green tint; nobody holds a blade and nothing shows blood, a heart or a
+  head exchange. Every face, hand and the brush sit above about 55%.
+  - r3-c1: SHA-256 `556a27d25d6572f04756f2d5ab624c632211b02af40dbcee3b1e9fe426a59ff6`,
+    3,224,186 bytes, generated 2026-10-11T10:21:52Z, session
+    `01a12a7a-9335-7f31-a88c-5b289f36a974`, archive
+    `~/.codex/generated_images/01a12a7a-9335-7f31-a88c-5b289f36a974/exec-7ed0a6e3-a20e-496a-bd68-cf84feb09f98.png`
+  - r3-c2: SHA-256 `37e154b9c4576671116daa46c9804a4a5d1e9fb3a423148387c7592b37c9ccd5`,
+    3,294,785 bytes, generated 2026-10-11T10:23:01Z, session
+    `01a12a7b-c1a6-7732-bc90-fd37780db8f4`, archive
+    `~/.codex/generated_images/01a12a7b-c1a6-7732-bc90-fd37780db8f4/exec-b3d2212a-e252-4789-94a3-c3b2c37a9689.png`
+  - r3-c3: selected and bound; see its provenance block.
+
+  Both reviews rejected r3-c1. At 3–5× its top draft's grey texture is
+  horizontal lines of Latin-looking cursive (the bottom line reads roughly as
+  "ccrn.u.o"), which breaks "never character shapes" and the rejection of
+  pseudo-text above. Its two strokes also cross at a shallow angle beside a
+  short stub, so on the card they can read as a thin x or "<", the failure of
+  rounds one and two. r3-c2 was acceptable to both reviews but not selected.
+  The fidelity review preferred it, because its single unbroken sweep ends in
+  a dry-brush split and its drafts carry only blurred grey blocks. The craft
+  review placed it second: its strike tail and drafts sit lowest (to about 61%
+  and 63% of the image height), its carrying vignette reads more like a man
+  walking ahead of the statue on a strap, with the ★ chip covering 朱's head,
+  陸判 has a wine jar but no cup set aside, his beard reads red-brown rather
+  than 赤, and a second moon shows in the doorway. The workflow orchestrator
+  chose r3-c3, the craft review's pick and the fidelity review's second
+  choice. r3-c1 and r3-c2 were not committed and stay in the private archive.
 
 ```text
 Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Judge Lu: Vermilion Marks over Night Wine. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, dry-brush texture, fine woodblock-style hatching and disciplined empty paper; the only colours are spare vermilion and a barely perceptible grey-green tint on his face, and no yellow, amber or orange anywhere; the lamp flame is a touch of vermilion and its glow is left as bare paper. Judge Lu Pan, an imposing otherworldly adult male magistrate, his green face suggested only by that barely perceptible grey-green tint, long beard touched with a restrained vermilion wash, dignified broad features, dark ceremonial robe and plain black official hat, sits at a low lamp-lit night table, wine cup set aside, holding a fine brush loaded with vermilion just above a small stack of essay drafts; the drafts lie on the table turned toward him, seen at a steep foreshortened angle mostly away from the viewer, and he has just struck out the top draft with one or two long sweeping vermilion strike-strokes drawn right across it. Opposite him Zhu Erdan, a broad sturdy adult scholar with a friendly coarse face and short beard in a plain cotton gown with loose sleeves, leans forward with a wine cup, rueful and eager. Behind them a door curtain hangs half lifted. Two small asymmetrical brush-edged vignettes are woven into the upper background: a standing wooden judge statue alone in a dim temple side corridor, and the same scholar carrying that statue on his back through the night, its official hat and robed body plainly visible. Imagery only. The drafts show only faint, illegible grey texture, never character shapes. Those one or two long sweeping strike-strokes across the top draft are the only vermilion marks on the drafts, each one unbroken sweep of the brush: no rings, no dots, no repeated marks in a row, and nothing that could read as a letter, numeral, glyph or symbol. The central pair dominates with faces readable at small card size. The pair, the table top, the drafts and the brush all sit above the lower two fifths of the image, which stay quiet empty paper below the table edge, because card text is printed over them. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no surgery, no blood, no severed head, no gore. No text, lettering, pseudo-glyphs, calligraphy, seals, signatures, logos, watermark, numbers, speech balloons, borders or UI.
@@ -517,14 +631,14 @@ minimally, still without importing game modules:
 
 | Area | Before | Now |
 | --- | --- | --- |
-| Data (`liaozhai-cards.mjs`) | `LZ01_AA`, one object for 小倩 | `LZ01_SPECIALS`, a frozen list of `{ cardId, printId, treatment, name, title, src, label }` with 小倩 AA first; `LZ01_PLANNED_SPECIALS` holds 陸判 INK with no `src`; `LZ01_TREATMENTS` copies the 本畫/異畫/墨卷/天工 strings from `PRINT_TREATMENTS` in `card-presentation.mjs`, and the content test fails if the copy drifts |
+| Data (`liaozhai-cards.mjs`) | `LZ01_AA`, one object for 小倩 | `LZ01_SPECIALS`, a frozen list of `{ cardId, printId, treatment, name, title, src, label }` with 小倩 AA first; `LZ01_PLANNED_SPECIALS` holds the printings still planned, with no `src` (陸判 INK until its 2026-10-11 binding; 嬰寧 AA since its unbinding); `LZ01_TREATMENTS` copies the 本畫/異畫/墨卷/天工 strings from `PRINT_TREATMENTS` in `card-presentation.mjs`, and the content test fails if the copy drifts |
 | Lookup (`liaozhai.mjs`) | `artTreatment()` compared against one `cardId` | A map keyed by `${cardId}:${treatment}`, so 小倩 AA and TR never collide; any unbound treatment falls back to BASE |
 | Hero | BASE/AA toggle | 本畫 BASE / 異畫 AA / 天工 TR, each rejected unless bound |
 | Dialog | Binary BASE/AA switch for 小倩 only | One button per bound printing for every card that has a special |
 | Catalogue | BASE only | Each card with specials adds 44px buttons such as 「異畫 AA」 that open the dialog on that printing |
 | Card face | `本畫 BASE` / `異畫 AA` mark | The footer mark reads 本畫 BASE, 異畫 AA, 墨卷 INK or 天工 TR; a special printing shows its own title, and the card carries `data-print-id` |
 | CSS (`liaozhai.css`) | `[data-treatment=aa]` only | 墨卷 INK uses an ivory paper shade with dark text and a vermilion mark; 天工 TR uses a gold double border, inset art and the WX-01 天工 corner strokes (without its halo ring), following `wx01.css` |
-| Counts (`liaozhai.html`) | 「12 款本畫＋1 款異畫先行；另有 6 款特別畫作規劃中」 | Rendered from the data: 「12 款本畫＋6 款特別畫作先行（異畫 4、墨卷 1、天工 1）；陸判墨卷仍在規劃中。」, with the same static text in the HTML |
+| Counts (`liaozhai.html`) | 「12 款本畫＋1 款異畫先行；另有 6 款特別畫作規劃中」 | Rendered from the data, with the same static text in the HTML. At the first binding: 「12 款本畫＋6 款特別畫作先行（異畫 4、墨卷 1、天工 1）；陸判墨卷仍在規劃中。」; since the 陸判 INK binding: 「12 款本畫＋6 款特別畫作先行（異畫 3、墨卷 2、天工 1）；嬰寧異畫仍在規劃中。」 |
 
 Stats, stars, abilities and deck slots are unchanged by every treatment. The
 playable game's `printing-catalogue.mjs` already models `aa`, `ink` and
@@ -532,8 +646,8 @@ playable game's `printing-catalogue.mjs` already models `aa`, `ink` and
 and the content test enforces that, so game-catalogue binding is still phase D
 work.
 
-Checklist for binding 陸判 INK or a regenerated 嬰寧 AA, once a candidate is
-selected:
+Checklist for binding a planned printing once a candidate is selected (陸判 INK
+followed it on 2026-10-11; a regenerated 嬰寧 AA is the one left):
 
 1. Check card fit first: view the candidate on the card in the dialog at 1440
    and 390 widths in Chromium and WebKit, and confirm that every figure of the
@@ -624,7 +738,9 @@ figure positions against the card text. It unbound 嬰寧 AA the same day (see
 [its brief](#lz01-004-aa1--嬰寧-aa--花間藏笑)); the block below stays as the
 record of that file, which is kept in the repository. The credential lines were added after a
 provenance review found the embedded C2PA manifests (see
-[above](#embedded-content-credentials-c2pa)).
+[above](#embedded-content-credentials-c2pa)). A sixth block, for 陸判 INK,
+follows the five. It was generated later that day from the round-three prompt,
+and a card-fit check was part of its review (see the note above that block).
 
 ### lz01-004-aa1 · 嬰寧 AA · 花間藏笑
 
@@ -789,5 +905,58 @@ Text sent to the Codex agent for lz01-001-tr1, verbatim:
 Generate exactly ONE image with your built-in image generation tool, using the prompt between the markers verbatim (do not rewrite it). Do not run shell commands, do not edit any files. After generating, reply with only the absolute path of the saved image file if you know it, otherwise reply DONE.
 <<<PROMPT
 Use case: stylized-concept. Asset type: full scene TREASURE collector-treatment portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Nie Xiaoqian: The Lamp of Return. A TREASURE treatment in BLACK LACQUER, GOLD LEAF AND JADE ENAMEL. Nie Xiaoqian, a young adult Chinese woman with pale luminous skin, long dark loose hair partly pinned with a simple slender jade hairpin, layered ivory and pale mist-blue robes with delicate spectral translucence only at the trailing sleeves, sits calmly at dusk beside a low scholar's desk in a modest study, a single candle in a simple bronze holder before her and an open sutra scroll whose paper is entirely blank; her face is quiet, steady and tender, in clear three-quarter view in the upper middle. Layered light study: the candle flame is the heart of the image, surrounded by concentric gold-leaf arcs and nested carved lacquer layers, a lattice window, a folding screen panel and bamboo outside rendered as jade enamel inlay, receding in depth like a treasured lacquer screen; every layer belongs to the painted room, not a card border. Nearly-black midnight-teal lacquer ground, restrained antique gold filigree, mineral jade, ivory and one small crimson knot. Very rich physical surface, luminous carved highlights, deep shadows with a clearly readable face. Composition solemn and balanced; bottom fifth is quiet lacquer and desk edge. Not a rainbow hologram. Tall vertical art fills the canvas without a separate outer border. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no gore, no fox ears, no romantic embrace. No text, lettering, calligraphy or pseudo-glyphs anywhere; the scroll, screen panels and lattice are blank. No seals containing text, no numbers, coins, signatures, logos, watermark, borders or UI.
+PROMPT>>>
+```
+
+### lz01-006-ink1 · 陸判 INK · 夜酌朱批
+
+Added when 陸判 INK was bound, after the five blocks above. Its three
+round-three candidates came from the same helper script, fixed wrapper and
+route on 2026-10-11 between 10:20 and 10:25 UTC (11:20-11:25 BST), from the
+round-three brief prompt committed in `b42ee4a`. As in the earlier rollouts,
+the agent made the image call from its JavaScript `exec` tool as
+`tools.image_gen__imagegen({ prompt, transparent_background: false })`; the
+`prompt` string literal decodes to the brief's exact bytes. The binding session
+re-ran the rollout check independently on all three candidates. Each rollout
+holds one such call with no other arguments, and the image item's
+`revisedPrompt` equals the prompt. The item has no model field, its
+`savedPath` is the archive file, and its base64 `result` decodes to the archive
+bytes, `caBX` included. The agent's user message equals the sent text below.
+The session also re-hashed the archive original and compared the repository
+copy with `cmp`. Unlike the first five, this file was checked for card fit
+before binding: the craft review showed every candidate on the card in the
+dialog at 1440 and 390 widths in Chromium and WebKit, and the binding session
+read the smoke's dialog captures of the bound file at both widths in both
+engines.
+
+```text
+Print ID / path: lz01-006-ink1 · assets/lz01/lupan-ink.png
+Generation date: 2026-10-11, Europe/London (BST, UTC+1); generation record written 2026-10-11T10:24:27Z
+Tool + exact model identifier: Codex CLI 0.162.1 (codex-cli 0.162.1), built-in imagegen tool image_gen__imagegen (image_generation feature); exact model identifier: not exposed (the tool result has no model field; see the next line)
+Embedded content credential: C2PA manifest from OpenAI Media Service API (c2pa_rs 0.79.2), bound to these bytes by its data hash; c2pa.created 2026-10-11T10:24:15Z by softwareAgent ChatGPT, version gpt-image (a family label), digitalSourceType trainedAlgorithmicMedia; then c2pa.converted and c2pa.watermarked.unbound (an invisible watermark)
+Orchestrating agent + its model: the Codex CLI agent, model gpt-6-astra (session header and rollout turn context), run with "codex exec --skip-git-repo-check -s read-only" by a Claude Code workflow script; this is the agent, not the image model
+Codex session: 01a12a7c-d0e8-7a80-9701-aa274dfd14e4 (~/.codex/sessions/2026/10/11/rollout-2026-10-11T11-23-05-01a12a7c-d0e8-7a80-9701-aa274dfd14e4.jsonl)
+Exact prompt sent: the image tool's prompt argument is byte-identical to the lz01-006-ink1 brief's round-three text block above, as committed in b42ee4a; no difference. The agent received that brief inside the fixed wrapper below (instruction line, then <<<PROMPT, the brief, PROMPT>>>), which is not part of the tool argument. Other tool arguments: transparent_background=false. Returned revisedPrompt: identical to the prompt
+Prompt SHA-256 (tool prompt = brief, no trailing newline): 1fb40e5dc8c90acf2555115a961f99105d8a917fd0a56ffc54e508a3467b497f
+Brief prompt SHA-256 at generation (commit b42ee4a): 1fb40e5dc8c90acf2555115a961f99105d8a917fd0a56ffc54e508a3467b497f
+Text sent to the agent, SHA-256 (exact bytes below, ending with one newline after PROMPT>>>): 1b9947a4610577c12c7ea913c0e18e7aa1d8e1eee299dd88c73526b97a27cf29
+Input images and SHA-256: none supplied
+Private archive original: ~/.codex/generated_images/01a12a7c-d0e8-7a80-9701-aa274dfd14e4/exec-56c7edaf-1689-407b-bace-bd99ebe610ec.png
+Output SHA-256 of the archive original: 56cff3e4384b3360f835e44daa27602e9be0cf4761dd0213a87542cb354d2f67
+SHA-256 of the repository copy: 56cff3e4384b3360f835e44daa27602e9be0cf4761dd0213a87542cb354d2f67 (copied byte-for-byte; cmp reports no difference; no crop, resize, compression or metadata edit)
+Dimensions and byte size: 1024x1536, 3,266,124 bytes
+Selected: round three, candidate 3 of 3 (eighth 陸判 INK candidate overall)
+Visual review: Two read-only reviews (fidelity and safety; craft and card fit) zoomed the drafts, the strike, both faces, the hat, rank badge, vignettes and lower paper, and scanned the whole image for vermilion regions. A real ink treatment on ivory paper, not a greyscale filter. No text, pseudo-glyphs, seals, signature or visible watermark (the C2PA record notes an invisible one): the only vermilion is the beard wash, the lamp flame, the ink box or brush and the strike, with no ring or dot; the drafts show a blank ruled frame with faint dashes and no character shapes. Fully clothed; no blade, blood, heart or head exchange, surgery or gore; no identifiable celebrity or film-costume likeness (a generic winged official hat). 陸判 has the faint grey-green face tint (G-R about -5.6, against -21.6 for 朱's skin), red streaks in the beard (赤須), the winged black hat and a cloud-pattern chest badge echoing the BASE robe; 朱爾旦 matches BASE (topknot, short beard, broad grin) and leans in with his cup. The wine cup is set aside, the lamp flame is vermilion with no amber, the statue stands alone in a temple corridor beside a censer, and 朱 carries it through the night. Accepted caveats: the two strikes leave the brush's descending stroke as a narrow, diverging wedge; they do not cross or close, but on the card they could read as a thin "=" or X; the brush touches the paper rather than hovering just above it; the drafts keep a ruled frame, which the round-three prompt had dropped; in the carrying vignette the statue rides in a frame on his back, so its lower body is hidden; a moon shows in the window. The craft review picked this candidate; the fidelity review preferred r3-c2 for its single sweep and accepted this one as its second choice; the workflow orchestrator selected this one.
+Card fit: passes. Measured by the craft review in Chromium and WebKit at 1440 and 390, as a share of image height: 陸判's face about 28-33%, 朱's about 33-39%; every face, hand and the brush above about 55%. The title line starts at about 56.7-59.9% (its glyphs span about 8-28% of the width) and the name spans about 62-75%. The strike lies at about 55.7-58.5% and the drafts reach about 61%, under the 墨卷 paper shade (about 70% opaque from about 55.6% down), so on the card the strike reads as faint pink just above 夜酌朱批; below the text line only props (ink pot, inkstone, lamp base, the table's brushwork to about 66%) sit under the lettering. The binding session's smoke captures (dialog-lz01-006-ink1 at 1440x900 and 390x844, both engines) show the same. Caveats: the ★ and faction chips partly cover the two vignettes, and the top crop clips the statues' hats.
+Allowlist: hosting/preview-assets.json only (preview-only; absent from hosting/public-assets.json)
+Rejected candidates: round three r3-c1 556a27d25d6572f04756f2d5ab624c632211b02af40dbcee3b1e9fe426a59ff6 (~/.codex/generated_images/01a12a7a-9335-7f31-a88c-5b289f36a974/exec-7ed0a6e3-a20e-496a-bd68-cf84feb09f98.png; pseudo-text in the draft and crossing strokes); round three r3-c2 37e154b9c4576671116daa46c9804a4a5d1e9fb3a423148387c7592b37c9ccd5 (~/.codex/generated_images/01a12a7b-c1a6-7732-bc90-fd37780db8f4/exec-b3d2212a-e252-4789-94a3-c3b2c37a9689.png; acceptable, not selected); same prompt. Earlier prompts: round one (76bd79d7…) 63e77bbcb53771e6f2f87a536b124b874942ebec104d99ec04bf005557644c5d (~/.codex/generated_images/01a12a1a-1689-7531-bb95-e9dc477054e9/exec-dd31fd4f-7f51-4e13-a000-c8300855aeec.png), 48fb3231892f3356a1d5a811dea22d02a96f5503240303aa387c4fec4cab56d1 (~/.codex/generated_images/01a12a32-02d4-7511-a9ad-f18445fa6f4f/exec-ebe25390-0957-4600-91f4-2a873d70d1e8.png) and 93f42010b2f72281c37669c2e517a6ba44b7f893e5c13f3720f31f8d911f668a (~/.codex/generated_images/01a12a33-7108-7481-821d-819703dd3dc9/exec-0042f279-c37d-4c36-b744-0e596eb03894.png); round two (9976af34…) r2-c1 68d8cadb… and r2-c2 4ffa45b8…, recorded in full in the brief. All kept in the private archive, not committed; reasons are in the brief
+```
+
+Text sent to the Codex agent for lz01-006-ink1, verbatim:
+
+```text
+Generate exactly ONE image with your built-in image generation tool, using the prompt between the markers verbatim (do not rewrite it). Do not run shell commands, do not edit any files. After generating, reply with only the absolute path of the saved image file if you know it, otherwise reply DONE.
+<<<PROMPT
+Use case: stylized-concept. Asset type: full scene INK SCROLL special-print portrait for an original premium Eastern literary card game Mythseal, set Liaozhai: A Light for the Living. One tall 2:3 image, 1024x1536 preferred, NO grid, no card frame or UI. Original composition titled internally Judge Lu: Vermilion Marks over Night Wine. The entire artwork is black ink on warm ivory xuan paper: expressive brush lines, dry-brush texture, fine woodblock-style hatching and disciplined empty paper; the only colours are spare vermilion and a barely perceptible grey-green tint on his face, and no yellow, amber or orange anywhere; the lamp flame is a touch of vermilion and its glow is left as bare paper. Judge Lu Pan, an imposing otherworldly adult male magistrate, his green face suggested only by that barely perceptible grey-green tint, long beard touched with a restrained vermilion wash, dignified broad features, dark ceremonial robe and plain black official hat, sits at a low lamp-lit night table, wine cup set aside, holding a fine brush loaded with vermilion just above a small stack of essay drafts; the drafts lie on the table turned toward him, seen at a steep foreshortened angle mostly away from the viewer, and he has just struck out the top draft with one or two long sweeping vermilion strike-strokes drawn right across it. Opposite him Zhu Erdan, a broad sturdy adult scholar with a friendly coarse face and short beard in a plain cotton gown with loose sleeves, leans forward with a wine cup, rueful and eager. Behind them a door curtain hangs half lifted. Two small asymmetrical brush-edged vignettes are woven into the upper background: a standing wooden judge statue alone in a dim temple side corridor, and the same scholar carrying that statue on his back through the night, its official hat and robed body plainly visible. Imagery only. The drafts show only faint, illegible grey texture, never character shapes. Those one or two long sweeping strike-strokes across the top draft are the only vermilion marks on the drafts, each one unbroken sweep of the brush: no rings, no dots, no repeated marks in a row, and nothing that could read as a letter, numeral, glyph or symbol. The central pair dominates with faces readable at small card size. The pair, the table top, the drafts and the brush all sit above the lower two fifths of the image, which stay quiet empty paper below the table edge, because card text is printed over them. Not a grayscale filter on a colour painting. Design from Pu Songling's classical characters, not any modern film costume or celebrity likeness. Fully clothed, no surgery, no blood, no severed head, no gore. No text, lettering, pseudo-glyphs, calligraphy, seals, signatures, logos, watermark, numbers, speech balloons, borders or UI.
 PROMPT>>>
 ```
