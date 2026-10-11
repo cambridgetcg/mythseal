@@ -8,10 +8,10 @@ Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
 commit **`4265039`** adds `tools/content-registry.mjs`,
 `tests/content-registry.test.mjs` and the `npm run audit:content` script. Review
 fix commits **`7291880`** and **`cf63bec`** close the gaps two reviews found
-(below). Four later commits also change source: merge commit **`d1f0f91`**
+(below). Five later commits also change source: merge commit **`d1f0f91`**
 adapts the registry and its tests to PR #8's LZ-01 specials, **`6bc784a`**
-fixes a third review's findings, **`092f1fd`** a fourth's, and
-**`2d44071`** a fifth's. Merge commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
+fixes a third review's findings, **`092f1fd`** a fourth's, **`2d44071`** a
+fifth's, and the sixth-review fix commit (below) a sixth's. Merge commit `d606447` brings in `origin/main` `daf18ed` (documentation only), and
 the remaining commits change documentation only; each source step below lists the checks run on it. The branch is not
 merged into `main`, pushed or deployed, and there was no hosted check. The
 registry's own commits change no game runtime, save schema, content, art or
@@ -385,6 +385,56 @@ statuses and capability states are defined in
     check and human review. Still unseen by the reader: a file-level hook that
     skips (`beforeEach(t => t.skip())`), which Node 26 counts as a skipped
     test; the docs now list it beside the other blind spots.
+- **Sixth review fixes · 2026-10-11** (tooling and documentation only; no
+  player, save, content, art, allowlist or build effect). The reviewers
+  reproduced each gap on `ce1b30f` with Node 26.0.0 in APFS clones (deleted
+  afterwards); two of the three findings named the same gap. After the fix,
+  each repro was re-run in process and through the CLI in an APFS-clone
+  scratch copy (deleted afterwards).
+  - Subtests declared through the runner: the fifth-review fix read only
+    subtests made through the context (`t.test`), and did not read a callback
+    without a parameter at all. Node 26 attaches the runner's own `test()`,
+    `test.skip()`, `it()` or `describe()`, called while a test runs, to that
+    test as a subtest. Rewriting the `progression.test.mjs` test that six
+    entries cite as `async () => { await test('checks', { skip: 'awaiting
+    review' }, () => { assert.fail(…); … }); }` gave `node --test` tests 50,
+    pass 49, fail 0, skipped 1 with the outer test ok, and
+    `node tools/content-registry.mjs` exit 0 with `findings: []`; the same
+    rewrite with `t.test` already gave `dead-reference`. Calls to `test`, `it`, `describe` and
+    `suite` (and their `.only`) in a cited test's body or any subtest's body are
+    now read as subtests by the same rules, recursively, with or without a
+    context parameter; their `.skip`, `.todo` and `.expectFailure`, any other
+    member, and any other use of the four names (stored, passed on, a local of
+    the same name) fail. The repro now exits 1 with `dead-reference` (cited by
+    6 entries). Still unseen, and now listed with the other blind spots: the
+    runner's functions imported under other names (`import { test as check }`,
+    a default or namespace import, the bare `skip` export).
+  - Grouped context after a statement head: grouping parentheses around the
+    context were kept whenever a `)` came before them, as for a call, so
+    `if (slow) (t).skip()`, the same after `while (…)` or `for (…)`,
+    `(this).skip()`, `(t)['skip']()` and `(t).test('c', { skip: true }, …)` in
+    that position still resolved. With the cited test's header rewritten to
+    `t => { if (true) (t).skip('disabled'); return;`, `node --test` reported
+    the test skipped (pass 48, skipped 1) and the audit exited 0 with
+    `findings: []`. A `)` that closes an `if`, `while`, `for`, `for await` or
+    `with` head, or one this reader cannot match, now leaves the `(t)` after it
+    a grouping; `g(a)(t)` and `if (slow) f(t)` keep their call parentheses. The
+    repro now exits 1 with `dead-reference`.
+  - Regression cases: 19 unit assertions in the reference test and two
+    source-fault cases (the cited test's checks moved into a skipped
+    `test('checks', …)` subtest of a callback without a parameter, and
+    `if (true) (t).skip()`).
+  - Mutation check: reverting the runner-subtest scan, the statement-head
+    rule, or all of `tools/content-registry.mjs` to `ce1b30f` made
+    `node --test tests/content-registry.test.mjs` exit 1 (3 of 3).
+  - Checks on the fix, Node 26.0.0: `node --test tests/*.test.mjs` **476/476**,
+    exit 0, 0 skipped (the new cases sit inside existing tests).
+    `npm run audit:content` exit 0, `findings: []`, 120 local-playable and 30
+    preview; the built registry is byte-identical to `ce1b30f`'s.
+    `npm run build` exit 0, 80 public files.
+  - Not run: the LZ-01/HL-01 preview smokes (no page, allowlist or served file
+    changed), `npm run test:browser`, the other WebKit suites, CI (Node 22),
+    any hosted check and human review.
 
 ## LZ-01 special printings · 2026-10-11
 

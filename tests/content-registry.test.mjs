@@ -158,10 +158,10 @@ const nodes = (id, change) => NODES.map(node => node.id === id ? { ...node, ...c
 const evidenceTitle = 'six map locations unlock sequentially on wins and move the traveller on entry';
 const redeemTitle = 'seal redemption charges its advertised tier once and creates a fresh copy beside a trained sibling';
 const withoutKey = (record, key) => Object.fromEntries(Object.entries(record).filter(([name]) => name !== key));
-/** progression.test.mjs with the cited evidence test's body moved into a subtest `t.test('checks', <options>…)`. */
-const inSubtest = options => rewrite('tests/progression.test.mjs', text => {
+/** progression.test.mjs with the cited evidence test's body moved into a subtest `<call>('checks', <options>…)` of a callback taking `params`. */
+const inSubtest = (options, params = 't', call = 't.test') => rewrite('tests/progression.test.mjs', text => {
   const header = `test('${evidenceTitle}', () => {`, start = text.indexOf(header), end = text.indexOf('\n});\n', start);
-  return `${text.slice(0, start)}test('${evidenceTitle}', async t => {\n  await t.test('checks', ${options}() => {${text.slice(start + header.length, end)}\n  });\n});\n${text.slice(end + 5)}`;
+  return `${text.slice(0, start)}test('${evidenceTitle}', async ${params} => {\n  await ${call}('checks', ${options}() => {${text.slice(start + header.length, end)}\n  });\n});\n${text.slice(end + 5)}`;
 });
 /** The live checklist or brief row for a printing, so a fault can copy it. */
 const docRow = (markdown, printId) => new RegExp('^\\| `' + printId + '` \\|.*$', 'm').exec(markdown)[0];
@@ -288,7 +288,11 @@ const SOURCE_FAULTS = [
     ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
   ['an evidence test whose checks moved into a skipped subtest', inSubtest("{ skip: 'awaiting review' }, "),
     ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test whose checks moved into a skipped subtest declared with the runner\'s own test()', inSubtest("{ skip: 'awaiting review' }, ", '()', 'test'),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
   ['an evidence test skipped through its parenthesised context', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', () => {`, `test('${evidenceTitle}', t => { (t).skip('disabled'); return;`)),
+    ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
+  ['an evidence test skipped through its parenthesised context after an if head', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', () => {`, `test('${evidenceTitle}', t => { if (true) (t).skip('disabled'); return;`)),
     ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
   ['an evidence test skipped through skip destructured from its context', rewrite('tests/progression.test.mjs', text => text.replace(`test('${evidenceTitle}', () => {`, `test('${evidenceTitle}', t => { const { skip } = t; skip.call(t, 'disabled'); return;`)),
     ['dead-reference'], /six map locations unlock sequentially .* no longer resolves \(cited by 6 entries\)/],
@@ -420,12 +424,32 @@ test('rule, resume and evidence references must name real code or real tests', (
   assert.equal(sub("(t).test('the real checks', { skip: true }, () => {})"), false);
   assert.equal(runs("test('a sample', t => { const sub = t.test; });"), false, 'a stored subtest method cannot be followed');
   assert.equal(runs("test('a sample', async function () { await this.test('x', { skip: true }, () => {}); });"), false);
+  // Node attaches the runner's own test/it/describe/suite, called while a test runs, to that test as a subtest.
+  assert(sub("test('the real checks', () => { assert.equal(1, 1); })", '()'), 'a subtest declared with the runner\'s test() runs its checks');
+  assert(sub("describe('group', () => { it('the real checks', () => {}); })", '()') && sub("test.only('the real checks', () => {})", '()'));
+  assert.equal(sub("test('the real checks', { skip: 'awaiting review' }, () => { assert.fail('x'); })", '()'), false, 'a skipped subtest declared with test() hides its checks too');
+  assert.equal(sub("test.skip('the real checks', () => {})", '()'), false);
+  assert.equal(sub("it('the real checks', { todo: true }, () => {})"), false, 'with a context, a subtest declared with it() is still read');
+  assert.equal(sub("it.skip('the real checks', () => {})", '()'), false);
+  assert.equal(sub("test.expectFailure('the real checks', () => {})", '()'), false);
+  assert.equal(sub("describe('group', { skip: true }, () => { it('the real checks', () => {}); })"), false);
+  assert.equal(sub("suite('group', () => { it.todo('the real checks', () => {}); })", '()'), false, 'a suite\'s tests are read recursively');
+  assert.equal(sub("t.test('outer', async () => { await test('the real checks', { skip: true }, () => {}); })"), false, 'inside a t.test subtest as well');
+  assert.equal(runs("test('a sample', async () => { const check = test; await check('the real checks', { skip: true }, () => {}); });"), false, 'the runner\'s test stored under another name cannot be followed');
+  assert.equal(sub("test(name, () => {})", '()'), false);
   // The context in grouping parentheses, or destructured, is still the context.
   assert.equal(runs("test('a sample', t => { (t).skip('x'); });"), false, 'a parenthesised context still skips');
   assert.equal(runs("test('a sample', t => { return ((t)).todo(); });"), false);
   assert.equal(runs("test('a sample', function () { (this).skip(); });"), false);
   assert.equal(runs("test('a sample', t => { void (t)?.['skip']?.(); });"), false);
   assert(runs("test('a sample', t => { log(t).skip(); f?.(t).todo(); });"), 'a call that receives the context returns something else (a helper is a stated blind spot)');
+  assert.equal(runs("test('a sample', t => { if (slow) (t).skip('x'); });"), false, 'a parenthesised context after an if head is a grouping, not a call');
+  assert.equal(runs("test('a sample', t => { while (once()) (t).skip('x'); });"), false);
+  assert.equal(runs("test('a sample', async t => { for await (const x of xs) ((t)).todo(); });"), false);
+  assert.equal(runs("test('a sample', function () { if (slow) (this).skip(); });"), false);
+  assert.equal(runs("test('a sample', t => { if (slow) (t)['skip']('x'); });"), false);
+  assert.equal(runs("test('a sample', async t => { if (slow) (t).test('c', { skip: true }, () => {}); });"), false);
+  assert(runs("test('a sample', t => { g(a)(t).skip(); if (slow) f(t).skip(); });"), 'a call after a call, or after an if head, still receives the context');
   assert.equal(runs("test('a sample', t => { const { skip } = t; skip.call(t, 'x'); });"), false, 'skip destructured from the context still skips');
   assert.equal(runs("test('a sample', t => { let { todo: later } = (t); later.call(t); });"), false);
   assert.equal(runs("test('a sample', function () { const { skip } = this; skip.call(this); });"), false);

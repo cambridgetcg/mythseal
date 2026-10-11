@@ -286,24 +286,31 @@ subset that the build generates, not import this file.
   - a missing callback (the test runs nothing) and a callback passed by name or
     built by a call, whose body cannot be read;
   - a body that reaches its context's `skip` or `todo` anywhere, even
-    conditionally: `t.skip()`, `t?.skip?.()`, `t.skip.call(t)`, `(t).skip()`,
+    conditionally: `t.skip()`, `t?.skip?.()`, `t.skip.call(t)`, `(t).skip()`
+    (also as the bare body of `if`, `while` or `for`: `if (slow) (t).skip()`),
     `t['skip']()`, or any computed member such as `t[name]`; and a body that
     destructures its context (`const { skip } = t`). The context is the
     callback's first parameter, or `this` in a `function` callback; a
     destructured or rest first parameter cannot be followed, so it does not
     resolve either;
   - a body with a subtest that may not run its checks, since the outer test
-    then passes without them. A subtest counts only as a plain `t.test(...)`
-    call whose title is a string or template literal (or absent) and whose
-    options and inline callback pass these same rules, read recursively;
-    `t.test` stored, bound, called through `.call` or a computed key, and a
-    title that might be options or a callback, do not resolve.
+    then passes without them. A subtest is a `t.test(...)` call or a call to
+    the runner's own `test`, `it`, `describe` or `suite`, which Node attaches
+    to the test that is running. It counts only as a plain call (or the
+    runner's `.only`) whose title is a string or template literal (or absent)
+    and whose options and inline callback pass these same rules, read
+    recursively; `t.test` stored, bound, called through `.call` or a computed
+    key, the runner's `.skip`, `.todo` and `.expectFailure`, any other use of
+    those four names in the body, and a title that might be options or a
+    callback, do not resolve.
 
   A test hidden behind bracketless runtime control flow, such as
   `if (false) test(...)`, or skipped through a helper that receives its context,
-  a hook such as `beforeEach(t => t.skip())`, or an alias of the context, cannot
-  be seen statically; only the runner's test count (which drops) or skip count
-  shows it.
+  a hook such as `beforeEach(t => t.skip())`, an alias of the context, or the
+  runner's functions imported under other names (`import { test as check }`, a
+  default or namespace import, the bare `skip` export), cannot be seen
+  statically; only the runner's test count (which drops) or skip count shows
+  it.
   `cardId`, `printId` and the absent `uid` stay distinct. Only
   `FIRE_MOUNTAIN.version` exists as a declared content version, and no rules
   version exists. `contentDigest` (SHA-256 of each authored record: a

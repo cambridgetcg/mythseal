@@ -669,6 +669,15 @@ function closingBracket(code, open) {
   }
   return code.length;
 }
+/** Index of the bracket opening the one at `close` in masked code, or -1. */
+function openingBracket(code, close) {
+  const pairs = { ')': '(', ']': '[', '}': '{' }, stack = [];
+  for (let index = close; index >= 0; index--) {
+    if (pairs[code[index]]) stack.push(pairs[code[index]]);
+    else if (code[index] === stack.at(-1)) { stack.pop(); if (!stack.length) return index; }
+  }
+  return -1;
+}
 
 /** Brackets opened and not yet closed before `index` in masked code; 0 is the module's top level. */
 function bracketDepth(code, index) {
@@ -745,23 +754,60 @@ function inlineCallback(code, [from, to]) {
 
 /** Words after which `(` opens a grouping, not a call. */
 const GROUPING_AFTER = /^(?:return|typeof|await|void|yield|in|of|new|delete|throw|case|do|else|instanceof)$/;
+/** A statement head whose `( … )` is followed by a statement, so a `(` after it opens a grouping. */
+const STATEMENT_HEAD = /(?<![\w$.])(?:if|while|with|for(?:\s+await)?)\s*$/;
 /**
  * Masked code (same length) with grouping parentheses around a bare context blanked,
- * so `(t).skip()` and `((this)).todo()` read as the context itself. A call such as
- * `f(t)` keeps its parentheses.
+ * so `(t).skip()`, `((this)).todo()` and `if (slow) (t).skip()` read as the context
+ * itself. A call such as `f(t)` or `g(a)(t)` keeps its parentheses.
  */
 function ungroupContext(code, names) {
   const group = new RegExp(`\\(\\s*(?:${names})\\s*\\)`, 'g');
   for (let changed = true; changed;) {
     changed = false;
     code = code.replace(group, (match, offset, whole) => {
-      const before = /([\w$]+|[)\].'"`])\s*$/.exec(whole.slice(Math.max(0, offset - 64), offset));
-      if (before && !GROUPING_AFTER.test(before[1])) return match;
+      const start = Math.max(0, offset - 64), before = /([\w$]+|[)\].'"`])\s*$/.exec(whole.slice(start, offset));
+      if (before && !GROUPING_AFTER.test(before[1]) && !(before[1] === ')' && closesStatementHead(whole, start + before.index))) return match;
       changed = true;
       return ` ${match.slice(1, -1)} `;
     });
   }
   return code;
+}
+/** Does the `)` at `close` end an `if`, `while`, `for` or `with` head (or one this reader cannot match)? */
+function closesStatementHead(code, close) {
+  const open = openingBracket(code, close);
+  return open < 0 || STATEMENT_HEAD.test(code.slice(Math.max(0, open - 64), open));
+}
+
+/**
+ * Does the subtest call whose `(` is at `open` in masked code fail to run its checks?
+ * It runs them only when its title is a string or template literal (or absent) and
+ * its options and inline callback pass the rules of a top-level test (runsChecks).
+ */
+function subtestMaySkip(source, code, open) {
+  const items = topLevelItems(code, open + 1, closingBracket(code, open));
+  const titled = Boolean(items[0]) && /['"`]/.test(code[items[0][0]]);
+  if (!titled && items[0] && code[items[0][0]] !== '{' && !inlineCallback(code, items[0])) return true;
+  return !runsChecks(source, code, titled ? items.slice(1) : items);
+}
+
+/** The runner's own declarations; called while a test runs, each declares a subtest of it. */
+const RUNNER_TESTS = 'test|it|describe|suite';
+/**
+ * Can the callback body (the masked range [from, to)) hide its checks in a subtest
+ * declared through the runner's `test`, `it`, `describe` or `suite` rather than its
+ * context? A plain or `.only` call is read as a subtest (subtestMaySkip), and so
+ * recursively; `.skip`, `.todo`, `.expectFailure`, any other member and any other
+ * use of the name (stored, passed on, a local of the same name) fail.
+ */
+function runnerSubtestMaySkip(source, code, [from, to]) {
+  const name = new RegExp(`(?<![\\w$.])(?:${RUNNER_TESTS})(?![\\w$])\\s*(?:\\??\\.\\s*only\\b\\s*)?(?:\\?\\.\\s*)?`, 'g');
+  for (const match of code.slice(from, to).matchAll(name)) {
+    const open = from + match.index + match[0].length;
+    if (code[open] !== '(' || subtestMaySkip(source, code, open)) return true;
+  }
+  return false;
 }
 
 /**
@@ -790,11 +836,7 @@ function contextMaySkip(source, code, [from, to], contexts) {
   }
   for (const match of body.matchAll(new RegExp(`${context}\\s*\\??\\.\\s*test\\b\\s*(?:\\?\\.\\s*)?`, 'g'))) {
     const open = from + match.index + match[0].length;
-    if (code[open] !== '(') return true;
-    const items = topLevelItems(code, open + 1, closingBracket(code, open));
-    const titled = Boolean(items[0]) && /['"`]/.test(code[items[0][0]]);
-    if (!titled && items[0] && code[items[0][0]] !== '{' && !inlineCallback(code, items[0])) return true;
-    if (!runsChecks(source, code, titled ? items.slice(1) : items)) return true;
+    if (code[open] !== '(' || subtestMaySkip(source, code, open)) return true;
   }
   return false;
 }
@@ -803,7 +845,8 @@ function contextMaySkip(source, code, [from, to], contexts) {
  * Does a test or subtest whose arguments after its title are `items` (masked ranges)
  * run its checks? Options, if given, must be one object literal that cannot skip
  * (optionsMaySkip); the callback must be written inline; and its body must not skip
- * through its context (contextMaySkip). The context is the callback's first
+ * through its context (contextMaySkip) or declare a subtest through the runner that
+ * may not run (runnerSubtestMaySkip). The context is the callback's first
  * parameter (a destructured or rest first parameter cannot be followed, so it
  * fails), and `this` in a `function` callback.
  */
@@ -817,7 +860,7 @@ function runsChecks(source, code, [first, second]) {
   const context = param && /^([A-Za-z_$][\w$]*)\s*(?:=|$)/.exec(code.slice(...param));
   if (param && !context) return false;
   const contexts = [context?.[1], fn.keyword && 'this'].filter(Boolean);
-  return !contexts.length || !contextMaySkip(source, code, callback, contexts);
+  return (!contexts.length || !contextMaySkip(source, code, callback, contexts)) && !runnerSubtestMaySkip(source, code, callback);
 }
 
 /**
@@ -826,7 +869,7 @@ function runsChecks(source, code, [first, second]) {
  * any bracket (a `describe` or `suite` callback, which `.skip` or `{ skip }` can
  * switch off without counting the test as skipped; another test's body; a block or
  * function), a `test.skip`/`test.todo` call, a declaration inside a comment or
- * string, and (runsChecks, contextMaySkip):
+ * string, and (runsChecks, contextMaySkip, runnerSubtestMaySkip):
  * - options that may skip or invert the result: a `skip`, `todo` or `expectFailure`
  *   key, quoted or not, unless literally `false` (under `expectFailure` a throwing
  *   body is reported as a pass); any key other than those and `timeout`,
@@ -836,14 +879,21 @@ function runsChecks(source, code, [first, second]) {
  * - a callback that is missing (the test runs nothing) or not written inline (a
  *   name or a call), since its body cannot be read;
  * - a body that reaches its context's `skip` or `todo` anywhere, even
- *   conditionally or through `?.`, `.call`, grouping parentheses or a computed key,
- *   or that destructures its context, since the runner may then report it skipped;
- * - a body whose subtest (`t.test(...)`) fails any of these rules, or cannot be
- *   read, since the outer test then passes without running the subtest's checks.
+ *   conditionally (`if (slow) (t).skip()`) or through `?.`, `.call`, grouping
+ *   parentheses or a computed key, or that destructures its context, since the
+ *   runner may then report it skipped;
+ * - a body whose subtest fails any of these rules, or cannot be read, since the
+ *   outer test then passes without running the subtest's checks. A subtest is a
+ *   `t.test(...)` call or a call to the runner's own `test`, `it`, `describe` or
+ *   `suite` (or its `.only`), which Node attaches to the running test; their
+ *   `.skip`, `.todo` and `.expectFailure`, and any other use of those names in the
+ *   body, fail.
  * A test hidden behind runtime control flow without brackets
  * (`if (false) test(...)`), or skipped through a helper it hands its context to, a
- * hook such as `beforeEach(t => t.skip())` or an alias of the context, cannot be
- * seen from the text; the runner's own test and skip counts show it.
+ * hook such as `beforeEach(t => t.skip())`, an alias of the context, or the
+ * runner's functions imported under other names (`import { test as check }`, a
+ * default or namespace import, the bare `skip` export), cannot be seen from the
+ * text; the runner's own test and skip counts show it.
  */
 function declaresRunningTest(source, title) {
   const code = maskCode(source);
