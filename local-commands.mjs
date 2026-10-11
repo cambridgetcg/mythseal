@@ -181,7 +181,11 @@ export async function commitCommand(request, { store, lock, now = () => new Date
   } catch (error) {
     if (entered) return unknown(checked.commandId);
     // The fence could not prove this tab sees the latest bytes: nothing was read or decided.
-    if (error?.name === 'ProfileFenceError') return rejected('unsynced', error.code === 'unavailable' ? COMMAND_MESSAGES['no-lock'] : COMMAND_MESSAGES.unsynced);
+    // Only a browser without usable IndexedDB is told to change browsers; a full disk needs
+    // space, and anything else (a stall, a lagging tab, an unsettled record) a retry.
+    if (error?.name === 'ProfileFenceError') {
+      return rejected('unsynced', COMMAND_MESSAGES[error.code === 'missing' ? 'no-lock' : error.code === 'quota' ? 'quota' : 'unsynced']);
+    }
     return rejected('lock-failed');
   }
   if (!entered) return rejected('lock-failed');

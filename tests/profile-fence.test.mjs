@@ -29,7 +29,13 @@ function origin(profile, { lag = 15 } = {}) {
   const fenceLog = [];
   const fence = {
     async read() { await null; if (faults.read) throw faults.read; return record === null ? null : structuredClone(record); },
-    async write(next) { await null; if (faults.write?.(next)) throw new DOMException('Fixture fence write', 'UnknownError'); fenceLog.push(next?.state ?? null); record = next === null ? null : structuredClone(next); },
+    // faults.write(next) may return true (an UnknownError) or the error to throw.
+    async write(next) {
+      await null;
+      const fault = faults.write?.(next);
+      if (fault) throw fault === true ? new DOMException('Fixture fence write', 'UnknownError') : fault;
+      fenceLog.push(next?.state ?? null); record = next === null ? null : structuredClone(next);
+    },
   };
   let tail = Promise.resolve();
   const lock = callback => { const run = tail.then(() => callback()); tail = run.catch(() => {}); return run; };
@@ -188,10 +194,10 @@ test('N23 a holder that died between mark and settle leaves "writing": strict re
   }
 });
 
-test('N23 without a readable fence a strict holder refuses with the no-lock copy and reads nothing; lenient holders go on', async () => {
+test('N23 without IndexedDB a strict holder refuses with the no-lock copy and reads nothing; lenient holders go on', async () => {
   const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
   const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
-  o.faults.read = new ProfileFenceError('unavailable'); a.counts.get = 0;
+  o.faults.read = new ProfileFenceError('missing'); a.counts.get = 0;
   const refused = await commitIn(a, request, a.fenced(true));
   assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES['no-lock']]);
   assert.deepEqual(a.counts, { get: 0, set: 0 }, 'the profile is neither read nor written');
@@ -202,7 +208,11 @@ test('N23 without a readable fence a strict holder refuses with the no-lock copy
   assert.equal(markFailed.reason, 'unsynced', 'a strict holder that cannot mark refuses too');
   assert.equal(o.saved().coins, base.coins + 1);
   // The no-IndexedDB adapter rejects the same way.
-  await assert.rejects(createIndexedDBFence(undefined).read(), { name: 'ProfileFenceError', code: 'unavailable' });
+  await assert.rejects(createIndexedDBFence(undefined).read(), { name: 'ProfileFenceError', code: 'missing' });
+  o.faults.write = null;
+  const lock = createFencedLock({ request: o.lock, fence: createIndexedDBFence(undefined), read: () => a.storage.getItem(PROFILE_KEY), strict: true });
+  const noIndexedDB = await commitIn(a, request, lock);
+  assert.deepEqual([noIndexedDB.reason, noIndexedDB.message], ['unsynced', COMMAND_MESSAGES['no-lock']]);
 });
 
 test('N23 a failed settle keeps the real result and leaves "writing" for strict holders to refuse', async () => {
@@ -233,8 +243,10 @@ test('N23 a stalled fence counts as unavailable and releases the lock instead of
   const stalled = { read: () => new Promise(() => {}), write: () => new Promise(() => {}) };
   const lock = strict => createFencedLock({ request: o.lock, fence: stalled, read: () => a.storage.getItem(PROFILE_KEY), strict, ioBudget: 20 });
   const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  await assert.rejects(lock(true)(() => {}), { name: 'ProfileFenceError', code: 'unavailable', message: FENCE_MESSAGES.unavailable });
   const refused = await commitIn(a, request, lock(true));
-  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES['no-lock']]);
+  // A stall can pass: the player is told to retry, not to change browsers (§9).
+  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES.unsynced]);
   await lock(false)(() => { const profile = a.store.load(); profile.coins += 1; a.store.save(profile); });
   assert.equal(o.saved().coins, base.coins + 1, 'a lenient writer still saves');
   assert.equal(await o.lock(() => 'free'), 'free', 'the lock was released');
@@ -267,8 +279,58 @@ test('N27 a writer that bypasses the fence is refused only once its bytes arrive
   }
 });
 
-/** A small in-memory IndexedDB: one database, one object store, async events. */
-function fakeIndexedDB({ failOpen = false, abort = false } = {}) {
+test('N29 a fence failure names its cause: no IndexedDB says change browsers, a full disk asks for space, anything else asks for a retry', async () => {
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  await a.fenced(false)(() => a.store.save(a.store.load()));
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  const bytes = o.bytes();
+  const cases = [
+    ['read', new ProfileFenceError('missing'), 'missing', 'no-lock'],
+    ['read', new DOMException('Denied', 'SecurityError'), 'missing', 'no-lock'],
+    ['read', new DOMException('Full', 'QuotaExceededError'), 'quota', 'quota'],
+    ['read', new DOMException('Broken', 'UnknownError'), 'unavailable', 'unsynced'],
+    ['writing', new DOMException('Full', 'QuotaExceededError'), 'quota', 'quota'],
+    ['writing', new DOMException('Full', 'NS_ERROR_DOM_QUOTA_REACHED'), 'quota', 'quota'],
+    ['writing', new DOMException('Aborted', 'AbortError'), 'unavailable', 'unsynced'],
+  ];
+  for (const [where, error, code, copy] of cases) {
+    const label = `${where} ${error.name}`;
+    o.faults.read = where === 'read' ? error : null;
+    o.faults.write = next => where === 'writing' && next?.state === 'writing' && error;
+    await assert.rejects(a.fenced(true)(() => assert.fail('the callback ran')), { name: 'ProfileFenceError', code, message: FENCE_MESSAGES[code] }, label);
+    const refused = await commitIn(a, request, a.fenced(true));
+    assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES[copy]], label);
+    const lookup = await readCommandReceipt(request, { store: a.store, lock: a.fenced(true) });
+    assert.deepEqual([lookup.status, lookup.message], ['unavailable', FENCE_MESSAGES[code]], label);
+    assert.equal(o.bytes(), bytes, label);
+  }
+  o.faults.read = null; o.faults.write = null;
+  assert.equal((await commitIn(a, request, a.fenced(true))).status, 'committed');
+});
+
+test('N29 with the IndexedDB adapter on a full disk, an upgrade asks for space, not another browser; once space returns it commits', async () => {
+  const base = rich(), [x] = spare(base), o = origin(base), a = o.tab();
+  const options = {}, fence = createIndexedDBFence(fakeIndexedDB(options));
+  const lock = strict => createFencedLock({ request: o.lock, fence, read: () => a.storage.getItem(PROFILE_KEY), strict });
+  await lock(false)(() => a.store.save(a.store.load())); // the startup save records the fence
+  const request = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  options.refuseWrites = 'QuotaExceededError';
+  const refused = await commitIn(a, request, lock(true));
+  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES.quota]);
+  assert.equal(levelOf(o.saved(), x), 1);
+  await lock(false)(() => { const profile = a.store.load(); profile.dust += 1; a.store.save(profile); });
+  assert.equal(o.saved().dust, base.dust + 1, 'a lenient writer still saves to localStorage');
+  options.refuseWrites = null;
+  await lock(false)(() => a.store.save(a.store.load())); // a reload's startup save records it
+  const fresh = previewCommand(a.store.load(), { type: UPGRADE, uid: x }).request;
+  assert.equal((await commitIn(a, fresh, lock(true))).status, 'committed', 'the same browser commits: it was never the problem');
+});
+
+/** A small in-memory IndexedDB: one database, one object store, async events. While
+ * `options.refuseWrites` names a DOMException, every readwrite transaction aborts with it
+ * and stores nothing, as a full disk does; it is read per transaction, so it can change. */
+function fakeIndexedDB(options = {}) {
+  const { failOpen = false, abort = false } = options;
   const databases = new Map(), opened = [];
   const fire = (target, type, extra = {}) => queueMicrotask(() => { Object.assign(target, extra); target[`on${type}`]?.(); });
   return {
@@ -287,12 +349,14 @@ function fakeIndexedDB({ failOpen = false, abort = false } = {}) {
           createObjectStore: store => entry.stores.set(store, new Map()),
           transaction(store, mode) {
             const records = entry.stores.get(store), transaction = { mode };
+            const refused = mode === 'readwrite' && options.refuseWrites ? new DOMException('Fixture refusal', options.refuseWrites) : null;
             transaction.objectStore = () => ({
               get: key => { const r = {}; fire(r, 'success', { result: structuredClone(records.get(key)) }); return r; },
-              put: (value, key) => { const r = {}; if (mode !== 'readwrite') throw Error('read only'); records.set(key, structuredClone(value)); fire(r, 'success', { result: key }); return r; },
-              delete: key => { const r = {}; records.delete(key); fire(r, 'success', { result: undefined }); return r; },
+              put: (value, key) => { const r = {}; if (mode !== 'readwrite') throw Error('read only'); if (!refused) records.set(key, structuredClone(value)); fire(r, 'success', { result: key }); return r; },
+              delete: key => { const r = {}; if (!refused) records.delete(key); fire(r, 'success', { result: undefined }); return r; },
             });
-            setTimeout(() => abort ? fire(transaction, 'abort', { error: new DOMException('Aborted', 'AbortError') }) : fire(transaction, 'complete'));
+            const failure = abort ? new DOMException('Aborted', 'AbortError') : refused;
+            setTimeout(() => failure ? fire(transaction, 'abort', { error: failure }) : fire(transaction, 'complete'));
             return transaction;
           },
         };

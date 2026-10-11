@@ -21,8 +21,12 @@ export const FENCE_LENIENT_MS = 500;
  * stalled IndexedDB cannot hold the profile lock forever. */
 export const FENCE_IO_MS = 1500;
 
+/** Codes name what the player can do: `missing` needs another browser, `quota` needs space,
+ * the rest a retry or a reload. */
 export const FENCE_MESSAGES = Object.freeze({
-  unavailable: '此瀏覽器未能確認各分頁的最新旅程；未有更改旅程。',
+  missing: '此瀏覽器未能提供安全儲存，未能確認各分頁的最新旅程；未有更改旅程。',
+  quota: '儲存空間不足，未能確認各分頁的最新旅程；未有更改旅程，請先匯出旅程備份。',
+  unavailable: '暫時未能確認各分頁的最新旅程；未有更改旅程，請稍後再試或重新整理頁面。',
   unsynced: '其他分頁剛儲存的旅程仍未同步到這裡；未有更改旅程。',
   unsettled: '上次儲存未能完整確認；未有更改旅程，重新整理頁面後再試。',
 });
@@ -59,6 +63,16 @@ const defaultClock = () => globalThis.performance?.now?.() ?? Date.now();
 
 const NOT_READ = Symbol('not read');
 const attempt = read => { try { return read(); } catch { return NOT_READ; } };
+
+const isQuota = error => ['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'].includes(error?.name);
+/** Why a fence read or write failed. No IndexedDB, or one the browser denies to this page
+ * (SecurityError), is `missing`; a full disk is `quota`; anything else, a stall included,
+ * is `unavailable`, which a retry or a reload may clear. */
+function fenceFailure(error) {
+  if (error?.name === 'ProfileFenceError' && ['missing', 'quota', 'unavailable'].includes(error.code)) return error;
+  if (error?.name === 'SecurityError') return new ProfileFenceError('missing');
+  return new ProfileFenceError(isQuota(error) ? 'quota' : 'unavailable');
+}
 
 /** Abandon a fence operation after `ms`; the signal stops one that has not started yet. */
 async function within(operation, ms) {
@@ -100,8 +114,7 @@ export function createFencedLock({ request, fence, read, strict = true, budget, 
   const recordFence = next => within(signal => fence.write(next, { signal }), ioBudget);
   return callback => request(async () => {
     let record = null, readable = true;
-    try { record = await load(); } catch { readable = false; }
-    if (!readable && strict) throw new ProfileFenceError('unavailable');
+    try { record = await load(); } catch (error) { readable = false; if (strict) throw fenceFailure(error); }
     // Verified: these bytes include every write a previous holder recorded.
     let verified = readable && record === null;
     if (readable && record !== null) {
@@ -113,7 +126,7 @@ export function createFencedLock({ request, fence, read, strict = true, budget, 
     let marked = false;
     if (readable) {
       try { await recordFence(WRITING); marked = true; }
-      catch { if (strict) throw new ProfileFenceError('unavailable'); }
+      catch (error) { if (strict) throw fenceFailure(error); }
     }
     const before = attempt(read);
     let result, failure, threw = false;
@@ -139,7 +152,7 @@ export function createFencedLock({ request, fence, read, strict = true, budget, 
 export function createIndexedDBFence(factory, { name = PROFILE_FENCE_DB, key = 'shanhai.profile.v5' } = {}) {
   let opening = null;
   function open() {
-    if (!factory || typeof factory.open !== 'function') return Promise.reject(new ProfileFenceError('unavailable'));
+    if (!factory || typeof factory.open !== 'function') return Promise.reject(new ProfileFenceError('missing'));
     opening ??= new Promise((resolve, reject) => {
       const request = factory.open(name, PROFILE_FENCE_VERSION);
       request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains(PROFILE_FENCE_STORE)) request.result.createObjectStore(PROFILE_FENCE_STORE); };
