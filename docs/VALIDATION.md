@@ -2,6 +2,47 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## Q4 content registry · 2026-10-11
+
+Local branch `q4/content-registry`, started from `origin/main` `8afbabc`. Source
+commit **`4265039`** adds `tools/content-registry.mjs`,
+`tests/content-registry.test.mjs` and the `npm run audit:content` script. The
+branch is not merged, pushed or deployed, and there was no hosted check. No game
+runtime, save schema, content, art or allowlist file changed. Design and scope are in
+[EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q4--content-registry-and-honest-capability-visibility).
+
+- `node --test tests/*.test.mjs`: **465/465**, exit 0, Node 26.0.0. The base
+  has 456; the new file adds 9.
+- `node tools/content-registry.mjs`: exit 0, `findings: []`. It derives 150
+  entries: encounters 6 original, 12 story and 48 campaign; one activity; 24
+  legacy, 29 WX-01, 19 LZ-01 and 11 HL-01 printings. Statuses are 120
+  local-playable, 24 preview and 6 planned.
+- **Rules-level routes:** all 68 advertised encounter routes (66 owned, plus
+  borrowed decks on `echo-1-7` and `echo-6-7`) start, complete and pay their
+  first clear once. Each rejects a duplicate completion and unlocks the next
+  node, which was locked before. Both fire-mountain routes complete twice with
+  one first-clear grant. These checks call `progression.mjs` directly, not the
+  browser UI.
+- **Backup:** a v3 cloud snapshot round trip keeps all 66 clears, the activity
+  record and grants, and one copy of each of the 53 ownable printings.
+- **Fault injection:** each audit check fires on a deliberately broken copy of
+  the sources, for example a dropped public map, a leaked LZ-01 atlas, an
+  unknown card or illegal authored deck, a dangling prerequisite, a printing
+  with absent or missing art, a wrong activity drop, a bound planned special,
+  checklist or brief drift, an unlisted import and a preview import.
+- `npm run build`: exit 0, 80 public files, the same allowlist as the base.
+- **Audit result:** nothing inconsistent in current content. All 60 authored
+  opponent decks are legal, so `app.mjs:opponentDeck` never silently falls back to
+  its random legacy deck. Every allowlisted file is used, nothing a served page
+  loads is unlisted, and no preview file reaches the public graph.
+- **Observations, not fixed:** the six original encounters have no authored
+  opponent deck; `app.mjs:opponentDeck` shuffles the legacy roster with
+  `Math.random`, so that choice is not injectable. `engine.mjs` declares no rules
+  version. The registry reports both instead of inventing values.
+- **Not run:** `npm run test:browser` and the WebKit suites, because no runtime
+  file changed. Also not run: CI, any hosted or deployed check, and any
+  physical-device or human review.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

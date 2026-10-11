@@ -217,6 +217,51 @@ promoted through the existing pipeline. No dynamic remote code loading is needed
 Asset budgets, artwork provenance and release identities remain owned by
 [CONTENT-RELEASE-PIPELINE](CONTENT-RELEASE-PIPELINE.md) and the expansion documents.
 
+**Implemented locally 2026-10-11 (branch `q4/content-registry`, not merged or
+deployed).** The registry is `tools/content-registry.mjs`, not a root runtime
+module. It is **tooling only** for two reasons. It describes the LZ-01/HL-01
+preview identities, so a served copy would have to import `liaozhai-cards.mjs`
+and `honglou-cards.mjs` into the public graph, which their isolation tests forbid,
+or duplicate their lists. And it reads the two allowlists and the LZ-01 docs,
+which a static browser module cannot. No runtime view consumes it yet, so the public
+build is unchanged at 80 files. A future runtime label view should take a public
+subset that the build generates, not import this file.
+
+- **Derived, not maintained:** encounters come from `progression.mjs:NODES`
+  (6 original, 12 story, 48 campaign), the activity from `FIRE_MOUNTAIN`, the 24
+  legacy and 29 WX-01 printings from `PRINTINGS`, the LZ-01/HL-01 previews from
+  their card modules, and the six planned LZ-01 specials from the "Proposed
+  printing checklist" in [EXPANSION-LZ01](EXPANSION-LZ01.md), with proposed files
+  from [ART-LZ01](ART-LZ01.md). That makes 150 entries: 120 `local-playable`,
+  24 `preview` and 6 `planned`.
+- **Capabilities:** each entry carries all five capabilities. A capability is
+  `available`, `unavailable` with a reason, or `not-applicable` with a reason;
+  for example, encounters have no preview surface and are not owned. When the
+  source wires an item but a requirement fails, such as missing art, an
+  unlisted asset, an illegal deck or a dangling prerequisite, the capability is
+  `inconsistent` and the audit fails. `server-authoritative` is unavailable everywhere.
+- **References, not copies:** entry, completion, reward, resume and unlock rules
+  are `file.mjs:function` references. Evidence names `tests/file › title`. The
+  audit checks that each one still resolves. `cardId`, `printId` and the absent
+  `uid` stay distinct. Only `FIRE_MOUNTAIN.version` exists as a declared content
+  version, and no rules version exists. `contentDigest` (SHA-256 of each authored
+  record) detects change without inventing either version.
+- **Audit:** `npm run audit:content` and `tests/content-registry.test.mjs` fail
+  on several kinds of inconsistency. They cover a public page loading an unlisted
+  file and an allowlisted file nothing uses. They cover preview data or art
+  reaching the public build and a planned special that is bound, allowlisted or
+  present while its checklist row still says "no image". They also cover drift
+  between the LZ-01 checklist and its briefs, and a dead rule or evidence
+  reference. Injected-fault cases prove each check fires.
+- **Rules-level routes:** every advertised encounter route (66 owned plus 2
+  borrowed decks) starts, completes, pays its first clear once, rejects a duplicate
+  completion and unlocks its next step. Both activity routes complete twice with
+  one first-clear grant. A cloud-snapshot round trip keeps all 66 clears, the
+  activity record and one copy of each of the 53 ownable printings.
+- **Still open for Q4:** feature views do not show these reasons yet. Start → completion →
+  receipt → return is covered at rules level, not in the browser UI. The "one
+  deeper encounter" sample and human difficulty review are not started.
+
 ## Q5 · a fair observation and legal-command boundary
 
 **Proposed `agent-observation.mjs`** exposes `observePublic(position, phase)` and

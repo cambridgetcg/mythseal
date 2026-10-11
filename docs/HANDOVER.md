@@ -1,7 +1,7 @@
 # Mythseal agent handover
 
-Start here when joining development. Updated **2026-09-29**, with a local Q0
-checkpoint added on **2026-10-11**. The last recorded
+Start here when joining development. Updated **2026-09-29**, with local Q0
+and Q4 checkpoints added on **2026-10-11**. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -78,6 +78,31 @@ pushed, merged or deployed**. The last recorded public release is still
   540 px tall; the plan's remaining clipping notes; and merge/build/release.
   The [battle-table plan](BATTLE-LAYOUT-PLAN.md#implementation-record-2026-10-10)
   lists them.
+
+## Q4 content registry checkpoint · 2026-10-11 (local only)
+
+Roadmap packet Q4's registry and audit are on the local branch
+**`q4/content-registry`**, started from `origin/main` `8afbabc`. Source commit
+**`4265039`**. The branch is not merged, pushed or deployed, and no hosted check
+was made.
+
+- **Added:** `tools/content-registry.mjs` (Node tooling, never served),
+  `tests/content-registry.test.mjs` and `npm run audit:content`. The registry
+  derives what every encounter, the activity, each legacy/WX-01 printing, each
+  LZ-01/HL-01 preview printing and the six planned LZ-01 specials can do. It
+  takes this from the content modules, the two asset allowlists and the LZ-01
+  checklist. No runtime, save, content, art or allowlist change; the public
+  build stays at 80 files.
+- **Checked:** 465/465 Node tests; the audit exits 0 with no findings;
+  `npm run build` gives 80 files. Browser suites were not run because no
+  runtime file changed.
+- **When content changes:** run `npm run audit:content`. If you bind an LZ-01
+  special, update its status in the [EXPANSION-LZ01](EXPANSION-LZ01.md)
+  checklist in the same change, or the audit fails.
+- **Open:** feature views do not show unavailable reasons yet; there are no
+  browser-level completion → return tests; the deeper-encounter sample and human
+  difficulty review are not started.
+  [VALIDATION](VALIDATION.md#q4-content-registry--2026-10-11) has the checks.
 
 ## Experience planning checkpoint · 2026-09-29
 

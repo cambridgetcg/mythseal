@@ -201,6 +201,17 @@ new renderer to make local play clearer.
   playable route has a start → completion → receipt → return test. Preview
   browsing leaves profile bytes unchanged; duplicate completion pays once.
   Human difficulty review remains separate from strong-fixture completion tests.
+- **Status 2026-10-11:** the read-only registry and its audit are implemented
+  locally on branch `q4/content-registry` from `origin/main` `8afbabc`. The
+  branch is not merged or deployed. `tools/content-registry.mjs` is tooling
+  only and the public build is unchanged. It derives 150 entries: 120
+  local-playable, 24 preview and 6 planned LZ-01 specials. The audit found no
+  content inconsistency in the current source. At rules level, every advertised
+  encounter and activity route now starts, completes once and rejects a duplicate.
+  Not done yet: showing unavailable reasons in feature views, browser-level
+  completion → return tests and the deeper-encounter sample. See
+  [EXPERIENCE-MODULES](docs/EXPERIENCE-MODULES.md#q4--content-registry-and-honest-capability-visibility)
+  and [VALIDATION](docs/VALIDATION.md#q4-content-registry--2026-10-11).
 
 ### Q5 · Fair agent practice interface
 
