@@ -83,9 +83,10 @@ pushed, merged or deployed**. The last recorded public release is still
 
 Roadmap packet Q1 is implemented for one command on the local branch
 **`q1/local-commands`**, started from `origin/main` `8afbabc`. The last source
-commit is **`334bc75`**, after three review rounds; the commits after it change
-documentation only. The branch is **not pushed, merged or deployed**. The last
-recorded public release is still **v0.5.1**, and no hosted check was made.
+commit is **`345f92f`**, after three review rounds and a final review; the
+commit after it changes documentation only. The branch is **not pushed, merged
+or deployed**. The last recorded public release is still **v0.5.1**, and no
+hosted check was made.
 
 - **Changed:** the backpack card page's 修練升級 commits the request painted
   with the page through `local-commands.mjs` (`care.upgrade`), under
@@ -96,12 +97,12 @@ recorded public release is still **v0.5.1**, and no hosted check was made.
   the snapshot format, the Worker and the SQL are unchanged. Every writer under
   the lock goes through the IndexedDB fence in `profile-fence.mjs` (invariants
   below).
-- **Checked:** at `0492242` (code equal to `334bc75`), 507/507 Node tests,
-  the 14 Chromium `npm run test:browser` suites, and `npm run test:commands`
-  11/11 groups in Chromium and WebKit, all exit 0, headless against a separate
-  loopback server.
-  [VALIDATION](VALIDATION.md#q1-final-check--2026-10-11) has the final receipt
-  and each review round's checks.
+- **Checked:** at `345f92f`, 507/507 Node tests, the 14 Chromium
+  `npm run test:browser` suites, and `npm run test:commands` 12/12 groups in
+  Chromium and WebKit, all exit 0, headless against the worktree's loopback
+  server.
+  [VALIDATION](VALIDATION.md#q1-final-review-fixes--2026-10-11) has the latest
+  receipt and each review round's checks.
 - **Review requested:** the owner's review of the
   [LOCAL-COMMANDS](LOCAL-COMMANDS.md) contract before any Q2 care plan or Q3
   queue is written on it, including its §15 decisions: the restore rule,

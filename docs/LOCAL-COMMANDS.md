@@ -67,7 +67,7 @@ Line numbers in this section refer to `8afbabc`.
 | File | Change |
 | --- | --- |
 | `command-ledger.mjs` (new, runtime) | §6 constants, validator, append/prune, retire and the `transact` guard helper. It imports at most constants from `collection.mjs`. It never imports `progression`, `cloud-save`, `profile-store` or `app.mjs`, because `progression` imports it. |
-| `local-commands.mjs` (new, runtime) | `previewCommand`, `commitCommand`, `readCommandReceipt` and one type, `care.upgrade`. Imports: `progression` (`getUpgradeCost`, `upgradeInstance`), `collection` (`getInstance`, `isInstanceInJourney`), `cloud-save` (`fingerprintProfile`) and `command-ledger`. It never imports `profile-store` or `app.mjs`; the caller passes in the store and the lock. |
+| `local-commands.mjs` (new, runtime) | `previewCommand`, `commitCommand`, `readCommandReceipt` and one type, `care.upgrade`. Imports: `progression` (`getUpgradeCost`, `upgradeInstance`), `collection` (`getInstance`, `getXPThreshold`, `isInstanceInJourney`), `cloud-save` (`fingerprintProfile`) and `command-ledger`. It never imports `profile-store` or `app.mjs`; the caller passes in the store and the lock. |
 | `progression.mjs` | Changes `hydrateProfile` only. For `raw.version === 5` with its own `commands` key, it sets `hydrated.commands = validateCommandLedger(raw.commands)`. Otherwise the key stays absent and is never invented. This is wired the same way as `validateWX01State` and `validateExpansionState`. |
 | `profile-store.mjs` | **No code change.** The canonical re-hydrate check in `assertLocalProfile` (line 45) now carries and checks the ledger before `setItem`. The 4 MiB envelope check (line 48) now counts it. |
 | `cloud-save.mjs` | Export `LOCAL_ONLY_PROFILE_KEYS = ['commands']` and `backupProfile(profile)`, a shallow copy without those keys. `createSnapshot` validates `backupProfile(profile)`. Unchanged: `validateSnapshot`, `validateProfile`, `restoreSnapshot`, `fingerprintProfile`, `SNAPSHOT_VERSION`. |
@@ -295,7 +295,7 @@ The window holds every receipt from `retiredBelow` to `nextSeq − 1`: seven her
 **After the lock:**
 
 12. If `await lock(...)` rejects with `entered === false`, the callback never ran:
-    - a `ProfileFenceError` returns `rejected/unsynced`, with the `no-lock` text when this browser has no usable IndexedDB (`missing`), the `quota` text when IndexedDB refused a fence write for lack of space (`quota`), and the `unsynced` text otherwise;
+    - a `ProfileFenceError` returns `rejected/unsynced`, with the `no-lock` text when this browser has no usable IndexedDB (`missing`), the `quota` text when IndexedDB refused a fence read or write for lack of space (`quota`), and the `unsynced` text otherwise;
     - anything else returns `rejected/lock-failed`.
     - If it rejects with `entered === true`, return `unknown`.
 
@@ -409,7 +409,7 @@ N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fe
 - A lenient holder that has not caught up within 0.5 s still writes from what it sees, as every writer did before the fence. Review measured catch-up under 50 ms. Restore is strict for this reason (§11).
 - A write that bypasses the fence can be lost until it reaches the next strict holder's tab (see the rules above).
 - If IndexedDB refuses the `writing` record (for example a full disk), or the fence read fails, a lenient writer proceeds without recording. A strict holder in a renderer that is still behind can then match the older record.
-- On such a full disk, once a lenient write has changed the profile, the recorded digest is out of date. A strict holder then waits 2 s and refuses with the `unsynced` text rather than the `quota` text, and a reload does not heal the fence until IndexedDB accepts writes again. Only a strict holder whose own fence write is refused gets the `quota` text.
+- On such a full disk, once a lenient write has changed the profile, the recorded digest is out of date. A strict holder then waits 2 s and refuses with the `unsynced` text rather than the `quota` text, and a reload does not heal the fence until IndexedDB accepts writes again. The `quota` text needs IndexedDB to refuse the strict holder's own fence read or writing mark; a read that succeeds against an out-of-date record gives the `unsynced` text.
 - Not checked: separate browser windows or processes, the Safari app, Firefox, physical devices.
 
 ## 11. Profile field and migration impact
@@ -443,6 +443,7 @@ N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fe
   - Under the lenient lock, a tab that had not received another tab's commit within 0.5 s restored from its older bytes. It retired the ledger from the old `nextSeq`, so a quote minted after that commit stayed valid and committed in the restored journey. Its recovery copy also missed the commit, which then existed nowhere, although its tab had shown 此卡修練完成.
   - Now such a tab waits up to 2 s and otherwise refuses with 其他分頁剛儲存的旅程仍未同步到這裡；未有更改旅程。 Nothing is written. Once the commit arrives, the confirmation no longer matches (§12).
   - **Cost.** A restore also refuses while the fence says `writing` (a reload heals it), on a full disk that refuses the fence write, and in a browser without usable IndexedDB. Before, it needed only Web Locks. Restore is rare and confirmed first, and a refusal changes nothing.
+- **A refused local recovery restore can be retried from its dialog (fixed after the final review).** The refusal changes nothing and leaves the dialog open, so `app.mjs` keeps its confirmation draft until a restore succeeds. Pressing 復原本機旅程 again, as the `unavailable` text invites, runs the backup (`savedAt`) and fingerprint checks again and restores once the fence passes; a journey that changed meanwhile is still refused as changed. A press while a restore is in flight is ignored. Cloud restore needs no change: `account-client.mjs` clears its confirmation and shows the error, so the player confirms again.
 - **Order (fixed after review).** `store.replace(current, restored)` in `profile-store.mjs` first builds the profile to save, with the retired ledger, and checks it with `assertLocalProfile`. Only then does it write the `RECOVERY_KEY` copy of `current`, and then the profile. A refused restore therefore leaves both untouched. If the profile write throws, the store reads the profile again under the same lock, because a throwing write may still have landed (§7 step 11):
   - the replaced bytes are still stored: the previous recovery copy is put back, or removed when there was none;
   - the restored bytes are stored: the restore landed and is reported as done;
@@ -575,6 +576,8 @@ Branch `q1/local-commands`, from `8afbabc`. Not pushed, merged or deployed.
 | `334bc75` | After the third review: smoke B9 (a full disk refusing the fence write) |
 | `0492242` | After the third review: §3, §7, §9 (the `stale` row spelled out), §10, §10.1, §11, §12, the test matrix and HANDOVER |
 | The commit that adds §18.8 | Documentation only: the final check, its VALIDATION entry, the ROADMAP status line and the HANDOVER checkpoint |
+| `345f92f` | After the final review: a refused local recovery restore keeps its draft for a retry in the dialog; smoke B10; the second press in the account smoke's A1 |
+| The commit that adds §18.9 | After the final review: §2, §7 step 12, §10.1 Limits and §11; the test matrix, VALIDATION, ROADMAP and HANDOVER |
 
 The public allowlist now has 83 files (82, plus `profile-fence.mjs` after review).
 
@@ -743,6 +746,25 @@ Run at `0492242`, whose code equals the last source commit `334bc75`; no code ch
 
 **Not checked in this run:** the other per-engine smokes (`test:inheritance` and `test:wx01` last ran in §18.7), separate browser processes, the Safari app, Firefox, devices, a real full disk or delivery lag, Node 22, `npm run build`, deploy dry runs and any hosted service. The §15 owner decisions remain open, and owner review of this contract is requested before any Q2/Q3 consumer is written.
 
+### 18.9 Fixes after the final review (2026-10-11)
+
+A final review of `7d32825` reported three low-severity findings; two describe the same defect, and second reviewers reproduced each independently. All are fixed; none was skipped. The text above now includes the fixes.
+
+1. **A refused local recovery restore could not be retried from its dialog, and the retry said the backup had changed** (`345f92f`, §11).
+   - **Cause.** The `confirm-restore-recovery` handler in `app.mjs` cleared `recoveryDraft` before `restoreLocalProfile` ran, and its `.catch` only showed the error, leaving the dialog open. The pattern predates Q1 (it is the same at `8afbabc`), but since `323d27c` restore holds the strict fence, so a refusal can be transient: the `unavailable` text asks for a retry, and `unsynced` clears when the other tab's write arrives. Pressing 復原本機旅程 again then found no draft and showed 回復備份已更新，請重新查看。, although the recovery copy was byte-identical and nothing had been written. Closing and reopening the dialog worked.
+   - **Fix.** The draft stays until a restore succeeds, and is marked while one is in flight, so a second press is ignored instead of misreported. A retry runs the `savedAt` and fingerprint checks again: a changed recovery copy still gets 回復備份已更新, and a journey that changed meanwhile still gets 本機旅程剛有更新. Other refusals (a pending battle, a WX receipt) repeat their own reason. Cloud restore was not affected and is unchanged.
+2. **The contract limited the `quota` copy to a refused fence write** (documentation, §7 step 12, §10.1 Limits). `createFencedLock` maps a failed fence read through the same `fenceFailure`, so a `QuotaExceededError` on the read also gives `quota` and the quota copy, as §9, the §10.1 code list and N29 already said. Both places now say read or write. The §2 table also omitted `getXPThreshold` from the `collection` imports of `local-commands.mjs`.
+
+**Checks** (Node 26.0.0 on macOS; headless; synthetic data only). The worktree's server on 4193 had been restarted after the Q1 modules existed: it returned 200 for `local-commands.mjs` and its working directory was this worktree, so it served the browser runs. The negative controls used a separate `python3 tools/serve.py --port 4397` serving an export of `7d32825`'s tree, stopped and deleted afterwards.
+
+- `node --test tests/*.test.mjs`: exit 0, **507/507**. `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK. `git diff --check`: clean.
+- `GAME_URL=http://127.0.0.1:4193 npm run test:commands`: exit 0, **12/12 groups in each engine** (Chromium, then Playwright WebKit), including the new B10. In B7 the fenced lock read the previous write in 30/30 handoffs in both engines; the plain-lock control was stale in 29/30 (Chromium) and 21/30 (WebKit).
+- `GAME_URL=http://127.0.0.1:4193 npm run test:browser`: exit 0, all 14 Chromium suites (system Google Chrome 154.0.8037.98) in 294 s, including the account smoke's second press on an unsettled fence.
+- **Negative controls** against `7d32825`: B10 timed out at the retry, waiting for the `unsynced` refusal, in Chromium and in WebKit; the account smoke timed out waiting for the second press's unsettled reason.
+- The screenshots these runs wrote to the ignored `test-results/` were deleted afterwards.
+
+**Not checked:** `test:inheritance` and `test:wx01` (last run in both engines in §18.7), the other per-engine smokes, the account smoke in WebKit, separate browser processes, the Safari app, Firefox, devices, a real full disk or delivery lag, Node 22, `npm run build`, deploy dry runs and any hosted service. The §15 owner decisions remain open.
+
 ## Appendix · test matrix
 
 Where each row is implemented. The `N` rows are Node tests and the `B` rows browser smoke groups.
@@ -788,5 +810,6 @@ Where each row is implemented. The `N` rows are Node tests and the `B` rows brow
 | B7 | The fence across two real pages at 50 KB: the next holder reads the previous write in every handoff (a plain-lock control is reported, not asserted) | `tools/command-smoke.mjs` |
 | B8 | A `writing` record or an edit outside the lock refuses the upgrade with no write; a reload heals the fence and the upgrade commits, keeping the edit | `tools/command-smoke.mjs` |
 | B9 | IndexedDB refusing the fence write with a synthetic `QuotaExceededError` refuses the upgrade with the quota copy, never the `no-lock` copy, and no write; it commits once writes work again | `tools/command-smoke.mjs` |
-| A1 | A `writing` record refuses a local recovery restore with 上次儲存未能完整確認… and nothing changed; after a reload heals the fence the restore completes (Chromium) | `tools/account-smoke.mjs` |
-| R1 | Regressions: the Node suite, `test:browser`, `test:inheritance`, `test:wx01`, `test:battle-table` and `test:commands` | §18.3, §18.5, §18.6, §18.7 and §18.8 |
+| B10 | A local recovery restore refused by the fence (a synthetic transient IndexedDB failure, then a record the tab's bytes do not match) changes no byte and keeps its dialog; pressing it again after the fence passes restores once, two presses give one restore, and no toast says the backup changed | `tools/command-smoke.mjs` |
+| A1 | A `writing` record refuses a local recovery restore with 上次儲存未能完整確認… and nothing changed, and pressing it again repeats that reason; after a reload heals the fence the restore completes (Chromium) | `tools/account-smoke.mjs` |
+| R1 | Regressions: the Node suite, `test:browser`, `test:inheritance`, `test:wx01`, `test:battle-table` and `test:commands` | §18.3, §18.5, §18.6, §18.7, §18.8 and §18.9 |

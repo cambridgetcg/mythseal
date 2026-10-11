@@ -205,6 +205,42 @@ devices; a real full disk, `QuotaExceededError` or cross-tab delivery lag over
 review of the contract, including its §15 decisions, is requested before any
 Q2/Q3 consumer is written.
 
+### Q1 final review fixes · 2026-10-11
+
+Source commit `345f92f` on the same branch fixes the defect a final review of
+`7d32825` reported (twice); the commit that adds this entry corrects the
+contract's two quota statements and its §2 import list. Still not pushed,
+merged or deployed, and no hosted check. Synthetic headless evidence on Node
+26.0.0;
+[LOCAL-COMMANDS §18.9](LOCAL-COMMANDS.md#189-fixes-after-the-final-review-2026-10-11)
+has the detail.
+
+- **Recovery restore retry.** A local recovery restore that the strict fence
+  refuses keeps its dialog and now its draft, so pressing 復原本機旅程 again
+  restores once the fence passes instead of claiming the backup changed. A
+  retry still runs the backup and fingerprint checks; a press in flight is
+  ignored.
+- **Quota copy.** The contract now says a refused fence read or write gives the
+  quota copy, as the code and N29 do.
+
+Checks, against the worktree's own server on 4193 (restarted after the Q1
+modules existed; it returned 200 for `local-commands.mjs`):
+
+- `node --test tests/*.test.mjs`: exit 0, **507/507**. Python: 9 tests OK.
+  `git diff --check`: clean.
+- `npm run test:commands`: exit 0, **12/12 groups in each engine**, including
+  the new B10 (fenced handoffs 30/30 current; plain-lock control 29/30 Chromium
+  and 21/30 WebKit stale).
+- `npm run test:browser` (14 Chromium suites): exit 0 in 294 s; the account
+  smoke now presses again on an unsettled fence.
+- Against `7d32825` (a separate server on 4397, stopped afterwards), B10 times
+  out at the retry in both engines and the account smoke at its second press.
+
+Not checked: `test:inheritance`, `test:wx01` and the other per-engine smokes,
+the account smoke in WebKit, separate browser processes, the Safari app,
+Firefox, devices, a real full disk or delivery lag, Node 22, `npm run build`,
+deploy dry runs and any hosted service.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not
