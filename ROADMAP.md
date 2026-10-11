@@ -202,9 +202,10 @@ new renderer to make local play clearer.
   browsing leaves profile bytes unchanged; duplicate completion pays once.
   Human difficulty review remains separate from strong-fixture completion tests.
 - **Status 2026-10-11 · registry and audit done locally; exit not yet met.**
-  Branch `q4/content-registry` (from `origin/main` `8afbabc`) is not merged or
-  deployed. `tools/content-registry.mjs` is tooling only; the public build is
-  unchanged. It derives 150 entries (120 local-playable, 30 preview; no LZ-01
+  Branch `q4/content-registry` (from `origin/main` `8afbabc`, with `origin/main`
+  `daf18ed` merged in) is not merged into `main` or deployed.
+  `tools/content-registry.mjs` is tooling only; the public build is unchanged.
+  It derives 150 entries (120 local-playable, 30 preview; no LZ-01
   special is planned since `art/lz01-specials-images` was merged into the
   branch), and every unavailable capability states a reason. The audit
   finds no inconsistency in current content. Against the exit: at rules level,

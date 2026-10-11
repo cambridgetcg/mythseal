@@ -84,23 +84,28 @@ pushed, merged or deployed**. The last recorded public release is still
 ## Q4 content registry checkpoint · 2026-10-11 (local only)
 
 Roadmap packet Q4's registry and audit are on the local branch
-**`q4/content-registry`**, started from `origin/main` `8afbabc`. The source
-commit is **`4265039`**, with review fixes in **`7291880`** and **`cf63bec`**;
-later commits change documentation only. The branch is not merged, pushed or
-deployed, and no hosted check was made.
+**`q4/content-registry`**, started from `origin/main` `8afbabc`. Source
+commits: **`4265039`** (the registry), review fixes **`7291880`** and
+**`cf63bec`**, merge commit **`d1f0f91`** (adapts the registry and its tests to
+PR #8's LZ-01 specials) and third-review fixes **`6bc784a`**. Merge commit
+`d606447` brings in `origin/main` `daf18ed` (PRs #6–#8, documentation only);
+the other commits change documentation only. The branch is not merged into
+`main`, pushed or deployed, and no hosted check was made.
 
 - **What it is:** `tools/content-registry.mjs` (Node tooling, never served),
   `tests/content-registry.test.mjs` and `npm run audit:content`. From the content
   modules, both asset allowlists and the LZ-01 docs, it derives what each
   encounter, the activity, each legacy/WX-01 printing, each LZ-01/HL-01 preview
-  and each planned LZ-01 special can do. No runtime, save, content, art or
-  allowlist file changed. [Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states)
+  and each planned LZ-01 special can do. The registry's own commits change no
+  runtime, save, content, art or allowlist file; the PR #8 merge brought in that
+  branch's LZ-01 content, art and preview-allowlist changes.
+  [Q4 registry states](EXPERIENCE-MODULES.md#q4-registry-states)
   defines statuses and capability states.
-- **Checked:** 473/473 Node tests before the merge and 474/474 after it, the
-  audit (exit 0, no findings), an 80-file build and the LZ-01/HL-01 preview
-  smokes in Chromium and WebKit;
+- **Checked:** 473/473 Node tests before the PR #8 merge and 474/474 after it
+  and at `d606447`, the audit (exit 0, no findings), an 80-file build and the
+  LZ-01/HL-01 preview smokes in Chromium and WebKit;
   [VALIDATION](VALIDATION.md#q4-content-registry--2026-10-11) has the receipts
-  and both review rounds.
+  and all three review rounds.
 - **When content changes:** run `npm run audit:content`. If you bind an LZ-01
   special, update its row in the [EXPANSION-LZ01](EXPANSION-LZ01.md) checklist
   in the same change, or the audit fails.
@@ -114,6 +119,17 @@ deployed, and no hosted check was made.
   none planned. The tests derive the LZ-01 split from `liaozhai-cards.mjs`
   instead of pinning it, and rebuild a planned special from a bound one to keep
   the planned-path faults exercised.
+- **Third review (`6bc784a`):** a cited test must now be a top-level
+  `test(...)` (one nested in `describe.skip` had counted while the runner
+  reported 0 skipped), `this.skip()` in a `function` callback disqualifies it,
+  and a code reference must be defined in code, not a comment or string. Only
+  `west-spirit-mountain` lists the story-gift claim, since the four westward
+  nodes unlock in a chain. The audit compares a bound special's brief file with
+  its binding.
+- **Merging into `main`:** `docs/README.md` now qualifies the Experience modules,
+  Roadmap, Handover and Validation rows for Q4. When the branch merges, update
+  the "not merged" status lines here, in ROADMAP, EXPERIENCE-MODULES and
+  VALIDATION, then those rows.
 - **Open:** feature views do not show unavailable reasons yet; there is no
   browser-level start → completion → receipt → return test; the
   deeper-encounter sample and human difficulty review are not started.

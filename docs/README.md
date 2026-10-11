@@ -45,8 +45,8 @@ contract.
 | [Project overview](../README.md) | Play, run locally, feature summary, browser checks and the project map | `mixed` · its save notes describe profile v3/v4; `main` uses v5 |
 | [Working instructions](../AGENTS.md) | Repository conventions, authority limits and what every agent must preserve | `current` |
 | [Contributing](../CONTRIBUTING.md) | Setup, module boundaries, proportionate checks and what stays out of Git | `current` |
-| [Agent handover](HANDOVER.md) | Architecture, infrastructure and access map, fresh checkout, checks, release and the handoff template | `current`, with dated checkpoints; its Q0 checkpoint predates the PR #5 merge |
-| [Roadmap](../ROADMAP.md) | Shipped baseline, Q0–Q6 experience track, M1–M7 phases and bounded tasks with acceptance criteria | `mixed`; its Q0 status predates the PR #5 merge |
+| [Agent handover](HANDOVER.md) | Architecture, infrastructure and access map, fresh checkout, checks, release and the handoff template | `current`, with dated checkpoints; its Q0 checkpoint predates the PR #5 merge, and its Q4 content-registry checkpoint was written on the unmerged `q4/content-registry` branch |
+| [Roadmap](../ROADMAP.md) | Shipped baseline, Q0–Q6 experience track, M1–M7 phases and bounded tasks with acceptance criteria | `mixed`; its Q0 status predates the PR #5 merge, and its Q4 status (registry and audit done, exit not met) was written on the unmerged `q4/content-registry` branch |
 | [Pull request template](../.github/pull_request_template.md) | The problem, validation and save/ownership/platform impact each PR states | `current` |
 
 **Q0 has merged.** The battle table merged into `main` in PR #5 (`bca9ab4`); no
@@ -92,7 +92,7 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 | Document | What it covers | Status |
 | --- | --- | --- |
 | [Experience lessons](EXPERIENCE-LESSONS.md) | Lessons from the RXSG restoration, turned into player-facing decisions | `proposal · 2026-09-29` |
-| [Experience modules](EXPERIENCE-MODULES.md) | Proposed Q0–Q6 module contracts, existing seams and infrastructure | `proposal · 2026-09-29`; Q0 since implemented (see the battle table above) |
+| [Experience modules](EXPERIENCE-MODULES.md) | Proposed Q0–Q6 module contracts, existing seams and infrastructure | `proposal · 2026-09-29`; Q0 since implemented (see the battle table above); Q4's content registry and audit implemented as tooling only (`tools/content-registry.mjs`, `npm run audit:content`, never served), with its [registry states](EXPERIENCE-MODULES.md#q4-registry-states) |
 
 ## Accounts, operations and evidence
 
@@ -100,7 +100,7 @@ documentation-navigation PR #2 "remains independent" also predates this index.
 | --- | --- | --- |
 | [Accounts and private backups](ACCOUNTS.md) | 旅程閣 sign-in, backup contents, the session and storage boundary, and email setup | `current` · live in v0.5.1 (snapshot v1); `main`'s snapshot v2/v3 need hosted migrations that the [handover](HANDOVER.md#playable-local-wx-01-and-guarded-saves) records as not applied |
 | [Hosting, releases and rollback](HOSTING.md) | Public boundary, build and deploy procedure, rollback and exact deployment receipts | `current` procedure, with dated receipts; its "19 runtime files" is the v0.5.1 count (`main`'s allowlist has 80) |
-| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0 entry predates the PR #5 merge |
+| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0 entry predates the PR #5 merge, and its Q4 content-registry entry records checks on the unmerged `q4/content-registry` branch |
 | [Developer connections](CONNECTIONS.md) | Service identities, verified access, credential locations and remaining setup | `record · 2026-09-21`, rechecked 2026-09-22 |
 | [Fresh-clone toolkit check](TOOLKIT.md) | One fresh clone's setup, access rechecks and local test receipts | `record · 2026-09-21`, updated 2026-09-22 |
 | [Account API contract](../server/README.md) | Worker routes, cookies, bindings and the database access boundary | `current` |
