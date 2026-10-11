@@ -148,9 +148,43 @@ statuses and capability states are defined in
     tests still failed, all on today's pinned LZ-01 state. Nothing from the
     simulation was committed, and the clone was deleted.
     The whole suite was not run on the merged tree.
-- **Not run:** `npm run test:browser` and the WebKit suites other than the two
-  preview smokes above, because no runtime file changed. Also not run: CI, any
-  hosted or deployed check, and any physical-device or human review.
+- **Merge of `art/lz01-specials-images` (PR #8 at `35ab891`) · 2026-10-11.**
+  Merge commit **`d1f0f91`** (`git merge --no-ff`). Conflicts were this file
+  and the HANDOVER intro; both sides were kept. The registry now imports
+  `LZ01_SPECIALS` and `LZ01_PLANNED_SPECIALS`, parses the renamed
+  "Specials briefs · 2026-10-10" section (`parseSpecialsBriefs`), audits
+  `LZ01_PLANNED_SPECIALS` against the checklist's planned rows, and names a
+  missing briefs section when a planned special lacks a brief. No new finding
+  code was added (still 27). The tests derive the LZ-01 preview/planned split
+  from `liaozhai-cards.mjs` (only the 19-printing set size stays pinned), and a
+  planned 畫皮之鬼 INK rebuilt from its bound printing carries the planned-path
+  fault cases. Checks on `d1f0f91`, Node 26.0.0:
+  - `node --test tests/*.test.mjs`: **474/474**, exit 0, 0 skipped (473 before
+    the merge, plus one registry test for the rebuilt planned state).
+  - `npm run audit:content`: exit 0, `findings: []`. 150 entries: 120
+    local-playable and **30 preview** (19 LZ-01: 12 BASE, 4 AA, 2 INK, 1 TR;
+    11 HL-01), **none planned**. By capability: `preview` 83 available, 67
+    not-applicable; `local-playable` 120 available, 30 unavailable;
+    `local-owned` 53 available, 67 not-applicable, 30 unavailable;
+    `backup-compatible` 120 available, 30 unavailable; `server-authoritative`
+    150 unavailable. No capability is `inconsistent`.
+  - Mutation check (working file restored byte-for-byte afterwards): matching
+    the old "Pending specials briefs" heading, dropping either direction of the
+    `LZ01_PLANNED_SPECIALS` check, or dropping the missing-section message each
+    made `node --test tests/content-registry.test.mjs` exit 1 (4 of 4).
+  - `GAME_URL=http://127.0.0.1:4194 npm run test:liaozhai`: exit 0, 14/14
+    checks in Chromium (system Google Chrome 154.0.8037.98) and 14/14 in WebKit
+    (Playwright 1.63.0), including the seven special-printing links and seeded
+    saves left unread and unchanged. The loopback `tools/serve.py` for this
+    worktree was restarted first, because it reads the allowlist only at
+    startup.
+  - `npm run build`: exit 0, 80 public files (the preview art stays out of the
+    public build).
+- **Not run:** `npm run test:browser`, `npm run test:honglou` after the merge
+  and the WebKit suites other than the LZ-01 preview smokes. The merge brings
+  the LZ-01 preview's runtime changes, which only `test:liaozhai` exercised
+  here; no game runtime file changed. Also not run: CI, any hosted or deployed
+  check, and any physical-device or human review.
 
 ## LZ-01 special printings · 2026-10-11
 
