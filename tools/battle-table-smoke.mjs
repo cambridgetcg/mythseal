@@ -11,9 +11,10 @@
  * rows. A fit sweep adds tablet, phone landscape and other window sizes with
  * four-character names, then commits and pages through every reveal page by
  * tapping its pager (each played-pair attack whole; one page where ced2aa4 had
- * one), and checks the 危 mark at low life. Under full motion the backdrop is
- * opaque from the first frame after Commit. Headless engines only: physical
- * iOS/Android and human review are separate evidence.
+ * one), and checks the 危 mark at low life with two- and three-digit attack
+ * estimates. Under full motion the backdrop is opaque from the first frame after
+ * Commit. Headless engines only: physical iOS/Android and human review are
+ * separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] [BATTLE_TABLE_SIZE=360x640] node tools/battle-table-smoke.mjs
  * BATTLE_TABLE_SIZE limits the flows and the fit sweep to that one contract size.
  */
@@ -254,13 +255,22 @@ async function assertDecisionVisible(page, label, { announced, selected }) {
       if (!noteBox.width || !inside(noteBox)) problems.push('fury cost note outside its button');
       if (noteBox.right > switchBox.left + 0.5 && noteBox.left < switchBox.right - 0.5 && noteBox.bottom > switchBox.top + 0.5 && noteBox.top < switchBox.bottom - 0.5) problems.push('fury cost note overlaps the switch');
     } else problems.push('fury switch parts missing');
-    // The attack estimate's label is at least 10 px and on one line.
-    const estimate = table.querySelector('.attack-preview-copy>span');
-    if (estimate) {
+    // The attack estimate's label is at least 10 px, on one line and inside its
+    // cell, and the estimate (one to three digits) overlaps neither it nor the cost note.
+    const cell = table.querySelector('.attack-preview'), estimate = cell?.querySelector('.attack-preview-copy>span'), value = cell?.querySelector('#attack-value'), costNote = cell?.querySelector('#cost-note');
+    if (estimate && value && costNote) {
       const size = parseFloat(getComputedStyle(estimate).fontSize), height = estimate.getBoundingClientRect().height;
+      const range = document.createRange(); range.selectNodeContents(estimate);
+      const text = range.getBoundingClientRect(), box = cell.getBoundingClientRect(), number = value.getBoundingClientRect(), note = costNote.getBoundingClientRect();
+      const within = inner => inner.left >= box.left - 0.5 && inner.right <= box.right + 0.5 && inner.top >= box.top - 0.5 && inner.bottom <= box.bottom + 0.5;
+      const overlap = (a, b) => a.right > b.left + 0.5 && b.right > a.left + 0.5 && a.bottom > b.top + 0.5 && b.bottom > a.top + 0.5;
+      metrics.estimate = value.textContent;
       if (size < 10) problems.push(`attack estimate label ${size}px`);
       if (height > size * 2.2) problems.push(`attack estimate label wraps (${height.toFixed(1)} px tall)`);
-    } else problems.push('attack estimate label missing');
+      if (!within(text)) problems.push('attack estimate label outside its cell');
+      if (!within(number)) problems.push(`attack estimate ${value.textContent} outside its cell`);
+      if (overlap(text, number) || overlap(note, number)) problems.push(`attack estimate ${value.textContent} overlaps its label or cost note`);
+    } else problems.push('attack estimate parts missing');
     for (const numeral of table.querySelectorAll('.battle-resources [data-hp-value], .battle-resources [data-pill-value]')) {
       const rect = numeral.getBoundingClientRect(), hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
       if (!rect.width || !rect.height || !inView(rect) || !(hit === numeral || numeral.contains(hit))) problems.push(`resource numeral hidden ${numeral.closest('[data-side]').dataset.side}`);
@@ -678,9 +688,17 @@ try {
     await resume(low);
     await assertDecisionVisible(low, 'low life', { announced: 'chiling', selected: 'yaoheng' });
     await assertLowLifeMark(low);
+    // Placed pills give the usual two-digit estimate; 青霄 with all 12 pills gives three.
+    await press(low, low.locator('#battle-card-player-qingxiao'), 'select qingxiao');
+    for (let step = 0; step < 3; step++) await press(low, low.locator('[data-action="pill-plus"]'), 'pill plus');
+    await press(low, low.locator('[data-action="fury"]'), 'fury');
+    assert.equal((await assertDecisionVisible(low, 'two-digit estimate with Fury', { announced: 'chiling', selected: 'qingxiao' })).estimate.length, 2, `${low.size}: two-digit estimate`);
+    await press(low, low.locator('[data-action="fury"]'), 'fury off');
+    await low.locator('#pill-slider').fill('12'); await frames(low);
+    assert.equal((await assertDecisionVisible(low, 'three-digit estimate', { announced: 'chiling', selected: 'qingxiao' })).estimate.length, 3, `${low.size}: three-digit estimate`);
     await release(low);
   }
-  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced and clear of their state labels; every decision input inside the viewport and hit-testable, with a whole Fury switch and no overlapping rows; no page or table overflow; low life shows 危; the reveal's pages fit, every pager is tappable, both resource panels are reachable and the pair shows each whole attack`);
+  passed(`${sweepSizes.length} sizes (${sweepSizes.map(pair => pair.join('x')).join(', ')}): four-character names with ✧ unclipped when selected or announced and clear of their state labels; every decision input inside the viewport and hit-testable, with a whole Fury switch, an unbroken attack-estimate label beside one-, two- and three-digit estimates, and no overlapping rows; no page or table overflow; low life shows 危; the reveal's pages fit, every pager is tappable, both resource panels are reachable and the pair shows each whole attack`);
 
   // Finished overkill settles exactly once across Next and reload.
   const finished = FIXTURES['q0-overkill-finished'];
