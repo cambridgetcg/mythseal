@@ -107,7 +107,7 @@
    its own frame so every page still fits: a smaller heading and tab rule, and the
    phase line yields on the clash page too, where the cards show each phase. */
 @media(max-height:359px) and (orientation:landscape){
- .modal.viewport-dialog.battle-reveal{height:calc(100dvh - 8px);padding:8px 10px}
+ .modal.viewport-dialog.battle-reveal{height:calc(var(--safe-viewport-height) - 8px);padding:8px 10px}
  .scene-dialog.battle-reveal>.viewport-module-tabs{padding-bottom:3px}
  .scene-dialog.battle-reveal>h2.dialog-compact-heading{font-size:18px}
  .scene-dialog.battle-reveal>.dialog-reveal-status{display:none}
