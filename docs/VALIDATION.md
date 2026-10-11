@@ -126,6 +126,46 @@ was nearly full), a browser whose `setItem` lands and then throws, separate
 browser processes, the Safari app, Firefox, devices, `npm run build`, deploy dry
 runs and any hosted service.
 
+### Q1 third review fixes · 2026-10-11
+
+Source commits `5fdf5c5`, `c008010`, `323d27c` and `334bc75` on the same branch
+fix the four low-severity defects a third review of `14d0473` reported; the
+commit that adds this entry corrects the fourth, which was documentation. Still
+not pushed, merged or deployed, and no hosted check. Synthetic headless evidence
+on Node 26.0.0;
+[LOCAL-COMMANDS §18.7](LOCAL-COMMANDS.md#187-fixes-after-the-third-review-2026-10-11)
+has the detail.
+
+- **Restore in a lagging tab.** Restore now holds the fence strictly, like
+  commands: a tab that has not received another tab's commit refuses instead of
+  retiring the ledger and keeping a recovery copy from older bytes. It now also
+  refuses on an unsettled fence (a reload heals it) and without usable IndexedDB.
+- **Fence failure copy.** A full disk now gets the storage copy and a stall the
+  retry copy; only a browser without usable IndexedDB is told to change browsers.
+- **Same bytes again.** After its writing mark the fence checks the bytes again,
+  so a profile that went X → Y → X cannot hand a commit the older Y.
+- **`stale` row.** §9 now spells out the single stale message.
+
+Checks, against a separate `python3 tools/serve.py --port 4361`:
+
+- `node --test tests/*.test.mjs`: exit 0, **507/507**; the three code commits'
+  trees gave 503, 505 and 507. Seven of the new fence tests fail against
+  `14d0473`'s modules. Python: 9 tests OK. `git diff --check 14d0473..HEAD`:
+  clean.
+- `test:commands` (both halves run directly): exit 0, **11/11 groups in each
+  engine**, including the new B9 full-disk group, which times out against
+  `14d0473` (fenced handoffs 30/30 current; plain-lock control 16/30 Chromium
+  and 30/30 WebKit stale).
+- `npm run test:browser` (14 Chromium suites): exit 0 in 292 s. Its account smoke
+  adds a restore refused on an unsettled fence and completed after a reload; that
+  check times out against `c008010` (lenient restore). `test:wx01` and
+  `test:inheritance`: exit 0 in both engines.
+
+Not checked: a real full disk, a browser that blocks IndexedDB by its settings, a
+real delivery lag over 0.5 s, separate browser processes, the Safari app,
+Firefox, devices, the other per-engine smokes, `npm run build`, deploy dry runs
+and any hosted service.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not
