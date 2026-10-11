@@ -41,6 +41,7 @@
   "bootstrap.mjs",
   "profile-store.mjs",
   "command-ledger.mjs",
+  "local-commands.mjs",
   "wx01-cards.mjs",
   "wx01-pack.mjs",
   "wx01-state.mjs",
