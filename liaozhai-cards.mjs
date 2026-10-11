@@ -70,10 +70,27 @@ export const LZ01_CARDS = freeze(candidates.map((row, index) => {
     art: { src: `assets/lz01/base-0${Math.floor(index / 4) + 1}.png`, columns: 2, rows: 2, index: index % 4 },
   };
 }));
-export const LZ01_AA = freeze({
-  cardId: 'niexiaoqian', printId: 'lz01-001-aa1', name: '聶小倩 · 燈前相守',
-  src: 'assets/lz01/xiaoqian-aa.png', label: '異畫 AA',
+// Copied from PRINT_TREATMENTS in card-presentation.mjs; the preview may not import game modules.
+export const LZ01_TREATMENTS = freeze({
+  base: { name: '本畫', code: 'BASE', mark: '本' },
+  aa: { name: '異畫', code: 'AA', mark: '畫' },
+  ink: { name: '墨卷', code: 'INK', mark: '墨' },
+  treasure: { name: '天工', code: 'TR', mark: '珍' },
 });
+// Bound special printings. Look them up by printId or `${cardId}:${treatment}`, never by
+// cardId alone: 小倩 has both an AA and a TR. Provenance for every file is in docs/ART-LZ01.md.
+export const LZ01_SPECIALS = freeze([
+  { cardId: 'niexiaoqian', printId: 'lz01-001-aa1', treatment: 'aa', name: '聶小倩 · 燈前相守', title: '燈前相守', src: 'assets/lz01/xiaoqian-aa.png', label: '異畫 AA' },
+  { cardId: 'niexiaoqian', printId: 'lz01-001-tr1', treatment: 'treasure', name: '聶小倩 · 歸燈', title: '歸燈', src: 'assets/lz01/xiaoqian-treasure.png', label: '天工 TR' },
+  { cardId: 'yingning', printId: 'lz01-004-aa1', treatment: 'aa', name: '嬰寧 · 花間藏笑', title: '花間藏笑', src: 'assets/lz01/yingning-aa.png', label: '異畫 AA' },
+  { cardId: 'huapi', printId: 'lz01-008-ink1', treatment: 'ink', name: '畫皮之鬼 · 墨下另一面', title: '墨下另一面', src: 'assets/lz01/huapi-ink.png', label: '墨卷 INK' },
+  { cardId: 'chenshi', printId: 'lz01-009-aa1', treatment: 'aa', name: '陳氏 · 仍有人守門', title: '仍有人守門', src: 'assets/lz01/chenshi-aa.png', label: '異畫 AA' },
+  { cardId: 'wangliulang', printId: 'lz01-011-aa1', treatment: 'aa', name: '王六郎 · 留人間一岸', title: '留人間一岸', src: 'assets/lz01/liulang-aa.png', label: '異畫 AA' },
+]);
+// Briefed in docs/ART-LZ01.md with no selected image yet, so no file is bound.
+export const LZ01_PLANNED_SPECIALS = freeze([
+  { cardId: 'lupan', printId: 'lz01-006-ink1', treatment: 'ink', name: '陸判 · 夜酌朱批', title: '夜酌朱批' },
+]);
 export const LZ01_SAMPLE = freeze([
   { cardId: 'ningcaichen', treatment: 'base' },
   { cardId: 'yanchixia', treatment: 'base' },

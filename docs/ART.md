@@ -25,9 +25,13 @@ Use case: stylized-concept. Asset type: single panoramic illustrated interactive
 The separate local LZ-01 preview uses three original 2×2 portrait atlases (twelve
 characters) and one full-scene 小倩 AA under `assets/lz01/`. All four images were
 generated with the built-in imagegen tool, with no reference images supplied.
-They are preview-only and do not grant or change owned cards. See
-[exact prompts, cell mappings and provenance](ART-LZ01.md) and the
-[set design](EXPANSION-LZ01.md). No underlying model identifier was exposed.
+On 2026-10-11 five special printings were added with the owner's approval:
+嬰寧, 陳氏 and 王六郎 AA, 畫皮之鬼 墨卷 INK and 聶小倩 天工 TR. They were generated
+with Codex CLI's built-in imagegen tool (`image_gen__imagegen`), again with no
+reference images, and copied byte-for-byte. 陸判 INK is still planned and has no
+file. All nine images are preview-only and do not grant or change owned cards.
+See [exact prompts, cell mappings and provenance](ART-LZ01.md) and the
+[set design](EXPANSION-LZ01.md). No underlying image-model identifier was exposed.
 
 ## 西行 printing studies · 2026-09-22
 
