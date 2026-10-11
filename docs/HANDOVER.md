@@ -238,6 +238,47 @@ v0.6.0, which would be the first public v5 release, is planned to include it
   checks need a server started after the Q1 modules exist, because
   `tools/serve.py` reads the allowlist once at startup.
 
+## D1 Back model checkpoint · 2026-10-12 (local only)
+
+Roadmap packet D1 (approved by the owner on 2026-10-11 for the proposed v0.6.0
+scope) is implemented on the branch **`d1/back-model`**, started from
+`origin/main` `7712a7b`. Source commits: **`17a64e0`** (`nav-stack.mjs`, its
+tests, allowlist), **`97543e8`** (the `app.mjs` hooks), **`37ca36c`**
+(`tools/back-smoke.mjs`, `npm run test:back`), `c86e529` (code comments only),
+**`cf14ee7`** (gives up an own history walk that never lands after 3 s) and
+`e2e1474` (smoke messages only); the commits after them change documentation
+only. **Status:** not merged, pushed or deployed; no hosted check.
+Two other packets were built at the same time from `7712a7b`: D2 (save
+durability) and N1 (mobile shell CSS). D2 also edits `app.mjs`, and this
+packet's `app.mjs` changes are one import, three one-line `nav.queue()` calls
+(in `render`, `closeModal` and `modal`), one block after `viewKey()`, the
+input, popstate and pageshow listeners after the `pagehide` listener, and
+`nav.start()` before the first render.
+
+- **Changed:** browser and system Back used to leave the game from every
+  screen (about:blank in Playwright from 遊歷 or the quest panel at `7712a7b`,
+  both engines). Now each Back closes one layer through the
+  [decision table](NAVIGATION.md#back-model--2026-10-12): a dismissible dialog
+  closes, a result holds, a sub-view returns to its parent, a destination
+  returns to 洞府, a battle in progress opens keep/abandon, and 洞府 leaves
+  without a prompt. History entries are state-only (the URL never changes),
+  pushed only on a user turn with activation, and walked back when the UI
+  closes a layer. No save, schema, Worker, SQL, journey flag or snapshot
+  change; the five return variables stay in place.
+- **Allowlist:** `nav-stack.mjs` is in `hosting/public-assets.json` (84 public
+  files). `tools/serve.py` reads the allowlist once at startup, so restart a
+  server started before this branch.
+- **Checked:** see [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12) for
+  each command, exit and environment.
+- **Open:** physical Android gesture navigation, including predictive back, and
+  the iOS Safari edge swipe (M5.1); whether the real Back button skips any entry
+  under Chrome's or WebKit's history-manipulation rules (Playwright's
+  `goBack()` steps by index); a real bfcache restore; Firefox; the Capacitor
+  back-button listener and `toggleBackButtonHandler` at the root (M5.2,
+  [MOBILE-RELEASE](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
+  The owner default in the packet stands as built: Back at 洞府 leaves the site
+  with no prompt.
+
 ## Experience planning checkpoint · 2026-09-29
 
 The fetched default branch now contains PR #1 at merge commit `22092fc`; start
@@ -618,7 +659,7 @@ source configuration and current connection/release records for operational stat
 | Local economy and travel | [progression.mjs](../progression.mjs), [PROGRESSION.md](PROGRESSION.md) | Daily rollover, single settlement, migration compatibility |
 | Campaign and activity | [campaign-content.mjs](../campaign-content.mjs), [activity-content.mjs](../activity-content.mjs), [expansion-state.mjs](../expansion-state.mjs), [scope](CAMPAIGN-AND-EVENTS.md) | Old 18 clears/rewards, fixed seeds, start-week accounting, frozen UIDs and pending grants |
 | Exact card copies and decks | [collection.mjs](../collection.mjs), [BACKPACK.md](BACKPACK.md) | UID, XP/history, locks, saved-deck references and sale/buyback continuity |
-| Screens and interaction | [app.mjs](../app.mjs), `adventure-ui.mjs`, `backpack-ui.mjs`, `account-ui.mjs` | Dependency-free browser runtime and current guest saves |
+| Screens and interaction | [app.mjs](../app.mjs), `adventure-ui.mjs`, `backpack-ui.mjs`, `account-ui.mjs`, [nav-stack.mjs](../nav-stack.mjs) (Back model, D1) | Dependency-free browser runtime and current guest saves; Back closes one layer and never settles or writes ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)) |
 | Cloud journeys | [account-client.mjs](../account-client.mjs), [cloud-save.mjs](../cloud-save.mjs), [ACCOUNTS.md](ACCOUNTS.md) | Explicit choices, stale-account/profile protection and local recovery copy |
 | Account API and database | [server/account-api.mjs](../server/account-api.mjs), [server contract](../server/README.md), [migrations](../supabase/migrations/) | Verified identity, origin checks, rate limits, private RPCs and monotonic revisions |
 | Assets and deployment | [public-assets.json](../hosting/public-assets.json), [build.mjs](../tools/build.mjs), [HOSTING.md](HOSTING.md) | Only approved files enter `dist`; public manifest matches deployed source |
@@ -776,6 +817,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Campaign / activity / rewards | `node --test tests/campaign-content.test.mjs tests/activity-engine.test.mjs tests/expansion-progression.test.mjs tests/profile-store.test.mjs` |
 | Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
 | Battle table / battle UI (Q0, PR #5) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
+| Back model / history entries (D1) | `node --test tests/nav-stack.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:back` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor); `tools/navigation-smoke.mjs` for in-app close and return paths |
 | Local commands / profile fence (Q1, PR #10) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
