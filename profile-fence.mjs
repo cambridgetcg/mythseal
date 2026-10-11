@@ -115,7 +115,8 @@ export function createFencedLock({ request, fence, read, strict = true, budget, 
   return callback => request(async () => {
     let record = null, readable = true;
     try { record = await load(); } catch (error) { readable = false; if (strict) throw fenceFailure(error); }
-    // Verified: these bytes include every write a previous holder recorded.
+    // Verified: these bytes have the digest the previous holder recorded. Equal content is
+    // not proof that every write has arrived, so the bytes are checked again below.
     let verified = readable && record === null;
     if (readable && record !== null) {
       if (!isSettled(record)) { if (strict) throw new ProfileFenceError('unsettled'); }
@@ -128,7 +129,15 @@ export function createFencedLock({ request, fence, read, strict = true, budget, 
       try { await recordFence(WRITING); marked = true; }
       catch (error) { if (strict) throw fenceFailure(error); }
     }
-    const before = attempt(read);
+    let before = attempt(read);
+    // After X → Y → X, a tab that still shows the first X matches the record at once, and
+    // the older Y can land while the mark above is in flight. Decide only on the bytes that
+    // matched: a strict holder puts the record back and refuses; a lenient one waits again.
+    if (verified && record !== null && (before === NOT_READ || profileDigest(before) !== record.digest)) {
+      if (strict) { try { await recordFence(record); } catch {} throw new ProfileFenceError('unsynced'); }
+      verified = await caughtUp(read, record.digest, wait);
+      before = attempt(read);
+    }
     let result, failure, threw = false;
     try { result = callback(); } catch (error) { threw = true; failure = error; }
     const after = marked ? attempt(read) : NOT_READ;

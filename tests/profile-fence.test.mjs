@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createProfile, PROFILE_KEY } from '../progression.mjs';
-import { getActiveDeck } from '../collection.mjs';
+import { getActiveDeck, toggleInstanceLock } from '../collection.mjs';
 import { createProfileStore } from '../profile-store.mjs';
 import { previewCommand, commitCommand, readCommandReceipt, COMMAND_MESSAGES } from '../local-commands.mjs';
 import {
@@ -62,6 +62,7 @@ function origin(profile, { lag = 15 } = {}) {
     tab, lock, fence, faults, fenceLog,
     record: () => record, setRecord: next => { record = next; },
     saved: () => JSON.parse(backend.get(PROFILE_KEY)), bytes: () => backend.get(PROFILE_KEY),
+    pending: () => held.length, deliverOne: () => held.shift()?.(),
     deliver: () => { while (held.length) held.shift()(); },
   };
 }
@@ -277,6 +278,48 @@ test('N27 a writer that bypasses the fence is refused only once its bytes arrive
     assert.deepEqual([result.status, result.duplicate], ['committed', false], 'its bytes had not arrived: the old record still matches');
     assert.equal(o.saved().coins, base.coins - 120, 'the bypassing write is overwritten, as before the fence');
   }
+});
+
+const lockOf = (profile, uid) => profile.instances.find(item => item.uid === uid).locked;
+/** Tab A takes canonical bytes X, then locks y and unlocks it: two lenient writes that end on
+ * X again. Tab B still shows the first X and has received neither write. */
+async function backToSameBytes() {
+  const base = rich(), [x, y] = spare(base);
+  const o = origin(base, { lag: null }), a = o.tab(), b = o.tab();
+  await a.fenced(false)(() => a.store.save(a.store.load()));
+  o.deliver();
+  const X = o.bytes();
+  for (let turn = 0; turn < 2; turn++) await a.fenced(false)(() => a.store.save(toggleInstanceLock(a.store.load(), y)));
+  assert.equal(o.bytes(), X, 'the bytes are X again');
+  assert.equal(o.pending(), 2, 'tab B has received neither write');
+  assert.equal(lockOf(o.saved(), y), false);
+  return { base, x, y, o, a, b, X, recorded: o.record() };
+}
+
+test('N28 equal bytes are not proof that every write arrived: a strict holder refuses when the older write lands during its mark', async () => {
+  const { x, y, o, b, X, recorded } = await backToSameBytes();
+  const request = previewCommand(b.store.load(), { type: UPGRADE, uid: x }).request;
+  // B matches X at once; the older write (y locked) reaches it while the writing mark is in flight.
+  o.faults.write = next => { if (next?.state === 'writing') o.deliverOne(); return false; };
+  const refused = await commitIn(b, request, b.fenced(true, 20));
+  o.faults.write = null;
+  assert.deepEqual([refused.status, refused.reason, refused.message], ['rejected', 'unsynced', COMMAND_MESSAGES.unsynced]);
+  assert.equal(b.counts.set, 0); assert.equal(o.bytes(), X, 'the unlock is kept');
+  assert.deepEqual(o.record(), recorded, 'the record is put back, not left "writing"');
+  o.deliver();
+  const retried = await commitIn(b, request, b.fenced(true, 20));
+  assert.deepEqual([retried.status, retried.duplicate], ['committed', false], 'once every write has arrived it commits');
+  assert.deepEqual([levelOf(o.saved(), x), lockOf(o.saved(), y)], [2, false]);
+});
+
+test('N28 a lenient holder that sees the older write land during its mark waits again, so it writes on the latest bytes', async () => {
+  const { base, y, o, b } = await backToSameBytes();
+  o.faults.write = next => { if (next?.state === 'writing') { o.deliverOne(); setTimeout(o.deliver, 5); } return false; };
+  await b.fenced(false, 500)(() => { const profile = b.store.load(); profile.coins += 7; b.store.save(profile); });
+  o.faults.write = null;
+  assert.equal(o.saved().coins, base.coins + 7);
+  assert.equal(lockOf(o.saved(), y), false, 'the unlock is kept');
+  assert.equal(o.record().digest, profileDigest(o.bytes()));
 });
 
 test('N29 a fence failure names its cause: no IndexedDB says change browsers, a full disk asks for space, anything else asks for a retry', async () => {
