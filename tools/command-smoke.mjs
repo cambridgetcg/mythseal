@@ -312,6 +312,29 @@ try {
   }
 
   {
+    // IndexedDB that refuses the fence's writing mark for lack of space (synthetic, as in B5):
+    // the upgrade asks for space, never for another browser, and commits once space returns.
+    const { profile, target } = fixture(), page = await pageIn(await contextFor(profile));
+    await passport(page, target);
+    await page.evaluate(() => {
+      const put = IDBObjectStore.prototype.put;
+      window.fenceRefusals = 0;
+      window.restoreFencePut = () => { IDBObjectStore.prototype.put = put; };
+      IDBObjectStore.prototype.put = function() { window.fenceRefusals++; throw new DOMException('Synthetic fence quota', 'QuotaExceededError'); };
+    });
+    const bytes = await raw(page), startWrites = await writes(page), from = await toastCount(page);
+    await press(page, upgradeButton(page, target), QUOTA);
+    assert(!(await toastsSince(page, from)).some(message => message.includes(NO_LOCK)), 'not told to change browsers');
+    assert(await page.evaluate(() => window.fenceRefusals) > 0, 'the fence write was refused');
+    assert.equal(await raw(page), bytes); assert.equal(await writes(page), startWrites, 'the profile was never written');
+    await page.evaluate(() => window.restoreFencePut());
+    await press(page, upgradeButton(page, target), COMMITTED);
+    assert.equal(card(await read(page), target).level, 2); assert.equal(await writes(page), startWrites + 1);
+    await release(page);
+    passed('B9 IndexedDB refusing the fence write for lack of space refuses the upgrade with the storage copy, not the browser copy, and no write; it then commits');
+  }
+
+  {
     const { profile, target } = fixture(), page = await pageIn(await contextFor(profile));
     await passport(page, target);
     const bytes = await raw(page), startWrites = await writes(page);
