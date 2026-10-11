@@ -1,5 +1,7 @@
 /** Local command adapter (docs/LOCAL-COMMANDS.md). Wraps existing pure rules; no DOM,
- * sound, animation, network or RNG. The caller injects the store, lock and clock. */
+ * sound, animation, network or RNG. The caller injects the store, lock and clock. The lock
+ * must give its holder every earlier holder's write; in the browser that is the fenced
+ * lock from profile-fence.mjs, because localStorage alone does not (§10.1). */
 import { getUpgradeCost, upgradeInstance } from './progression.mjs';
 import { getInstance, getXPThreshold, isInstanceInJourney } from './collection.mjs';
 import { fingerprintProfile } from './cloud-save.mjs';
@@ -23,6 +25,7 @@ export const COMMAND_MESSAGES = Object.freeze({
   invalid: '修練預覽無效，未有扣除資源。',
   'no-lock': '請用支援安全儲存的新版瀏覽器修練；未有扣除資源。',
   'lock-failed': '未能取得儲存權限，未有扣除資源；請再試一次。',
+  unsynced: '未能確認其他分頁的最新進度，未有扣除資源；請稍後再試，或重新整理頁面。',
   quota: '儲存空間不足，未有扣除資源；請先匯出旅程備份。',
   'write-failed': '未能儲存，未有扣除資源；請再試一次。',
   clock: '裝置日期無效，未有扣除資源。',
@@ -150,8 +153,11 @@ export async function commitCommand(request, { store, lock, now = () => new Date
   let entered = false, result;
   try {
     result = await lock(() => { entered = true; return commitLocked(checked, { store, now }); });
-  } catch {
-    return entered ? unknown(checked.commandId) : rejected('lock-failed');
+  } catch (error) {
+    if (entered) return unknown(checked.commandId);
+    // The fence could not prove this tab sees the latest bytes: nothing was read or decided.
+    if (error?.name === 'ProfileFenceError') return rejected('unsynced', error.code === 'unavailable' ? COMMAND_MESSAGES['no-lock'] : COMMAND_MESSAGES.unsynced);
+    return rejected('lock-failed');
   }
   if (!entered) return rejected('lock-failed');
   return isRecord(result) && typeof result.status === 'string' ? result : unknown(checked.commandId);
@@ -166,7 +172,8 @@ function lookupLocked({ slot, intent }, store) {
     const stored = receiptForSeq(ledger, slot);
     if (sameCommandIntent(stored?.intent, intent)) return { status: 'committed', receipt: stored };
   }
-  // Definitive under the lock: a commit is one synchronous profile write.
+  // Definitive under a lock that gives read-after-write (the fenced lock): a commit is one
+  // synchronous profile write, and the fence makes this tab wait until it can see it.
   return { status: 'not-committed' };
 }
 

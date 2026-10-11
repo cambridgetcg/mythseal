@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createProfile, PROFILE_KEY } from '../progression.mjs';
 import { mintInstance, getActiveDeck, syncCollection } from '../collection.mjs';
 import { PROFILE_LOCK } from '../profile-store.mjs';
+import { COMMAND_MESSAGES } from '../local-commands.mjs';
 
 const browserName = process.env.BROWSER || 'chromium';
 if (!['chromium', 'webkit'].includes(browserName)) throw Error('BROWSER must be chromium or webkit.');
@@ -20,6 +21,7 @@ const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Conte
 const now = '2026-09-22T12:00:00.000Z';
 const contexts = new Set(), checks = [], errors = [];
 const COMMITTED = '此卡修練完成', DUPLICATE = '這次修練早已入帳', CHANGED = '卡牌剛有變動', QUOTA = '儲存空間不足', NO_LOCK = '請用支援安全儲存的新版瀏覽器修練';
+const UNSYNCED = COMMAND_MESSAGES.unsynced;
 const read = page => page.evaluate(key => JSON.parse(localStorage.getItem(key)), PROFILE_KEY);
 const raw = page => page.evaluate(key => localStorage.getItem(key), PROFILE_KEY);
 const writes = page => page.evaluate(() => window.commandSmokeWrites);
@@ -27,13 +29,16 @@ const reads = page => page.evaluate(() => window.commandSmokeReads);
 const passed = label => { checks.push(label); console.log(`PASS ${label}`); };
 const card = (profile, uid) => profile.instances.find(item => item.uid === uid);
 
-function fixture() {
+/** `extra` more copies grow the save: cross-tab staleness grows with its size. */
+function fixture({ extra = 0 } = {}) {
   let profile = createProfile({ now });
   const deck = new Set(getActiveDeck(profile).instanceIds);
   const target = profile.instances.find(item => !deck.has(item.uid));
   const sibling = mintInstance(profile, target.cardId, { now, source: 'command-fixture' });
   const other = mintInstance(sibling.profile, 'qingxiao', { now, source: 'command-fixture' });
-  profile = syncCollection({ ...other.profile, coins: 5000, dust: 300 });
+  let grown = other.profile;
+  for (let index = 0; index < extra; index++) grown = mintInstance(grown, 'qingxiao', { now, source: 'command-fixture' }).profile;
+  profile = syncCollection({ ...grown, coins: 5000, dust: 300 });
   return { profile, target: target.uid, sibling: sibling.instance.uid, other: other.instance.uid };
 }
 async function contextFor(seed, { noLocks = false } = {}) {
@@ -81,6 +86,11 @@ async function passport(page, uid) {
   await page.locator('[data-action="bag-layout"][data-id="copies"]').click();
   await page.locator(`.bag-grid [data-action="instance-inspect"][data-id="${uid}"]`).click();
   await page.locator('.instance-modal').waitFor();
+}
+/** The same card page through the app's delegated handler, without paging a large grid. */
+async function passportDirect(page, uid) {
+  await page.evaluate(uid => { const button = document.createElement('button'); button.dataset.action = 'instance-inspect'; button.dataset.id = uid; document.body.append(button); button.click(); button.remove(); }, uid);
+  await page.locator(`.instance-modal [data-action="instance-upgrade"][data-id="${uid}"]`).waitFor();
 }
 const toastCount = page => page.evaluate(() => window.commandSmokeToasts.length);
 const toastsSince = (page, from) => page.evaluate(from => window.commandSmokeToasts.slice(from), from);
@@ -196,6 +206,102 @@ try {
     assert.equal(await writes(first) + await writes(second), beforeWrites + 1);
     await release(first);
     passed('B4 two pages clicking behind a held native PROFILE_LOCK commit once; the second reports the accepted receipt');
+  }
+
+  {
+    // B4 again with about 60 KB saved, where a plain Web Lock handed the next page stale
+    // localStorage in about half of the Chromium rounds: the same copy (one commit, one
+    // duplicate) and sibling copies in one slot (one commit, one identity conflict).
+    const rounds = Number(process.env.COMMAND_SMOKE_ROUNDS || 4), outcomes = [];
+    for (const variant of ['same', 'sibling']) for (let round = 0; round < rounds; round++) {
+      const { profile, target, sibling } = fixture({ extra: 300 }), context = await contextFor(profile), first = await pageIn(context), second = await pageIn(context);
+      const other = variant === 'same' ? target : sibling, answer = variant === 'same' ? DUPLICATE : CHANGED;
+      await passportDirect(first, target); await passportDirect(second, other);
+      const before = await read(first), beforeWrites = await writes(first) + await writes(second);
+      const fromFirst = await toastCount(first), fromSecond = await toastCount(second);
+      await holdLock(second);
+      await upgradeButton(first, target).click(); await upgradeButton(second, other).click();
+      await releaseLock(second); await idleLock(first);
+      await first.waitForFunction(from => window.commandSmokeToasts.length > from, fromFirst);
+      await second.waitForFunction(from => window.commandSmokeToasts.length > from, fromSecond);
+      const messages = [...await toastsSince(first, fromFirst), ...await toastsSince(second, fromSecond)], saved = await read(first);
+      const upgraded = [target, sibling].filter(uid => card(saved, uid).level === 2);
+      outcomes.push({
+        variant, round, bytes: (await raw(first)).length, messages,
+        committed: messages.filter(text => text.includes(COMMITTED)).length, answered: messages.filter(text => text.includes(answer)).length,
+        writes: await writes(first) + await writes(second) - beforeWrites, receipts: saved.commands.receipts.map(receipt => receipt.intent.uid),
+        upgraded, spent: before.coins - saved.coins,
+      });
+      await release(first);
+    }
+    const bad = outcomes.filter(outcome => outcome.committed !== 1 || outcome.answered !== 1 || outcome.writes !== 1 || outcome.spent !== 120
+      || outcome.upgraded.length !== 1 || outcome.receipts.length !== 1 || outcome.receipts[0] !== outcome.upgraded[0]);
+    assert.deepEqual(bad, [], JSON.stringify(bad, null, 1));
+    passed(`B4 at ${outcomes[0].bytes} B saved, ${rounds} rounds per case: the same copy commits once and the other page gets a duplicate; sibling copies in one slot commit once and the other page is told the card changed`);
+  }
+
+  {
+    // The fence itself, across two real pages (renderers): A writes under the lock while B
+    // waits for it; B's callback must then read A's bytes. Synthetic keys, lock and database.
+    const PAD = 50_000, rounds = Number(process.env.COMMAND_SMOKE_HANDOFFS || 30);
+    const context = await contextFor(fixture().profile), a = await pageIn(context), b = await pageIn(context);
+    for (const page of [a, b]) await page.evaluate(async () => {
+      const fence = await import('/profile-fence.mjs');
+      const store = fence.createIndexedDBFence(indexedDB, { name: 'command-smoke-fence', key: 'probe' });
+      const gated = callback => navigator.locks.request('command-smoke-fence', async () => { if (window.fenceGate) await window.fenceGate; return callback(); });
+      window.fenceLocks = { raw: gated, fenced: fence.createFencedLock({ request: gated, fence: store, read: () => localStorage.getItem('command-smoke.fence'), strict: true }) };
+    });
+    const results = {};
+    for (const mode of ['raw', 'fenced']) {
+      let stale = 0, refused = 0;
+      for (let round = 0; round < rounds; round++) {
+        const written = `${mode}${round}:${'x'.repeat(PAD)}`;
+        await a.evaluate(({ mode, written }) => {
+          let open; window.fenceGate = new Promise(resolve => { open = resolve; }); window.openFenceGate = open;
+          window.fenceDone = window.fenceLocks[mode](() => { localStorage.setItem('command-smoke.fence', written); });
+        }, { mode, written });
+        await a.waitForFunction(async () => (await navigator.locks.query()).held.some(lock => lock.name === 'command-smoke-fence'));
+        await b.evaluate(mode => { window.fenceGate = null; window.fenceRead = window.fenceLocks[mode](() => localStorage.getItem('command-smoke.fence')).catch(error => `refused:${error.code}`); }, mode);
+        await b.waitForFunction(async () => (await navigator.locks.query()).pending.some(lock => lock.name === 'command-smoke-fence'));
+        await a.evaluate(async () => { window.openFenceGate(); await window.fenceDone; window.fenceGate = null; });
+        const seen = await b.evaluate(() => window.fenceRead);
+        if (typeof seen === 'string' && seen.startsWith('refused:')) refused++; else if (seen !== written) stale++;
+      }
+      results[mode] = { stale, refused };
+    }
+    assert.deepEqual(results.fenced, { stale: 0, refused: 0 }, JSON.stringify(results));
+    await release(a);
+    passed(`B7 across two pages at ${PAD} B, the fenced lock's next holder read the previous write in ${rounds}/${rounds} handoffs (plain-lock control on this run: ${results.raw.stale}/${rounds} stale)`);
+  }
+
+  {
+    // A fence left "writing" (a page that died between its save and the record) or an edit
+    // made outside the lock refuses the upgrade with nothing written; the next page load's
+    // own save records the fence again, and the same card page then commits.
+    const { profile, target } = fixture(), page = await pageIn(await contextFor(profile));
+    const fenceState = () => page.evaluate(async () => (await (await import('/profile-fence.mjs')).createIndexedDBFence(indexedDB).read())?.state ?? null);
+    assert.equal(await fenceState(), 'settled', 'the startup save records the fence');
+    await passport(page, target);
+    await page.evaluate(async () => (await import('/profile-fence.mjs')).createIndexedDBFence(indexedDB).write({ v: 1, state: 'writing' }));
+    let bytes = await raw(page), startWrites = await writes(page);
+    await press(page, upgradeButton(page, target), UNSYNCED);
+    assert.equal(await raw(page), bytes); assert.equal(await writes(page), startWrites);
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await fenceState(), 'settled', 'the reload healed it');
+    await passport(page, target);
+    await press(page, upgradeButton(page, target), COMMITTED);
+    assert.equal(card(await read(page), target).level, 2);
+    await page.evaluate(key => { const saved = JSON.parse(localStorage.getItem(key)); saved.coins += 1; localStorage.setItem(key, JSON.stringify(saved)); }, PROFILE_KEY);
+    bytes = await raw(page); startWrites = await writes(page);
+    await press(page, upgradeButton(page, target), UNSYNCED);
+    assert.equal(await raw(page), bytes); assert.equal(await writes(page), startWrites);
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    await passport(page, target);
+    await press(page, upgradeButton(page, target), COMMITTED);
+    const saved = await read(page);
+    assert.equal(card(saved, target).level, 3); assert.equal(saved.coins, profile.coins + 1 - 120 - 240, 'the edit was kept, not overwritten');
+    await release(page);
+    passed('B8 an unsettled fence or an edit outside the lock refuses the upgrade with no write; a reload heals the fence and the upgrade then commits');
   }
 
   {

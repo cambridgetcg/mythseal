@@ -21,6 +21,7 @@ import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { createSnapshot, restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
 import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './profile-store.mjs';
 import { previewCommand, commitCommand, readCommandReceipt, COMMAND_MESSAGES } from './local-commands.mjs';
+import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 import { commandLedgerJSON, assertLedgerUnchanged, retireCommandLedger } from './command-ledger.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
@@ -40,9 +41,16 @@ const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const profileStore=createProfileStore({storage:localStorage});
 const loadProfile=()=>profileStore.load();
-// Adapter commands require the shared cross-tab writer lock; there is no unlocked path.
-// Read at call time so a browser that loses Web Locks refuses instead of throwing.
-const profileLock=()=>navigator.locks?fn=>navigator.locks.request(PROFILE_LOCK,fn):null;
+// localStorage is only eventually consistent between tabs, even for the next holder of the
+// Web Lock. Each holder waits for the bytes the previous holder recorded in the IndexedDB
+// fence (docs/LOCAL-COMMANDS.md §10.1). Read at call time so a browser that loses Web Locks
+// refuses instead of throwing.
+const profileFence=createIndexedDBFence((()=>{try{return globalThis.indexedDB;}catch{return null;}})(),{key:PROFILE_KEY});
+const fencedLock=strict=>navigator.locks?createFencedLock({request:fn=>navigator.locks.request(PROFILE_LOCK,fn),fence:profileFence,read:()=>localStorage.getItem(PROFILE_KEY),strict}):null;
+// Adapter commands require the lock and a fence proving the bytes are current; no unlocked path.
+const profileLock=()=>fencedLock(true);
+// Every other writer under PROFILE_LOCK: waits briefly, then proceeds as before; its write heals the fence.
+const writerLock=()=>fencedLock(false);
 let profile=loadProfile(), startupReady=false;
 let collectionSet='all', sourceFilter='all', codexStatus='all', selectedPack='wx01', codexDetailId=null;
 const classicsDeck=['kongzi','qingxiao','wukong','guanyu','lindaiyu','shuangli','cangjiao','cuixian'];
@@ -113,12 +121,14 @@ async function transact(change,onSaved){
   // Without Web Locks this fallback is same tab only; not cross-tab serialization.
   // It keeps today's unwrapped single actions working. Adapter commands, and any new
   // batch/queue operation, go through commitCommand, which refuses without the lock.
-  return navigator.locks ? navigator.locks.request(PROFILE_LOCK,apply) : apply();
+  const lock=writerLock();
+  return lock ? lock(apply) : apply();
 }
 async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = () => true } = {}) {
   const restored = restoreSnapshot(snapshot);
-  if (!navigator.locks) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
-  return navigator.locks.request(PROFILE_LOCK, () => {
+  const lock = writerLock();
+  if (!lock) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
+  return lock(() => {
     const current = loadProfile();
     if (!isCurrent()) throw Error('登入狀態已改變，未有恢復旅程。');
     if (economyBusy || current.pending || current.expansion.fireMountain.run) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');

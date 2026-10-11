@@ -73,12 +73,13 @@ test('www redirect fixes origin and preserves escaped paths and query parameters
 });
 
 test('N20 runtime modules are allowlisted: the game and playtest import closures are served', () => {
-  for (const file of ['command-ledger.mjs', 'local-commands.mjs']) assert.ok(PUBLIC_FILES.includes(file), file);
+  for (const file of ['command-ledger.mjs', 'local-commands.mjs', 'profile-fence.mjs']) assert.ok(PUBLIC_FILES.includes(file), file);
   const game = closure('index.html');
-  for (const module of ['bootstrap.mjs', 'app.mjs', 'local-commands.mjs', 'command-ledger.mjs', 'profile-store.mjs']) assert.ok(game.includes(module), `${module} is reachable`);
+  for (const module of ['bootstrap.mjs', 'app.mjs', 'local-commands.mjs', 'command-ledger.mjs', 'profile-store.mjs', 'profile-fence.mjs']) assert.ok(game.includes(module), `${module} is reachable`);
   assert.deepEqual(game.filter(path => !PUBLIC_FILES.includes(path)), [], 'every file the game loads is in hosting/public-assets.json');
   const playtest = closure('playtest.html');
   assert.ok(playtest.includes('command-ledger.mjs'), 'the playtest page reaches the ledger through profile-store');
+  assert.ok(playtest.includes('profile-fence.mjs'), 'the playtest supply writer records the cross-tab fence');
   assert.deepEqual(playtest.filter(path => !PUBLIC_FILES.includes(path) && !PREVIEW_FILES.includes(path)), []);
   assert.equal(new Set(PUBLIC_FILES).size, PUBLIC_FILES.length, 'no duplicate allowlist entries');
 });

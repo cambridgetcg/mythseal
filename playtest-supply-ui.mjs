@@ -1,11 +1,18 @@
 import { createProfileStore, PROFILE_LOCK } from './profile-store.mjs';
 import { PROFILE_KEY } from './progression.mjs';
 import { claimPlaytestSupply, PLAYTEST_GIFT, PLAYTEST_COINS, isLoopback } from './playtest-supply.mjs';
+import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 
 const status = document.querySelector('#supply-status');
 const balance = document.querySelector('#supply-balance');
 const button = document.querySelector('#claim-supply');
-let busy = false;
+let busy = false, fence = null;
+/** Like every writer under PROFILE_LOCK, wait for and record the cross-tab fence
+ * (docs/LOCAL-COMMANDS.md §10.1); lenient, so the claim keeps working without IndexedDB. */
+function writerLock() {
+  if (!fence) { let factory = null; try { factory = globalThis.indexedDB; } catch {} fence = createIndexedDBFence(factory, { key: PROFILE_KEY }); }
+  return createFencedLock({ request: operation => navigator.locks.request(PROFILE_LOCK, operation), fence, read: () => localStorage.getItem(PROFILE_KEY), strict: false });
+}
 function ready() {
   if (!isLoopback(location.hostname)) throw Error('試玩補給只供本機開發旅程。');
   if (!navigator.locks) throw Error('請在支援安全儲存的新版瀏覽器領取。');
@@ -28,7 +35,7 @@ button.addEventListener('click', async () => {
   if (busy) return;
   busy = true; button.disabled = true;
   try {
-    const next = await navigator.locks.request(PROFILE_LOCK, () => {
+    const next = await writerLock()(() => {
       const store = ready();
       return store.save(claimPlaytestSupply(store.load(), { hostname: location.hostname }));
     });
