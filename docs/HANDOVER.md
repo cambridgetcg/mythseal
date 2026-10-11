@@ -83,8 +83,9 @@ pushed, merged or deployed**. The last recorded public release is still
 
 Roadmap packet Q1 is implemented for one command on the local branch
 **`q1/local-commands`**, started from `origin/main` `8afbabc`. The last source
-commit is **`0e1ef85`**, after three review rounds, a final review and two
-pre-merge reviews; the commit after it changes documentation only. The branch is
+commit is **`38fa64f`**, after three review rounds, a final review and three
+pre-merge reviews; it adds a test only, the last runtime change is `1afaf6b`, and
+the commit after it changes documentation only. The branch is
 **not pushed, merged or deployed**. The last recorded public release is still
 **v0.5.1**, and no hosted check was made.
 
@@ -97,11 +98,11 @@ pre-merge reviews; the commit after it changes documentation only. The branch is
   the snapshot format, the Worker and the SQL are unchanged. Every writer under
   the lock goes through the IndexedDB fence in `profile-fence.mjs` (invariants
   below).
-- **Checked:** 509/509 Node tests and `npm run test:commands` 13/13 groups in
-  Chromium and WebKit at `0e1ef85`; the 14 Chromium `npm run test:browser`
+- **Checked:** 510/510 Node tests and `npm run test:commands` 13/13 groups in
+  Chromium and WebKit at `38fa64f`; the 14 Chromium `npm run test:browser`
   suites, `test:inheritance` and `test:wx01` at `1afaf6b`, whose code is the
   same. All exit 0, headless against the worktree's loopback server.
-  [VALIDATION](VALIDATION.md#q1-second-pre-merge-review-fixes--2026-10-11) has
+  [VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11) has
   the latest receipt and each review round's checks.
 - **Review requested:** the owner's review of the
   [LOCAL-COMMANDS](LOCAL-COMMANDS.md) contract before any Q2 care plan or Q3
@@ -699,8 +700,10 @@ reason to replay or reverse the existing migrations casually.
   Commands and restore hold it strictly and refuse rather than decide on bytes
   the fence cannot prove current; `transact` and the playtest supply page wait
   briefly and then write as before. While IndexedDB refuses fence writes (a
-  full disk), every such write waits its 0.5 s, page loads included, and a
-  strict refusal on a `writing` record asks for space rather than a reload. A
+  full disk), every such write waits its 0.5 s, page loads included, once the
+  record is `writing` or once a lenient write has changed the profile since the
+  fence last recorded it; a strict refusal on a `writing` record asks for space
+  rather than a reload. A
   writer that bypasses the fence (a devtools edit, or a pre-fence v5 build such
   as `8afbabc` on the same origin) makes upgrades refuse only once its bytes
   reach that tab; before then an upgrade can decide on older bytes and

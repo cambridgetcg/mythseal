@@ -326,6 +326,50 @@ in WebKit, separate browser processes, the Safari app, Firefox, devices, a real
 delivery lag, Node 22, `npm run build`, deploy dry runs, any hosted service and
 the merge itself.
 
+### Q1 third pre-merge review fixes · 2026-10-11
+
+A third pre-merge review of `231ae4f..2bcc15e` reported two low-severity
+findings, both in how the documents state the full-disk wait. Source commit
+`38fa64f` on the same branch adds a test only; no runtime code changed, and the
+commit that adds this entry changes documentation only. Still not pushed,
+merged or deployed, and no hosted check. Synthetic headless evidence on Node
+26.0.0;
+[LOCAL-COMMANDS §18.12](LOCAL-COMMANDS.md#1812-fixes-after-the-third-pre-merge-review-2026-10-11)
+has the detail.
+
+- **When the wait began.** §18.11 said the full-disk wait was not new per
+  action. Before `9390070`, a lenient write on a `writing` record waited 0 s,
+  also on a full disk, where the record cannot heal; `9390070` made each such
+  write wait 0.5 s while IndexedDB refuses writes. Only the out-of-date settled
+  case paid before. §18.11 now says so; the decision to keep the wait is
+  unchanged.
+- **Which writes wait.** "Every lenient write waits on a full disk" was too
+  broad: from a current settled record, lenient writes wait 0 s up to and
+  including the first that changes the profile, and only the writes after it
+  wait 0.5 s. §10.1 Limits and HANDOVER now name the two states that wait, and
+  a second N32 test pins the settled pattern. The entry above says "each
+  lenient write still waits 0.5 s"; it is left as written.
+
+Checks, against the worktree's own server on 4193 (running from this worktree;
+it returned 200 for the Q1 modules):
+
+- `node --test tests/*.test.mjs`: exit 0, **510/510** (509 plus the second N32
+  test). Python: 9 tests OK. `git diff --check`: clean.
+- `npm run test:commands` at `38fa64f`: exit 0, **13/13 groups in each engine**
+  (fenced handoffs 30/30 current; plain-lock control 30/30 Chromium and 21/30
+  WebKit stale).
+- A virtual-clock probe of the four `profile-fence.mjs` versions confirmed both
+  findings (a `writing` record: 0 s each at `1ab3a19`, 0.5 s each from
+  `9390070`). The new test passes against `1ab3a19`'s fence and fails against
+  a copy in which every lenient write on a settled record waits.
+- Every local Markdown anchor in the docs, ROADMAP and README resolves.
+
+Not checked: a real full disk; `test:browser`, `test:inheritance` and
+`test:wx01` (last run at `1afaf6b`, whose runtime code is unchanged); the other
+per-engine smokes, the account smoke in WebKit, separate browser processes, the
+Safari app, Firefox, devices, a real delivery lag, Node 22, `npm run build`,
+deploy dry runs, any hosted service and the merge itself.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

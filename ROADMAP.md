@@ -162,8 +162,8 @@ new renderer to make local play clearer.
   outcome. Changed payload under the same identity is rejected. Any new profile
   fields have versioned migration and compatible backup validation before release.
 - **Status 2026-10-11:** implemented for one command on the local branch
-  `q1/local-commands` (from `8afbabc`; last source commit `0e1ef85`, after three
-  review rounds, a final review and two pre-merge reviews). Local only: not
+  `q1/local-commands` (from `8afbabc`; last source commit `38fa64f`, after three
+  review rounds, a final review and three pre-merge reviews). Local only: not
   pushed, merged or deployed, and no hosted check. The backpack card page's
   修練升級 commits through `local-commands.mjs` under the shared lock, with its
   receipt in the same profile write. Every writer under that lock goes through
@@ -172,7 +172,7 @@ new renderer to make local play clearer.
   [LOCAL-COMMANDS](docs/LOCAL-COMMANDS.md) is the contract and records the
   deviations; the checks are in
   [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11), ending with
-  the second pre-merge review's fixes in `1afaf6b` and `0e1ef85`. **Owner
+  the third pre-merge review's fixes, with a test in `38fa64f`. **Owner
   review of the contract is requested before any Q2/Q3 consumer is written;**
   its §15 decisions (restore rule, browsers without Web Locks, release
   ordering, retention, copies awaiting WX review) remain open.
