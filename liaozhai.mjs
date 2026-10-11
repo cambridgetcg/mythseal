@@ -1,9 +1,12 @@
 /** Local design preview: no engine, player data, storage, economy or service calls. */
-import { LZ01_SET, LZ01_CARDS, LZ01_AA, LZ01_SAMPLE, LZ01_FACTIONS, LZ01_RARITIES } from './liaozhai-cards.mjs';
+import { LZ01_SET, LZ01_CARDS, LZ01_SPECIALS, LZ01_PLANNED_SPECIALS, LZ01_TREATMENTS, LZ01_SAMPLE, LZ01_FACTIONS, LZ01_RARITIES } from './liaozhai-cards.mjs';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 const cardsById = new Map(LZ01_CARDS.map(card => [card.id, card]));
+// Keyed by card and treatment, never by card alone: 小倩 has both an AA and a TR.
+const specialsByKey = new Map(LZ01_SPECIALS.map(print => [`${print.cardId}:${print.treatment}`, print]));
+const HERO_ID = 'niexiaoqian';
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const state = { treatment: 'aa', story: 'all', faction: 'all', phase: 'sealed', revealed: new Set(), dialogCard: null, dialogTreatment: 'base' };
 let openingTimer = null;
@@ -12,7 +15,14 @@ let previousBodyOverflow = '';
 
 const factionFor = card => LZ01_FACTIONS[card.faction];
 const rarityFor = card => LZ01_RARITIES[card.rarity];
-const artTreatment = (card, treatment) => treatment === 'aa' && card.id === LZ01_AA.cardId ? 'aa' : 'base';
+const specialFor = (card, treatment) => specialsByKey.get(`${card.id}:${treatment}`);
+const artTreatment = (card, treatment) => specialFor(card, treatment) ? treatment : 'base';
+const printingsFor = card => ['base', ...LZ01_SPECIALS.filter(print => print.cardId === card.id).map(print => print.treatment)];
+const treatmentLabel = treatment => `${LZ01_TREATMENTS[treatment].name} ${LZ01_TREATMENTS[treatment].code}`;
+const sceneTitle = (card, treatment) => specialFor(card, treatment)?.title || card.title;
+const joinNames = names => names.length > 1 ? `${names.slice(0, -1).join('、')}與${names.at(-1)}` : names.join('');
+// Corner and crest strokes from the WX-01 天工 frame (card-presentation.mjs), without its halo ring.
+const TREASURE_ORNAMENT = '<span class="print-ornament" aria-hidden="true"><svg viewBox="0 0 300 400" preserveAspectRatio="none"><path d="M12 72V12h60m156 0h60v60M12 328v60h60m156 0h60v-60M20 61V20h41m178 0h41v41M20 339v41h41m178 0h41v-41M105 10l10 7 10-7 10 7 15-9 15 9 10-7 10 7 10-7M105 390l10-7 10 7 10-7 15 9 15-9 10 7 10-7 10 7"/></svg></span>';
 const labelFor = value => typeof value === 'string' ? value : value.name || value.label;
 const displayName = card => card.name.replace(/（.*）$/, '');
 const sourceUrl = value => {
@@ -20,19 +30,19 @@ const sourceUrl = value => {
 };
 
 function cardMarkup(card, treatment = 'base') {
-  const mode = artTreatment(card, treatment), faction = factionFor(card), rarity = rarityFor(card), art = card.art;
+  const mode = artTreatment(card, treatment), print = specialFor(card, mode), faction = factionFor(card), rarity = rarityFor(card), art = card.art;
   const column = art.index % art.columns, row = Math.floor(art.index / art.columns);
   const position = `${art.columns > 1 ? column / (art.columns - 1) * 100 : 0}% ${art.rows > 1 ? row / (art.rows - 1) * 100 : 0}%`;
-  const portrait = mode === 'aa'
-    ? `<span class="card-art"><img src="${escape(LZ01_AA.src)}" alt="" decoding="async"></span>`
+  const portrait = print
+    ? `<span class="card-art"><img src="${escape(print.src)}" alt="" decoding="async"></span>`
     : `<span class="card-art" style="background-image:url('${escape(art.src)}');background-size:${art.columns * 100}% ${art.rows * 100}%;background-position:${position}"></span>`;
-  return `<span class="printed-card rarity-${escape(card.rarity)}" data-card-id="${escape(card.id)}" data-treatment="${mode}" style="--faction:${escape(faction.color)}" aria-hidden="true">${portrait}<span class="card-shade"></span><span class="card-top"><span class="card-faction"><i>${escape(faction.icon || labelFor(faction).slice(0, 1))}</i>${escape(labelFor(faction))}</span><span class="card-stars">${'★'.repeat(card.stars)}</span></span><span class="card-print"><span class="card-title">${escape(card.title)}</span><strong class="card-name">${escape(displayName(card))}</strong><span class="card-numbers"><span><small>力量</small><b>${card.power}</b></span><span><small>傷害</small><b>${card.damage}</b></span><span class="card-rank">${escape(rarity.mark || rarity.icon || '◇')} ${escape(labelFor(rarity))}</span></span><span class="card-foot"><span>LZ-01 · ${escape(card.story)}</span><span class="print-mark">${mode === 'aa' ? '異畫 AA' : '本畫 BASE'}</span></span></span></span>`;
+  return `<span class="printed-card rarity-${escape(card.rarity)}" data-card-id="${escape(card.id)}" data-treatment="${mode}" data-print-id="${escape(print?.printId || card.printId)}" style="--faction:${escape(faction.color)}" aria-hidden="true">${portrait}<span class="card-shade"></span>${mode === 'treasure' ? TREASURE_ORNAMENT : ''}<span class="card-top"><span class="card-faction"><i>${escape(faction.icon || labelFor(faction).slice(0, 1))}</i>${escape(labelFor(faction))}</span><span class="card-stars">${'★'.repeat(card.stars)}</span></span><span class="card-print"><span class="card-title">${escape(sceneTitle(card, mode))}</span><strong class="card-name">${escape(displayName(card))}</strong><span class="card-numbers"><span><small>力量</small><b>${card.power}</b></span><span><small>傷害</small><b>${card.damage}</b></span><span class="card-rank">${escape(rarity.mark || rarity.icon || '◇')} ${escape(labelFor(rarity))}</span></span><span class="card-foot"><span>LZ-01 · ${escape(card.story)}</span><span class="print-mark">${treatmentLabel(mode)}</span></span></span></span>`;
 }
 
 function renderHero() {
-  const card = cardsById.get(LZ01_AA.cardId);
+  const card = cardsById.get(HERO_ID);
   $('#hero-card').innerHTML = cardMarkup(card, state.treatment);
-  $('#hero-caption').textContent = `${card.name} · ${card.title}`;
+  $('#hero-caption').textContent = `${card.name} · ${sceneTitle(card, state.treatment)}`;
   document.querySelectorAll('[data-action="treatment"]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.treatment === state.treatment)));
 }
 
@@ -43,9 +53,22 @@ function renderFilters() {
   $('#faction-filter').value = state.faction;
 }
 
+// Available versus planned printings come from the data, so the count cannot drift from the bindings.
+function renderPrintProgress() {
+  const counts = Object.keys(LZ01_TREATMENTS).map(treatment => [treatment, LZ01_SPECIALS.filter(print => print.treatment === treatment).length]).filter(([, count]) => count);
+  const planned = LZ01_PLANNED_SPECIALS.map(print => `${displayName(cardsById.get(print.cardId))}${LZ01_TREATMENTS[print.treatment].name}`);
+  $('#print-progress').textContent = `${LZ01_CARDS.length} 款本畫＋${LZ01_SPECIALS.length} 款特別畫作先行（${counts.map(([treatment, count]) => `${LZ01_TREATMENTS[treatment].name} ${count}`).join('、')}）${planned.length ? `；${planned.join('、')}仍在規劃中` : ''}。`;
+}
+
+function printChips(card) {
+  const specials = printingsFor(card).slice(1);
+  if (!specials.length) return '';
+  return `<div class="catalogue-prints" role="group" aria-label="${escape(card.name)}的特別畫作">${specials.map(treatment => `<button class="print-chip" type="button" data-action="inspect" data-card-id="${escape(card.id)}" data-treatment="${treatment}" aria-label="查看${escape(card.name)}${treatmentLabel(treatment)} · ${escape(sceneTitle(card, treatment))}">${LZ01_TREATMENTS[treatment].name} <small>${LZ01_TREATMENTS[treatment].code}</small></button>`).join('')}</div>`;
+}
+
 function renderCatalogue() {
   const cards = LZ01_CARDS.filter(card => (state.story === 'all' || card.story === state.story) && (state.faction === 'all' || card.faction === state.faction));
-  $('#catalogue-grid').innerHTML = cards.map(card => `<article class="catalogue-entry"><button class="catalogue-card-button" type="button" data-action="inspect" data-card-id="${escape(card.id)}" aria-label="查看${escape(card.name)}，${card.stars} 星，力量 ${card.power}，傷害 ${card.damage}">${cardMarkup(card)}</button><h3>${escape(card.name)}</h3><p class="card-story">${escape(card.story)} · ${escape(labelFor(factionFor(card)))} · ${card.stars} 星</p><div class="catalogue-ability"><strong>${escape(card.ability.label)}</strong><p>${escape(card.ability.description)}</p></div><button class="text-link" type="button" data-action="inspect" data-card-id="${escape(card.id)}" aria-label="細讀${escape(card.name)}的故事與規則">細讀此卡 <span aria-hidden="true">↗</span></button></article>`).join('');
+  $('#catalogue-grid').innerHTML = cards.map(card => `<article class="catalogue-entry"><button class="catalogue-card-button" type="button" data-action="inspect" data-card-id="${escape(card.id)}" aria-label="查看${escape(card.name)}，${card.stars} 星，力量 ${card.power}，傷害 ${card.damage}">${cardMarkup(card)}</button><h3>${escape(card.name)}</h3><p class="card-story">${escape(card.story)} · ${escape(labelFor(factionFor(card)))} · ${card.stars} 星</p><div class="catalogue-ability"><strong>${escape(card.ability.label)}</strong><p>${escape(card.ability.description)}</p></div>${printChips(card)}<button class="text-link" type="button" data-action="inspect" data-card-id="${escape(card.id)}" aria-label="細讀${escape(card.name)}的故事與規則">細讀此卡 <span aria-hidden="true">↗</span></button></article>`).join('');
   $('#empty-state').hidden = cards.length !== 0;
   $('#catalogue-count').textContent = `${cards.length} / ${LZ01_CARDS.length} 位來客${state.story !== 'all' ? ` · ${state.story}` : ''}`;
   document.querySelectorAll('[data-action="filter-story"]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.story === state.story)));
@@ -60,7 +83,7 @@ function renderSample({ justRevealed = -1 } = {}) {
   $('#sample-cards').innerHTML = LZ01_SAMPLE.map((entry, index) => {
     const card = cardsById.get(entry.cardId), shown = state.revealed.has(index);
     const mode = artTreatment(card, entry.treatment);
-    return `<div class="sample-slot${justRevealed === index ? ' just-revealed' : ''}" data-index="${index}">${shown ? `<button class="sample-face" type="button" data-action="inspect" data-card-id="${escape(card.id)}" data-treatment="${mode}" aria-label="查看${escape(card.name)}，${mode === 'aa' ? '異畫 AA' : '本畫'}">${cardMarkup(card, mode)}</button>` : `<button class="sample-back" type="button" data-action="reveal-card" data-index="${index}" aria-label="揭開第 ${index + 1} 張固定展示卡"${state.phase !== 'ready' ? ' disabled' : ''}><span aria-hidden="true">契</span><small>${['壹', '貳', '參'][index]}</small><em>輕觸揭曉</em></button>`}<div class="sample-label"><strong>${shown ? escape(card.name) : `第 ${index + 1} 張`}</strong><small>${shown ? `${mode === 'aa' ? '異畫 AA' : '本畫 BASE'} · 點卡細讀` : '固定展示 · 待揭曉'}</small></div></div>`;
+    return `<div class="sample-slot${justRevealed === index ? ' just-revealed' : ''}" data-index="${index}">${shown ? `<button class="sample-face" type="button" data-action="inspect" data-card-id="${escape(card.id)}" data-treatment="${mode}" aria-label="查看${escape(card.name)}，${mode === 'base' ? '本畫' : treatmentLabel(mode)}">${cardMarkup(card, mode)}</button>` : `<button class="sample-back" type="button" data-action="reveal-card" data-index="${index}" aria-label="揭開第 ${index + 1} 張固定展示卡"${state.phase !== 'ready' ? ' disabled' : ''}><span aria-hidden="true">契</span><small>${['壹', '貳', '參'][index]}</small><em>輕觸揭曉</em></button>`}<div class="sample-label"><strong>${shown ? escape(card.name) : `第 ${index + 1} 張`}</strong><small>${shown ? `${treatmentLabel(mode)} · 點卡細讀` : '固定展示 · 待揭曉'}</small></div></div>`;
   }).join('');
   $('[data-action="skip-sample"]').disabled = state.phase === 'complete';
   $('[data-action="restart-sample"]').disabled = !['ready', 'complete'].includes(state.phase);
@@ -99,7 +122,8 @@ function revealCard(index) {
   if (state.revealed.size === LZ01_SAMPLE.length) state.phase = 'complete';
   renderSample({ justRevealed: index });
   const entry = LZ01_SAMPLE[index];
-  $('#announcer').textContent = `第 ${index + 1} 張：${cardsById.get(entry.cardId).name}，${entry.treatment === 'aa' ? '異畫 AA' : '本畫'}。`;
+  const mode = artTreatment(cardsById.get(entry.cardId), entry.treatment);
+  $('#announcer').textContent = `第 ${index + 1} 張：${cardsById.get(entry.cardId).name}，${mode === 'base' ? '本畫' : treatmentLabel(mode)}。`;
   focusNextSample();
 }
 
@@ -123,8 +147,8 @@ function restartSample() {
 
 function renderDialog() {
   const card = cardsById.get(state.dialogCard), faction = factionFor(card), rarity = rarityFor(card), link = sourceUrl(card.sourceUrl);
-  const hasAA = card.id === LZ01_AA.cardId;
-  $('#dialog-content').innerHTML = `<div class="dialog-layout"><div class="dialog-art">${cardMarkup(card, state.dialogTreatment)}${hasAA ? `<div class="segmented" role="group" aria-label="詳情中的聶小倩畫作"><button type="button" data-action="dialog-treatment" data-treatment="base" aria-pressed="${state.dialogTreatment === 'base'}">本畫 <small>BASE</small></button><button type="button" data-action="dialog-treatment" data-treatment="aa" aria-pressed="${state.dialogTreatment === 'aa'}">異畫 <small>AA</small></button></div>` : ''}</div><div class="dialog-copy"><p class="eyebrow">LZ-01 <span aria-hidden="true">／</span> ${escape(card.story)} <span aria-hidden="true">／</span> ${escape(labelFor(rarity))}</p><h2 id="dialog-title">${escape(card.name)}</h2><p class="dialog-subtitle">${escape(card.title)}</p><dl class="dialog-stats"><div><dt>力量</dt><dd>${card.power}</dd></div><div><dt>傷害</dt><dd>${card.damage}</dd></div><div><dt>星數</dt><dd>${card.stars}</dd></div><div><dt>陣營</dt><dd class="small-value">${escape(labelFor(faction))}</dd></div></dl><div class="dialog-ability"><h3>${escape(card.ability.label)}</h3><p id="dialog-description">${escape(card.ability.description)}</p></div><p class="dialog-lore">${escape(card.lore)}</p>${link ? `<a class="dialog-source" href="${escape(link)}" target="_blank" rel="noopener noreferrer">翻閱原著 · ${escape(card.story)} <span aria-hidden="true">↗</span></a>` : ''}<p class="dialog-note"><b>候選卡 · 規則與數值尚待試玩。</b><br>${hasAA ? '本畫與異畫共用同一套數值、技能與牌組名額。' : '本頁僅供設計預覽，卡牌未加入正式卡池。'}</p></div></div>`;
+  const printings = printingsFor(card), hasSpecial = printings.length > 1;
+  $('#dialog-content').innerHTML = `<div class="dialog-layout"><div class="dialog-art">${cardMarkup(card, state.dialogTreatment)}${hasSpecial ? `<div class="segmented" role="group" aria-label="詳情中的${escape(displayName(card))}畫作">${printings.map(treatment => `<button type="button" data-action="dialog-treatment" data-treatment="${treatment}" aria-pressed="${state.dialogTreatment === treatment}">${LZ01_TREATMENTS[treatment].name} <small>${LZ01_TREATMENTS[treatment].code}</small></button>`).join('')}</div>` : ''}</div><div class="dialog-copy"><p class="eyebrow">LZ-01 <span aria-hidden="true">／</span> ${escape(card.story)} <span aria-hidden="true">／</span> ${escape(labelFor(rarity))}</p><h2 id="dialog-title">${escape(card.name)}</h2><p class="dialog-subtitle">${escape(sceneTitle(card, state.dialogTreatment))}</p><dl class="dialog-stats"><div><dt>力量</dt><dd>${card.power}</dd></div><div><dt>傷害</dt><dd>${card.damage}</dd></div><div><dt>星數</dt><dd>${card.stars}</dd></div><div><dt>陣營</dt><dd class="small-value">${escape(labelFor(faction))}</dd></div></dl><div class="dialog-ability"><h3>${escape(card.ability.label)}</h3><p id="dialog-description">${escape(card.ability.description)}</p></div><p class="dialog-lore">${escape(card.lore)}</p>${link ? `<a class="dialog-source" href="${escape(link)}" target="_blank" rel="noopener noreferrer">翻閱原著 · ${escape(card.story)} <span aria-hidden="true">↗</span></a>` : ''}<p class="dialog-note"><b>候選卡 · 規則與數值尚待試玩。</b><br>${hasSpecial ? `${joinNames(printings.map(treatment => LZ01_TREATMENTS[treatment].name))}共用同一套數值、技能與牌組名額。` : '本頁僅供設計預覽，卡牌未加入正式卡池。'}</p></div></div>`;
 }
 
 function openDialog(id, treatment = 'base') {
@@ -147,16 +171,16 @@ document.addEventListener('click', event => {
   if (!button || button.disabled) return;
   switch (button.dataset.action) {
     case 'treatment':
-      if (!['base', 'aa'].includes(button.dataset.treatment)) return;
+      if (artTreatment(cardsById.get(HERO_ID), button.dataset.treatment) !== button.dataset.treatment) return;
       state.treatment = button.dataset.treatment;
       renderHero();
-      $('#announcer').textContent = `聶小倩 · ${state.treatment === 'aa' ? '異畫 AA' : '本畫 BASE'}，數值與技能相同。`;
+      $('#announcer').textContent = `聶小倩 · ${treatmentLabel(state.treatment)}，數值與技能相同。`;
       break;
-    case 'inspect-hero': openDialog(LZ01_AA.cardId, state.treatment); break;
+    case 'inspect-hero': openDialog(HERO_ID, state.treatment); break;
     case 'inspect': openDialog(button.dataset.cardId, button.dataset.treatment || 'base'); break;
     case 'close-dialog': closeDialog(); break;
     case 'dialog-treatment':
-      if (!$('#card-dialog').open || !['base', 'aa'].includes(button.dataset.treatment)) return;
+      if (!$('#card-dialog').open || artTreatment(cardsById.get(state.dialogCard), button.dataset.treatment) !== button.dataset.treatment) return;
       state.dialogTreatment = button.dataset.treatment;
       renderDialog();
       $(`[data-action="dialog-treatment"][data-treatment="${state.dialogTreatment}"]`).focus({ preventScroll: true });
@@ -198,6 +222,7 @@ if (location.hostname === '127.0.0.1' && location.port === '4178') {
 
 renderHero();
 renderFilters();
+renderPrintProgress();
 renderCatalogue();
 renderSample();
 $('#set-sources').innerHTML = LZ01_SET.sources.map(source => {
