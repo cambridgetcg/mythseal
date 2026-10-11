@@ -162,17 +162,17 @@ new renderer to make local play clearer.
   outcome. Changed payload under the same identity is rejected. Any new profile
   fields have versioned migration and compatible backup validation before release.
 - **Status 2026-10-11:** implemented for one command on the local branch
-  `q1/local-commands` (from `8afbabc`; last source commit `345f92f`, after three
-  review rounds and a final review). Local only: not pushed, merged or deployed,
-  and no hosted check. The backpack card page's 修練升級 commits through
-  `local-commands.mjs` under the shared lock, with its receipt in the same
-  profile write. Every writer under that lock goes through an IndexedDB
-  read-after-write fence, and commands and restore refuse, writing nothing, when
-  it cannot prove their bytes are current.
+  `q1/local-commands` (from `8afbabc`; last source commit `9390070`, after three
+  review rounds, a final review and a pre-merge review). Local only: not
+  pushed, merged or deployed, and no hosted check. The backpack card page's
+  修練升級 commits through `local-commands.mjs` under the shared lock, with its
+  receipt in the same profile write. Every writer under that lock goes through
+  an IndexedDB read-after-write fence, and commands and restore refuse, writing
+  nothing, when it cannot prove their bytes are current.
   [LOCAL-COMMANDS](docs/LOCAL-COMMANDS.md) is the contract and records the
   deviations; the checks are in
   [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11), ending with
-  the final review fixes in `345f92f`. **Owner review of the contract is
+  the pre-merge review fixes in `9390070`. **Owner review of the contract is
   requested before any Q2/Q3 consumer is written;** its §15 decisions (restore
   rule, browsers without Web Locks, release ordering, retention, copies awaiting
   WX review) remain open.

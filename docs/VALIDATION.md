@@ -241,6 +241,47 @@ the account smoke in WebKit, separate browser processes, the Safari app,
 Firefox, devices, a real full disk or delivery lag, Node 22, `npm run build`,
 deploy dry runs and any hosted service.
 
+### Q1 pre-merge review fixes · 2026-10-11
+
+Source commit `9390070` on the same branch fixes the defects a pre-merge review
+of `1ab3a19` reported; the commit that adds this entry changes documentation
+only. Still not pushed, merged or deployed, and no hosted check. Synthetic
+headless evidence on Node 26.0.0;
+[LOCAL-COMMANDS §18.10](LOCAL-COMMANDS.md#1810-fixes-after-the-pre-merge-review-2026-10-11)
+has the detail.
+
+- **Failed settle.** A lenient writer that finds the fence record `writing` or
+  malformed now waits its whole 0.5 s before writing. Before, it waited 0 s, so
+  after a commit whose settle failed, a tab still behind could write its older
+  bytes over the commit and record them as settled.
+- **B10.** The smoke now fails when the recovery dialog's in-flight guard is
+  missing: it asserts that a second press during the restore shows no refusal.
+- **Documents.** The contract's status header names the last source commit;
+  §11 and §15 require `npm run test:commands` for a release that includes Q1;
+  HANDOVER records the merge notes for `origin/main` `daf18ed`.
+
+Checks, against the worktree's own server on 4193 (running from this worktree;
+it returned 200 for the three Q1 modules):
+
+- `node --test tests/*.test.mjs`: exit 0, **508/508** (507 plus N31). Python: 9
+  tests OK. `git diff --check`: clean.
+- `npm run test:commands`: exit 0, **12/12 groups in each engine** (fenced
+  handoffs 30/30 current; plain-lock control 30/30 Chromium and 11/30 WebKit
+  stale).
+- `npm run test:browser` (14 Chromium suites): exit 0 in 294 s.
+  `npm run test:inheritance` and `npm run test:wx01`: exit 0 in both engines.
+- Negative controls: N31 fails against `1ab3a19`'s `profile-fence.mjs`, and B10
+  fails in both engines against a copy without the in-flight guard (a separate
+  server on 4421, stopped afterwards). The reviewers' Chromium repro at 712 KB
+  kept the upgrade in 3/3 rounds with the injected settle failure.
+- A trial `git merge-tree` onto `origin/main` `daf18ed` conflicts only in this
+  file.
+
+Not checked: the other per-engine smokes, the account smoke in WebKit, a real
+failed settle, separate browser processes, the Safari app, Firefox, devices, a
+real full disk or delivery lag, Node 22, `npm run build`, deploy dry runs, any
+hosted service and the merge itself.
+
 ## Q0 battle table · 2026-10-10
 
 Local branch `q0/battle-table`, started from `origin/main` `ced2aa4`. It is not

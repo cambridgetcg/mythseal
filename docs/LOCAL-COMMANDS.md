@@ -5,10 +5,11 @@ owner review requested before Q2/Q3 consumers. Dated 2026-10-11 and written
 against `origin/main` `8afbabc`. It is implemented on the local branch
 `q1/local-commands`, which is not pushed, merged or deployed. It is not a release
 and changes no hosted service. [§18](#18-implementation-record-2026-10-11)
-records what was built, where it differs from the text below, and the checks;
-§18.4, §18.6 and §18.7 record the fixes made after each of three reviews, and
-this text now includes all of them. §18.8 records the final check of the last
-source commit, `334bc75`.
+records what was built, where it differs from the text below, and the checks.
+§18.4, §18.6 and §18.7 record the fixes made after each of three reviews,
+§18.9 those after the final review and §18.10 those after the pre-merge review,
+and this text now includes all of them. The last source commit is `9390070`
+(§18.10); §18.8 records the final check of an earlier one, `334bc75`.
 
 - It refines the illustrative Q1 sketch in [EXPERIENCE-MODULES](EXPERIENCE-MODULES.md#q1--one-local-command-and-its-accepted-receipt). Where the two differ, this document is the proposal; §13 lists every deviation.
 - [ROADMAP](../ROADMAP.md#q1--one-local-command-and-receipt-boundary) owns priority and the exit criteria.
@@ -393,7 +394,9 @@ IndexedDB transactions are ordered by the browser, so the next holder's read see
 
 A commit then reports `rejected/unsynced`, with player copy chosen by the code (§9). A lookup reports `unavailable` with the fence's message. A restore rejects with the fence's message and changes nothing (§11).
 
-**Lenient holders** (`transact`, the playtest supply page) wait up to 0.5 s, then proceed as they did before the fence. They are writers, and their write records the fence again. That heals a `writing` record left by a closed tab and an edit made outside the lock. Every page load's startup save (`transact(p => p)`) is such a write.
+**Lenient holders** (`transact`, the playtest supply page) wait up to 0.5 s, then proceed as they did before the fence. They are writers, and their write records the fence again. That heals a `writing` record left by a closed tab or a failed settle, and an edit made outside the lock. Every page load's startup save (`transact(p => p)`) is such a write.
+
+- **A `writing` or malformed record (changed after the pre-merge review).** It has no digest to wait for, and it can mean that a holder saved and then failed to record its bytes: IndexedDB aborted the settle, the disk filled between the two fence writes, a fence write stalled past 1.5 s, or the tab closed. A lenient holder therefore waits the whole 0.5 s before it reads and writes, so that write has the same time to reach its tab as a recorded one. Before, it waited 0 s, and a tab still behind wrote its older bytes over a commit that another page had already reported as 此卡修練完成 (N31). A page load that finds such a record paints 0.5 s later, once; its startup save heals the record.
 
 **Rules for new code.** Every writer under `PROFILE_LOCK` must use the fenced lock. The fence knows only the writes recorded through it. A writer that bypasses it, such as a devtools edit or a v5 build from before the fence on the same origin, leaves the previous record in place:
 
@@ -407,6 +410,7 @@ N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fe
 **Limits.**
 
 - A lenient holder that has not caught up within 0.5 s still writes from what it sees, as every writer did before the fence. Review measured catch-up under 50 ms. Restore is strict for this reason (§11).
+- This includes the lenient write that heals a `writing` record. When a commit or a restore saved and its settle then failed, a healing tab still behind after 0.5 s discards that write and records its own older bytes as settled, so nothing refuses afterwards. The tab that saved has already reported success. After a restore, the restored journey then exists nowhere: the recovery copy holds the replaced one. N31 pins the wait, and a zero-budget control shows the loss.
 - A write that bypasses the fence can be lost until it reaches the next strict holder's tab (see the rules above).
 - If IndexedDB refuses the `writing` record (for example a full disk), or the fence read fails, a lenient writer proceeds without recording. A strict holder in a renderer that is still behind can then match the older record.
 - On such a full disk, once a lenient write has changed the profile, the recorded digest is out of date. A strict holder then waits 2 s and refuses with the `unsynced` text rather than the `quota` text, and a reload does not heal the fence until IndexedDB accepts writes again. The `quota` text needs IndexedDB to refuse the strict holder's own fence read or writing mark; a read that succeeds against an out-of-date record gives the `unsynced` text.
@@ -461,6 +465,7 @@ N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fe
 - Public v0.5.1 uses `shanhai.profile.v3` and snapshot v1, so it is unaffected.
 - **Release guidance:** ship Q1 no later than the first public release that uses profile v5. After players have committed commands, rolling back below Q1 needs a forward fix.
 - **Never serve a v5 build from before the fence** (`origin/main` `8afbabc`, or this branch before `7a7d03e`) on an origin that has served Q1. Such a build still opens a save without `commands`, and its writes bypass the fence, so a Q1 tab that has not yet received them can overwrite them (§10.1).
+- **Release checks (added after the pre-merge review).** A release that includes Q1 runs `npm run test:commands`, in Chromium and WebKit, beside `npm run test:browser`. `test:browser` does not run `tools/command-smoke.mjs`. Its own suites click the card page's upgrade and check the unsettled-fence restore (A1) in Chromium, but B2–B10 are the only browser checks of the fence's edge cases, and the only WebKit checks of the command path. The release plan on `origin/main` (`daf18ed`, `docs/RELEASE-NEXT.md`, written from `8afbabc`) does not name it, in A8 or in its §10 step 3. [HANDOVER](HANDOVER.md#q1-local-commands-checkpoint--2026-10-11) lists this with the other merge notes.
 
 ## 12. Backup validation impact
 
@@ -512,7 +517,7 @@ Test IDs refer to the [test matrix](#appendix--test-matrix): N is a Node test, B
 
 1. **Restore rule.** This contract retires only a lineage that has a ledger. The alternative, "always retire", closes the gap in §13 item 2. It costs the `account-smoke` `deepEqual` update and makes every restored profile Q1-only.
 2. **Browsers without Web Locks.** On Safari below 15.4, Firefox below 96 and insecure origins, the card-page upgrade is lost, as inheritance and restore already are.
-3. **Release ordering.** Ship Q1 in or before the first public v5 release, and never serve a pre-fence v5 build on an origin after Q1 (§11).
+3. **Release ordering.** Ship Q1 in or before the first public v5 release, and never serve a pre-fence v5 build on an origin after Q1 (§11). A release that includes Q1 also runs `npm run test:commands` in both engines (§11).
 4. **Retention.** Confirm that 32 receipts is enough.
 5. **Copies awaiting WX review.** Upgrading a copy that sits in an unacknowledged WX receipt stays allowed in Q1. Q2 decides whether to block it.
 
@@ -578,6 +583,8 @@ Branch `q1/local-commands`, from `8afbabc`. Not pushed, merged or deployed.
 | The commit that adds §18.8 | Documentation only: the final check, its VALIDATION entry, the ROADMAP status line and the HANDOVER checkpoint |
 | `345f92f` | After the final review: a refused local recovery restore keeps its draft for a retry in the dialog; smoke B10; the second press in the account smoke's A1 |
 | The commit that adds §18.9 | After the final review: §2, §7 step 12, §10.1 Limits and §11; the test matrix, VALIDATION, ROADMAP and HANDOVER |
+| `9390070` | After the pre-merge review: a lenient holder waits its whole budget on a `writing` or malformed record; N31; smoke B10 asserts that a press during the restore is ignored |
+| The commit that adds §18.10 | After the pre-merge review: the status header, §10.1, §11 release checks, §15, the test matrix, VALIDATION, ROADMAP, and HANDOVER with its merge notes |
 
 The public allowlist now has 83 files (82, plus `profile-fence.mjs` after review).
 
@@ -765,6 +772,33 @@ A final review of `7d32825` reported three low-severity findings; two describe t
 
 **Not checked:** `test:inheritance` and `test:wx01` (last run in both engines in §18.7), the other per-engine smokes, the account smoke in WebKit, separate browser processes, the Safari app, Firefox, devices, a real full disk or delivery lag, Node 22, `npm run build`, deploy dry runs and any hosted service. The §15 owner decisions remain open.
 
+### 18.10 Fixes after the pre-merge review (2026-10-11)
+
+A pre-merge review of `1ab3a19` reported six low-severity findings; two describe the same stale header. Second reviewers reproduced each one and found one narrower than reported. Four are fixed on this branch. The fifth is merge bookkeeping that needs `origin/main`, so HANDOVER records it as merge notes instead (item 5). The text above now includes the fixes.
+
+1. **A `writing` fence record let lenient writers skip the catch-up wait** (`9390070`, §10.1).
+   - **Cause.** In `createFencedLock`, a lenient holder that read an unsettled or malformed record went straight on, with no wait. A strict commit or restore whose profile write landed and whose settle then failed (an aborted IndexedDB transaction, a disk that filled between the two fence writes, a stall, a closed tab) left the record `writing`. In a second tab still behind, the next lenient writer (a lock toggle, a claim, the end of a battle) saved its older bytes and recorded them as settled. The upgrade, its spend and its receipt disappeared while the committing tab showed 此卡修練完成, and nothing refused afterwards. §10.1 said lenient holders wait up to 0.5 s; for this record they waited 0 s.
+   - **Exposure.** It needs a failure of exactly the settle write after a successful writing mark, and a lenient write already queued in a tab that is behind. The reviewers lost the commit in Chromium only with large saves: in 3/3 rounds at 712–725 KB, in some rounds at about 360 KB, and never at 94–185 KB or in WebKit. The upgrade, its spend and its receipt revert together, so nothing is charged twice. The restore variant, where the restored journey exists nowhere, was shown only in the Node model.
+   - **Fix.** A lenient holder facing a `writing` or malformed record waits its whole budget (0.5 s) before it reads and writes. A retry of the failed settle was not added: it would not cover a closed tab, and on a stall it would hold the lock 1.5 s longer.
+   - **Still a limit.** A healing tab still behind after 0.5 s discards the write the record did not settle, as any lenient writer that has not caught up does. §10.1 Limits now says so.
+2. **Smoke B10 passed without the in-flight guard** (`9390070`, smoke B10). Without `if(draft?.restoring)return;` in `app.mjs`, a second press queued a second restore, which the fingerprint check refused after the first one succeeded, with the false 本機旅程剛有更新，請重新查看後再恢復。 One restore and one write happened either way, so B10 passed. B10 now waits until the lock is idle and asserts that the only toast after the double press is 已復原上次本機旅程。
+3. **The status header still named `334bc75` and §18.8** (documentation, reported twice). It now names §18.9, §18.10 and the last source commit, as HANDOVER and ROADMAP do.
+4. **No release check named `test:commands`** (documentation, §11, §15, HANDOVER). This was narrower than reported. In Chromium, `test:browser` already clicks the card page's upgrade (the backpack and classics smokes) and checks a restore on an unsettled fence (account smoke A1). It misses B2–B10's edge cases and all WebKit checks of the command path. §11 and §15 now require `npm run test:commands` in both engines for a release that includes Q1. The release plan, `docs/RELEASE-NEXT.md`, exists only on `origin/main`, so adding the suite to its §10 step 3 is a merge note. The smokes also import modules in the page by their path at the site root, which a move to `dist/r/<hash>/` would break. Main's own smokes do the same, so that belongs to the plan's A2, not to Q1.
+5. **Merging onto `origin/main` conflicts in VALIDATION and leaves the docs index without this contract** (merge bookkeeping, not changed on this branch). `origin/main` is now `daf18ed`. A trial merge conflicts only in `docs/VALIDATION.md`. `docs/README.md`, the index that main's `AGENTS.md` requires every new document to join, exists only on main. Fixing either here means merging `origin/main` into this branch. That would bring PRs #6–#8 into a branch whose reviews and checks were all made from `8afbabc`, and how to merge is the merger's decision. [HANDOVER](HANDOVER.md#q1-local-commands-checkpoint--2026-10-11) gives the resolution and the index rows.
+
+**Checks** (Node 26.0.0 on macOS; headless; synthetic data only). The worktree's server on 4193 was running from this worktree and returned 200 for the three Q1 modules, so it served the runs without a restart. The B10 negative control used a separate `python3 tools/serve.py --port 4421` serving a copy of the allowlisted files without the guard, stopped and deleted afterwards.
+
+- `node --test tests/*.test.mjs`: exit 0, **508/508** (507 plus N31). `tests/profile-fence.test.mjs` passed 10 consecutive runs. `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK. `git diff --check`: clean.
+- **Negative controls.** N31 against `1ab3a19`'s `profile-fence.mjs`: the commit case fails (Lv.1, no ledger, no coins spent), and so does the restore case (coins 100000, not the restored 777). B10 against the guard-less copy fails in Chromium and in WebKit, with the toasts 已復原上次本機旅程。 and 本機旅程剛有更新，請重新查看後再恢復。
+- **The reviewers' repros, rerun.** With the fault, their Node probes now keep the commit (Lv.2, one receipt) and the restored journey. Their Chromium repro at 712 KB (an aborted settle, then a lock toggle queued in a page behind) kept Lv.2, one receipt and 120 coins spent in 3/3 rounds; the reviewers had lost it in 3/3. The control without the fault kept it in 3/3.
+- `GAME_URL=http://127.0.0.1:4193 npm run test:commands`: exit 0, **12/12 groups in each engine** (system Google Chrome, then Playwright WebKit). In B7 the fenced lock read the previous write in 30/30 handoffs in both engines; the plain-lock control was stale in 30/30 (Chromium) and 11/30 (WebKit).
+- `GAME_URL=http://127.0.0.1:4193 npm run test:browser`: exit 0, all 14 Chromium suites in 294 s, including the account smoke's reload over an unsettled fence.
+- `npm run test:inheritance` and `npm run test:wx01`: exit 0 in both engines.
+- `git merge-tree --write-tree --name-only origin/main HEAD` at `9390070`, with `origin/main` at `daf18ed`: the only conflict is in `docs/VALIDATION.md`.
+- The screenshots and JSON these runs wrote to the ignored `test-results/` were deleted afterwards.
+
+**Not checked:** `test:battle-table`, `test:viewport`, `test:expansion`, `test:collection-display`, `test:map-piece` and the literary preview suites; the account smoke in WebKit; a real failed settle (every one here is injected); separate browser processes; the Safari app, Firefox and devices; a real full disk or delivery lag; Node 22; `npm run build`, deploy dry runs and any hosted service; the merge itself. The §15 owner decisions remain open.
+
 ## Appendix · test matrix
 
 Where each row is implemented. The `N` rows are Node tests and the `B` rows browser smoke groups.
@@ -793,7 +827,7 @@ Where each row is implemented. The `N` rows are Node tests and the `B` rows brow
 | N20 | Both modules are allowlisted; every file reachable from `index.html` is public, and from `playtest.html` public or preview | `tests/hosting.test.mjs` |
 | N21 | A quote painted before another tab's level-up is `stale`, never charged at the new level | `tests/local-commands.test.mjs` |
 | N22 | Tabs that see each other's writes late: with a plain lock both commit, one upgrade is lost and a lookup says `not-committed` (control); with the fenced lock one commit and a `duplicate` or `identity-conflict`, the lookup finds the receipt, and lenient writers no longer drop each other's saves | `tests/profile-fence.test.mjs` |
-| N23 | Fence failures: bytes not current within the budget, a `writing` or malformed record, no IndexedDB, a stalled or refused fence write all refuse a commit before it runs, with nothing written (no IndexedDB with the `no-lock` copy, a stall with the `unsynced` copy); a lenient write heals them; a failed settle keeps the real result; a lenient holder never records its old bytes; the IndexedDB adapter keys one record and fails closed | `tests/profile-fence.test.mjs` |
+| N23 | Fence failures: bytes not current within the budget, a `writing` or malformed record, no IndexedDB, a stalled or refused fence write all refuse a commit before it runs, with nothing written (no IndexedDB with the `no-lock` copy, a stall with the `unsynced` copy); a lenient write heals them, after waiting its whole budget for a `writing` or malformed record, and a tab still behind after that can discard the write the record did not settle (§10.1 Limits, N31); a failed settle keeps the real result; a lenient holder never records its old bytes; the IndexedDB adapter keys one record and fails closed | `tests/profile-fence.test.mjs` |
 | N24 | Restore order: a backup that fits alone but not with the retired ledger is refused before the recovery copy or the profile changes; it restores on a ledger-free journey; a profile write that did not land puts the previous recovery copy back; one that landed and then threw counts as restored and keeps the new copy, and other bytes or an unreadable re-read keep it too | `tests/profile-store.test.mjs` |
 | N25 | A duplicate's message names the stored receipt's levels and costs, not the stale quote | `tests/local-commands.test.mjs` |
 | N26 | An identity conflict names its cause: another copy in the slot with this one unchanged (the repainted quote matches and the next press commits), with this one changed or no longer affordable, or this copy's slot taken at another level | `tests/local-commands.test.mjs` |
@@ -801,6 +835,7 @@ Where each row is implemented. The `N` rows are Node tests and the `B` rows brow
 | N28 | X → Y → X: when the older Y lands during the writing mark, a strict commit refuses as `unsynced`, puts the settled record back and keeps the newer write, then commits once every write has arrived; a lenient writer waits again and writes on the latest bytes | `tests/profile-fence.test.mjs` |
 | N29 | A fence failure names its cause: no IndexedDB or a `SecurityError` gives `missing` and the `no-lock` copy, a quota error on the read or the writing mark gives `quota` and the quota copy, any other error `unavailable` and the `unsynced` copy, for commits and lookups alike, with nothing written; the real adapter on a full disk refuses with the quota copy while lenient writes still save, and commits once writes work again | `tests/profile-fence.test.mjs` |
 | N30 | Restore in a tab that has not received another tab's commit: under the lenient lock (control) it retires the ledger from the old view, misses the commit in the recovery copy, and a later quote commits; under the strict lock it refuses with nothing written, then the stale confirmation is refused and a fresh one expires every earlier ID; `app.mjs` restores under `profileLock()` | `tests/profile-fence.test.mjs` |
+| N31 | A failed settle after a commit or a restore, with a lenient write queued in a tab 15 ms behind: with no wait (a zero-budget control) the heal writes the older bytes over the commit, or over the restored journey, which then exists nowhere; with the whole 0.5 s budget the commit or restore and the lenient write both hold, and the record is settled | `tests/profile-fence.test.mjs` |
 | B1 | One click: one write, `nextSeq` 2, 120×L and 6×L at L1 then L2; it survives reload | `tools/command-smoke.mjs` |
 | B2 | A stale card page is not charged: same copy upgraded elsewhere gives `duplicate`, whose toast and announcement name the accepted Lv.1 → Lv.2 · 120 金幣 · 6 靈砂, and a repaint; a lock toggle gives 卡牌剛有變動, and another copy in the slot gives 另一個分頁剛為另一張卡完成修練 | `tools/command-smoke.mjs` |
 | B3 | Two dispatched clicks give one level, one spend and one write | `tools/command-smoke.mjs` |
@@ -810,6 +845,6 @@ Where each row is implemented. The `N` rows are Node tests and the `B` rows brow
 | B7 | The fence across two real pages at 50 KB: the next holder reads the previous write in every handoff (a plain-lock control is reported, not asserted) | `tools/command-smoke.mjs` |
 | B8 | A `writing` record or an edit outside the lock refuses the upgrade with no write; a reload heals the fence and the upgrade commits, keeping the edit | `tools/command-smoke.mjs` |
 | B9 | IndexedDB refusing the fence write with a synthetic `QuotaExceededError` refuses the upgrade with the quota copy, never the `no-lock` copy, and no write; it commits once writes work again | `tools/command-smoke.mjs` |
-| B10 | A local recovery restore refused by the fence (a synthetic transient IndexedDB failure, then a record the tab's bytes do not match) changes no byte and keeps its dialog; pressing it again after the fence passes restores once, two presses give one restore, and no toast says the backup changed | `tools/command-smoke.mjs` |
+| B10 | A local recovery restore refused by the fence (a synthetic transient IndexedDB failure, then a record the tab's bytes do not match) changes no byte and keeps its dialog; pressing it again after the fence passes restores once, two presses give one restore, and no toast says the backup changed; the second press is ignored, with no refusal after the restore | `tools/command-smoke.mjs` |
 | A1 | A `writing` record refuses a local recovery restore with 上次儲存未能完整確認… and nothing changed, and pressing it again repeats that reason; after a reload heals the fence the restore completes (Chromium) | `tools/account-smoke.mjs` |
-| R1 | Regressions: the Node suite, `test:browser`, `test:inheritance`, `test:wx01`, `test:battle-table` and `test:commands` | §18.3, §18.5, §18.6, §18.7, §18.8 and §18.9 |
+| R1 | Regressions: the Node suite, `test:browser`, `test:inheritance`, `test:wx01`, `test:battle-table` and `test:commands` | §18.3, §18.5, §18.6, §18.7, §18.8, §18.9 and §18.10 |

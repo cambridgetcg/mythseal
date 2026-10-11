@@ -83,10 +83,10 @@ pushed, merged or deployed**. The last recorded public release is still
 
 Roadmap packet Q1 is implemented for one command on the local branch
 **`q1/local-commands`**, started from `origin/main` `8afbabc`. The last source
-commit is **`345f92f`**, after three review rounds and a final review; the
-commit after it changes documentation only. The branch is **not pushed, merged
-or deployed**. The last recorded public release is still **v0.5.1**, and no
-hosted check was made.
+commit is **`9390070`**, after three review rounds, a final review and a
+pre-merge review; the commit after it changes documentation only. The branch is
+**not pushed, merged or deployed**. The last recorded public release is still
+**v0.5.1**, and no hosted check was made.
 
 - **Changed:** the backpack card page's 修練升級 commits the request painted
   with the page through `local-commands.mjs` (`care.upgrade`), under
@@ -97,11 +97,11 @@ hosted check was made.
   the snapshot format, the Worker and the SQL are unchanged. Every writer under
   the lock goes through the IndexedDB fence in `profile-fence.mjs` (invariants
   below).
-- **Checked:** at `345f92f`, 507/507 Node tests, the 14 Chromium
+- **Checked:** at `9390070`, 508/508 Node tests, the 14 Chromium
   `npm run test:browser` suites, and `npm run test:commands` 12/12 groups in
   Chromium and WebKit, all exit 0, headless against the worktree's loopback
   server.
-  [VALIDATION](VALIDATION.md#q1-final-review-fixes--2026-10-11) has the latest
+  [VALIDATION](VALIDATION.md#q1-pre-merge-review-fixes--2026-10-11) has the latest
   receipt and each review round's checks.
 - **Review requested:** the owner's review of the
   [LOCAL-COMMANDS](LOCAL-COMMANDS.md) contract before any Q2 care plan or Q3
@@ -109,6 +109,24 @@ hosted check was made.
   browsers without Web Locks, release ordering (Q1 no later than the first
   public v5 build, and never a pre-fence v5 build on an origin after it),
   32 retained receipts, and copies awaiting WX review.
+- **Merge notes** (from the pre-merge review; `origin/main` was `daf18ed`,
+  PRs #6–#8). The code merges cleanly; the documents need the person merging:
+  - `docs/VALIDATION.md` conflicts, because both sides add a dated entry at the
+    top. Keep both entries, newest first.
+  - Main's `AGENTS.md` asks for every new document in `docs/README.md`, which
+    this branch predates. Add a row for [LOCAL-COMMANDS](LOCAL-COMMANDS.md)
+    near Experience modules: one previewed command with a receipt (the card
+    page's 修練升級), the device-local ledger and the IndexedDB fence for every
+    writer under the profile lock; status `proposal · 2026-10-11`, implemented
+    for one command (its §18), owner review requested. The Experience modules
+    row's "Q0 since implemented" should name Q1 too.
+  - Add `npm run test:commands` to `docs/RELEASE-NEXT.md` §10 step 3 (or name
+    it in A8): `test:browser` does not run it, and its B2–B10 are the only
+    browser checks of the fence's edge cases and the only WebKit checks of the
+    command path ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact)).
+    That plan's A2 move to `dist/r/<hash>/` must also handle in-page module
+    imports by their path at the site root, which `tools/command-smoke.mjs` and
+    `tools/account-smoke.mjs` share with main's own smokes.
 - **Open:** separate browser processes, the Safari app, Firefox, physical
   devices, a real full disk or `QuotaExceededError`, a real cross-tab delivery
   lag over 0.5 s, `npm run build`, deploy dry runs, and merge/release. Browser
