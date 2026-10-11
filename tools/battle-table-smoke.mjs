@@ -13,8 +13,9 @@
  * tapping its pager (each played-pair attack whole; one page where ced2aa4 had
  * one), and checks the 危 mark at low life with two- and three-digit attack
  * estimates. Under full motion the backdrop is opaque from the first frame after
- * Commit. Headless engines only: physical iOS/Android and human review are
- * separate evidence.
+ * Commit, and on every frame before its phase the dialog shows none of the
+ * result (heading, clash, damage line, effect notes, life rings). Headless
+ * engines only: physical iOS/Android and human review are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] [BATTLE_TABLE_SIZE=360x640] node tools/battle-table-smoke.mjs
  * BATTLE_TABLE_SIZE limits the flows and the fit sweep to that one contract size.
  */
@@ -23,7 +24,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { createMatch, resolveRound, chooseAIMove, getBattleCard } from '../engine.mjs';
+import { createMatch, resolveRound, chooseAIMove, getBattleCard, RULES } from '../engine.mjs';
 import { createProfile, beginBattle, finishBattle, PROFILE_KEY } from '../progression.mjs';
 
 const browserName = process.env.BROWSER || 'chromium';
@@ -352,6 +353,61 @@ async function exerciseDraft(page, { announced }) {
   return legal;
 }
 
+/**
+ * Samples the round result on every frame from Commit until it completes: how much
+ * of the heading, the clash, the damage line and the effect notes a player could
+ * see (own opacity times every ancestor's; 0 when hidden), and each shown life
+ * ring's fill beside its number.
+ */
+function recordRevealFrames(page) {
+  return page.evaluate(() => {
+    window.__revealFrames = [];
+    document.addEventListener('click', event => {
+      if (!event.target.closest?.('[data-action="commit"]')) return;
+      const start = performance.now();
+      const seen = node => {
+        if (!node || getComputedStyle(node).visibility !== 'visible') return 0;
+        let opacity = 1;
+        for (let current = node; current?.nodeType === 1; current = current.parentElement) {
+          const style = getComputedStyle(current);
+          if (style.display === 'none') return 0;
+          opacity *= parseFloat(style.opacity);
+        }
+        return opacity;
+      };
+      const sample = () => {
+        const dialog = document.querySelector('.battle-reveal');
+        if (dialog?.dataset.phase === 'complete' || performance.now() - start > 3000) return;
+        if (dialog) window.__revealFrames.push({ phase: dialog.dataset.phase, heading: seen(dialog.querySelector(':scope>h2')), clash: seen(dialog.querySelector('.battle-clash')),
+          resolution: seen(dialog.querySelector('.resolution')), effects: seen(dialog.querySelector('.result-effects')),
+          rings: [...dialog.querySelectorAll('.battle-resources[data-side]')].filter(panel => seen(panel) > 0)
+            .map(panel => ({ side: panel.dataset.side, fill: parseFloat(getComputedStyle(panel.querySelector('[data-hp-meter]')).getPropertyValue('--life-fill')), hp: Number(panel.querySelector('[data-hp-value]').textContent) })) });
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    }, { capture: true, once: true });
+  });
+}
+
+/**
+ * Nothing of the result shows before its phase, from the first frame: the clash
+ * before 'bids', the heading before 'impact', the damage line and effect notes
+ * before 'recovery'; and no life ring leaves its pre-round fill before 'impact'.
+ */
+async function assertRevealFrames(page, label) {
+  const samples = await page.evaluate(() => window.__revealFrames), leaks = [];
+  assert(['sealed', 'bids', 'impact'].every(phase => samples.some(sample => sample.phase === phase)), `${label}: staged frames ${JSON.stringify(samples.map(sample => sample.phase))}`);
+  for (const sample of samples) {
+    const early = ['sealed', 'bids'].includes(sample.phase);
+    if (sample.phase === 'sealed' && sample.clash) leaks.push(`sealed clash ${sample.clash}`);
+    if (early && sample.heading) leaks.push(`${sample.phase} heading ${sample.heading}`);
+    if ((early || sample.phase === 'impact') && (sample.resolution || sample.effects)) leaks.push(`${sample.phase} damage line ${sample.resolution} effects ${sample.effects}`);
+    if (early) for (const ring of sample.rings) if (Math.abs(ring.fill - ring.hp / RULES.life * 100) > 0.01) leaks.push(`${sample.phase} ${ring.side} ring ${ring.fill}% beside ${ring.hp}`);
+  }
+  assert.deepEqual(leaks, [], `${label}: the result shows before its phase`);
+  return samples;
+}
+
 const normalize = html => html.replace(/viewport-\d+/g, 'viewport-N').replace(/\s?battle-turn-enter/g, '');
 async function publicTable(page) {
   return { html: normalize(await page.locator('#app main').evaluate(node => node.outerHTML)), aria: await page.locator('#app main').ariaSnapshot(), announcer: await page.locator('#announcer').textContent() };
@@ -620,6 +676,8 @@ try {
   // Full motion across rounds. A dialog page remembered from round 1 holds the
   // winner word and gold until impact, like the heading and clash outcome; in
   // the entered round, selecting a card keeps the nodes, so no entrance replay.
+  // On every frame before its phase, the result stays hidden on the clash,
+  // effects and resources pages.
   {
     const page = await open('q0-opponent-leads-r1', { width: motionSize[0], height: motionSize[1], motion: 'no-preference', pace: 'normal' });
     await resume(page);
@@ -633,10 +691,12 @@ try {
         window.__firstRevealFrame = { phase: dialog?.dataset.phase, backdrop: backdrop && getComputedStyle(backdrop).opacity };
       });
     }, { capture: true, once: true }));
+    await recordRevealFrames(page);
     await press(page, page.locator('[data-action="commit"]'), 'commit');
     const firstFrame = await page.evaluate(() => window.__firstRevealFrame);
     assert(['sealed', 'bids'].includes(firstFrame?.phase) && firstFrame.backdrop === '1', `first frame after Commit, before impact: the backdrop is already opaque over the resolved table ${JSON.stringify(firstFrame)}`);
     await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
+    await assertRevealFrames(page, 'round 1 clash page');
     await press(page, page.locator('.battle-reveal [data-viewport-action="module"][data-viewport-target="effects"]'), 'effects page');
     await nextRound(page);
     assert.match(await page.locator('#app main').getAttribute('class'), /\bbattle-turn-enter\b/);
@@ -659,17 +719,27 @@ try {
           gold: getComputedStyle(winner.querySelector('b')).color !== getComputedStyle(loser.querySelector('b')).color });
       }).observe(document.querySelector('#overlay-root'), { subtree: true, childList: true, attributes: true, attributeFilter: ['data-phase'] });
     });
+    await recordRevealFrames(page);
     await press(page, page.locator('[data-action="commit"]'), 'commit round 2');
     await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
+    await assertRevealFrames(page, 'round 2 remembered effects page');
     const trace = await page.evaluate(() => window.stageTrace), at = phase => trace.find(entry => entry.phase === phase);
     assert(at('bids') && at('impact') && at('complete'), `staged phases ${JSON.stringify(trace)}`);
     assert.equal(at('bids').page, 'effects', 'the effects page is remembered across rounds');
     assert.notEqual(at('bids').pair, 'none', 'the played pair shows on the effects page');
     for (const phase of ['sealed', 'bids']) if (at(phase)) assert.deepEqual([at(phase).outcome, at(phase).gold], ['hidden', false], `${phase}: winner word and gold wait ${JSON.stringify(trace)}`);
     for (const phase of ['impact', 'complete']) assert.deepEqual([at(phase).outcome, at(phase).gold], ['visible', true], `${phase}: winner word and gold shown ${JSON.stringify(trace)}`);
+    // Round 3 on a remembered 生命與仙丹 page: both life rings keep their pre-round fill until impact.
+    await press(page, page.locator('.battle-reveal [data-viewport-action="module"][data-viewport-target="resources"]'), 'resources page');
+    await nextRound(page);
+    await recordRevealFrames(page);
+    await press(page, page.locator('[data-action="commit"]'), 'commit round 3');
+    await page.locator('.battle-reveal[data-phase="complete"]').waitFor();
+    const samples = await assertRevealFrames(page, 'round 3 remembered resources page');
+    assert(samples.some(sample => ['sealed', 'bids'].includes(sample.phase) && sample.rings.length === 2), 'round 3: both life rings measured before impact');
     await release(page);
   }
-  passed(`${motionSize.join('x')}: full motion covers the resolved table with an opaque backdrop from the first frame after Commit, keeps the winner word and gold hidden until impact on a remembered effects page; selection in an entered round does not replay the entrance fade`);
+  passed(`${motionSize.join('x')}: full motion covers the resolved table with an opaque backdrop from the first frame after Commit; on every frame before its phase the clash, heading, damage line and effect notes stay hidden and the life rings keep their pre-round fill, on the clash, effects and resources pages; the winner word and gold wait for impact on a remembered effects page; selection in an entered round does not replay the entrance fade`);
 
   // Fit sweep: four-character names with ✧ in every state, all inputs hit-testable.
   for (const [width, height] of sweepSizes) {

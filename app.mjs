@@ -306,7 +306,10 @@ function closeModal() {
   if(modalOrigin?.screen===screen)window.scrollTo({top:modalOrigin.scroll,behavior:'instant'});
   lastFocus=null;modalOrigin=null;
 }
-function modal(content, className='', dismissible=true, kind=null) {
+// stage(dialog) runs before anything measures the new dialog, so a staged reveal's
+// first phase is the first style its content ever has: nothing transitions out of
+// the resolved markup (heading, damage line, life ring) into the sealed state.
+function modal(content, className='', dismissible=true, kind=null, stage=null) {
   mapTravel?.finish({silent:true});
   if(!kind?.startsWith('inheritance-'))inheritanceView=null;
   packOpening?.destroy();packOpening=null;
@@ -315,6 +318,7 @@ function modal(content, className='', dismissible=true, kind=null) {
   modalKind=kind;
   overlay.innerHTML=`<div class="modal-backdrop" data-dismissible="${dismissible}"><section class="modal ${className}" role="dialog" aria-modal="true" aria-label="萬象契對話框">${dismissible?'<button class="modal-close" data-action="close-modal" aria-label="關閉">×</button>':''}${content}</section></div>`;
   document.body.style.overflow='hidden';app.inert=true;
+  stage?.(overlay.querySelector('.modal'));
   fitOverlay();
   syncExperienceScene();
   requestAnimationFrame(focusDialogStart);
@@ -783,11 +787,10 @@ function resultModal({animate=false}={}) {
     <div class="battle-resource-results" aria-label="本回合生命與仙丹">${['player','opponent'].map(side=>battleResourcesMarkup({side,hp:match[side].hp,pills:match[side].pills,compact:true,label:side==='player'?'你':'對手'})).join('')}</div>
     <div class="resolution">${tie}${won?'對手':'你'}受到 <strong>${r.damage}</strong> 點傷害。<br>當前生命：你 <strong>${match.player.hp}</strong> · 對手 <strong>${match.opponent.hp}</strong>　｜　剩餘仙丹：你 ${match.player.pills} · 對手 ${match.opponent.pills}</div>
     <div class="result-effects"><div><h4>你的技能與共鳴</h4>${effectList('player')}</div><div><h4>對手的技能與共鳴</h4>${effectList('opponent')}</div></div>
-    <div class="battle-reveal-footer"><div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div><div class="mist-reveal-controls battle-reveal-controls"><button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div></div>`,`result-modal battle-reveal${mist?' mist-reveal':''}`,false,'round-result');
-  experience.reveal(overlay.querySelector('.battle-reveal'),{animate:Boolean(animate&&presentation?.canAnimate),battle:true,onPhase:(phase,element)=>{
+    <div class="battle-reveal-footer"><div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div><div class="mist-reveal-controls battle-reveal-controls"><button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div></div>`,`result-modal battle-reveal${mist?' mist-reveal':''}`,false,'round-result',dialog=>experience.reveal(dialog,{animate:Boolean(animate&&presentation?.canAnimate),battle:true,onPhase:(phase,element)=>{
     paintRoundResources(element,presentation,phase);
     if(phase==='recovery'&&presentation&&['player','opponent'].some(side=>presentation[side].hpRecovered>0||presentation[side].pillsRecovered>0))playTone('recovery');
-  }});
+  }}));
   announce(`第 ${r.round} 回合，${won?'你':'對手'}獲勝，造成 ${r.damage} 點傷害。`);
 }
 function matchEndModal({celebrate=false}={}) {
