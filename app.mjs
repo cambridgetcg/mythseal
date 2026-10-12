@@ -814,9 +814,12 @@ function viewKey(){return screen==='bag'?`bag-${bagView.tab}${bagView.tab==='car
 // Back model (docs/NAVIGATION.md, "Back model"). The layers are read from the existing return
 // state; Back calls the function each layer's own close control already calls, so it never
 // settles, pays or writes. State-only history entries: the URL never changes.
+// True only while recordFinishedMatch saves a finished match's settlement. `busy` is not
+// that signal: a resumed finished match keeps it set after a failed save.
+let settling=false;
 function navView() {
   const open=overlay.firstElementChild,chained=open&&['result-card','experience-settings'].includes(modalKind)&&['round-result','match-result','preparation'].includes(experienceReturn?.kind);
-  return {screen,accountReturn,battle:screen!=='battle'?null:match?.status==='finished'&&!recorded&&busy?'settling':match?.status||null,
+  return {screen,accountReturn,battle:screen!=='battle'?null:settling?'settling':match?.status||null,
     bagGroup:bagView.tab==='cards'&&Boolean(bagView.expandedCardId),preparationDeck:preparationReturn&&preparation?{screen:preparationReturn.screen}:null,
     modal:open?{kind:modalKind,dismissible:open.dataset.dismissible==='true'}:null,
     modalReturn:chained?{kind:experienceReturn.kind,dismissible:experienceReturn.kind==='preparation'}:null};
@@ -873,8 +876,11 @@ async function commitMove() {
 async function recordFinishedMatch() {
   if(match.status!=='finished'||recorded)return;
   const settledId=encounter.id;
-  const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used,finalResources:{hp:match.player.hp,pills:match.player.pills}}),()=>clearBattleSnapshot(settledId));
-  lastReward=result.reward;recorded=true;
+  settling=true;
+  try{
+    const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used,finalResources:{hp:match.player.hp,pills:match.player.pills}}),()=>clearBattleSnapshot(settledId));
+    lastReward=result.reward;recorded=true;
+  }finally{settling=false;}
 }
 function resultModal({animate=false}={}) {
   const r=match.lastResult, won=r.winner==='player';
