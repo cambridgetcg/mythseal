@@ -48,7 +48,7 @@ Clearing site data removes local progress and recovery copies. Origins are
 separate: `mythseal.com`, localhost and different local ports do not share saves.
 The footer's **匯出旅程備份** remains available for independent local exports.
 
-**Local source after v0.5.1 (D2, 2026-10-12; not merged or deployed).** The
+**Local source after v0.5.1 (D2, 2026-10-12; merging by D2's PR, not deployed).** The
 旅程閣 tools add **匯入旅程備份**, which restores a 匯出旅程備份 file through the
 same strict restore as **恢復雲端旅程** (recovery copy first, nothing written on
 refusal), and a status line with the date of this device's last successful

@@ -15,7 +15,7 @@ commit is `38fa64f` (§18.12), which adds a test only; the last runtime change i
 `1afaf6b`. §18.8 records the final check of an earlier one, `334bc75`. The
 checks after the `b527dc3` merge are in
 [VALIDATION](VALIDATION.md#q1-integration-with-main--2026-10-11).
-**D2 (2026-10-12, branch `d2/save-durability`, not merged or deployed)** adds a
+**D2 (2026-10-12, branch `d2/save-durability`, merging by D2's PR; not deployed)** adds a
 file import of the journey export, applied through the same strict restore:
 §11 has its rules and [§19](#19-file-import-and-save-safety-d2-2026-10-12) the
 record.
@@ -891,7 +891,8 @@ A third pre-merge review of `231ae4f..2bcc15e` reported two low-severity finding
 ## 19. File import and save safety (D2, 2026-10-12)
 
 Packet D2, approved by the owner on 2026-10-11 for the v0.6.0 scope, on branch
-`d2/save-durability` from `origin/main` `7712a7b`. Not merged, pushed or
+`d2/save-durability` from `origin/main` `7712a7b`, which has merged `main`
+`335d2b7` (D1, PR #11) and is merging by D2's PR. Not merged to `main` or
 deployed; no hosted service was called.
 
 **Why.** Research, not measured here: WebKit deletes all script-writable storage

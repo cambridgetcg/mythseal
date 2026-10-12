@@ -518,9 +518,22 @@ M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
 
+**Back model (D1) · status 2026-10-12:** implemented on branch `d1/back-model`
+(from `main` `7712a7b`), with the fixes from three review rounds, and merged to
+`main` in PR #11 (`335d2b7`); not deployed, and in the proposed v0.6.0 scope. Browser and system Back now close one layer at a time (dialog, sub-view,
+destination → 洞府), hold on a battle result, open keep/abandon in a battle in
+progress and leave only from 洞府, with state-only history entries and no URL
+change. The [decision table](docs/NAVIGATION.md#back-model--2026-10-12) is in
+NAVIGATION, and the Node and headless Pixel 7 Chrome / iPhone 15 WebKit checks
+are in [VALIDATION](docs/VALIDATION.md#d1-back-model--2026-10-12). Android
+gesture and predictive back, the iOS edge swipe and the Capacitor back-button
+wiring remain M5.1/M5.2 work
+([mobile plan](docs/MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
+
 **D2 · saves never vanish silently, status 2026-10-12:** approved for the
 v0.6.0 scope and implemented on the branch `d2/save-durability` (from `main`
-`7712a7b`); not merged or deployed. A journey export can now be imported through
+`7712a7b`), which merged D1 from `main` (`335d2b7`) and is merging by D2's PR; not
+merged to `main` or deployed. A journey export can now be imported through
 the strict restore, 旅程閣 shows the last backup's date and the browser's answer to
 a persistent-storage request (once per device; an installed web app asks at each
 launch until granted), players not known to be signed in get one backup prompt per

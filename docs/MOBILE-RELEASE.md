@@ -52,6 +52,39 @@ TestFlight/Play beta → M7 App Store/Google Play launch**. The ordinary-card mo
 game can progress independently of collectible issuance. Launch dates, supported
 devices/OS versions, territories and monetization remain open decisions.
 
+### Back button in a native shell · 2026-10-12
+
+In the browser, Back now follows the decision table in
+[NAVIGATION](NAVIGATION.md#back-model--2026-10-12): a dialog or sub-view closes,
+a destination returns to 洞府, a battle in progress opens keep/abandon, a result
+holds, and 洞府 hands Back to the system. This is packet D1 (branch
+`d1/back-model`), merged into `main` in PR #11 and not deployed; it was checked
+only in headless Chrome and WebKit with phone descriptors.
+
+A Capacitor build (M5.2) should call the same decision rather than a second
+table. The proposed wiring, not yet built or tested: an `@capacitor/app`
+`backButton` listener calls the nav instance's `requestBack()` in `app.mjs`
+(`createNavHistory` in `nav-stack.mjs`). That applies one row without waiting
+for a WebView Back. When the row closes a layer, `requestBack()` then walks the
+WebView history back over that layer's entry with `history.go(-1)`, as a UI
+close does, and treats the resulting popstate as its own. So the listener must
+not also call a WebView or `history` back, which would close a second layer.
+`requestBack()` returns `'exit'` at the 洞府 root. A reload walks back to the
+game's first entry, so no game entry should be below the root, and the
+`backButton` event's `canGoBack` should be false there; this is untested in a
+WebView. At the root the shell must then let the system take Back. A listener that exits or minimises on
+`'exit'` keeps Back working, but it still intercepts the gesture. With Android 16
+predictive back, a back handler that stays registered at the root blocks the
+system's back-to-home animation. So M5.2 also needs `App.toggleBackButtonHandler`
+to switch the plugin's handler off while the root is showing and on again when a
+layer opens. Check both APIs against the `@capacitor/app` version chosen in
+M5.2; the plugin is not installed in this repository yet.
+
+The browser smoke uses Playwright's `page.goBack()`. It does not cover Android
+gesture navigation (including predictive back), the iOS Safari edge swipe or
+bfcache restores on phones (it runs them only in headless Chrome); those are
+M5.1 items not yet verified (see the table below).
+
 ## Browser save durability (D2) · 2026-10-12
 
 Research, not measured here: WebKit deletes all script-writable storage of a
@@ -60,7 +93,7 @@ site after seven days of Safari use without interaction with that site
 storage separate from Safari. A browser or home-screen player can therefore
 lose a journey that lives only in `localStorage`.
 
-Packet D2 (branch `d2/save-durability`, not merged or deployed) adds
+Packet D2 (branch `d2/save-durability`, merging by D2's PR; not deployed) adds
 `platform.mjs`, the seam the M5.2 native adapter extends: `requestPersistence()`
 makes one feature-detected `navigator.storage.persist()` request and
 `checkPersistence()` reads `persisted()`, which never prompts; `exportJourney()`
@@ -139,8 +172,8 @@ See [BLOCKCHAIN-DESIGN.md](BLOCKCHAIN-DESIGN.md) for the proposed separation of 
 
 | Roadmap milestone | Planned deliverable | Evidence required before proceeding |
 | --- | --- | --- |
-| **M5.1 · Phone gameplay validation** | Portrait adaptation of the approved lobby, dock, quests, battle, exact-card decks, market and map on physical phones. | Real iOS Safari and Android Chrome runs covering preparation → deck → return, four-round battles → rewards → next encounter, card-detail close with preserved filters/scroll, safe areas, text scaling, keyboards and touch reach. Desktop Chrome emulation is preliminary evidence only. |
-| **M5.2 · Native packaging trial** | iOS/Android development builds with allowlisted bundled assets, durable storage, save migration, safe areas, Android Back and audio/lifecycle recovery. | Cold starts, upgrades and process termination preserve exact UIDs/XP and pending matches; interrupted settlement never pays twice. Record offline behaviour, screenshots and rendering/memory measurements on selected devices. Decide Capacitor versus any rebuild from these results. |
+| **M5.1 · Phone gameplay validation** | Portrait adaptation of the approved lobby, dock, quests, battle, exact-card decks, market and map on physical phones. | Real iOS Safari and Android Chrome runs covering preparation → deck → return, four-round battles → rewards → next encounter, card-detail close with preserved filters/scroll, safe areas, text scaling, keyboards and touch reach. Not yet verified (added 2026-10-12): the [Back model](NAVIGATION.md#back-model--2026-10-12) under Android gesture navigation, including predictive back, and the iOS Safari edge swipe, each Back closing one layer and 洞府 leaving. Desktop Chrome emulation is preliminary evidence only. |
+| **M5.2 · Native packaging trial** | iOS/Android development builds with allowlisted bundled assets, durable storage, save migration, safe areas, Android Back through the [shared Back decision](#back-button-in-a-native-shell--2026-10-12) (with a root branch or `toggleBackButtonHandler` for predictive back) and audio/lifecycle recovery. | Cold starts, upgrades and process termination preserve exact UIDs/XP and pending matches; interrupted settlement never pays twice. Record offline behaviour, screenshots and rendering/memory measurements on selected devices. Decide Capacitor versus any rebuild from these results. |
 | **M5.3 · Closed beta** | TestFlight and Google Play testing builds of the selected ordinary-card game, plus onboarding, support, privacy information, ratings and store metadata. | Complete phone play loop; native email-code login and explicit backup/restore when included; recovery, poor-network and accessibility checks; release-specific native-plugin/data disclosures. Review applicable [privacy manifests](https://capacitorjs.com/docs/ios/privacy-manifest). Resolve blocking tester feedback. |
 | **M7 · Store launch and operation** | Separate App Store and Google Play submissions, selected territories, release notes, support and staged rollout. | Recheck current SDK/submission requirements and the chosen feature/payment flow; complete applicable agreements/declarations; record each review outcome and rollout. Verify purchase/refund recovery only if those features are selected. |
 

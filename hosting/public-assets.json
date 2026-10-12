@@ -43,6 +43,7 @@
   "command-ledger.mjs",
   "local-commands.mjs",
   "profile-fence.mjs",
+  "nav-stack.mjs",
   "platform.mjs",
   "save-status.mjs",
   "save-ui.mjs",

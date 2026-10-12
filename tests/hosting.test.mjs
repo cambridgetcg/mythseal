@@ -72,6 +72,11 @@ test('www redirect fixes origin and preserves escaped paths and query parameters
   assert.equal(response.headers.get('Location'), 'https://mythseal.com/a%20b?return=https%3A%2F%2Fexample.com');
 });
 
+test('D1 the Back model module is allowlisted and reached from the game', () => {
+  assert.ok(PUBLIC_FILES.includes('nav-stack.mjs'));
+  assert.ok(closure('index.html').includes('nav-stack.mjs'), 'app.mjs imports nav-stack.mjs');
+});
+
 test('N20 runtime modules are allowlisted: the game and playtest import closures are served', () => {
   for (const file of ['command-ledger.mjs', 'local-commands.mjs', 'profile-fence.mjs']) assert.ok(PUBLIC_FILES.includes(file), file);
   const game = closure('index.html');

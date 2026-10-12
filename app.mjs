@@ -35,6 +35,7 @@ import { createViewportController } from './viewport.mjs';
 import { prepareScene, preparePack } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
+import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -384,6 +385,7 @@ function render() {
   restoreFocus(app,focus);
   if(screen==='account'&&account.getState().confirmation)viewport.selectModule({key:viewKey(),moduleId:'confirmation'});
   battleEntering=false;
+  nav.queue();
 }
 function announce(message) { announcer.textContent = message; }
 function toast(message) {
@@ -405,6 +407,7 @@ function closeModal() {
   else if(modalOrigin?.screen===screen)restoreFocus(app,modalOrigin.focus);
   if(modalOrigin?.screen===screen)window.scrollTo({top:modalOrigin.scroll,behavior:'instant'});
   lastFocus=null;modalOrigin=null;
+  nav.queue();
 }
 // stage(dialog) runs before anything measures the new dialog, so a staged reveal's
 // first phase is the first style its content ever has: nothing transitions out of
@@ -422,6 +425,8 @@ function modal(content, className='', dismissible=true, kind=null, stage=null) {
   fitOverlay();
   syncExperienceScene();
   requestAnimationFrame(focusDialogStart);
+  // Every dialog is a layer: a dismissible one gets its own history entry on this user turn.
+  nav.queue();
 }
 function focusDialogStart() {
   [...overlay.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),[tabindex="0"]')]
@@ -880,6 +885,34 @@ function navigate(destination) {
   if(screen==='account') account.init();
 }
 function viewKey(){return screen==='bag'?`bag-${bagView.tab}${bagView.tab==='cards'?`-${bagView.expandedCardId||bagView.layout}`:''}`:screen;}
+// Back model (docs/NAVIGATION.md, "Back model"). The layers are read from the existing return
+// state; Back calls the function each layer's own close control already calls, so it never
+// settles, pays or writes. State-only history entries: the URL never changes.
+// True only while recordFinishedMatch saves a finished match's settlement. `busy` is not
+// that signal: a resumed finished match keeps it set after a failed save.
+let settling=false;
+function navView() {
+  const open=overlay.firstElementChild,chained=open&&['result-card','experience-settings'].includes(modalKind)&&['round-result','match-result','preparation'].includes(experienceReturn?.kind);
+  return {screen,accountReturn,battle:screen!=='battle'?null:settling?'settling':match?.status||null,
+    bagGroup:bagView.tab==='cards'&&Boolean(bagView.expandedCardId),preparationDeck:preparationReturn&&preparation?{screen:preparationReturn.screen}:null,
+    modal:open?{kind:modalKind,dismissible:open.dataset.dismissible==='true'}:null,
+    modalReturn:chained?{kind:experienceReturn.kind,dismissible:experienceReturn.kind==='preparation'}:null};
+}
+function navBack() {
+  const decision=backDecision(navView());
+  if(decision.action===BACK.DISMISS_MODAL)dismissModal();
+  else if(decision.action===BACK.CLOSE_GROUP)closeBagGroup();
+  else if(decision.action===BACK.RETURN_PREPARATION)returnToPreparation();
+  else if(decision.action===BACK.ACCOUNT_BACK)navigate(accountReturn);
+  else if(decision.action===BACK.BATTLE_MENU)requestNavigation('home');
+  else if(decision.action===BACK.HOME)navigate('home');
+  // BACK.HOLD: a result (or a commit being saved) stays on screen; the guard entry is re-armed.
+  return decision;
+}
+// Pushes only on a user turn with transient activation: Chrome's history-manipulation
+// intervention lets Back skip entries a page adds without one.
+const nav=createNavHistory({history,depth:()=>navLayers(navView()).length,signature:()=>navSignature(navView()),back:navBack,
+  canPush:()=>{try{return navigator.userActivation?navigator.userActivation.isActive:true;}catch{return true;}}});
 function switchCardsTab(tab) {
   screenScroll.set(viewKey(),window.scrollY);
   if(tab==='codex')screen='collection';
@@ -917,9 +950,12 @@ async function commitMove() {
 async function recordFinishedMatch() {
   if(match.status!=='finished'||recorded)return;
   const settledId=encounter.id;
-  const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used,finalResources:{hp:match.player.hp,pills:match.player.pills}}),()=>clearBattleSnapshot(settledId));
-  lastReward=result.reward;recorded=true;
-  saves.battleFinished(match.winner);
+  settling=true;
+  try{
+    const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used,finalResources:{hp:match.player.hp,pills:match.player.pills}}),()=>clearBattleSnapshot(settledId));
+    lastReward=result.reward;recorded=true;
+    saves.battleFinished(match.winner);
+  }finally{settling=false;}
 }
 function resultModal({animate=false}={}) {
   const r=match.lastResult, won=r.winner==='player';
@@ -1241,6 +1277,11 @@ document.addEventListener('change',event=>{
   if(event.target.id==='source-filter'){sourceFilter=event.target.value;render();}
 });
 window.addEventListener('pagehide',()=>{if(match?.status==='playing')try{persistBattle();}catch{}});
+// Input that gives user activation (Escape gives none) opens a user turn for history pushes.
+for(const type of ['pointerdown','keydown','touchend','click','submit'])window.addEventListener(type,event=>{if(event.isTrusted&&!(type==='keydown'&&event.key==='Escape'))nav.noteInput();},{capture:true,passive:true});
+window.addEventListener('popstate',event=>nav.popstate(event.state));
+window.addEventListener('pageshow',event=>nav.pageshow(event.persisted));
+window.addEventListener('pagehide',event=>nav.pagehide(event.persisted));
 function reloadLocalJourney() {
   if(!startupReady)return;
   try {
@@ -1300,5 +1341,6 @@ document.addEventListener('keydown',event=>{
 });
 await transact(p=>p);
 saves.launch({fresh:freshJourney,standalone:isStandalone()}).catch(()=>{});
+nav.start();
 startupReady=true;
 render();
