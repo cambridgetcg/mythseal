@@ -64,9 +64,15 @@ Chrome and WebKit with phone descriptors.
 A Capacitor build (M5.2) should call the same decision rather than a second
 table. The proposed wiring, not yet built or tested: an `@capacitor/app`
 `backButton` listener calls the nav instance's `requestBack()` in `app.mjs`
-(`createNavHistory` in `nav-stack.mjs`). That applies one row without a WebView
-history traversal and returns `'exit'` at the 洞府 root. At the root the shell
-must then let the system take Back. A listener that exits or minimises on
+(`createNavHistory` in `nav-stack.mjs`). That applies one row without waiting
+for a WebView Back. When the row closes a layer, `requestBack()` then walks the
+WebView history back over that layer's entry with `history.go(-1)`, as a UI
+close does, and treats the resulting popstate as its own. So the listener must
+not also call a WebView or `history` back, which would close a second layer.
+`requestBack()` returns `'exit'` at the 洞府 root. A reload walks back to the
+game's first entry, so no game entry should be below the root, and the
+`backButton` event's `canGoBack` should be false there; this is untested in a
+WebView. At the root the shell must then let the system take Back. A listener that exits or minimises on
 `'exit'` keeps Back working, but it still intercepts the gesture. With Android 16
 predictive back, a back handler that stays registered at the root blocks the
 system's back-to-home animation. So M5.2 also needs `App.toggleBackButtonHandler`

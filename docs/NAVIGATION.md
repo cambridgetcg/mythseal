@@ -99,18 +99,33 @@ above the root has one entry:
   is really on, so a walk the browser dropped cannot block later pushes.
 - **Reload and bfcache.** A reload starts at 洞府 with a new session id, so
   entries from the earlier load are stale. They are never acted on as layers and
-  never settle anything; Back at the root leaves past them in one step. A
-  bfcache restore (`pageshow` with `persisted`) re-reads the position and pushes
-  nothing until the next input.
+  never settle anything. On start, the reloaded page uses the position stored in
+  its entry to walk back over them (`history.go(-n)`) to the tab's first game
+  entry, which becomes the root; that popstate is the game's own. The earlier
+  entries then sit ahead: Forward into one steps back, and the next push drops
+  them, so reloads do not grow `history.length`. Back at the root is the
+  browser's own and leaves in one step. When the game is the tab's first entry
+  (a new tab, a home-screen shortcut, an Android Custom Tab), nothing is left
+  before it, so that Back goes to the system, which on Android closes the tab or
+  returns to the app that opened it (not checked on a phone). If the walk back
+  never lands within 3 s, the reloaded entry stays the root, and a Back from it
+  jumps past the earlier entries, which the browser ignores when nothing
+  precedes the game. A bfcache restore (`pageshow` with `persisted`) re-reads
+  the position and pushes nothing until the next input.
 - `history.scrollRestoration` is `manual`; the app already restores scroll and
   focus when a layer closes.
 
-**Native shells.** `createNavHistory(...).requestBack()` applies the same table
-without a browser traversal and returns `'exit'` at the root. A future Capacitor
-back-button listener calls it ([MOBILE-RELEASE](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
+**Native shells.** `createNavHistory(...).requestBack()` applies one row of the
+same table without waiting for a browser Back. It does move the history: when
+the row closes a layer, it then walks back over that layer's entry with
+`history.go(-1)`, as a UI close does, and the popstate of that walk is
+recognised as the game's own. It returns `'exit'` at the root. A future
+Capacitor back-button listener calls it
+([MOBILE-RELEASE](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
 
-**Checks.** `node --test tests/nav-stack.test.mjs` (N1–N17) covers every table
-row against a simulated session history. `GAME_URL=… npm run test:back` runs
+**Checks.** `node --test tests/nav-stack.test.mjs` (N1–N19) covers every table
+row against a simulated session history, including one where the game is the
+tab's first entry. `GAME_URL=… npm run test:back` runs
 `tools/back-smoke.mjs` in Chrome with the Pixel 7 descriptor, then WebKit with
 the iPhone 15 descriptor ([VALIDATION](VALIDATION.md#d1-back-model--2026-10-12)).
 Playwright's `page.goBack()` steps to the previous entry by index. It does not
