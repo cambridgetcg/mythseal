@@ -291,6 +291,134 @@ download sheet (only `acceptDownloads: false`), and whether the export's 1 s
 `revokeObjectURL` races that sheet; a signed-in player without a cloud backup
 pressing 雲端旅程 (the same code path as S8's guest).
 
+### D2 third review fixes · 2026-10-12
+
+Source commit **`a6467b5`** (the fixes, their Node cases and smoke groups S7, S10b
+and S11), after review round 3 of `e6471b0`; the commit that adds this note
+changes documentation only. Still not merged, pushed or deployed; no hosted
+service and no network request outside loopback. Same environment as the entries
+above, against this worktree's `python3 tools/serve.py --port 4202`, started fresh
+for this round (no allowlist change). The rules:
+[LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12).
+This note corrects two statements above. The second-round note's **Real v0.5.1
+exports** paragraph called the scratch files "exports" and the v3 fixture
+"byte-identical" to v0.5.1's own export: both were v0.5.1's stored
+`claimLogin(createProfile())`, serialised without `loadProfile()`, so their key
+order is not the download's (finding 4, below). And HANDOVER's checkpoint said the
+first entry's whole check list ran again after the second round; `test:commands`,
+`test:viewport` and `test:wx01` did not, as that note's own "Not run" says
+(finding 5). The first entry's 360×640 visual check (both journeys and the
+recovery note on one page) was made before the second round added the legacy note.
+
+The review reported five findings: one medium, four low.
+
+**Fixed:**
+
+- **The import confirmation's last note under the pager (finding 1, medium).**
+  `importConfirmMarkup` put the file name, the legacy note (added in round 2), the
+  comparison and both footnotes in one `.import-review` block, the only item of the
+  dialog's paged list. The pager pages whole items, so a block taller than the page
+  only set `data-viewport-overflow="true"` (no CSS reads it) and its bottom painted
+  under the pager. Measured here before the fix, in Chromium: with a v0.5.1 file
+  and a recovery copy kept, `[data-recovery-replaced]` spans 511–549 px against a
+  pager at 507 (340×640 and 360×640), 534 (375×667) and 531 (390×664), and
+  `elementFromPoint` at its bottom-left returns `← 上頁`; 390×844 and 414×736 were
+  clear. Landscape was worse: with the same file at 844×390 and 667×375 the block
+  ran past the pager and under the dialog's buttons. Now the confirmation is two items, `import-notes` (the file,
+  the legacy note, the recovery-copy note and the replaced-copy warning) and
+  `import-compare`, so the pager can page them, notes first. The pager sizes a page
+  by its tallest item, so splitting alone gave two pages at 340×640; under 600 px
+  wide the two journeys now sit side by side with one figure per row, and both
+  items fit one page. After the fix, with a long file name, seven-digit coins and a
+  merchant-held copy (the tallest content tried): items end at 464 px against a
+  pager at 507 (340×640, both engines); one page at 340×640, 375×667 and 390×664
+  in both engines and also at 360×640, 390×844 and 414×736 in Chromium; two pages
+  at 844×390 (both) and 667×375 (Chromium), with nothing past the pager. The
+  suggested `overflow-y:auto` was not used: the viewport model pages instead of
+  scrolling (`tools/viewport-smoke.mjs` fails a scrolling surface), and a 1 / 1
+  pager over hidden scrolled text would say there is nothing more.
+- **A prompt's 旅程閣 opened 此裝置 (finding 2, low).** The 首勝已記 / 勝局已記 / 新卡入藏
+  strips used the header's `account-open`, which lands on the default 此裝置 tab:
+  no 備份此裝置, sign-in or export there. The strip's 旅程閣 is now
+  `backup-prompt-cloud`: it opens 旅程閣, selects 雲端旅程 as `restore-offer-cloud`
+  does, and once the account lookup settles brings 備份此裝置 onto its page with
+  `viewport.revealElement` (it was on page 2 or 3 of the cloud panel for a
+  signed-in player). The header's button is unchanged.
+- **上次備份 after 刪除雲端備份 (finding 3, low).** `lastBackup` was only ever set,
+  so after a confirmed delete 旅程閣 showed 上次備份：(date) · 雲端備份 beside the cloud
+  panel's 尚未備份, after a reload too. `account-delete` now records the API's
+  confirmed delete (`recordBackupDeleted`, `deletedAt` in `shanhai.saves.v1`), and the
+  line reads 上次備份：(date) · 雲端備份已刪除. A deleted backup no longer counts against
+  a prompt due before it (`takePrompt`). The line still cannot follow a delete or an
+  overwrite on another device or account.
+- **The v0.5.1 fixture is the stored profile, not the download (finding 4, low).**
+  v0.5.1's 匯出旅程備份 wrote `JSON.stringify(loadProfile(), null, 2)`, and
+  `loadProfile` is `hydrateProfile(stored)`, which lists `collectionVersion`,
+  `instances`, `instanceSerial`, `deckSlots`, `activeDeckId` and `merchantVault`
+  after `serial` in that order. Checked with a scratch script over
+  `git archive v0.5.1 '*.mjs'` (deleted afterwards), for a new journey at the
+  test's clock: the stored object and the download are both 5,782 B and differ;
+  the fixture equals the stored object; the new `v051Download` reordering of the
+  fixture equals the download byte for byte; a second hydration keeps the
+  download unchanged; and the download imports as legacy with 16 cards. The Node
+  test and S10 now use the download order, and the Node test checks the stored
+  order imports to the same snapshot. Import behaviour did not change.
+- **HANDOVER overstated the round-2 checks (finding 5, low).** Its **Checked**
+  bullet now lists each round's checks separately, and its not-run list names
+  what was skipped after rounds 2 and 3.
+
+**Checks** (runtime of `a6467b5`; the documentation commit changes no checked file):
+
+- `node --test tests/*.test.mjs`: exit 0, **543/543** (the new cases are
+  assertions inside existing D2 tests). Python: 9 tests OK.
+- `npm run audit:content`: exit 0, `findings: []`.
+- `npm run build`: exit 0, **87 public files**, manifest `186c6608…b5de`;
+  `dist/` held 89 files, 74,440,479 B in all by a plain sum of file sizes (the
+  earlier notes' byte counts may have been taken differently). `dist/` was deleted
+  afterwards.
+- `git diff --check` on `a6467b5`: clean.
+- `GAME_URL=http://127.0.0.1:4202 npm run test:saves`: exit 0, **18/18 groups in
+  Chromium and 18/18 in WebKit**, 42 s, on the commit (and on the tree before
+  it). Changed: S3 checks the strip's `backup-prompt-cloud`; S7 runs at 390 px
+  without the test's tab/page helper, and a prompt's 旅程閣 shows a guest the email
+  form and a signed-in player 備份此裝置 on the 雲端旅程 tab; S10 uses v0.5.1's
+  download order. New: S10b, the longest confirmation (a v0.5.1 file, recovery copy
+  kept) at 340×640, 375×667 and 390×664 on one page and 844×390 on two, no item or
+  warning past the pager, the warning hit-tested, notes first, declining writes
+  nothing; S11, 備份此裝置 then 刪除雲端備份 against a fixture API, 雲端備份已刪除
+  beside 尚未備份, after a reload too.
+- `GAME_URL=http://127.0.0.1:4202 npm run test:browser`: exit 0, all 14 Chromium
+  suites (91 `PASS` lines), 305 s, on the tree committed as `a6467b5`, before the
+  commit was made.
+- `GAME_URL=http://127.0.0.1:4202 npm run test:commands`: exit 0, 13/13 groups in
+  each engine (26 `PASS` lines), 79 s, on the commit.
+- **Negative controls** (each reverted from a scratch copy of the fixed files,
+  and checked byte-identical with `cmp` afterwards; the full smoke ran, in
+  Chromium unless stated): with `importConfirmMarkup` and `saves.css` as in
+  `e6471b0`, the markup test failed (11/12) and S10b failed at 340×640
+  (`dialog-content-0` ending at 553 against a pager at 507, the warning's hit
+  `← 上頁`); with the split kept but the old `saves.css`, S10b failed at 340×640 on
+  `第 1 / 2 頁` (nothing covered, but two pages). With the strip's 旅程閣 back on
+  `account-open`, the markup test failed (11/12) and S7 failed in both engines
+  (`{ tab: '此裝置', shown: false }` for a guest); without the reveal, the wiring
+  test failed and S7 failed for the signed-in player (`{ tab: '雲端旅程', shown:
+  false }`). With `account-delete` back to `account.deleteBackup()` alone, the
+  wiring test failed (11/12) and S11 failed in both engines (as a timeout; after
+  S11 was changed to assert the text first, it failed in Chromium on
+  `上次備份：… · 雲端備份`); without the
+  `deletedAt` check in `takePrompt`, the prompts test failed (11/12).
+- During the controls one `git checkout` of the smoke discarded its uncommitted
+  edits; they were applied again from the same edit script before any recorded
+  run, and the runs above are on the restored file.
+
+**Not run or not verified:** the same items as the entries above; plus
+`test:viewport` and `test:wx01` this round (no viewport, dialog-adapter or
+receipt code changed; the import confirmation is not in `tools/viewport-smoke.mjs`,
+so S10b is its only layout check); the confirmation on a physical phone, with
+enlarged text or at heights under 640 px in portrait (they should page, not
+checked); the browser controls in WebKit except S7 and S11; whether a player
+pages to the comparison at 844×390 before confirming.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

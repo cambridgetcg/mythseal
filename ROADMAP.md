@@ -528,9 +528,12 @@ milestone, and a new journey offers a restore from a file or the cloud.
 `platform.mjs` is the storage seam M5.2's native adapter extends. The first
 review's twelve findings were fixed or documented on 2026-10-12, and the second
 review's five the same day: an export is shown as a started download, never as a
-backup; the offer's 雲端旅程 opens the 雲端旅程 tab; v0.5.1 exports import. Headless
+backup; the offer's 雲端旅程 opens the 雲端旅程 tab; v0.5.1 exports import. The third
+review's five, also that day: the import confirmation pages on phones instead of
+drawing its last note under the pager, a backup prompt's 旅程閣 opens 雲端旅程, a
+deleted cloud backup reads as deleted, and two documentation corrections. Headless
 Chromium and WebKit checks pass
-([VALIDATION](docs/VALIDATION.md#d2-second-review-fixes--2026-10-12)); real iPhone
+([VALIDATION](docs/VALIDATION.md#d2-third-review-fixes--2026-10-12)); real iPhone
 eviction and `persist()` behaviour are UNVERIFIED
 ([LOCAL-COMMANDS §19](docs/LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
 

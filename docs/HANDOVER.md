@@ -243,8 +243,9 @@ v0.6.0, which would be the first public v5 release, is planned to include it
 
 Packet **D2 · saves never vanish silently**, approved by the owner on
 2026-10-11 for the v0.6.0 scope, is implemented on the branch
-**`d2/save-durability`** from `origin/main` `7712a7b`, after two review rounds
-(fixes `a290151` and `4ba6e31`, then `22c9f90`, all 2026-10-12). **Status:** not
+**`d2/save-durability`** from `origin/main` `7712a7b`, after three review rounds
+(fixes `a290151` and `4ba6e31`, then `22c9f90`, then `a6467b5`, all
+2026-10-12). **Status:** not
 merged, pushed or deployed; no hosted service was called. Built alongside D1 (Back model) and N1
 (mobile shell CSS) in sibling worktrees; D1 also edits `app.mjs`.
 
@@ -264,10 +265,11 @@ merged, pushed or deployed; no hosted service was called. Built alongside D1 (Ba
   first pack opening this device records (an existing journey's next one), and in
   an installed web app at every launch until granted; never on an ordinary load.
   A request whose page closed before the answer is settled at the next start from
-  `persisted()` (granted or 未有回覆). A player not known to be signed in gets one
-  low-key lobby strip after each of those milestones, at most once ever; the
-  lobby knows a player is signed in only after 旅程閣 looked the account up in
-  that page. A journey this device has just started, because no journey key
+  `persisted()` (granted or 未有回覆). After a confirmed 刪除雲端備份 the status reads
+  上次備份：(date) · 雲端備份已刪除. A player not known to be signed in gets one
+  low-key lobby strip after each of those milestones, at most once ever; its
+  旅程閣 opens the 雲端旅程 tab. The lobby knows a player is signed in only after
+  旅程閣 looked the account up in that page. A journey this device has just started, because no journey key
   existed, shows 有舊旅程？由備份還原 until dismissed, restored or its first battle,
   with 備份檔 and 雲端旅程 (into 旅程閣: its cloud restore, or else its 雲端旅程
   tab).
@@ -275,15 +277,25 @@ merged, pushed or deployed; no hosted service was called. Built alongside D1 (Ba
   `save-status.mjs` (device-local record `shanhai.saves.v1`), `save-ui.mjs`,
   `saves.css`. `PROFILE_VERSION`, the snapshot format, the Worker, the SQL and
   the journey flags are unchanged.
-- **Checked:** the Node suite, `npm run audit:content`, `npm run build`,
-  `npm run test:saves` in Chromium and WebKit, `npm run test:commands` in both,
-  and the 14 Chromium `npm run test:browser` suites, headless against this
-  worktree's server on port 4202
-  ([VALIDATION](VALIDATION.md#d2-save-durability--2026-10-12)); again after the
-  review fixes, with `test:viewport` and `test:wx01` in both engines
-  ([VALIDATION](VALIDATION.md#d2-review-fixes--2026-10-12)), and after the
-  second round's
-  ([VALIDATION](VALIDATION.md#d2-second-review-fixes--2026-10-12)).
+- **Checked** (headless, against this worktree's server on port 4202; each
+  round lists only what ran on that round's tree):
+  - First build: the Node suite, `npm run audit:content`, `npm run build`,
+    `npm run test:saves` in Chromium and WebKit, `npm run test:commands` in
+    both, and the 14 Chromium `npm run test:browser` suites
+    ([VALIDATION](VALIDATION.md#d2-save-durability--2026-10-12)).
+  - Round 1 fixes: the same list, plus `test:viewport` and `test:wx01` in both
+    engines ([VALIDATION](VALIDATION.md#d2-review-fixes--2026-10-12)).
+  - Round 2 fixes: the Node suite, `audit:content`, `build`, `git diff --check`,
+    `test:saves` in both engines, and `test:browser` on the tree before the
+    commit ([VALIDATION](VALIDATION.md#d2-second-review-fixes--2026-10-12)).
+    **Not** `test:commands`, `test:viewport` or `test:wx01`. (Corrected after
+    the third review: this bullet said the whole first list ran again after the
+    second round.)
+  - Round 3 fixes: the Node suite, `audit:content`, `build`, `git diff --check`,
+    `test:saves` in both engines (18 groups) and `test:commands` in both, on
+    `a6467b5`, and `test:browser` on the same tree before the commit
+    ([VALIDATION](VALIDATION.md#d2-third-review-fixes--2026-10-12)). Not
+    `test:viewport` or `test:wx01`.
 - **Review round 1 (2026-10-12):** twelve findings, several overlapping, all low
   after verification (one was first rated medium).
   Fixed: 雲端旅程 on the first lobby after an eviction; the strip at 340 px; 勝局已記
@@ -304,11 +316,28 @@ merged, pushed or deployed; no hosted service was called. Built alongside D1 (Ba
   rules (an export counts only when it would import, a cloud backup ends the
   prompt, a WX receipt's strip comes first) had no test (low). Each fix has a Node case
   and a smoke group that failed with the fix reverted.
+- **Review round 3 (2026-10-12):** five findings. Fixed: the import confirmation
+  was one block taller than a phone's dialog page, so with a v0.5.1 file and a
+  recovery copy kept, the warning on how to keep that copy was drawn under the
+  pager from 340×640 to 390×664 (medium); it is now two page items (the file and
+  its notes, then the comparison), on one page from 340×640 and paged at 844×390.
+  A backup prompt's 旅程閣 opened the header's default 此裝置 tab (low); it now opens
+  雲端旅程, with 備份此裝置 brought onto its page. 上次備份 kept reading 雲端備份 after a
+  confirmed 刪除雲端備份 (low); it now reads 雲端備份已刪除 and no longer skips a
+  prompt. Corrected: the v0.5.1 fixture was byte-identical to v0.5.1's stored
+  profile, not to its download (low; the test now also builds the download's key
+  order), and this checkpoint claimed `test:commands` ran after round 2 (low). The
+  three behavioural fixes each have a Node case and a smoke group (S10b, S7, S11)
+  that failed with the fix reverted.
 - **UNVERIFIED:** real iPhone seven-day eviction, iOS home-screen storage
   isolation, real `persist()` answers (the smoke uses a spy), and iOS Safari's
   download sheet with the export (a refused download was checked only with
   Playwright's `acceptDownloads: false`). Not run: the account smoke in WebKit
-  (it is Chromium-only), devices, deploy dry runs, CI.
+  (it is Chromium-only), devices, deploy dry runs, CI; after round 2,
+  `test:commands`, `test:viewport` and `test:wx01`; after round 3, `test:viewport`
+  and `test:wx01` (see the round-3 VALIDATION note). The import confirmation's
+  layout was checked in Playwright's engines at the sizes S10b lists, not on a
+  phone, and not with enlarged text.
 - **Open:** LOCAL-COMMANDS §15 decision 1 still applies to the import, so the
   packet's exit item "a command ID issued before the import is expired or
   refused" holds only for a journey with a command ledger: without one, a quote on a copy the file holds unchanged
@@ -324,8 +353,10 @@ merged, pushed or deployed; no hosted service was called. Built alongside D1 (Ba
   `recoveryMarkup` (`lobbySaveNotice`, `reviewImport` and the import helpers),
   `homeMarkup`, the 旅程閣 page's tools in `render`, one line each in
   `recordFinishedMatch`, `showPackReceipt` and the legacy `buy-pack` modal, the
-  click handler's export/import/notice actions and `restore-offer-cloud` (which
-  selects the 雲端旅程 module since the second review), `account-upload`, and the
+  click handler's export/import/notice actions, `restore-offer-cloud` (which
+  selects the 雲端旅程 module since the second review) and `backup-prompt-cloud`
+  (the prompts' 旅程閣, since the third), `account-upload` and `account-delete`
+  (with `backupMade` and `backupDeleted` after `lobbySaveNotice`), and the
   startup `saves.launch`. Add `npm run test:saves` beside `test:commands` in
   the release checks, and the new files to `docs/README.md`.
 

@@ -479,7 +479,7 @@ N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fe
   - a journey that is not canonical at its own day (XP against level, counts against copies, duplicate copy IDs, unknown fields): refused as possibly edited;
   - one that fails `assertLocalProfile`, `createSnapshot` or `restoreSnapshot` (a damaged ledger, a forbidden key such as `__proto__`, an oversize envelope).
 - **The file's ledger** is checked by those rules and then left out by `createSnapshot`: it belongs to the device that wrote it.
-- **Applied only after a confirmation** that compares the two journeys and, when this device already keeps a recovery copy, says that the import replaces it and how to download it first (one recovery slot per browser, [ACCOUNTS](ACCOUNTS.md); added after the first D2 review). It runs through `restoreLocalProfile`, the path cloud restore and local recovery use. It takes the strict fenced lock, so it refuses while the fence says `writing` and in a tab that cannot prove its bytes are current. Inside the lock, `store.restore` in `profile-store.mjs` (shared by all three restores since D2) loads the latest journey and refuses an unfinished battle or activity, `economyBusy`, an unacknowledged WX receipt, or a journey changed since the confirmation opened. Then `store.replace` writes the `RECOVERY_KEY` copy of the replaced journey first, retires the replaced lineage when it has a ledger (§15 decision 1 as currently proposed), and makes exactly one profile write. Any refusal writes nothing.
+- **Applied only after a confirmation** that compares the two journeys and, when this device already keeps a recovery copy, says that the import replaces it and how to download it first (one recovery slot per browser, [ACCOUNTS](ACCOUNTS.md); added after the first D2 review). The confirmation is two items of the dialog's paged list: the file and its notes (the legacy note, the recovery copy kept, the copy it replaces), then the comparison. Phones from 340×640 show both on one page; a shorter window pages them, notes first, and nothing is drawn under the pager (fixed after the third D2 review: one block taller than the page put the replaced-copy warning under the pager from 340×640 to 390×664). It runs through `restoreLocalProfile`, the path cloud restore and local recovery use. It takes the strict fenced lock, so it refuses while the fence says `writing` and in a tab that cannot prove its bytes are current. Inside the lock, `store.restore` in `profile-store.mjs` (shared by all three restores since D2) loads the latest journey and refuses an unfinished battle or activity, `economyBusy`, an unacknowledged WX receipt, or a journey changed since the confirmation opened. Then `store.replace` writes the `RECOVERY_KEY` copy of the replaced journey first, retires the replaced lineage when it has a ledger (§15 decision 1 as currently proposed), and makes exactly one profile write. Any refusal writes nothing.
 - **Command IDs (corrected after the first D2 review).** With a ledger, every ID issued before the import is `expired`. Without one there is nothing to retire (§15 decision 1 as currently proposed), so a quote from before the import keeps its slot:
   - it is refused as `stale` when the imported journey's copy differs from the one it priced;
   - it commits once when the file holds that copy's record unchanged, which is what re-importing this device's own recent export usually does. That covers almost every v5 journey that has never used the card-page upgrade. The commit charges the quoted price and applies the upgrade the player pressed, and it is never a duplicate (§13 item 2).
@@ -938,7 +938,11 @@ keep the site's storage, and there was no import path.
 - **旅程閣 status (changed after the second D2 review).** The tools show what the
   page knows, and 長期保存 with the recorded answer:
   - 上次備份：(date) · 雲端備份 for this device's last cloud backup, recorded only
-    after the account API said it saved;
+    after the account API said it saved; 上次備份：(date) · 雲端備份已刪除 once this
+    device's 刪除雲端備份 was confirmed by the API. **Fixed after the third D2
+    review:** the line kept saying 雲端備份 beside the cloud panel's 尚未備份. A deleted
+    backup no longer counts against a prompt. The line still cannot follow a delete or
+    an overwrite made on another device or account;
   - 上次匯出：(date) · 已開始下載，此頁無法確認檔案已儲存 for the last export. A page
     cannot tell whether the browser saved an `<a download>` file: a cancelled save
     dialog, a blocked download or (unverified) iOS Safari's download sheet look
@@ -956,8 +960,12 @@ keep the site's storage, and there was no import path.
   cancel, but they change the export flow on each platform; M5.2's native adapter
   can record a confirmed save as a backup instead.
 - **Backup prompts.** After each milestone, a player who has not made a cloud
-  backup since sees one strip above the lobby, pointing to the export and to
-  旅程閣, with a dismiss button (關閉提示，不會再出現). Each prompt is consumed as it
+  backup since (or has deleted it since) sees one strip above the lobby, pointing
+  to the export and to 旅程閣, with a dismiss button (關閉提示，不會再出現). The
+  strip's 旅程閣 opens 旅程閣 on its 雲端旅程 tab: a guest's sign-in, or, once 旅程閣
+  knows the account, 備份此裝置 brought onto its page. **Fixed after the third D2
+  review:** it opened the header's default 此裝置 tab, which has no backup, sign-in
+  or export. Each prompt is consumed as it
   is shown, so it appears at most once ever (both at once give one prompt). It
   stays for that page until dismissed or a cloud backup is made; an export from
   the strip leaves it up, because the page cannot tell whether the file was saved
@@ -1023,12 +1031,21 @@ exits.
   and a `requested` record left by a closed page settled from `persisted()`
   without a second `persist()`. Prompts, their copy and the offer appear as above.
   Since the second D2 review (12 tests): an export is recorded apart from a backup
-  and never skips a prompt, while a cloud backup does; a v0.5.1-shaped v3 export
-  (byte-identical to v0.5.1's own export of a new journey) restores as the same
-  journey through the same path, one over 2,000 copies too, and `load()`'s legacy
-  refusals (unfinished, a ledger, an edited copy, v5-only data, `__proto__`) write
-  nothing. Source checks also pin the three rules the smoke's S2d, S7 and S9 check
-  in the browser.
+  and never skips a prompt, while a cloud backup does; a v0.5.1 v3 export restores
+  as the same journey through the same path, one over 2,000 copies too, and
+  `load()`'s legacy refusals (unfinished, a ledger, an edited copy, v5-only data,
+  `__proto__`) write nothing. Source checks also pin the three rules the smoke's
+  S2d, S7 and S9 check in the browser. **Corrected after the third D2 review:**
+  this said the test's v3 file was byte-identical to v0.5.1's own export of a new
+  journey. It was byte-identical to v0.5.1's stored `claimLogin(createProfile())`;
+  the download (`JSON.stringify(loadProfile(), null, 2)`, through `hydrateProfile`)
+  lists `collectionVersion`, `instances`, `instanceSerial`, `deckSlots`,
+  `activeDeckId` and `merchantVault` after `serial` in that order. The test now
+  builds the download order too (`v051Download`), which is byte-identical to
+  v0.5.1's download of a new journey (checked against `git archive v0.5.1`), and
+  checks that both orders import the same. Also since the third review: a
+  confirmed delete marks the last backup deleted and it no longer skips a prompt;
+  the prompt's 旅程閣 action and the confirmation's two page items are pinned.
 - `tools/save-durability-smoke.mjs` (`npm run test:saves`, Chromium then WebKit;
   11 groups since the first D2 review, 16 since the second): export → clear site
   data → the new journey's offer → import restores an identical journey
@@ -1044,7 +1061,13 @@ exits.
   a confirmed cloud backup ends the prompt (S7); the offer's 雲端旅程 lands on the
   雲端旅程 tab for a guest with email sign-in and for an offline player at 390 px
   (S8); an open WX receipt's strip comes first and the due prompt waits for it
-  (S9); a v0.5.1 export restores from the offer (S10).
+  (S9); a v0.5.1 export restores from the offer (S10). Since the third D2 review
+  (18 groups): S7 runs at 390 px without the test's tab/page helper and checks
+  that a prompt's 旅程閣 shows a guest the sign-in and a signed-in player 備份此裝置;
+  S10 uses v0.5.1's download key order; S10b checks the longest confirmation (a
+  v0.5.1 file with a recovery copy kept) at 340×640, 375×667 and 390×664 on one
+  page and at 844×390 on two, with no item and no warning reaching the pager; S11
+  backs up, deletes the cloud backup and reads 雲端備份已刪除, after a reload too.
 
 **UNVERIFIED:** the seven-day eviction on a real iPhone (or in Safari at all),
 iOS 26 home-screen storage isolation, and what real browsers answer to

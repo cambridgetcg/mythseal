@@ -142,7 +142,8 @@ wins when both apply), never a dialog and never in a battle:
 - **首勝已記 · 留份備份？** (勝局已記 when the journey already had wins) and
   **新卡入藏 · 留份備份？** after the first win and the first pack opening this
   device records, for a player who has not made a cloud backup since:
-  **匯出備份** and **旅程閣**. A player is skipped only when 旅程閣 has already found them signed in
+  **匯出備份** and **旅程閣**, which opens 旅程閣 on its 雲端旅程 tab (a guest's sign-in,
+  or 備份此裝置 brought onto its page for a signed-in player). A player is skipped only when 旅程閣 has already found them signed in
   during this page; the lobby makes no account request. Each appears at most once
   ever and stays for that page until dismissed or a cloud backup is made. An
   export from the strip leaves it up: the page cannot tell whether the browser
@@ -156,12 +157,19 @@ Changed after the second D2 review (2026-10-12): 雲端旅程 without a cloud ba
 confirm opened 旅程閣 on its 此裝置 tab, so a guest saw the new journey and not the
 sign-in this section promised; it now selects the 雲端旅程 tab. An export no longer
 ends or skips a prompt.
+Changed after the third D2 review (2026-10-12): a prompt's 旅程閣 used the header's
+action and opened the 此裝置 tab, which has no backup, sign-in or export; it now
+opens 雲端旅程 as the offer does. The import confirmation pages as two items (the
+file and its notes, then the comparison), so its last note is no longer drawn under
+the dialog's pager on a phone, and 上次備份 reads 雲端備份已刪除 after a confirmed
+刪除雲端備份.
 
 The 旅程閣 tools add **匯入旅程備份** and a status line (上次備份 for a cloud
 backup, 上次匯出 for the last export download started, 長期保存) beside
 **匯出旅程備份**. Rules and checks:
 [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12);
-`npm run test:saves` covers the strip at 390 px and 340 px in Chromium and WebKit.
+`npm run test:saves` covers the strip at 390 px and 340 px, and the import
+confirmation from 340×640 to 844×390, in Chromium and WebKit.
 
 ## Checks
 
