@@ -101,15 +101,19 @@ const randomId = () => {
  * - Closing in the UI walks back over its entries, and the popstate that walk causes
  *   is recognised as ours, so one close is never handled twice.
  * - Entries from an earlier load (reload, bfcache) are stale: they hold no layer, are
- *   never acted on as one, and settle nothing.
+ *   never acted on as one, and settle nothing. A reload walks back to the tab's first
+ *   game entry and makes it the root, so the earlier entries sit ahead (the next push
+ *   drops them) and Back at the root is the browser's own, even when nothing precedes
+ *   the game in the tab.
  * Each entry's state: { v, sid, abs, depth, layers }. `abs` counts this tab's game
- * entries from the first one, across reloads, so the root can leave in one Back.
+ * entries from the first one, across reloads, so a reload knows how far to walk back.
  */
 export const NAV_STALL_MS = 3000;
 export function createNavHistory({ history, depth, back, signature = () => '', canPush = () => true, schedule = callback => queueMicrotask(callback), now = () => Date.now(), sessionId = randomId() }) {
   // abs: the entry we are on; base: this load's root entry; top: our highest entry still in
   // the list; pending: where our own traversal lands, from `origin`, started at `pendingAt`.
-  let started = false, abs = 0, base = 0, top = 0, pending = null, origin = 0, pendingAt = 0, written = null, queued = false, inputTurn = false;
+  // rooting: the reload's walk back to the first game entry is in flight.
+  let started = false, abs = 0, base = 0, top = 0, pending = null, origin = 0, pendingAt = 0, written = null, queued = false, inputTurn = false, rooting = false;
   const sid = sessionId;
   const entry = at => ({ [NAV_STATE_KEY]: { v: NAV_STATE_VERSION, sid, abs: at, depth: at - base, layers: signature() } });
   const write = (method, at) => {
@@ -126,7 +130,8 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
   function recoverStall() {
     if (pending === null || now() - pendingAt < NAV_STALL_MS) return;
     const current = readNavState(history.state);
-    pending = null;
+    // A reload's walk that never landed leaves the reloaded entry as the root (entries below it stay stale).
+    pending = null; rooting = false;
     if (current && current.sid === sid) abs = current.abs;
   }
   function sync() {
@@ -153,7 +158,21 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
     queued = true;
     schedule(sync);
   }
-  /** The 洞府 root hands Back to the system: on the web the page leaves, with no prompt. */
+  /** The reload's walk landed. The tab's first game entry becomes this load's root; if a
+   * superseding traversal stopped it short, walk on. */
+  function rooted(current) {
+    pending = null;
+    if (current && current.abs > 0) return go(-current.abs);
+    rooting = false;
+    abs = base = top = 0;
+    write('replaceState', 0);
+    sync();
+  }
+  /** Leave past the 洞府 root, from a game entry above it (a Back that skipped more entries
+   * than there are layers) or from a stale entry below it (a reload's walk never landed).
+   * A Back at the root itself normally needs neither: once a reload has walked back, no game
+   * entry is below the root, so the browser's own Back leaves. The jump assumes a page
+   * before the game's first entry; when there is none, the browser ignores it. */
   function exit(from) {
     pending = null;
     history.go(-(Math.max(from, 0) + 1));
@@ -169,20 +188,24 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
     pending = null;
     // An entry from an earlier load of this tab, ahead of ours: step back onto ours.
     if (state && state.abs > top) { const target = abs; abs = state.abs; return go(target - abs); }
-    // Below this load's root: it holds no layer. At the root, keep leaving; otherwise
-    // this Back closes one layer and our entries ahead are reused.
+    // Below this load's root (only when a reload's walk never landed): it holds no layer.
+    // At the root, keep leaving; otherwise this Back closes one layer and our entries ahead
+    // are reused.
     abs = state ? Math.min(state.abs, base - 1) : base - 1;
     if (!depth()) return exit(abs);
     backSteps(1);
   }
   return {
-    get state() { return { started, sid, abs, base, top, pending, inputTurn, depth: abs - base }; },
+    get state() { return { started, sid, abs, base, top, pending, inputTurn, rooting, depth: abs - base }; },
     start() {
       const current = readNavState(history.state);
       abs = base = top = current ? current.abs : 0;
       try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch {}
       started = true;
       write('replaceState', abs);
+      // A reload (or a restored tab) on an entry above the first: the earlier load's entries
+      // are below. Walk back over them; if the walk never lands, this entry stays the root.
+      if (abs > 0) { rooting = true; go(-abs); }
     },
     /** A trusted, activation-giving input: the next reconciliation may push. */
     noteInput() { inputTurn = true; },
@@ -192,6 +215,7 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
       if (!started) return;
       inputTurn = false;
       const current = readNavState(state);
+      if (rooting) return rooted(current);
       if (!current || current.sid !== sid) return stale(current);
       // Our own walk landing is not a Back. Landing elsewhere means the user's traversal
       // superseded ours, counted from where we stood when ours began.
@@ -206,13 +230,18 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
     /** bfcache restore: re-read where we are; settle nothing and push nothing. */
     pageshow(persisted) {
       if (!started || !persisted) return;
-      inputTurn = false; pending = null;
+      inputTurn = false; pending = null; rooting = false;
       const current = readNavState(history.state);
       if (current && current.sid === sid) abs = current.abs;
       else abs = base;
       top = abs;
     },
-    /** One Back without a browser traversal (a future native back button). 'exit' hands it to the system. */
+    /**
+     * One Back that no browser Back started (a future native back button). It applies one
+     * row; when that row closes a layer, the reconciliation then walks the history back
+     * over the layer's entry with history.go(-n), as a UI close does, and that popstate is
+     * recognised as ours. Returns the row's action; 'exit' at the root hands Back to the system.
+     */
     requestBack() {
       if (!started) return BACK.EXIT;
       if (!depth()) return BACK.EXIT;

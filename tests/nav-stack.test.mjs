@@ -6,11 +6,17 @@ import { BACK, NAV_STATE_KEY, NAV_STATE_VERSION, navLayers, navSignature, backDe
 const view = (extra = {}) => ({ screen: 'home', battle: null, accountReturn: 'home', bagGroup: false, preparationDeck: null, modal: null, modalReturn: null, ...extra });
 const modal = (kind = null, dismissible = true) => ({ kind, dismissible });
 
-/** A tab's session history: one page before the game, then the game's entries. Traversals are async, as in browsers. */
-function sessionHistory(state = null) {
-  const entries = [{ doc: 'about:blank', state: null }, { doc: 'game', state }];
-  let index = 1;
-  const queued = [], log = { pushes: 0, replaces: 0, gos: [], left: 0, reloads: 0 };
+/**
+ * A tab's session history: one page before the game (unless `blank` is false: the game
+ * is the tab's first entry, as in a new tab, a home-screen shortcut or a Custom Tab),
+ * then the game's entries. Traversals are async, as in browsers.
+ */
+function sessionHistory(state = null, { blank = true } = {}) {
+  const entries = [...(blank ? [{ doc: 'about:blank', state: null }] : []), { doc: 'game', state }];
+  let index = entries.length - 1;
+  // system: a Back with no entry before it (the system closes the tab or returns to the app
+  // that opened it); ignored: a history.go out of range, which browsers ignore silently.
+  const queued = [], log = { pushes: 0, replaces: 0, gos: [], left: 0, system: 0, ignored: 0 };
   const history = {
     scrollRestoration: 'auto',
     get state() { return structuredClone(entries[index].state); },
@@ -26,8 +32,8 @@ function sessionHistory(state = null) {
  * A model app: the view changes the way app.mjs's own functions change it, and
  * counts settlements, which Back must never cause.
  */
-function harness({ state = null, canPush = () => true, initial = view(), now = () => 0 } = {}) {
-  const session = sessionHistory(state), microtasks = [];
+function harness({ state = null, blank = true, session = sessionHistory(state, { blank }), canPush = () => true, initial = view(), now = () => 0 } = {}) {
+  const microtasks = [];
   const app = { view: structuredClone(initial), settlements: 0, decisions: [] };
   const apply = decision => {
     const v = app.view;
@@ -53,7 +59,9 @@ function harness({ state = null, canPush = () => true, initial = view(), now = (
     for (let guard = 0; guard < 100; guard++) {
       if (microtasks.length) { microtasks.shift()(); continue; }
       if (!session.queued.length) return;
-      land(session.queued.shift());
+      const delta = session.queued.shift(), target = session.index + delta;
+      if (target < 0 || target >= session.entries.length) session.log.ignored++;
+      else land(delta);
     }
     throw Error('history never settled');
   }
@@ -71,8 +79,8 @@ function harness({ state = null, canPush = () => true, initial = view(), now = (
     user(change) { nav.noteInput(); change(app.view); nav.queue(); settle(); },
     /** A change with no user input (storage event, async render). */
     passive(change) { change(app.view); nav.queue(); settle(); },
-    /** The browser's or system's Back: a traversal the page did not start. */
-    back() { land(-1); settle(); },
+    /** The browser's or system's Back: a traversal the page did not start. With no entry before, the system takes it. */
+    back() { if (session.index === 0) { session.log.system++; return; } land(-1); settle(); },
     forward() { land(1); settle(); },
     /** Only the queued reconciliations: our own traversal stays in flight. */
     microtasks() { while (microtasks.length) microtasks.shift()(); },
@@ -81,6 +89,8 @@ function harness({ state = null, canPush = () => true, initial = view(), now = (
   };
 }
 const started = options => { const h = harness(options); h.nav.start(); h.settle(); return h; };
+/** A reload on the current entry: a new page (new session id, 洞府) on the same tab history. */
+const reload = (h, options = {}) => started({ ...options, session: h.session });
 const depthOnEntry = h => readNavState(h.session.history.state)?.abs - h.nav.state.base;
 
 test('N1 decision table: a dismissible dialog closes; result and other blocking dialogs hold', () => {
@@ -248,29 +258,37 @@ test('N10 pushes need a user turn: none after a traversal until the next input, 
   assert.equal(h.session.log.left, 0);
 });
 
-test('N11 reload: entries of the earlier load are stale; at the root Back leaves in one step', () => {
+test('N11 reload: the earlier load\'s entries are stale and left ahead of the root; Back at the root leaves in one step', () => {
   const first = started();
   first.user(v => { v.screen = 'bag'; v.bagGroup = true; });
-  const old = first.session.history.state;
-  assert.equal(readNavState(old).abs, 2);
-  // The reloaded page starts at 洞府 on the same entry and keeps its absolute position.
-  const h = harness({ state: old });
-  h.session.entries.splice(1, 0, { doc: 'game', state: { [NAV_STATE_KEY]: { ...readNavState(old), abs: 0 } } }, { doc: 'game', state: { [NAV_STATE_KEY]: { ...readNavState(old), abs: 1 } } });
-  h.session.index = 3;
-  h.nav.start(); h.settle();
-  assert.equal(h.nav.state.base, 2); assert.equal(h.nav.state.depth, 0);
-  assert.notEqual(readNavState(h.session.history.state).sid, readNavState(old).sid);
+  const old = readNavState(first.session.history.state);
+  assert.equal(old.abs, 2);
+  // The reloaded page starts at 洞府 and walks back to the tab's first game entry, its root.
+  const h = reload(first);
+  assert.deepEqual(h.session.log.gos, [-2], 'one walk back over the earlier load\'s entries');
+  assert.equal(h.session.index, 1);
+  assert.equal(h.nav.state.base, 0); assert.equal(h.nav.state.depth, 0);
+  assert.equal(readNavState(h.session.history.state).sid, h.nav.state.sid);
+  assert.notEqual(h.nav.state.sid, old.sid);
+  assert.equal(h.session.history.length, 4, 'the earlier entries sit ahead until the next push');
   h.back();
   assert.deepEqual(h.app.decisions, [], 'a stale entry is never acted on as a layer');
-  assert.equal(h.session.log.left, 1, 'the root hands Back on past the stale entries');
-  assert.deepEqual(h.session.log.gos, [-2]);
+  assert.equal(h.session.log.left, 1, 'the root hands Back on in one step');
+  assert.deepEqual(h.session.log.gos, [-2], 'Back at the root is the browser\'s own: no jump');
 });
 
-test('N12 reload: a stale entry below an open layer closes one layer and re-arms', () => {
-  const h = harness({ state: { [NAV_STATE_KEY]: { v: 1, sid: 'old', abs: 1, depth: 1, layers: '' } } });
+test('N12 reload: if the walk back never lands, the reloaded entry stays the root; a stale entry below an open layer closes one layer and re-arms', () => {
+  let clock = 0;
+  const h = harness({ state: { [NAV_STATE_KEY]: { v: 1, sid: 'old', abs: 1, depth: 1, layers: '' } }, now: () => clock });
   h.session.entries.splice(1, 0, { doc: 'game', state: { [NAV_STATE_KEY]: { v: 1, sid: 'old', abs: 0, depth: 0, layers: '' } } });
   h.session.index = 2;
-  h.nav.start(); h.settle();
+  h.nav.start(); h.microtasks();
+  assert.deepEqual(h.session.queued, [-1]);
+  h.session.queued.length = 0; // the browser dropped the walk and no popstate follows
+  clock = 5000;
+  h.passive(() => {});
+  assert.equal(h.nav.state.pending, null); assert.equal(h.nav.state.rooting, false);
+  assert.equal(h.nav.state.base, 1, 'the entry the page is really on is the root');
   // A deficit at the base (as when a push was refused): the next Back lands on the stale entry.
   h.app.view.screen = 'world';
   h.back();
@@ -328,14 +346,19 @@ test('N14 a user Back racing our own walk: landing on our target is ours; a supe
   assert.equal(k.session.log.left, 0);
 });
 
-test('N15 requestBack applies the same table without a traversal and hands the root to the system', () => {
+test('N15 requestBack applies the same table with no browser Back, walks back over each closed layer\'s entry, and hands the root to the system', () => {
   const h = started();
   assert.equal(h.nav.requestBack(), BACK.EXIT);
+  assert.deepEqual(h.session.log.gos, [], 'the root makes no traversal');
   h.user(v => { v.screen = 'bag'; v.bagGroup = true; v.modal = modal(null); });
-  assert.equal(h.nav.requestBack(), BACK.DISMISS_MODAL); h.settle();
-  assert.equal(depthOnEntry(h), 2, 'its entry is consumed');
-  assert.equal(h.nav.requestBack(), BACK.CLOSE_GROUP); h.settle();
-  assert.equal(h.nav.requestBack(), BACK.HOME); h.settle();
+  for (const [action, depth] of [[BACK.DISMISS_MODAL, 2], [BACK.CLOSE_GROUP, 1], [BACK.HOME, 0]]) {
+    const gos = h.session.log.gos.length;
+    assert.equal(h.nav.requestBack(), action);
+    assert.deepEqual(h.session.log.gos.slice(gos), [-1], `${action}: history.go(-1) over the closed layer\'s entry`);
+    h.settle();
+    assert.equal(depthOnEntry(h), depth, 'its entry is consumed');
+  }
+  assert.deepEqual(h.app.decisions, [BACK.DISMISS_MODAL, BACK.CLOSE_GROUP, BACK.HOME], 'the popstate of each walk is the game\'s own, not a second Back');
   assert.equal(h.nav.requestBack(), BACK.EXIT);
   assert.equal(h.nav.state.depth, 0); assert.equal(h.session.log.left, 0);
 });
@@ -383,4 +406,49 @@ test('N17 a traversal of ours that never lands is given up after the stall windo
   h.back();
   assert.equal(h.app.view.modal, null);
   assert.equal(h.session.log.left, 0);
+});
+
+test('N18 the game as the tab\'s first entry: a reload walks back to it, and the first Back at the root goes to the system', () => {
+  const first = started({ blank: false });
+  assert.equal(first.session.history.length, 1);
+  first.user(v => { v.screen = 'world'; });
+  first.user(v => { v.modal = modal('experience-settings'); });
+  assert.equal(first.session.index, 2);
+  const h = reload(first);
+  h.back();
+  assert.equal(h.session.log.system, 1, 'one Back at 洞府 reaches the system (closes the tab or returns to the opening app)');
+  assert.equal(h.session.log.ignored, 0, 'no out-of-range history.go');
+  assert.deepEqual(h.session.log.gos, [-2], 'only the reload\'s walk back to the first entry; no jump past it');
+  assert.equal(h.session.index, 0);
+  assert.equal(h.nav.state.base, 0); assert.equal(h.nav.state.depth, 0);
+  assert.equal(readNavState(h.session.history.state).sid, h.nav.state.sid, 'the first entry is this load\'s root');
+  assert.deepEqual(h.app.decisions, []);
+  // Forward into the earlier load's entries steps back; the next push drops them.
+  h.forward();
+  assert.equal(h.session.index, 0); assert.deepEqual(h.app.decisions, []);
+  h.user(v => { v.screen = 'bag'; });
+  assert.equal(h.session.history.length, 2, 'the earlier load\'s entries are gone');
+  h.back();
+  assert.equal(h.app.view.screen, 'home');
+  h.back();
+  assert.equal(h.session.log.system, 2);
+  assert.equal(h.session.log.ignored, 0);
+});
+
+test('N19 reloads with layers open keep history.length bounded; after each, the root leaves in one Back', () => {
+  let h = started();
+  const initial = h.session.history.length;
+  for (let cycle = 0; cycle < 6; cycle++) {
+    h.user(v => { v.screen = 'world'; });
+    h.user(v => { v.modal = modal('experience-settings'); });
+    assert.equal(h.session.history.length, initial + 2, `cycle ${cycle}: two layers, two entries`);
+    h = reload(h);
+    assert.equal(h.session.history.length, initial + 2, `cycle ${cycle}: the reload adds no entry`);
+  }
+  assert.equal(h.nav.state.base, 0); assert.equal(h.nav.state.depth, 0);
+  assert.equal(h.session.index, 1, 'the root is the tab\'s first game entry');
+  h.back();
+  assert.equal(h.session.log.left, 1);
+  assert.equal(h.session.log.ignored, 0);
+  assert.deepEqual(h.app.decisions, []);
 });
