@@ -27,7 +27,9 @@
  * activation has expired, and Back closes it with no profile write; the offer's 雲端旅程 is
  * 旅程閣 and Back returns; while a confirmed import waits for the profile lock, Back (and
  * Escape) hold its dialog, and the import then lands exactly once; a backup prompt shown
- * after a win is a lobby strip, not a layer, so Back at 洞府 still leaves in one step.
+ * after a win is a lobby strip, not a layer, so Back at 洞府 still leaves in one step; and
+ * 復原上次本機旅程, which shares that lock, holds the same way while written, then closes
+ * only its own dialog, so 匯入旅程備份 afterwards keeps the file picked in it.
  * Headless engines only: physical Android Back gestures and iOS edge swipes are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/back-smoke.mjs
  */
@@ -663,6 +665,59 @@ try {
     await leaveFromRoot(page, 'with a backup prompt on 洞府');
     assert.equal(await prompt.count(), 0, 'shown once: not after returning');
     passed(`${deviceName}: D2 a backup prompt after a win: the result holds on Back, the prompt then shows on 洞府 as a strip; its 旅程閣 closes on Back, and Back at 洞府 with the prompt leaves in one step`);
+    await release(page);
+  }
+
+  {
+    // D2 with D1 (d), integration review round 1: 復原上次本機旅程 shares the profile lock with
+    // the import, and every import leaves the recovery copy that offers it. While its restore
+    // waits for the lock its dialog holds on Back, Escape and the backdrop, as the import's
+    // does; it lands once and closes only itself, so 匯入旅程備份 then opens its dialog and
+    // keeps the file picked in it. Before, Back closed the dialog with the restore still
+    // queued, and its landing closed the import dialog opened since, dropping the file.
+    const page = await open('fresh'), offer = page.locator('[data-save-notice="restore-offer"]');
+    await offer.waitFor(); await settle(page, 'home');
+    const started = JSON.parse(await profileRaw(page)), backup = journey(), file = exportFile(backup);
+    await pickFile(page, offer.locator('[data-action="import-save"]'), file);
+    await page.locator('.modal .import-compare').waitFor(); await settle(page, 'home>import');
+    await click(page, '.modal [data-action="import-confirm"]');
+    await page.locator('#overlay-root .modal').waitFor({ state: 'detached' }); await settle(page, 'home', 0);
+    assert.deepEqual(JSON.parse(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY)).snapshot, createSnapshot(started), 'the import left a recovery copy');
+    await click(page, '.game-header [data-action="account-open"]'); await settle(page, 'account', 1);
+    await page.locator('.account-shell[aria-busy="false"]').waitFor();
+    await click(page, '#app [data-action="restore-recovery"]'); await settle(page, 'account>dialog', 2);
+    const writes = await profileWrites(page);
+    await page.evaluate(name => new Promise(resolve => {
+      navigator.locks.request(name, () => { resolve(); return new Promise(done => { window.backSmokeReleaseLock = done; }); });
+    }), PROFILE_LOCK);
+    await click(page, '.modal [data-action="confirm-restore-recovery"]');
+    await page.locator('#overlay-root .modal-backdrop[data-dismissible="false"] .modal[aria-busy="true"]').waitFor();
+    assert.ok(await page.locator('.modal [data-action="confirm-restore-recovery"]').isDisabled(), 'no second confirmation while it is written');
+    assert.equal(await page.locator('.modal .modal-close').isVisible(), false, '× is hidden while it is written');
+    page.expectRow = 'hold';
+    await back(page, 'account>dialog', 2);
+    await back(page, 'account>dialog', 2);
+    page.expectRow = null;
+    await page.keyboard.press('Escape'); await viewportFrames(page);
+    assert.equal(await describe(page), 'account>dialog', 'Escape holds too');
+    const point = await backdropPoint(page);
+    if (point) { await tapPoint(page, point.x, point.y); await viewportFrames(page); assert.equal(await describe(page), 'account>dialog', 'the backdrop holds too'); }
+    assert.equal(await profileWrites(page), writes, 'nothing written while the lock is held');
+    await page.evaluate(() => window.backSmokeReleaseLock());
+    await page.locator('#overlay-root .modal').waitFor({ state: 'detached' });
+    // The same task closes the dialog and shows the toast (2.6 s), so it is there now.
+    assert.equal(await page.locator('.toast').textContent(), '已復原上次本機旅程。');
+    await settle(page, 'account', 1);
+    assert.equal(await profileWrites(page), writes + 1, 'one profile write: the recovery restore, once');
+    assert.equal(fingerprintProfile(JSON.parse(await profileRaw(page))), fingerprintProfile(started), 'the recovery copy was restored');
+    // 匯入旅程備份 after it: its dialog opens on the tap and the file picked in it is compared.
+    await pickFile(page, page.locator('#app [data-action="import-save"]'), file);
+    await page.locator('.modal .import-compare').waitFor(); await settle(page, 'account>import', 2);
+    await back(page, 'account', 1);
+    await back(page, 'home', 0);
+    assert.equal(await profileWrites(page), writes + 1, 'nothing applied again after the held Backs');
+    await leaveFromRoot(page, 'after a recovery restore held through Back');
+    passed(`${deviceName}: D2 while 復原上次本機旅程 waits for the profile lock, Back (twice), Escape${point ? ' and the backdrop' : ''} hold its dialog; it restores once and closes only itself, and 匯入旅程備份 then opens with the picked file compared`);
     await release(page);
   }
 

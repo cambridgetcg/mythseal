@@ -4,8 +4,8 @@ import { installViewportNavigation, viewportFrames } from './viewport-browser-he
  * prompt appears once; the 旅程閣 status line; the cloud option with intercepted fixture APIs;
  * the strips on 340 px and 302 px phones; refused downloads never count as a backup; a cloud backup ends
  * a prompt; a WX receipt's strip comes first; a v0.5.1 (v3) export restores; the import
- * confirmation on short phone pages; a deleted cloud backup. Synthetic saves, loopback assets
- * only, no download written to disk. */
+ * confirmation on short phone pages; a deleted cloud backup; an import's success closes only
+ * its own dialog. Synthetic saves, loopback assets only, no download written to disk. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -13,7 +13,7 @@ import { createProfile, claimLogin, sellInstance, buyPack, PROFILE_KEY, PROFILE_
 import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { mintInstance, setInstanceXP, saveInstanceDeck, getActiveDeck } from '../collection.mjs';
 import { createSnapshot, fingerprintProfile, backupProfile } from '../cloud-save.mjs';
-import { RECOVERY_KEY, RESTORE_MESSAGES } from '../profile-store.mjs';
+import { PROFILE_LOCK, RECOVERY_KEY, RESTORE_MESSAGES } from '../profile-store.mjs';
 import { FENCE_MESSAGES } from '../profile-fence.mjs';
 import { IMPORT_MESSAGES, MAX_IMPORT_BYTES } from '../platform.mjs';
 import { SAVES_KEY } from '../save-status.mjs';
@@ -689,6 +689,35 @@ try {
     assert.equal(await page.locator('.account-panel.cloud .account-pill').textContent(), '尚未備份');
     assert.deepEqual(fixture.calls.filter(call => !call.startsWith('GET')), ['PUT /api/v3/journey', 'DELETE /api/v3/journey']);
     passed('S11 after 備份此裝置 then 刪除雲端備份 (fixture API) 旅程閣 reads 上次備份 … · 雲端備份已刪除 beside 尚未備份, after a reload too');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S12 (D2 integration review round 1): an import's success closes only its own dialog, as
+    // 復原上次本機旅程's does (test:commands B11). While a confirmed import waits for the
+    // profile lock its dialog is held (test:back); a dialog opened over it meanwhile, by other
+    // means since no control reaches one, stays open when the import lands.
+    const page = await pageIn(await contextFor()), backup = travelled();
+    await openTools(page);
+    await pick(page, action(page, 'import-save'), fileOf(backup));
+    await page.locator('.import-compare').waitFor();
+    await page.evaluate(name => new Promise(resolve => {
+      navigator.locks.request(name, () => { resolve(); return new Promise(done => { window.saveSmokeReleaseLock = done; }); });
+    }), PROFILE_LOCK);
+    const from = await toastCount(page), before = await raw(page);
+    await action(page, 'import-confirm').click();
+    await page.locator('.modal-backdrop[data-dismissible="false"] .modal[aria-busy="true"]').waitFor();
+    await page.evaluate(() => { const button = document.createElement('button'); button.dataset.action = 'rules'; document.body.append(button); button.click(); button.remove(); });
+    await page.locator('.modal .rules-grid').waitFor();
+    assert.equal(await raw(page), before, 'nothing written while the lock is held');
+    await page.evaluate(() => window.saveSmokeReleaseLock());
+    await waitToast(page, '已由備份還原旅程', from);
+    await page.waitForFunction(async name => { const state = await navigator.locks.query(); return ![...state.held, ...state.pending].some(lock => lock.name === name); }, PROFILE_LOCK);
+    await page.waitForTimeout(300);
+    assert(await page.locator('.modal .rules-grid').isVisible(), 'the dialog opened since stays open');
+    assert.equal(fingerprintProfile(await read(page)), fingerprintProfile(backup), 'the import restored the backup');
+    assert.deepEqual((await read(page, RECOVERY_KEY)).snapshot, createSnapshot(JSON.parse(before)), 'the replaced journey is the recovery copy');
+    passed('S12 an import waiting for the profile lock is held; when it lands it closes only its own dialog, so a dialog opened over it meanwhile stays open');
     contexts.delete(page.context()); await page.context().close();
   }
 

@@ -410,20 +410,33 @@ try {
   }
 
   {
-    // The dialog closed and opened again while its restore waits for the lock: a press in the
-    // reopened dialog must be ignored too. Before, the reopened dialog had a fresh draft, so
-    // the press queued a second restore whose fingerprint predates the first, and its refusal
-    // (本機旅程剛有更新) replaced the success toast.
+    // The dialog while its restore waits for the lock (D2 integration review round 1): held, as
+    // the file import's is, since closing it could not stop the restore, only hide its outcome:
+    // × hidden, its buttons disabled, Escape does nothing (test:back checks Back and the
+    // backdrop). A recovery dialog opened again meanwhile by other means keeps that restore's
+    // draft and opens held, so a press in it is ignored and the restore lands once with its
+    // success toast alone. Its landing closes only its own dialog: one opened over it since
+    // stays open. When the restore is refused instead, the dialog is released and retries it.
+    // Before the hold, × closed the dialog while the restore waited; before the shared draft, a
+    // reopened dialog's press queued a second restore whose refusal (本機旅程剛有更新) replaced
+    // the success toast; and the landing closed whatever dialog was open by then.
     const { profile } = fixture(), page = await pageIn(await contextFor(profile));
     const recovery = JSON.stringify({ savedAt: now, snapshot: createSnapshot({ ...profile, coins: 777, dust: 11 }) });
     await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: RECOVERY_KEY, value: recovery });
     const open = () => page.evaluate(() => { const button = document.createElement('button'); button.dataset.action = 'restore-recovery'; document.body.append(button); button.click(); button.remove(); });
     const confirm = page.locator('.modal [data-action="confirm-restore-recovery"]');
+    const held = page.locator('.modal-backdrop[data-dismissible="false"] .modal[aria-busy="true"]');
     const bytes = await raw(page), startWrites = await writes(page), from = await toastCount(page);
     await holdLock(page);
     await open(); await confirm.click();
-    await close(page);
-    await open(); await confirm.click();
+    await held.waitFor();
+    assert(await confirm.isDisabled(), 'no second press while it is written');
+    assert.equal(await page.locator('.modal .modal-close').isVisible(), false, '× is hidden while it is written');
+    await page.keyboard.press('Escape');
+    assert(await held.isVisible(), 'Escape leaves it open');
+    await open(); await held.waitFor();
+    assert(await confirm.isDisabled(), 'opened again, it is held too');
+    await page.evaluate(() => document.querySelector('.modal [data-action="confirm-restore-recovery"]').click());
     assert.equal(await raw(page), bytes, 'nothing restored while the lock is held');
     await releaseLock(page);
     await waitToast(page, '已復原上次本機旅程', from);
@@ -433,23 +446,41 @@ try {
     const saved = await read(page);
     assert.equal(saved.coins, 777); assert.equal(saved.dust, 11); assert.equal(await writes(page), startWrites + 1, 'one restore, one write');
     assert.deepEqual(JSON.parse(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY)).snapshot, createSnapshot(JSON.parse(bytes)));
-    // When that restore is refused instead, the reopened dialog stays and retries it.
-    const restoredBytes = await raw(page), retryFrom = await toastCount(page);
+    // A dialog opened over it while it waits (by other means: no control reaches one) is not
+    // closed by its landing.
+    const otherFrom = await toastCount(page);
     await holdLock(page);
-    await open(); await confirm.click();
-    await close(page); await open();
+    await open(); await confirm.click(); await held.waitFor();
+    await page.evaluate(() => { const button = document.createElement('button'); button.dataset.action = 'rules'; document.body.append(button); button.click(); button.remove(); });
+    await page.locator('.modal .rules-grid').waitFor();
+    await releaseLock(page);
+    await waitToast(page, '已復原上次本機旅程', otherFrom);
+    await idleLock(page); await page.waitForTimeout(300);
+    assert(await page.locator('.modal .rules-grid').isVisible(), 'the dialog opened since stays open');
+    assert.deepEqual(await toastsSince(page, otherFrom), ['已復原上次本機旅程。']);
+    assert.equal((await read(page)).coins, JSON.parse(bytes).coins, 'it restored the journey the first restore replaced');
+    await close(page);
+    // When the restore is refused instead, the dialog (here one opened again) is released as
+    // it was and retries it.
+    const retryBytes = await raw(page), retryFrom = await toastCount(page);
+    await holdLock(page);
+    await open(); await confirm.click(); await held.waitFor();
+    await open(); await held.waitFor();
     await page.evaluate(() => {
       const get = IDBObjectStore.prototype.get;
       IDBObjectStore.prototype.get = function() { IDBObjectStore.prototype.get = get; throw new DOMException('Synthetic transient fence failure', 'UnknownError'); };
     });
     await releaseLock(page);
     await waitToast(page, FENCE_MESSAGES.unavailable, retryFrom);
-    assert(await confirm.isVisible(), 'the reopened dialog stays open'); assert.equal(await raw(page), restoredBytes);
+    assert(await confirm.isEnabled(), 'released: it can be pressed again');
+    assert.equal(await page.locator('.modal-backdrop').getAttribute('data-dismissible'), 'true', 'released: dismissible again');
+    assert(await page.locator('.modal .modal-close').isVisible(), 'released: × is back');
+    assert.equal(await raw(page), retryBytes);
     await press(page, confirm, '已復原上次本機旅程');
     assert.deepEqual(await toastsSince(page, retryFrom), [FENCE_MESSAGES.unavailable, '已復原上次本機旅程。']);
-    assert.equal((await read(page)).coins, JSON.parse(bytes).coins, 'the retry restored the journey the first restore replaced');
+    assert.equal((await read(page)).coins, 777, 'the retry restored the journey the restore before it replaced');
     await release(page);
-    passed('B11 a local recovery dialog closed and reopened while its restore waits for the lock ignores a press, so the restore lands once and its success toast is the only one; when that restore is refused, the reopened dialog retries it');
+    passed('B11 while a local recovery restore waits for the lock its dialog is held (× hidden, buttons disabled, Escape ignored), also when opened again, so the restore lands once and its success toast is the only one; its landing leaves a dialog opened since open; when refused, the dialog is released and retries it');
   }
 
   {

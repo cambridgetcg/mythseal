@@ -240,24 +240,26 @@ async function reviewImport(file) {
   const kept=read(RECOVERY_KEY,null);
   modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null,legacy:result.legacy}),'import-modal',true,'import-review');
 }
-// While a confirmed import is written its dialog cannot be dismissed: ×, Escape and the
+// While a confirmed restore is written its dialog cannot be dismissed: ×, Escape and the
 // backdrop are off and Back holds (BACK.HOLD re-arms its entry), since closing it could not
-// stop the restore, only hide its outcome. A refusal releases it as it was.
-function holdImport(held) {
-  if(!importOpen())return;
+// stop the restore, only hide its outcome. A refusal releases it as it was. The file import
+// (import-review) and 復原上次本機旅程 (recovery-restore) share this, as they share the
+// profile lock, and each one's success closes only its own dialog, never one opened since.
+function holdRestore(kind,held) {
+  if(modalKind!==kind||!overlay.firstElementChild)return;
   const backdrop=overlay.firstElementChild,dialog=backdrop.querySelector('.modal');
   backdrop.dataset.dismissible=String(!held);
   dialog.setAttribute('aria-busy',String(held));
   dialog.querySelector('.modal-close')?.toggleAttribute('hidden',held);
   for(const button of dialog.querySelectorAll('.modal-close,.modal-actions button'))button.disabled=held;
   if(held){dialog.tabIndex=-1;dialog.focus({preventScroll:true});}
-  else dialog.querySelector('[data-action="import-confirm"]')?.focus({preventScroll:true});
+  else dialog.querySelector('.modal-actions .primary')?.focus({preventScroll:true});
 }
 function confirmImport() {
   const draft=importDraft;
   if(!draft||draft.restoring)return;
-  draft.restoring=true;holdImport(true);
-  restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(importDraft===draft)importDraft=null;saveNotice=null;closeModal();account.markLocalChanged();render();toast('已由備份還原旅程；原本的本機旅程已留作回復備份。');}).catch(error=>{draft.restoring=false;holdImport(false);toast(error.message);});
+  draft.restoring=true;holdRestore('import-review',true);
+  restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(importDraft===draft)importDraft=null;saveNotice=null;if(importOpen())closeModal();account.markLocalChanged();render();toast('已由備份還原旅程；原本的本機旅程已留作回復備份。');}).catch(error=>{draft.restoring=false;holdRestore('import-review',false);toast(error.message);});
 }
 async function economy(change,message,after,onSaved){
   if(economyBusy)return;economyBusy=true;
@@ -1120,9 +1122,12 @@ document.addEventListener('click', event=>{
     if(profile.pending||economyBusy)return toast('請先完成或放棄未完對局。');
     const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
     // A dialog reopened while a restore is in flight keeps that restore's draft, so a press in
-    // it is ignored too, not queued as a second restore that is refused after the first lands.
+    // it is ignored too, not queued as a second restore that is refused after the first lands;
+    // it opens held, as that restore's dialog is (holdRestore).
     if(!recoveryDraft?.restoring)recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
-    modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>');return;
+    modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>','',true,'recovery-restore');
+    if(recoveryDraft.restoring)holdRestore('recovery-restore',true);
+    return;
   }
   if(action==='confirm-restore-recovery'){
     const saved=read(RECOVERY_KEY,null),draft=recoveryDraft;
@@ -1131,8 +1136,8 @@ document.addEventListener('click', event=>{
     // A refusal changes nothing and leaves this dialog open, so the draft stays for a press
     // again: after a fence refusal that asks for a retry, it restores once the fence passes,
     // and every retry runs the backup and fingerprint checks again (docs/LOCAL-COMMANDS.md §11).
-    draft.restoring=true;
-    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(recoveryDraft===draft)recoveryDraft=null;closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>{draft.restoring=false;toast(error.message);});return;
+    draft.restoring=true;holdRestore('recovery-restore',true);
+    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(recoveryDraft===draft)recoveryDraft=null;if(modalKind==='recovery-restore')closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>{draft.restoring=false;holdRestore('recovery-restore',false);toast(error.message);});return;
   }
   if(action==='bag-tab')return switchCardsTab(id);
   if(action==='bag-card')return openBagGroup(id,{fromCodex:true});

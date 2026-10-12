@@ -687,20 +687,41 @@ test('D2 with D1: the import dialog is one Back layer, opened on the tap, held w
   assert.match(pick, /addEventListener\('cancel',\(\)=>\{if\(importOpen\(\)&&overlay\.querySelector\('\[data-import-pick\]'\)\)closeModal\(\);\}\)/);
   // The file replaces that dialog (the same kind, so the same entry); a refusal closes it
   // through closeModal, which walks back over the entry; a dialog closed meanwhile opens nothing.
-  const review = source.slice(source.indexOf('async function reviewImport('), source.indexOf('function holdImport('));
+  const review = source.slice(source.indexOf('async function reviewImport('), source.indexOf('function holdRestore('));
   assert.match(review, /if\(!importOpen\(\)\|\|importDraft\?\.restoring\)return;/);
   assert.match(review, /const refuse=message=>\{closeModal\(\);toast\(message\);\};/);
   assert.equal((review.match(/return toast\(/g) || []).length, 0, 'no refusal leaves the dialog open');
   assert.match(review, /modal\(importConfirmMarkup\([^\n]+\),'import-modal',true,'import-review'\);/);
   // Held while written: not dismissible (Escape, backdrop and Back read this flag), × and the
-  // buttons disabled; released on a refusal; closed through closeModal on success.
-  const hold = source.slice(source.indexOf('function holdImport('), source.indexOf('function confirmImport('));
+  // buttons disabled; released on a refusal; on success closed through closeModal, if still open.
+  const hold = source.slice(source.indexOf('function holdRestore('), source.indexOf('function confirmImport('));
+  assert.match(hold, /^function holdRestore\(kind,held\) \{\n  if\(modalKind!==kind\|\|!overlay\.firstElementChild\)return;/, 'only the dialog of that restore');
   assert.match(hold, /backdrop\.dataset\.dismissible=String\(!held\);/);
   assert.match(hold, /querySelectorAll\('\.modal-close,\.modal-actions button'\)\)button\.disabled=held;/);
   const confirm = source.slice(source.indexOf('function confirmImport('), source.indexOf('async function economy('));
-  assert.match(confirm, /draft\.restoring=true;holdImport\(true\);\n  restoreLocalProfile\(/);
-  assert.match(confirm, /\.then\(\(\)=>\{[^}]*closeModal\(\);/);
-  assert.match(confirm, /\.catch\(error=>\{draft\.restoring=false;holdImport\(false\);toast\(error\.message\);\}\)/);
+  assert.match(confirm, /draft\.restoring=true;holdRestore\('import-review',true\);\n  restoreLocalProfile\(/);
+  assert.match(confirm, /\.then\(\(\)=>\{[^}]*if\(importOpen\(\)\)closeModal\(\);/);
+  assert.equal((confirm.match(/closeModal\(\)/g) || []).length, 1, 'no unconditional close');
+  assert.match(confirm, /\.catch\(error=>\{draft\.restoring=false;holdRestore\('import-review',false\);toast\(error\.message\);\}\)/);
   assert.match(source, /if\(event\.key==='Escape'&&overlay\.firstElementChild\.dataset\.dismissible==='true'\)dismissModal\(\);/);
   assert.match(source, /modal:open\?\{kind:modalKind,dismissible:open\.dataset\.dismissible==='true'\}:null/, 'navView reads the same flag');
+});
+
+test('D2 with D1 integration review: 復原上次本機旅程 is held while written, as the import is, and its success closes only its own dialog', async () => {
+  // Round 1: the recovery restore shares the profile lock with the import but stayed dismissible
+  // while in flight; Back, × or Escape closed it, the import dialog could then be opened from
+  // 旅程閣, and the recovery's unconditional closeModal() closed that dialog (and the file
+  // picked in it) when it landed, or an import confirmation held behind it in the lock queue.
+  const source = await readFile(new URL('../app.mjs', import.meta.url), 'utf8');
+  const view = dismissible => ({ screen: 'account', accountReturn: 'home', modal: { kind: 'recovery-restore', dismissible } });
+  assert.deepEqual(navLayers(view(true)).at(-1), { kind: 'modal', id: 'recovery-restore', dismissible: true });
+  assert.equal(backDecision(view(true)).action, BACK.DISMISS_MODAL, 'before the confirmation, Back closes it');
+  assert.equal(backDecision(view(false)).action, BACK.HOLD, 'while written, Back holds');
+  const opening = source.slice(source.indexOf("if(action==='restore-recovery')"), source.indexOf("if(action==='confirm-restore-recovery')"));
+  assert.match(opening, /modal\('<div class="eyebrow">RETURN TO YOUR JOURNEY<\/div>[^\n]*','',true,'recovery-restore'\);\n    if\(recoveryDraft\.restoring\)holdRestore\('recovery-restore',true\);/, 'its own kind, and held when reopened during its restore');
+  const confirming = source.slice(source.indexOf("if(action==='confirm-restore-recovery')"), source.indexOf("if(action==='bag-tab')"));
+  assert.match(confirming, /draft\.restoring=true;holdRestore\('recovery-restore',true\);\n    restoreLocalProfile\(draft\.snapshot,draft\.fingerprint\)/);
+  assert.match(confirming, /\.then\(\(\)=>\{if\(recoveryDraft===draft\)recoveryDraft=null;if\(modalKind==='recovery-restore'\)closeModal\(\);/);
+  assert.equal((confirming.match(/closeModal\(\)/g) || []).length, 1, 'no unconditional close');
+  assert.match(confirming, /\.catch\(error=>\{draft\.restoring=false;holdRestore\('recovery-restore',false\);toast\(error\.message\);\}\)/, 'a refusal releases it, for a retry');
 });
