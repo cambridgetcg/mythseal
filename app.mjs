@@ -372,7 +372,7 @@ function dismissModal() {
   if(['result-card','experience-settings'].includes(modalKind)&&origin?.kind){
     experienceReturn=null;
     if(origin.kind==='round-result')resultModal();
-    else if(origin.kind==='match-result')matchEndModal();
+    else if(origin.kind==='match-result')matchEndModal({returning:true});
     else if(origin.kind==='preparation'&&preparation)prepareEncounter(preparation.kind,preparation.nodeId,preparation.route);
     else return closeModal();
     if(modalKind===origin.kind)requestAnimationFrame(()=>{
@@ -900,7 +900,10 @@ function resultModal({animate=false}={}) {
   }}));
   announce(`第 ${r.round} 回合，${won?'你':'對手'}獲勝，造成 ${r.damage} 點傷害。`);
 }
-function matchEndModal({celebrate=false}={}) {
+function matchEndModal({celebrate=false,returning=false}={}) {
+  // D3: a new result opens on 勝負已定 (the outcome and its advice), even after a loss and
+  // whichever page the last result was left on; a return from a card or settings keeps its page.
+  if(!returning)viewport.forget('modal-match-result');
   const win=match.winner==='player', draw=match.winner==='draw';
   const next=nextEncounterIntent();
   const activity=encounter?.kind==='activity', run=profile.expansion.fireMountain.run;
