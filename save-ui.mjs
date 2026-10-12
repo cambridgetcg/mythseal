@@ -18,13 +18,16 @@ export const PERSISTENCE_LABELS = Object.freeze({
   error: '未能確認',
 });
 
-/** '上次備份：未曾', or the date of this device's last export or cloud backup. */
-export function saveStatusMarkup({ lastBackup = null, persistence = null } = {}) {
-  const backup = lastBackup
-    ? `<time datetime="${safe(lastBackup.at)}">${safe(stampLabel(lastBackup.at))}</time> · ${lastBackup.kind === 'cloud' ? '雲端備份' : '匯出檔案'}`
-    : '未曾';
+const time = value => `<time datetime="${safe(value)}">${safe(stampLabel(value))}</time>`;
+/** What the page knows, and no more: '上次備份' is a cloud backup the account API confirmed
+ * saved; '上次匯出' is when this device last started an export download, because a page
+ * cannot tell whether the browser saved the file (a cancelled or blocked download looks the
+ * same). '上次備份：未曾' only when there is neither. */
+export function saveStatusMarkup({ lastBackup = null, lastExport = null, persistence = null } = {}) {
+  const backup = lastBackup || !lastExport ? `<span data-last-backup>上次備份：${lastBackup ? `${time(lastBackup.at)} · 雲端備份` : '未曾'}</span>` : '';
+  const exported = lastExport ? `<span data-last-export>上次匯出：${time(lastExport.at)} · 已開始下載，此頁無法確認檔案已儲存</span>` : '';
   const kept = PERSISTENCE_LABELS[persistence?.state ?? 'none'];
-  return `<p class="save-status" data-save-status data-persistence="${safe(persistence?.state ?? 'none')}"><span data-last-backup>上次備份：${backup}</span><span data-persistence-label>長期保存：${safe(kept)}</span></p>`;
+  return `<p class="save-status" data-save-status data-persistence="${safe(persistence?.state ?? 'none')}">${backup}${exported}<span data-persistence-label>長期保存：${safe(kept)}</span></p>`;
 }
 
 /** The 旅程閣 tools row: status, export, import and the rules. */
@@ -63,11 +66,13 @@ function summaryMarkup(title, summary) {
 }
 
 /** What an import replaces, before anything is written. `recovery` is the recovery copy
- * this device keeps now ({ savedAt }), if any: there is one slot, so the import replaces it. */
-export function importConfirmMarkup({ current, backup, fileName = '', recovery = null }) {
+ * this device keeps now ({ savedAt }), if any: there is one slot, so the import replaces it.
+ * `legacy` marks a file from before v0.6.0 (profile v3 or v4), migrated as load() would. */
+export function importConfirmMarkup({ current, backup, fileName = '', recovery = null, legacy = false }) {
   const replaced = recovery
     ? `<p class="panel-footnote" data-recovery-replaced>旅程閣現有的回復備份${recovery.savedAt ? `（${safe(stampLabel(recovery.savedAt))}）` : ''}會被這次取代；如需保留，請先在旅程閣「下載本機回復備份」。</p>`
     : '';
   // One block, so a phone's dialog page shows the comparison and the recovery note together.
-  return `<div class="eyebrow">RESTORE FROM A BACKUP</div><h2>由備份檔還原旅程？</h2><div class="import-review"><p class="import-file">${safe(fileName)}</p><div class="import-compare">${summaryMarkup('此裝置現在（將被取代）', current)}${summaryMarkup('備份檔（將還原）', backup)}</div><p class="panel-footnote">還原前，此裝置現在的旅程會先留作回復備份，可在旅程閣「復原上次本機旅程」取回。雲端備份不會改變。</p>${replaced}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="import-confirm">由備份還原</button></div>`;
+  const older = legacy ? '<p class="panel-footnote" data-import-legacy>這份備份來自較舊版本的萬象契；還原時會按此裝置載入舊旅程的同一規則轉為現行格式，每張卡牌照舊保留。</p>' : '';
+  return `<div class="eyebrow">RESTORE FROM A BACKUP</div><h2>由備份檔還原旅程？</h2><div class="import-review"><p class="import-file">${safe(fileName)}</p>${older}<div class="import-compare">${summaryMarkup('此裝置現在（將被取代）', current)}${summaryMarkup('備份檔（將還原）', backup)}</div><p class="panel-footnote">還原前，此裝置現在的旅程會先留作回復備份，可在旅程閣「復原上次本機旅程」取回。雲端備份不會改變。</p>${replaced}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="import-confirm">由備份還原</button></div>`;
 }

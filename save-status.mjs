@@ -1,9 +1,10 @@
 /** Device-local save safety (docs/LOCAL-COMMANDS.md §11): when this device last made a
- * backup, what the browser answered when asked to keep this site's storage, the once-only
- * backup prompts and the new-journey restore offer. One record under its own key, like the
- * experience preferences: never part of the v5 profile, an export, a cloud backup or the
- * recovery-originals export, so a restore neither carries nor replaces it. It is a
- * convenience: unreadable or refused storage falls back to defaults and never blocks play. */
+ * cloud backup and last started an export download, what the browser answered when asked
+ * to keep this site's storage, the once-only backup prompts and the new-journey restore
+ * offer. One record under its own key, like the experience preferences: never part of the
+ * v5 profile, an export, a cloud backup or the recovery-originals export, so a restore
+ * neither carries nor replaces it. It is a convenience: unreadable or refused storage falls
+ * back to defaults and never blocks play. */
 import { requestPersistence as askBrowser, checkPersistence } from './platform.mjs';
 
 export const SAVES_KEY = 'shanhai.saves.v1';
@@ -19,14 +20,18 @@ const isStamp = value => value === null || (typeof value === 'string' && value.l
 /** Fail-safe like normalizePreferences: anything unexpected becomes the default. */
 export function normalizeSaveStatus(raw) {
   const value = isRecord(raw) && raw.v === 1 ? raw : {};
-  const backup = value.lastBackup, persistence = value.persistence, prompts = {};
+  const backup = value.lastBackup, exported = value.lastExport, persistence = value.persistence, prompts = {};
   for (const kind of SAVE_PROMPTS) {
     const prompt = isRecord(value.prompts) ? value.prompts[kind] : null;
     if (isRecord(prompt) && PROMPT_STATES.includes(prompt.state) && isStamp(prompt.at)) prompts[kind] = { state: prompt.state, at: prompt.at };
   }
   return {
     v: 1,
-    lastBackup: isRecord(backup) && ['export', 'cloud'].includes(backup.kind) && typeof backup.at === 'string' && isStamp(backup.at) ? { at: backup.at, kind: backup.kind } : null,
+    // Only a backup the page saw succeed (a cloud backup the account API confirmed saved).
+    lastBackup: isRecord(backup) && backup.kind === 'cloud' && typeof backup.at === 'string' && isStamp(backup.at) ? { at: backup.at, kind: backup.kind } : null,
+    // An export download the page started. The browser does not say whether the file was
+    // saved (a cancelled or blocked download looks the same), so this is never a backup.
+    lastExport: isRecord(exported) && typeof exported.at === 'string' && isStamp(exported.at) ? { at: exported.at } : null,
     persistence: isRecord(persistence) && PERSISTENCE_STATES.includes(persistence.state) && isStamp(persistence.at) && TRIGGERS.includes(persistence.trigger)
       ? { state: persistence.state, at: persistence.at, trigger: persistence.trigger } : null,
     prompts,
@@ -89,7 +94,7 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
   }
 
   return {
-    status: () => { const { lastBackup, persistence } = read(); return { lastBackup, persistence }; },
+    status: () => { const { lastBackup, lastExport, persistence } = read(); return { lastBackup, lastExport, persistence }; },
     /** Page start. Never asks on an ordinary load; an installed web app asks until granted. */
     launch({ fresh = false, standalone = false } = {}) {
       if (fresh) update(record => { record.restoreOffer = 'open'; });
@@ -102,7 +107,10 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
       return winner === 'player' ? milestone('first-win') : Promise.resolve(null);
     },
     packOpened: () => milestone('first-pack'),
-    recordBackup(kind) { update(record => { record.lastBackup = { at: stamp(), kind }; }); },
+    /** A cloud backup the account API confirmed saved. */
+    recordBackup() { update(record => { record.lastBackup = { at: stamp(), kind: 'cloud' }; }); },
+    /** An export whose download the page started. It neither skips nor clears a prompt. */
+    recordExport() { update(record => { record.lastExport = { at: stamp() }; }); },
     /** Shown only on a journey this device just started and before its first battle. */
     showRestoreOffer(profile) {
       return read().restoreOffer === 'open' && profile.stats.played === 0 && !profile.pending && !profile.expansion?.fireMountain?.run;
@@ -111,8 +119,9 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
     /** The prompt to show now, if any, consumed as it is returned: every due prompt becomes
      * shown (or skipped) at once, so each appears at most once ever. `guest` is false only
      * for a player the page knows to be signed in (旅程閣 looked the account up earlier in
-     * this page; the lobby makes no account request). That player, or one who has backed up
-     * since the milestone, is not prompted; anyone else is prompted as a guest. */
+     * this page; the lobby makes no account request). That player, or one who has made a
+     * cloud backup since the milestone, is not prompted; anyone else is prompted as a guest.
+     * An export does not count: the page cannot tell whether its file was saved. */
     takePrompt({ guest = true } = {}) {
       const record = read(), due = SAVE_PROMPTS.filter(kind => record.prompts[kind]?.state === 'due');
       if (!due.length) return null;

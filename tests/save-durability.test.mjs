@@ -5,14 +5,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createProfile, claimLogin, sellInstance, beginBattle, startActivity, buyPack, NODES, PROFILE_KEY, PROFILE_VERSION } from '../progression.mjs';
-import { mintInstance, setInstanceXP, saveInstanceDeck, getActiveDeck } from '../collection.mjs';
+import { mintInstance, setInstanceXP, saveInstanceDeck, getActiveDeck, syncCollection } from '../collection.mjs';
+import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { createSnapshot, backupProfile, fingerprintProfile, SNAPSHOT_FORMAT } from '../cloud-save.mjs';
 import { createProfileStore, RECOVERY_KEY, RESTORE_MESSAGES } from '../profile-store.mjs';
 import { createFencedLock, ProfileFenceError, FENCE_MESSAGES, PROFILE_FENCE_VERSION } from '../profile-fence.mjs';
 import { previewCommand, commitCommand } from '../local-commands.mjs';
 import {
   exportText, exportJourney, exportFilename, checkJourneyText, importJourney, requestPersistence, checkPersistence, isStandalone,
-  journeySummary, MAX_IMPORT_BYTES, IMPORT_MESSAGES,
+  journeySummary, MAX_IMPORT_BYTES, IMPORT_MESSAGES, LEGACY_EXPORT_VERSIONS,
 } from '../platform.mjs';
 import { createSaveStatus, normalizeSaveStatus, SAVES_KEY } from '../save-status.mjs';
 import { saveStatusMarkup, saveNoticeMarkup, importConfirmMarkup } from '../save-ui.mjs';
@@ -73,6 +74,19 @@ async function importInto(o, file, { busy = false } = {}) {
 // restoreLocalProfile hands the store restoreSnapshot(snapshot); checkJourneyText already ran it.
 const createdFrom = result => JSON.parse(JSON.stringify(result.snapshot.profile));
 const blob = text => new Blob([text], { type: 'application/json' });
+/** What v0.4.1, v0.5.0 and v0.5.1 exported: the raw v3 profile. Checked against `git archive
+ * v0.5.1` (2026-10-12): v0.5.1's own claimLogin(createProfile()) serialises to exactly this
+ * projection of the same journey, which has no `weekly` (v0.5.1 had none). */
+function v051Profile(profile = claimLogin(fresh(), now)) {
+  const raw = structuredClone(profile);
+  raw.version = 3; raw.collectionVersion = 1; raw.collectionExpansion = 1; delete raw.wx01; delete raw.expansion; delete raw.weekly;
+  for (const card of [...raw.instances, ...raw.merchantVault.map(entry => entry.instance)]) delete card.printId;
+  for (const key of ['inventory', 'levels']) raw[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, raw[key][id]]));
+  if (raw.pending) delete raw.pending.cardPrints;
+  return raw;
+}
+/** The v4 namespace load() also migrates (no public build exported it). */
+const v4Profile = profile => { const raw = structuredClone(profile); raw.version = 4; delete raw.expansion; return raw; };
 
 test('D2 export then import keeps every UID, XP, deck and merchant copy, and the file is the existing export format', async () => {
   const base = travelled(), o = origin(base);
@@ -131,7 +145,9 @@ test('D2 tampered, oversize, unparsable, foreign, old, future-version and mid-ba
     ['not-export', blob(JSON.stringify({ [PROFILE_KEY]: text }))],
     ['not-export', blob('[1,2,3]')],
     ['future-version', blob(edit(value => { value.version = PROFILE_VERSION + 1; }))],
-    ['old-version', blob(edit(value => { value.version = 4; }))],
+    ['old-version', blob(edit(value => { value.version = 2; }))],
+    // A v5 journey relabelled v4 fails the legacy check: it carries v5-only `expansion`.
+    ['invalid', blob(edit(value => { value.version = 4; }))],
     ['unfinished', blob(JSON.stringify(beginBattle(base, { kind: 'arena', rng: () => 0.4, now }).profile))],
     ['unfinished', blob(JSON.stringify(activity))],
     ['tampered', blob(edit(value => { value.instances.find(card => card.uid === uid).xp = 999; }))],
@@ -161,6 +177,71 @@ test('D2 tampered, oversize, unparsable, foreign, old, future-version and mid-ba
   assert.equal((await importJourney({ size: 5, text: async () => { throw Error('gone'); } })).reason, 'unreadable');
   // A self-consistent edit is not detectable: a local save is editable, never an ownership claim.
   assert.equal(checkJourneyText(edit(value => { value.coins = 99_999; })).ok, true);
+});
+
+test('D2 an export from v0.4.1–v0.5.1 (profile v3) is migrated as load() migrates it and restored through the same strict path', async () => {
+  assert.deepEqual(LEGACY_EXPORT_VERSIONS, [3, 4]);
+  // The 16-card journey every v0.5.1 player started with, as its footer export wrote it.
+  const first = claimLogin(fresh(), now), text = JSON.stringify(v051Profile(first), null, 2);
+  const checked = checkJourneyText(text, { now: new Date(now) });
+  assert.equal(checked.ok, true, checked.message);
+  assert.equal(checked.legacy, true);
+  assert.deepEqual([checked.snapshot.version, checked.snapshot.profile.version], [3, PROFILE_VERSION], 'migrated to v5, then wrapped as a v5 backup');
+  assert.equal(fingerprintProfile(checked.snapshot.profile), fingerprintProfile(first), 'the same journey, every copy given its legacy printing');
+  assert.equal(checked.summary.cards, 16);
+  // The same file, migrated by load() as if this device still held it under its v3 key.
+  const kept = createProfileStore({ storage: { getItem: key => (key === 'shanhai.profile.v3' ? text : null) }, now: () => now }).load();
+  assert.equal(fingerprintProfile(checked.snapshot.profile), fingerprintProfile(kept));
+
+  // A travelled journey (XP, a merchant-held copy, a second deck) restores onto a new device:
+  // recovery copy first, then one profile write.
+  const journey = travelled({ coins: 4321 }), device = origin(fresh());
+  const restored = await importInto(device, blob(JSON.stringify(v051Profile(journey), null, 2)));
+  assert.equal(restored.version, PROFILE_VERSION);
+  assert.deepEqual(copies(restored), copies(journey), 'every UID, legacy printing, XP and level');
+  assert.deepEqual(restored.deckSlots, journey.deckSlots);
+  assert.deepEqual(restored.merchantVault, journey.merchantVault);
+  assert.deepEqual([restored.coins, restored.dust, restored.xp], [4321, 5000, journey.xp]);
+  assert.deepEqual(device.writes, [RECOVERY_KEY, PROFILE_KEY]);
+  assert.equal(device.saved().version, PROFILE_VERSION);
+
+  // v0.5.1 caps a card at 99,999 copies, past the 2,000 a legacy cloud backup holds: such a
+  // file is migrated as load() migrates it, then fits the v5 backup.
+  const base = fresh();
+  const large = syncCollection({ ...base, instanceSerial: 2001, instances: [...base.instances, ...Array.from({ length: 2001 - base.instances.length }, (_, i) => ({ ...base.instances[0], uid: `card-${String(i + base.instances.length + 1).padStart(6, '0')}` }))] });
+  const big = checkJourneyText(JSON.stringify(v051Profile(large), null, 2), { now: new Date(now) });
+  assert.equal(big.ok, true, big.message);
+  assert.equal(big.summary.cards, 2001);
+
+  // The v4 namespace load() migrates is accepted the same way.
+  assert.equal(checkJourneyText(JSON.stringify(v4Profile(travelled()), null, 2), { now: new Date(now) }).legacy, true);
+  assert.equal(checkJourneyText(exportText(travelled()), { now: new Date(now) }).legacy, false);
+
+  // load()'s strict legacy rules refuse, with 0 writes: a battle exported unfinished, a ledger
+  // (v0.5.1 never wrote one), an edited copy, v5-only data, an unsafe key and a missing field.
+  const edit = change => { const value = v051Profile(travelled()); change(value); return JSON.stringify(value, null, 2); };
+  const cases = [
+    ['unfinished', JSON.stringify(v051Profile(beginBattle(travelled(), { kind: 'arena', rng: () => 0.4, now }).profile), null, 2)],
+    ['invalid', edit(value => { value.commands = { version: 1, nextSeq: 3, retiredBelow: 1, receipts: [] }; })],
+    ['invalid', edit(value => { value.instances[1].xp = 999; })],
+    ['invalid', edit(value => { value.inventory.qingxiao += 3; })],
+    ['invalid', edit(value => { value.expansion = fresh().expansion; })],
+    ['invalid', edit(value => { delete value.pending; })],
+    ['invalid', edit(value => { value.extra = 'unknown field'; })],
+    ['invalid', edit(value => { value.collectionVersion = 2; })],
+    ['invalid', edit(value => { value.instances[1].uid = value.instances[0].uid; })],
+    ['invalid', edit(value => { value.daily.date = 'someday'; })],
+    ['invalid', edit(value => { value.coins = 1; }).replace('"coins"', '"__proto__": {"polluted": true},\n  "coins"')],
+    ['old-version', edit(value => { value.version = 2; })],
+  ];
+  for (const [reason, text] of cases) {
+    const o = origin(travelled()), before = new Map(o.data);
+    const result = await importInto(o, blob(text));
+    assert.deepEqual([result.ok, result.reason], [false, reason], `${reason}: ${text.slice(0, 40)}`);
+    assert.deepEqual(o.writes, [], reason); assert.deepEqual(o.data, before, reason);
+  }
+  assert.equal({}.polluted, undefined);
+  assert.match(IMPORT_MESSAGES['old-version'], /v0\.4\.1 之前/, 'only a file from before the first public build is old');
 });
 
 test('D2 an import is refused with 0 writes during a battle, an activity, an open WX receipt, a changed journey or a "writing" fence', async () => {
@@ -353,7 +434,7 @@ test('D2 persist() is requested once, at the first win or first pack, never on l
   assert.equal(isStandalone({ window: {}, navigator: undefined }), false);
 });
 
-test('D2 backup prompts appear at most once per milestone, only for guests who have not backed up since', () => {
+test('D2 backup prompts appear at most once per milestone, only for guests without a cloud backup since; an export does not count', () => {
   const data = new Map(), storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
   let clock = '2026-09-21T12:00:00.000Z';
   const open = () => createSaveStatus({ storage, navigator: {}, now: () => new Date(clock) });
@@ -368,12 +449,24 @@ test('D2 backup prompts appear at most once per milestone, only for guests who h
   assert.equal(open().takePrompt(), 'first-pack');
   saves.packOpened();
   assert.equal(open().takePrompt(), null);
-  // A backup made since the milestone, or a signed-in player, skips the prompt for good.
+  // An export does not count as a backup: the page cannot tell whether the browser saved the
+  // file (a cancelled or blocked download looks the same). Review round 2: an export started
+  // between a milestone and the next lobby used to skip that milestone's prompt for good.
   data.clear(); clock = '2026-09-21T13:00:00.000Z';
   open().battleFinished('player');
   clock = '2026-09-21T13:05:00.000Z';
-  open().recordBackup('export');
-  assert.equal(open().takePrompt(), null);
+  open().recordExport();
+  assert.deepEqual(open().status().lastBackup, null, 'an export is never recorded as a backup');
+  assert.deepEqual(open().status().lastExport, { at: '2026-09-21T13:05:00.000Z' });
+  assert.equal(open().takePrompt(), 'first-win', 'the export did not skip the prompt');
+  // A cloud backup since the milestone, or a signed-in player, skips the prompt for good.
+  data.clear(); clock = '2026-09-21T13:00:00.000Z';
+  open().battleFinished('player');
+  clock = '2026-09-21T13:05:00.000Z';
+  open().recordBackup();
+  assert.deepEqual(open().status().lastBackup, { at: '2026-09-21T13:05:00.000Z', kind: 'cloud' });
+  assert.equal(open().takePrompt(), null, 'a cloud backup since the milestone');
+  clock = '2026-09-21T13:10:00.000Z';
   open().packOpened();
   assert.equal(open().takePrompt({ guest: false }), null, 'a signed-in player is not prompted');
   assert.equal(open().takePrompt(), null, 'and the prompt does not come back');
@@ -412,16 +505,21 @@ test('D2 the restore offer: only on a journey this device just started, until di
 });
 
 test('D2 the device-local record is fail-safe and never enters a journey, an export or a backup', async () => {
-  assert.deepEqual(normalizeSaveStatus(null), { v: 1, lastBackup: null, persistence: null, prompts: {}, restoreOffer: null });
+  assert.deepEqual(normalizeSaveStatus(null), { v: 1, lastBackup: null, lastExport: null, persistence: null, prompts: {}, restoreOffer: null });
+  // Only a cloud backup is a backup: an export record in its place is not kept as one.
+  assert.equal(normalizeSaveStatus({ v: 1, lastBackup: { at, kind: 'export' } }).lastBackup, null);
+  assert.deepEqual(normalizeSaveStatus({ v: 1, lastBackup: { at, kind: 'cloud' }, lastExport: { at } }), { v: 1, lastBackup: { at, kind: 'cloud' }, lastExport: { at }, persistence: null, prompts: {}, restoreOffer: null });
   assert.deepEqual(normalizeSaveStatus({ v: 2, restoreOffer: 'open' }).restoreOffer, null, 'an unknown version is ignored');
   assert.deepEqual(normalizeSaveStatus({ v: 1, lastBackup: { at: 'yesterday', kind: 'export' }, persistence: { state: 'maybe', at, trigger: 'first-win' }, prompts: { 'first-win': { state: 'due', at }, other: { state: 'due', at } } }),
-    { v: 1, lastBackup: null, persistence: null, prompts: { 'first-win': { state: 'due', at } }, restoreOffer: null });
+    { v: 1, lastBackup: null, lastExport: null, persistence: null, prompts: { 'first-win': { state: 'due', at } }, restoreOffer: null });
+  assert.equal(normalizeSaveStatus({ v: 1, lastExport: { at: 'yesterday' } }).lastExport, null);
   // Storage that refuses reads and writes never throws into play.
   const broken = { getItem() { throw new DOMException('blocked', 'SecurityError'); }, setItem() { throw new DOMException('full', 'QuotaExceededError'); } };
   const saves = createSaveStatus({ storage: broken, navigator: {}, now: () => new Date(at) });
   await saves.battleFinished('player');
-  saves.recordBackup('export');
-  assert.deepEqual(saves.status().lastBackup, { at, kind: 'export' }, 'kept in memory for this page');
+  saves.recordBackup(); saves.recordExport();
+  assert.deepEqual(saves.status().lastBackup, { at, kind: 'cloud' }, 'kept in memory for this page');
+  assert.deepEqual(saves.status().lastExport, { at });
   const corrupt = createSaveStatus({ storage: { getItem: () => '{not json', setItem() {} }, navigator: {} });
   assert.equal(corrupt.status().lastBackup, null);
 
@@ -435,10 +533,16 @@ test('D2 the device-local record is fail-safe and never enters a journey, an exp
 test('D2 save markup: status, notices and the import confirmation', () => {
   assert.match(saveStatusMarkup({}), /上次備份：未曾/);
   assert.match(saveStatusMarkup({}), /長期保存：未曾要求/);
-  const exported = saveStatusMarkup({ lastBackup: { at, kind: 'export' }, persistence: { state: 'granted', at, trigger: 'first-win' } });
-  assert.match(exported, new RegExp(`<time datetime="${at}">`));
-  assert.match(exported, /匯出檔案/); assert.match(exported, /瀏覽器已答應保留/);
-  assert.match(saveStatusMarkup({ lastBackup: { at, kind: 'cloud' } }), /雲端備份/);
+  // An export is shown as started, never as a backup: the page cannot tell whether it was saved.
+  const exported = saveStatusMarkup({ lastExport: { at }, persistence: { state: 'granted', at, trigger: 'first-win' } });
+  assert.match(exported, new RegExp(`<span data-last-export>上次匯出：<time datetime="${at}">[^<]+</time> · 已開始下載，此頁無法確認檔案已儲存</span>`));
+  assert.doesNotMatch(exported, /上次備份|data-last-backup/, 'no backup claimed for an export');
+  assert.match(exported, /瀏覽器已答應保留/);
+  const cloud = saveStatusMarkup({ lastBackup: { at, kind: 'cloud' } });
+  assert.match(cloud, new RegExp(`<span data-last-backup>上次備份：<time datetime="${at}">[^<]+</time> · 雲端備份</span>`));
+  assert.doesNotMatch(cloud, /上次匯出/);
+  const both = saveStatusMarkup({ lastBackup: { at, kind: 'cloud' }, lastExport: { at: now } });
+  assert.match(both, /上次備份：.+雲端備份.+上次匯出：.+已開始下載/);
   assert.match(saveStatusMarkup({}), /勝出一局或開匣後/, 'not 首勝: an existing journey is asked at its next win');
   const offer = saveNoticeMarkup('restore-offer');
   assert.match(offer, /有舊旅程？由備份還原/);
@@ -472,6 +576,9 @@ test('D2 save markup: status, notices and the import confirmation', () => {
   // One recovery slot: the dialog says an existing copy is replaced, and how to keep it.
   const replacing = importConfirmMarkup({ current: journeySummary(fresh()), backup: journeySummary(travelled()), recovery: { savedAt: at } });
   assert.match(replacing, /data-recovery-replaced>旅程閣現有的回復備份（[^）]+）會被這次取代；如需保留，請先在旅程閣「下載本機回復備份」。/);
+  // A file from before v0.6.0 says it is migrated before the restore.
+  assert.doesNotMatch(dialog, /data-import-legacy/);
+  assert.match(importConfirmMarkup({ current: journeySummary(fresh()), backup: journeySummary(travelled()), legacy: true }), /data-import-legacy>這份備份來自較舊版本的萬象契；還原時會按此裝置載入舊旅程的同一規則轉為現行格式/);
 });
 
 test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud restore and local recovery use', async () => {
@@ -484,11 +591,19 @@ test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud rest
   assert.match(confirm, /restoreLocalProfile\(draft\.snapshot,draft\.fingerprint\)/);
   assert.doesNotMatch(confirm, /setItem|profileStore\.(save|replace)/, 'no second write path');
   const lobby = source.slice(source.indexOf('function lobbySaveNotice('), source.indexOf('function backupMade('));
+  assert.match(lobby, /^function lobbySaveNotice\(\) \{\n[^\n]*\n  if\(profile\.wx01\.receipt\|\|profile\.expansion\.fireMountain\.run\)return '';/, 'a WX receipt or activity resume strip has the place first, before a prompt is taken');
+  // Review round 2: only a confirmed (cloud) backup ends a prompt; an export is only started.
+  const made = source.slice(source.indexOf('function backupMade('), source.indexOf('function exportSave('));
+  assert.match(made, /saves\.recordBackup\(\);saveNotice=null;/, 'a cloud backup ends the prompt shown on this page');
+  const exported = source.slice(source.indexOf('function exportSave('), source.indexOf('function importBlocked('));
+  assert.match(exported, /if\(result\.importable\)\{saves\.recordExport\(\);/, 'only a file that would import is recorded');
+  assert.doesNotMatch(exported, /backupMade|recordBackup|saveNotice/, 'an export never counts as a backup or ends a prompt');
+  assert.match(source, /'account-upload': \(\) => account\.upload\(\)\.then\(saved => \{ if \(saved\) backupMade\(\); \}\)/, 'a cloud backup counts once the API says it saved');
   assert.match(lobby, /saveNoticeMarkup\(saveNotice,\{wins:profile\.stats\.won\}\)/, 'the prompt copy knows the win count');
   assert.match(lobby, /cloud:Boolean\(known\.account\)\|\|!known\.initialized\|\|known\.emailEnabled/, 'the cloud path stays while the account is unknown');
   assert.doesNotMatch(lobby, /account\.init/, 'the lobby makes no account request');
   const cloud = source.slice(source.indexOf("if(action==='restore-offer-cloud')"), source.indexOf("if(action==='navigate-confirm')"));
-  assert.match(cloud, /const looked=account\.init\(\);navigate\('account'\);/, '旅程閣 looks the account up, then the confirmation opens');
+  assert.match(cloud, /const looked=account\.init\(\);navigate\('account'\);viewport\.selectModule\(\{key:viewKey\(\),moduleId:'cloud'\}\);/, '旅程閣 looks the account up on its 雲端旅程 tab, then the confirmation opens');
   // persist() is never requested on an ordinary load: launch passes the standalone check.
   assert.match(source, /saves\.launch\(\{fresh:freshJourney,standalone:isStandalone\(\)\}\)/);
   assert.match(source, /saves\.battleFinished\(match\.winner\);/);

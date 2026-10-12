@@ -2,11 +2,14 @@ import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** D2 save durability (docs/LOCAL-COMMANDS.md §19): export → clear site data → the new journey's
  * restore offer → import restores the same journey; declining changes nothing; each backup
  * prompt appears once; the 旅程閣 status line; the cloud option with intercepted fixture APIs;
- * the strips on a 340 px phone. Synthetic saves, loopback assets only, no download written to disk. */
+ * the strips on a 340 px phone; refused downloads never count as a backup; a cloud backup ends
+ * a prompt; a WX receipt's strip comes first; a v0.5.1 (v3) export restores. Synthetic saves,
+ * loopback assets only, no download written to disk. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createProfile, claimLogin, sellInstance, PROFILE_KEY } from '../progression.mjs';
+import { createProfile, claimLogin, sellInstance, buyPack, PROFILE_KEY, PROFILE_VERSION } from '../progression.mjs';
+import { LEGACY_CARD_IDS } from '../engine.mjs';
 import { mintInstance, setInstanceXP, saveInstanceDeck, getActiveDeck } from '../collection.mjs';
 import { createSnapshot, fingerprintProfile, backupProfile } from '../cloud-save.mjs';
 import { RECOVERY_KEY, RESTORE_MESSAGES } from '../profile-store.mjs';
@@ -47,14 +50,26 @@ function travelled() {
   return { ...profile, coins: 4321, dust: 87 };
 }
 
-/** A guest on the fixture API: 旅程閣 asks who is signed in; nothing else is expected. */
-function guestApi(route, request, url) {
-  if (url.pathname === '/api/v1/account' && request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false, user: null, emailEnabled: false, journeyVersions: [1, 3] }) });
-  errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
+/** What v0.4.1–v0.5.1 exported: the raw v3 profile (see tests/save-durability.test.mjs). */
+function v051Profile(profile) {
+  const raw = structuredClone(profile);
+  raw.version = 3; raw.collectionVersion = 1; raw.collectionExpansion = 1; delete raw.wx01; delete raw.expansion; delete raw.weekly;
+  for (const card of [...raw.instances, ...raw.merchantVault.map(entry => entry.instance)]) delete card.printId;
+  for (const key of ['inventory', 'levels']) raw[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, raw[key][id]]));
+  return raw;
 }
-async function contextFor({ seed = null, saves = null, api = guestApi, width = 1440 } = {}) {
+
+/** A guest on the fixture API: 旅程閣 asks who is signed in; nothing else is expected. */
+const guestApiWith = ({ emailEnabled = false } = {}) => (route, request, url) => {
+  if (url.pathname === '/api/v1/account' && request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false, user: null, emailEnabled, journeyVersions: [1, 3] }) });
+  errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
+};
+const guestApi = guestApiWith();
+/** `downloads: false` makes the browser refuse every download, as a cancelled save dialog or a
+ * blocked download would; the page is told nothing either way. */
+async function contextFor({ seed = null, saves = null, api = guestApi, width = 1440, downloads = true } = {}) {
   const mobile = width < 600;
-  const context = await browser.newContext({ viewport: { width, height: mobile ? 844 : 1000 }, reducedMotion: 'reduce', deviceScaleFactor: 1, acceptDownloads: true, ...(mobile && browserName === 'chromium' ? { isMobile: true, hasTouch: true } : {}) });
+  const context = await browser.newContext({ viewport: { width, height: mobile ? 844 : 1000 }, reducedMotion: 'reduce', deviceScaleFactor: 1, acceptDownloads: downloads, ...(mobile && browserName === 'chromium' ? { isMobile: true, hasTouch: true } : {}) });
   contexts.add(context);
   await context.addInitScript(({ seed, saves, key, savesKey, now }) => {
     const NativeDate = Date, fixed = new NativeDate(now).getTime();
@@ -186,6 +201,20 @@ async function stripFits(page, label) {
   return strip;
 }
 const offerState = async page => (await read(page, SAVES_KEY))?.restoreOffer ?? null;
+const promptState = async (page, kind) => (await read(page, SAVES_KEY))?.prompts?.[kind]?.state ?? null;
+/** The 旅程閣 tab a player sees selected, and whether `selector` is on screen. */
+const accountView = (page, selector) => page.evaluate(selector => {
+  const tab = document.querySelector('[data-viewport-surface="account"] [role="tab"][aria-selected="true"]'), node = document.querySelector(selector);
+  return { tab: tab?.textContent.trim() ?? null, shown: Boolean(node && !node.closest('[hidden]') && node.getClientRects().length) };
+}, selector);
+/** Press an export button whose download the browser refuses: returns the download's failure. */
+async function refusedExport(page, locator) {
+  const from = await toastCount(page);
+  const [download] = await Promise.all([page.waitForEvent('download'), locator.click()]);
+  const failure = await download.failure();
+  await waitToast(page, '已開始下載旅程備份', from);
+  return failure;
+}
 
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
 try {
@@ -200,9 +229,11 @@ try {
     const file = await exportFile(page);
     assert.equal(file.name, `萬象契旅程-${original.daily.date}.json`);
     assert.equal(file.buffer.toString('utf8'), JSON.stringify(JSON.parse(stored), null, 2), 'the existing export format: the stored journey, indented');
-    await page.locator(`[data-last-backup] time[datetime="${now}"]`).waitFor();
-    assert.match(await page.locator('[data-last-backup]').innerText(), /匯出檔案/);
-    passed('S1a the export downloads the stored journey in the existing format, and 旅程閣 shows its date as the last backup');
+    await page.locator(`[data-last-export] time[datetime="${now}"]`).waitFor();
+    assert.match(await page.locator('[data-last-export]').innerText(), /上次匯出：.+ · 已開始下載，此頁無法確認檔案已儲存/);
+    assert.equal(await page.locator('[data-last-backup]').count(), 0, 'an export is not claimed as a backup');
+    assert.equal((await read(page, SAVES_KEY)).lastBackup, null);
+    passed('S1a the export downloads the stored journey in the existing format, and 旅程閣 shows when the download started, not a backup');
 
     await clearSiteData(page);
     const started = await read(page);
@@ -316,7 +347,12 @@ try {
     await press(page, action(page, 'import-save'), '請先完成或放棄未完對局，再匯入旅程備份');
     assert.equal(chooser, 0, 'no file picker during a battle');
     assert.deepEqual(await journeyKeys(page), pending);
-    passed('S2d during an unfinished battle the import is refused before the picker opens, with nothing written');
+    // An export during the battle still downloads, but its file would not import: not recorded.
+    await press(page, action(page, 'export-save'), '對局或活動未完時的備份未能還原');
+    assert.equal(await page.locator('[data-last-export]').count(), 0, 'an export that would not import is not recorded');
+    assert.equal((await read(page, SAVES_KEY))?.lastExport ?? null, null);
+    assert.match(await page.locator('[data-last-backup]').innerText(), /上次備份：未曾/);
+    passed('S2d during an unfinished battle the import is refused before the picker opens, with nothing written, and an export is not recorded');
     assert.equal(RESTORE_MESSAGES.unfinished.includes('本機旅程未有更改'), true);
     contexts.delete(page.context()); await page.context().close();
   }
@@ -419,6 +455,124 @@ try {
     assert.equal(await page.locator('[data-save-status]').getAttribute('data-persistence'), 'unanswered');
     assert.match(await page.locator('[data-persistence-label]').innerText(), /長期保存：未有回覆（瀏覽器未確認保留）/, 'not "waiting" for an answer no page is waiting on');
     passed('S5b a journey with earlier wins is told 勝局已記, not 首勝, in a strip that fits 340 px; an unanswered persist() request reads 未有回覆, without asking again');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S6 (review round 2): the browser refuses every download, as a cancelled save dialog or a
+    // blocked download would. The page cannot tell, so an export never counts as a backup: the
+    // strip it was pressed from stays, 旅程閣 shows only that a download started, and a prompt
+    // due before the export is still shown.
+    const saves = { v: 1, lastBackup: null, persistence: { state: 'granted', at: now, trigger: 'first-win' }, prompts: { 'first-win': { state: 'due', at: now } }, restoreOffer: null };
+    const page = await pageIn(await contextFor({ seed: travelled(), saves, downloads: false, width: 390 }));
+    await page.locator('[data-save-notice="first-win"]').waitFor();
+    assert.ok(await refusedExport(page, notice(page).locator('[data-action="export-save"]')), 'the browser refused the download');
+    assert.equal(await page.locator('[data-save-notice="first-win"]').count(), 1, 'the strip stays: the page cannot tell the file was saved');
+    assert.equal((await read(page, SAVES_KEY)).lastBackup, null);
+    await openTools(page);
+    await page.locator(`[data-last-export] time[datetime="${now}"]`).waitFor();
+    assert.match(await page.locator('[data-last-export]').innerText(), /已開始下載，此頁無法確認檔案已儲存/);
+    assert.equal(await page.locator('[data-last-backup]').count(), 0, 'no backup date for a refused download');
+    await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
+    await action(page, 'save-notice-dismiss', 'first-win').click();
+    await notice(page).waitFor({ state: 'detached' });
+    // A pack opened (its prompt now due, as saves.packOpened() records it), then an export from
+    // 旅程閣 that the browser refuses, before the lobby shows the prompt.
+    await openTools(page);
+    await page.evaluate(({ key, at }) => { const record = JSON.parse(localStorage.getItem(key)); record.prompts['first-pack'] = { state: 'due', at }; localStorage.setItem(key, JSON.stringify(record)); }, { key: SAVES_KEY, at: now });
+    assert.ok(await refusedExport(page, action(page, 'export-save')));
+    await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
+    await page.locator('[data-save-notice="first-pack"]').waitFor();
+    assert.equal(await promptState(page, 'first-pack'), 'shown', 'shown, not skipped as backed up');
+    passed('S6 with every download refused, an export leaves its strip up, 旅程閣 says only that a download started, and a prompt due before it is still shown');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S7: a cloud backup the API confirmed saved ends the prompt shown on this page.
+    const journey = travelled(), fixture = { revision: 1, backup: { revision: 1, updatedAt: now, snapshot: createSnapshot(journey) }, puts: 0 };
+    const api = (route, request, url) => {
+      const reply = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
+      if (url.pathname === '/api/v1/account') return reply({ authenticated: true, user: { id: 'save-smoke-account', email: 'traveller@example.test' }, emailEnabled: true, journeyVersions: [1, 3] });
+      if (url.pathname === '/api/v3/journey' && request.method() === 'GET') return reply({ backup: fixture.backup, revision: fixture.revision });
+      if (url.pathname === '/api/v3/journey' && request.method() === 'PUT') {
+        fixture.puts += 1; fixture.revision += 1;
+        fixture.backup = { revision: fixture.revision, updatedAt: now, snapshot: request.postDataJSON().snapshot };
+        return reply({ backup: fixture.backup, revision: fixture.revision });
+      }
+      errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
+    };
+    const saves = { v: 1, lastBackup: null, persistence: null, prompts: { 'first-win': { state: 'due', at: now } }, restoreOffer: null };
+    const page = await pageIn(await contextFor({ seed: journey, saves, api }));
+    // The lobby does not know the account yet, so the prompt shows as for a guest.
+    await page.locator('[data-save-notice="first-win"]').waitFor();
+    await notice(page).locator('[data-action="account-open"]').click();
+    await page.locator('.account-identity').waitFor();
+    await action(page, 'account-upload').click();
+    await page.locator(`[data-last-backup] time[datetime="${now}"]`).waitFor();
+    assert.match(await page.locator('[data-last-backup]').innerText(), /上次備份：.+ · 雲端備份/);
+    assert.equal(fixture.puts, 1);
+    await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await notice(page).count(), 0, 'the confirmed backup ended the prompt');
+    passed('S7 a cloud backup the API confirmed saved becomes the last backup and ends the prompt shown on this page (fixture API)');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S8 (review round 2): without a cloud backup to confirm, the offer's 雲端旅程 lands on
+    // 旅程閣's 雲端旅程 tab, not on 此裝置 with the new journey: a guest sees the sign-in, and an
+    // offline player sees why 旅程閣 could not open the cloud.
+    for (const [label, api, selector] of [
+      ['a guest with email sign-in', guestApiWith({ emailEnabled: true }), '[data-account-form="email"]'],
+      ['an offline player', route => route.abort('internetdisconnected'), '.account-panel.cloud'],
+    ]) {
+      const page = await pageIn(await contextFor({ api, width: 390 }));
+      await notice(page).locator('[data-action="restore-offer-cloud"]').click();
+      await page.locator('.account-shell[aria-busy="false"]').waitFor();
+      const view = await accountView(page, selector);
+      assert.deepEqual(view, { tab: '雲端旅程', shown: true }, `${label}: ${JSON.stringify(view)}`);
+      contexts.delete(page.context()); await page.context().close();
+    }
+    passed('S8 at 390 px the offer\'s 雲端旅程 opens 旅程閣 on its 雲端旅程 tab: the email sign-in for a guest, the cloud panel when offline');
+  }
+
+  {
+    // S9: an open WX receipt's resume strip has the place first, and a prompt due meanwhile
+    // waits for it instead of being used up behind it.
+    const opened = buyPack({ ...travelled(), coins: 5000 }, { set: 'wx01', rng: () => 0.4, now }).profile;
+    assert.ok(opened.wx01.receipt);
+    const saves = { v: 1, lastBackup: null, persistence: null, prompts: { 'first-pack': { state: 'due', at: now } }, restoreOffer: null };
+    const page = await pageIn(await contextFor({ seed: opened, saves }));
+    await action(page, 'pack-resume').waitFor();
+    assert.equal(await notice(page).count(), 0, 'only the receipt strip');
+    assert.equal(await promptState(page, 'first-pack'), 'due', 'the prompt is not used up behind the receipt');
+    await action(page, 'pack-resume').click();
+    await page.locator('.pack-opening[data-phase="complete"]').waitFor();
+    await action(page, 'pack-ack').click(); await page.locator('.pack-opening').waitFor({ state: 'hidden' });
+    await page.locator('.game-dock [data-action="home"]').click(); await page.locator('.game-lobby').waitFor();
+    await page.locator('[data-save-notice="first-pack"]').waitFor();
+    assert.equal(await promptState(page, 'first-pack'), 'shown');
+    passed('S9 with a WX receipt open the lobby shows only its resume strip; the due prompt waits and appears once the receipt is acknowledged');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S10 (review round 2): a v0.5.1 export (profile v3) restores from the new journey's offer,
+    // migrated as load() migrates a v3 key, through the same confirmation and strict restore.
+    const original = travelled(), page = await pageIn(await contextFor({ width: 390 }));
+    await notice(page).waitFor();
+    const started = await read(page);
+    await pick(page, notice(page).locator('[data-action="import-save"]'), fileOf(v051Profile(original), `萬象契旅程-${original.daily.date}.json`));
+    await page.locator('.import-compare').waitFor();
+    assert.match(await page.locator('[data-import-legacy]').innerText(), /來自較舊版本的萬象契/);
+    assert.equal(await page.locator('.import-side').nth(1).locator('[data-summary="cards"]').innerText(), String(original.instances.length));
+    assert.equal(await raw(page), JSON.stringify(started), 'nothing is written before the confirmation');
+    await press(page, action(page, 'import-confirm'), '已由備份還原旅程');
+    const restored = await read(page);
+    assert.equal(restored.version, PROFILE_VERSION);
+    assert.equal(fingerprintProfile(restored), fingerprintProfile(original), 'the same journey, as v5');
+    assert.deepEqual((await read(page, RECOVERY_KEY)).snapshot, createSnapshot(started), 'the new journey is kept as the recovery copy');
+    passed('S10 a v0.5.1 export (profile v3) restores from the offer as the same journey in v5, after a confirmation that says it is migrated');
     contexts.delete(page.context()); await page.context().close();
   }
 

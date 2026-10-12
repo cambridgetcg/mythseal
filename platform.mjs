@@ -6,7 +6,7 @@
  * No network or RNG; navigator, window and document are injected so Node tests can spy. */
 import { PROFILE_VERSION, hydrateProfile } from './progression.mjs';
 import { createSnapshot, restoreSnapshot, fingerprintProfile, MAX_SNAPSHOT_BYTES } from './cloud-save.mjs';
-import { assertLocalProfile } from './profile-store.mjs';
+import { assertLocalProfile, createProfileStore } from './profile-store.mjs';
 
 /** A larger file is refused before it is read. Every journey the game can save fits: its
  * compact JSON is inside the same 4 MiB backup envelope (assertLocalProfile). */
@@ -18,7 +18,7 @@ export const IMPORT_MESSAGES = Object.freeze({
   unreadable: '未能讀取這個檔案；本機旅程未有更改。',
   unparsable: '未能讀取這個檔案；請選擇「匯出旅程備份」下載的 .json 檔。本機旅程未有更改。',
   'not-export': '這不是「匯出旅程備份」下載的檔案；本機旅程未有更改。',
-  'old-version': '這份備份來自舊版萬象契，暫未支援匯入；本機旅程未有更改。',
+  'old-version': '這份備份來自 v0.4.1 之前的萬象契，暫未支援匯入；本機旅程未有更改。',
   'future-version': '這份備份來自較新版本的萬象契，請先重新整理頁面；本機旅程未有更改。',
   unfinished: '這份備份匯出時仍有未完對局或活動旅程，未能還原；本機旅程未有更改。',
   tampered: '這份備份的資料前後不一致，可能曾被修改，未能還原；本機旅程未有更改。',
@@ -55,10 +55,25 @@ export function exportJourney(profile, { document = globalThis.document, URL: ur
   return { filename, bytes: utf8Bytes(text), importable: check.ok, reason: check.ok ? null : check.reason };
 }
 
+/** Profile versions an export can come from besides the current one. Every public build
+ * before v0.6.0 (v0.4.1, v0.5.0 and v0.5.1) exported a v3 profile; v4 is the namespace
+ * load() also migrates. Older files are refused. */
+export const LEGACY_EXPORT_VERSIONS = Object.freeze([3, 4]);
+
+/** A v3 or v4 export, migrated exactly as load() migrates the same journey found under its
+ * own legacy key on this device: the strict legacy check (exact copies, canonical at its
+ * day, no v5-only data, no ledger), the migration and the same-copies check. The file's own
+ * day is the clock, so the candidate gains no daily rollover. Throws on any refusal. */
+function migrateLegacyExport(text, version, day) {
+  const key = `shanhai.profile.v${version}`;
+  return createProfileStore({ storage: { getItem: name => (name === key ? text : null) }, now: () => day }).load();
+}
+
 /** Validate exported text as a restore candidate, with the rules load, save and cloud
- * restore already apply. Pure; returns `{ ok: true, snapshot, summary }` or a refusal. The
- * file's command ledger is checked, then left out: it belongs to the device that wrote it,
- * and the restore retires this device's lineage instead (§11, §15 decision 1). */
+ * restore already apply. Pure; returns `{ ok: true, snapshot, summary, legacy }` or a
+ * refusal. The file's command ledger is checked, then left out: it belongs to the device
+ * that wrote it, and the restore retires this device's lineage instead (§11, §15
+ * decision 1). An export from before v0.6.0 is migrated first and then checked as a v5 one. */
 export function checkJourneyText(text, { now = new Date() } = {}) {
   if (typeof text !== 'string') return refuse('unreadable');
   if (utf8Bytes(text) > MAX_IMPORT_BYTES) return refuse('too-large');
@@ -67,21 +82,28 @@ export function checkJourneyText(text, { now = new Date() } = {}) {
   // Only the export: not a cloud snapshot envelope, a recovery-originals file or anything else.
   if (!isRecord(profile) || Object.hasOwn(profile, 'format') || !Number.isSafeInteger(profile.version)) return refuse('not-export');
   if (profile.version > PROFILE_VERSION) return refuse('future-version');
-  if (profile.version < PROFILE_VERSION) return refuse('old-version');
+  const legacy = profile.version < PROFILE_VERSION;
+  if (legacy && !LEGACY_EXPORT_VERSIONS.includes(profile.version)) return refuse('old-version');
   if (!isRecord(profile.daily) || typeof profile.daily.date !== 'string') return refuse('invalid');
   if ((Object.hasOwn(profile, 'pending') && profile.pending !== null) || (profile.expansion?.fireMountain?.run ?? null) !== null) return refuse('unfinished');
+  const day = `${profile.daily.date}T12:00:00.000Z`;
+  // The bounded walk first (depth, size, forbidden keys such as __proto__), then the migration.
+  if (legacy) {
+    try { fingerprintProfile(profile); profile = migrateLegacyExport(text, profile.version, day); }
+    catch { return refuse('invalid'); }
+  }
   // Canonical at its own day, as assertLocalProfile and validateSnapshot require: an edit
   // that leaves the journey inconsistent (XP against level, counts against copies, unknown
   // fields, a damaged ledger) is refused. A self-consistent edit is not detectable; a local
   // save is editable and never an ownership claim.
   let consistent;
-  try { consistent = fingerprintProfile(profile) === fingerprintProfile(hydrateProfile(profile, { now: `${profile.daily.date}T12:00:00.000Z` })); }
+  try { consistent = fingerprintProfile(profile) === fingerprintProfile(hydrateProfile(profile, { now: day })); }
   catch { return refuse('invalid'); }
   if (!consistent) return refuse('tampered');
   let snapshot;
   try { assertLocalProfile(profile); snapshot = createSnapshot(profile); restoreSnapshot(snapshot, { now }); }
   catch { return refuse('invalid'); }
-  return { ok: true, snapshot, summary: journeySummary(snapshot.profile) };
+  return { ok: true, snapshot, summary: journeySummary(snapshot.profile), legacy };
 }
 
 /** Read a picked file (a File or Blob). Oversize files are refused before reading. */

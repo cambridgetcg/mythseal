@@ -175,15 +175,19 @@ function lobbySaveNotice() {
   saveNotice??=saves.takePrompt({guest:!known.account});
   return saveNoticeMarkup(saveNotice,{wins:profile.stats.won});
 }
-function backupMade(kind) {
-  saves.recordBackup(kind);saveNotice=null;
+// A cloud backup the account API confirmed saved: the last backup, and the prompt's end.
+function backupMade() {
+  saves.recordBackup();saveNotice=null;
   if(['account','home'].includes(screen))render();
 }
+// The page cannot tell whether the browser saved the file (a cancelled or blocked download
+// looks the same), so an export is recorded as started, never as a backup: it neither ends
+// nor skips a prompt. Only a file that would import is recorded.
 function exportSave() {
   try {
     const result=exportJourney(loadProfile(),{document});
-    if(result.importable)backupMade('export');
-    toast(result.importable?'旅程備份已匯出。':'旅程備份已匯出；對局或活動未完時的備份未能還原，完成後請再匯出一次。');
+    if(result.importable){saves.recordExport();if(screen==='account')render();}
+    toast(result.importable?'已開始下載旅程備份；請確認檔案已儲存。':'已開始下載旅程備份；對局或活動未完時的備份未能還原，完成後請再匯出一次。');
   } catch(error) { toast(error.message||'未能匯出旅程備份。'); }
 }
 function importBlocked(current) {
@@ -213,7 +217,7 @@ async function reviewImport(file) {
   // Nothing is written until the confirmation; it restores only this journey, unchanged.
   importDraft={snapshot:result.snapshot,fingerprint:fingerprintProfile(current)};
   const kept=read(RECOVERY_KEY,null);
-  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null}),'import-modal',true,'import-review');
+  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null,legacy:result.legacy}),'import-modal',true,'import-review');
 }
 function confirmImport() {
   const draft=importDraft;
@@ -1028,7 +1032,7 @@ document.addEventListener('click', event=>{
   const accountActions = {
     'account-retry': () => account.init(),
     'account-refresh': () => account.refreshCloud(),
-    'account-upload': () => account.upload().then(saved => { if (saved) backupMade('cloud'); }),
+    'account-upload': () => account.upload().then(saved => { if (saved) backupMade(); }),
     'account-confirm-restore': () => account.setConfirmation('restore'),
     'account-confirm-delete': () => account.setConfirmation('delete'),
     'account-cancel-confirmation': () => {account.cancelConfirmation();viewport.selectModule({key:viewKey(),moduleId:'cloud'});},
@@ -1174,8 +1178,9 @@ document.addEventListener('click', event=>{
   if(action==='restore-offer-cloud'){
     // 旅程閣 looks the account up (navigate's own init finds this one busy and sends nothing):
     // a signed-in player with a cloud backup lands on its restore confirmation, anyone else
-    // on 旅程閣's sign-in.
-    const looked=account.init();navigate('account');
+    // on the 雲端旅程 tab (a guest's sign-in, the cloud panel, or the offline note), never
+    // on 此裝置, which would show only the new journey.
+    const looked=account.init();navigate('account');viewport.selectModule({key:viewKey(),moduleId:'cloud'});
     looked.then(()=>{const state=account.getState();if(screen==='account'&&state.backup&&!state.confirmation)account.setConfirmation('restore');});
     return;
   }
