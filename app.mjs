@@ -169,9 +169,11 @@ let saveNotice=null, importDraft=null, importInput=null;
 function lobbySaveNotice() {
   // The resume strip for a WX receipt or an activity has this place first.
   if(profile.wx01.receipt||profile.expansion.fireMountain.run)return '';
-  if(saves.showRestoreOffer(profile))return saveNoticeMarkup('restore-offer',{signedIn:Boolean(account.getState().account)});
-  saveNotice??=saves.takePrompt({guest:!account.getState().account});
-  return saveNoticeMarkup(saveNotice);
+  // The lobby makes no account request: it knows only what 旅程閣 looked up in this page.
+  const known=account.getState();
+  if(saves.showRestoreOffer(profile))return saveNoticeMarkup('restore-offer',{cloud:Boolean(known.account)||!known.initialized||known.emailEnabled});
+  saveNotice??=saves.takePrompt({guest:!known.account});
+  return saveNoticeMarkup(saveNotice,{wins:profile.stats.won});
 }
 function backupMade(kind) {
   saves.recordBackup(kind);saveNotice=null;
@@ -210,7 +212,8 @@ async function reviewImport(file) {
   const blocked=importBlocked(current);if(blocked)return toast(blocked);
   // Nothing is written until the confirmation; it restores only this journey, unchanged.
   importDraft={snapshot:result.snapshot,fingerprint:fingerprintProfile(current)};
-  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name}),'import-modal',true,'import-review');
+  const kept=read(RECOVERY_KEY,null);
+  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null}),'import-modal',true,'import-review');
 }
 function confirmImport() {
   const draft=importDraft;
@@ -1169,8 +1172,11 @@ document.addEventListener('click', event=>{
   if(action==='import-confirm')return confirmImport();
   if(action==='save-notice-dismiss'){if(id==='restore-offer')saves.closeRestoreOffer();else saveNotice=null;render();return;}
   if(action==='restore-offer-cloud'){
-    navigate('account');
-    if(account.getState().backup)account.setConfirmation('restore');
+    // 旅程閣 looks the account up (navigate's own init finds this one busy and sends nothing):
+    // a signed-in player with a cloud backup lands on its restore confirmation, anyone else
+    // on 旅程閣's sign-in.
+    const looked=account.init();navigate('account');
+    looked.then(()=>{const state=account.getState();if(screen==='account'&&state.backup&&!state.confirmation)account.setConfirmation('restore');});
     return;
   }
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}

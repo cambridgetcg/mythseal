@@ -1,8 +1,8 @@
 import { installViewportNavigation } from './viewport-browser-helpers.mjs';
 /** D2 save durability (docs/LOCAL-COMMANDS.md §19): export → clear site data → the new journey's
  * restore offer → import restores the same journey; declining changes nothing; each backup
- * prompt appears once; the 旅程閣 status line; the cloud option with intercepted fixture APIs.
- * Synthetic saves, loopback assets only, no download written to disk. */
+ * prompt appears once; the 旅程閣 status line; the cloud option with intercepted fixture APIs;
+ * the strips on a 340 px phone. Synthetic saves, loopback assets only, no download written to disk. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -52,16 +52,20 @@ function guestApi(route, request, url) {
   if (url.pathname === '/api/v1/account' && request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false, user: null, emailEnabled: false, journeyVersions: [1, 3] }) });
   errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
 }
-async function contextFor({ seed = null, api = guestApi, width = 1440 } = {}) {
+async function contextFor({ seed = null, saves = null, api = guestApi, width = 1440 } = {}) {
   const mobile = width < 600;
   const context = await browser.newContext({ viewport: { width, height: mobile ? 844 : 1000 }, reducedMotion: 'reduce', deviceScaleFactor: 1, acceptDownloads: true, ...(mobile && browserName === 'chromium' ? { isMobile: true, hasTouch: true } : {}) });
   contexts.add(context);
-  await context.addInitScript(({ seed, key, now }) => {
+  await context.addInitScript(({ seed, saves, key, savesKey, now }) => {
     const NativeDate = Date, fixed = new NativeDate(now).getTime();
     globalThis.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
     Math.random = () => 0.23;
     // The seed is written once per tab; clearing site data below must not bring it back.
-    if (seed && !sessionStorage.getItem('save-smoke.seeded')) { localStorage.setItem(key, seed); sessionStorage.setItem('save-smoke.seeded', 'yes'); }
+    if ((seed || saves) && !sessionStorage.getItem('save-smoke.seeded')) {
+      if (seed) localStorage.setItem(key, seed);
+      if (saves) localStorage.setItem(savesKey, saves);
+      sessionStorage.setItem('save-smoke.seeded', 'yes');
+    }
     // A spy in place of the browser's answer, which headless engines do not ask a person for.
     // On the prototype: WebKit does not keep a property defined on navigator.storage here.
     if (globalThis.StorageManager) {
@@ -71,7 +75,7 @@ async function contextFor({ seed = null, api = guestApi, width = 1440 } = {}) {
     window.saveSmokeToasts = [];
     new MutationObserver(records => { for (const record of records) for (const node of record.addedNodes) if (node.classList?.contains('toast')) window.saveSmokeToasts.push(node.textContent); })
       .observe(document, { childList: true, subtree: true });
-  }, { seed: seed && JSON.stringify(seed), key: PROFILE_KEY, now });
+  }, { seed: seed && JSON.stringify(seed), saves: saves && JSON.stringify(saves), key: PROFILE_KEY, savesKey: SAVES_KEY, now });
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
     if (url.origin === base.origin && url.pathname.startsWith('/api/')) return api(route, request, url);
@@ -157,6 +161,29 @@ async function noOverflow(page, label) {
   const size = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
   assert(size.document <= size.viewport + 1, `${label}: ${JSON.stringify(size)}`);
 }
+/** The strip keeps one row inside its 48 px: every button within it and taking its own taps
+ * to the bottom edge, the label whole, nothing below it covered. */
+async function stripFits(page, label) {
+  const strip = await page.evaluate(() => {
+    const notice = document.querySelector('[data-save-notice]'), box = notice.getBoundingClientRect(), text = notice.querySelector(':scope > span');
+    const buttons = [...notice.querySelectorAll('button')].map(button => {
+      const rect = button.getBoundingClientRect(), x = rect.left + rect.width / 2;
+      const hit = y => button.contains(document.elementFromPoint(x, y));
+      return { action: button.dataset.action, top: rect.top, bottom: rect.bottom, height: rect.height, taps: hit(rect.top + 3) && hit(rect.bottom - 3) };
+    });
+    return { top: box.top, bottom: box.bottom, height: box.height, buttons, cut: text.scrollWidth > text.clientWidth + 1, text: text.textContent, below: document.querySelector('.lobby-kicker')?.getBoundingClientRect().top ?? null };
+  });
+  assert(strip.height <= 48.5, `${label}: ${JSON.stringify(strip)}`);
+  for (const button of strip.buttons) {
+    assert(button.top >= strip.top - 0.5 && button.bottom <= strip.bottom + 0.5 && button.height >= 43.5, `${label}: ${button.action} leaves the strip ${JSON.stringify(strip)}`);
+    assert(button.taps, `${label}: ${button.action} does not take its own taps ${JSON.stringify(strip)}`);
+  }
+  assert(!strip.cut, `${label}: the label is cut, ${JSON.stringify(strip)}`);
+  assert(strip.below === null || strip.below >= strip.bottom - 0.5, `${label}: the lobby heading is covered ${JSON.stringify(strip)}`);
+  await noOverflow(page, label);
+  return strip;
+}
+const offerState = async page => (await read(page, SAVES_KEY))?.restoreOffer ?? null;
 
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
 try {
@@ -195,10 +222,24 @@ try {
     assert.deepEqual(recovery.snapshot, createSnapshot(started), 'the replaced journey is kept as the recovery copy');
     await page.locator('.modal').waitFor({ state: 'hidden' });
     assert.equal(await notice(page).count(), 0, 'the offer is gone after the restore');
+    // The restored journey has played, which hides the offer anyway: pin the close itself.
+    assert.equal(await offerState(page), 'closed', 'a successful restore closes the offer');
     await page.reload(); await page.locator('.game-lobby').waitFor();
     assert.equal(await notice(page).count(), 0);
     assert.equal(fingerprintProfile(await read(page)), fingerprintProfile(original));
     passed('S1b after clearing site data the new journey offers a restore; the exported file restores an identical journey fingerprint, with the new journey as the recovery copy');
+
+    // One recovery slot: a second import says the copy kept now would be replaced.
+    const kept = await raw(page, RECOVERY_KEY), journey = await journeyKeys(page);
+    await openTools(page);
+    await pick(page, action(page, 'import-save'), fileOf(travelled()));
+    await page.locator('.import-compare').waitFor();
+    assert.match(await page.locator('[data-recovery-replaced]').innerText(), /旅程閣現有的回復備份（.+）會被這次取代；如需保留，請先在旅程閣「下載本機回復備份」。/);
+    await action(page, 'close-modal').filter({ hasText: '保留現在進度' }).click();
+    await page.locator('.modal').waitFor({ state: 'hidden' });
+    assert.equal(await raw(page, RECOVERY_KEY), kept);
+    assert.deepEqual(await journeyKeys(page), journey, 'declined: nothing written');
+    passed('S1c with a recovery copy kept, the import confirmation says it would be replaced and how to keep it');
     contexts.delete(page.context()); await page.context().close();
   }
 
@@ -245,6 +286,14 @@ try {
     const healed = await journeyKeys(page);
     passed('S2b while the fence says "writing" the import is refused at its confirmation with nothing written');
 
+    // The lobby never knows the account on its own: the cloud path is there until 旅程閣
+    // has looked up a guest who cannot sign in now (this fixture's email login is off).
+    assert.equal(await notice(page).locator('[data-action="restore-offer-cloud"]').count(), 1, 'a cloud path while the account is unknown');
+    await openTools(page);
+    await page.locator('.account-shell[aria-busy="false"]').waitFor();
+    await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
+    assert.equal(await notice(page).locator('[data-action="restore-offer-cloud"]').count(), 0, 'no cloud path for a guest who cannot sign in');
+    assert.doesNotMatch(await notice(page).getAttribute('aria-label'), /雲端/);
     await action(page, 'save-notice-dismiss', 'restore-offer').click();
     await notice(page).waitFor({ state: 'detached' });
     assert.deepEqual(await journeyKeys(page), healed, 'dismissing the offer leaves the journey unchanged');
@@ -277,6 +326,8 @@ try {
     assert.equal(await persistCalls(page), 0);
     await winBattle(page);
     await page.locator('[data-save-notice="first-win"]').waitFor();
+    assert.match(await notice(page).innerText(), /首勝已記 · 留份備份？/, "a new journey's first win is its 首勝");
+    assert.equal(await notice(page).locator('[data-action="save-notice-dismiss"]').getAttribute('aria-label'), '關閉提示，不會再出現');
     await noOverflow(page, 'first-win prompt at 390 px');
     assert.equal(await persistCalls(page), 1, 'persist() exactly once, after the first win');
     assert.equal(await page.locator('[data-save-notice="first-win"] [data-action="export-save"]').count(), 1);
@@ -320,24 +371,52 @@ try {
     };
     const page = await pageIn(await contextFor({ api }));
     await notice(page).waitFor();
-    assert.equal(await notice(page).locator('[data-action="restore-offer-cloud"]').count(), 0, 'no cloud option before the account is known');
     assert.deepEqual(fixture.calls, [], 'the lobby makes no account request');
-    await openTools(page);
-    await page.locator('.account-identity').waitFor();
-    await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
+    // The first lobby after eviction: the account is unknown, and the cloud path is still there.
     await notice(page).locator('[data-action="restore-offer-cloud"]').click();
     await page.locator('.account-confirmation').waitFor();
+    assert.deepEqual(fixture.calls.slice(0, 2), ['GET /api/v1/account', 'GET /api/v3/journey'], '旅程閣 looked the account up once');
+    assert.equal(fixture.calls.filter(call => call === 'GET /api/v1/account').length, 1);
+    await page.locator('.account-identity').waitFor();
     await action(page, 'account-restore').click();
     await page.locator('.account-shell[aria-busy="false"] .account-message[role="status"]').waitFor();
     assert.equal(fingerprintProfile(await read(page)), fingerprintProfile(backup), 'the cloud journey was restored through the existing flow');
     await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
     assert.equal(await notice(page).count(), 0, 'the offer closes after a restore');
+    assert.equal(await offerState(page), 'closed', 'closed by the restore itself, not only hidden by the played journey');
     await openTools(page);
     await action(page, 'account-upload').click();
     await page.locator(`[data-last-backup] time[datetime="${now}"]`).waitFor();
     assert.match(await page.locator('[data-last-backup]').innerText(), /雲端備份/);
     assert.equal(fixture.calls.filter(call => call === 'PUT /api/v3/journey').length, 1);
-    passed('S4 signed in, the restore offer adds 雲端旅程 into the existing cloud restore (fixture API), and a cloud backup becomes the last backup');
+    passed('S4 signed in, the first lobby\'s 雲端旅程 opens 旅程閣, which looks the account up and opens the existing cloud restore (fixture API); a cloud backup becomes the last backup');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S5a: on a 340 px phone (the body's min-width) the restore offer keeps one row in its strip.
+    const page = await pageIn(await contextFor({ width: 340 }));
+    await notice(page).waitFor();
+    const offer = await stripFits(page, 'restore offer at 340 px');
+    assert.deepEqual(offer.buttons.map(button => button.action), ['import-save', 'restore-offer-cloud', 'save-notice-dismiss']);
+    assert.equal(offer.text, '有舊旅程？由備份還原');
+    passed('S5a at 340 px the restore offer and its three buttons stay inside the 48 px strip, label whole, the lobby heading uncovered');
+    contexts.delete(page.context()); await page.context().close();
+  }
+  {
+    // S5b: a journey from before D2 (five wins) whose first win on this device left a prompt
+    // due, and whose persist() request got no answer before its page closed.
+    const saves = { v: 1, lastBackup: null, persistence: { state: 'requested', at: now, trigger: 'first-win' }, prompts: { 'first-win': { state: 'due', at: now } }, restoreOffer: null };
+    const page = await pageIn(await contextFor({ seed: travelled(), saves, width: 340 }));
+    await page.locator('[data-save-notice="first-win"]').waitFor();
+    const prompt = await stripFits(page, 'later-win prompt at 340 px');
+    assert.equal(prompt.text, '勝局已記 · 留份備份？', 'a sixth win is not announced as the first');
+    assert.match(await notice(page).getAttribute('aria-label'), /^勝局已記下。/);
+    assert.equal(await persistCalls(page), 0, 'persist() is not asked again');
+    await openTools(page);
+    assert.equal(await page.locator('[data-save-status]').getAttribute('data-persistence'), 'unanswered');
+    assert.match(await page.locator('[data-persistence-label]').innerText(), /長期保存：未有回覆（瀏覽器未確認保留）/, 'not "waiting" for an answer no page is waiting on');
+    passed('S5b a journey with earlier wins is told 勝局已記, not 首勝, in a strip that fits 340 px; an unanswered persist() request reads 未有回覆, without asking again');
     contexts.delete(page.context()); await page.context().close();
   }
 

@@ -11,7 +11,7 @@ import { createProfileStore, RECOVERY_KEY, RESTORE_MESSAGES } from '../profile-s
 import { createFencedLock, ProfileFenceError, FENCE_MESSAGES, PROFILE_FENCE_VERSION } from '../profile-fence.mjs';
 import { previewCommand, commitCommand } from '../local-commands.mjs';
 import {
-  exportText, exportJourney, exportFilename, checkJourneyText, importJourney, requestPersistence, isStandalone,
+  exportText, exportJourney, exportFilename, checkJourneyText, importJourney, requestPersistence, checkPersistence, isStandalone,
   journeySummary, MAX_IMPORT_BYTES, IMPORT_MESSAGES,
 } from '../platform.mjs';
 import { createSaveStatus, normalizeSaveStatus, SAVES_KEY } from '../save-status.mjs';
@@ -231,8 +231,8 @@ test('D2 after an import the replaced lineage is retired, RECOVERY_KEY holds the
   assert.deepEqual(o.writes, []);
   assert.equal(previewCommand(o.store.load(), { type: UPGRADE, uid: y }).request.commandId, 'cmd-3', 'new previews continue after the boundary');
 
-  // Without a ledger there is nothing to retire (§15 decision 1 as proposed); an earlier
-  // quote is still refused, because the imported journey's copy is not the one it priced.
+  // Without a ledger there is nothing to retire (§15 decision 1 as proposed). An earlier
+  // quote is refused as stale when the imported journey's copy is not the one it priced.
   const plain = origin(travelled()), [z] = spare(base);
   const quote = previewCommand(plain.store.load(), { type: UPGRADE, uid: z }).request;
   assert.equal(quote.commandId, 'cmd-1');
@@ -243,6 +243,22 @@ test('D2 after an import the replaced lineage is retired, RECOVERY_KEY holds the
   assert.deepEqual([refused.status, refused.reason], ['rejected', 'stale']);
   assert.equal(levelOf(plain.saved(), z), levelOf(setInstanceXP(travelled(), z, 500), z), 'nothing was spent on the imported copy');
   assert.equal(plain.saved().coins, coins);
+
+  // The known gap (§13 item 2): re-importing this device's own export, which holds that copy
+  // unchanged, leaves the quote's slot free, so it commits once, at its quoted price.
+  const same = origin(travelled()), journey = same.store.load();
+  const quoted = previewCommand(journey, { type: UPGRADE, uid: z }), kept = quoted.request;
+  assert.equal(kept.commandId, 'cmd-1');
+  await importInto(same, blob(exportText(journey)));
+  assert.equal(Object.hasOwn(same.saved(), 'commands'), false, 'still no ledger after the import');
+  const before = same.saved();
+  same.writes.length = 0;
+  const landed = await commitCommand(kept, { store: same.store, lock: same.strict(), now: () => new Date(at) });
+  assert.deepEqual([landed.status, landed.duplicate], ['committed', false], 'not expired: nothing was retired');
+  assert.deepEqual(same.writes, [PROFILE_KEY], 'one write');
+  assert.deepEqual([same.saved().coins, same.saved().dust], [before.coins - quoted.costs.coins, before.dust - quoted.costs.dust], 'charged exactly the quoted price');
+  assert.equal(levelOf(same.saved(), z), levelOf(before, z) + 1, 'the upgrade the player pressed, once');
+  assert.deepEqual(same.saved().commands.receipts.map(receipt => receipt.seq), [1]);
 });
 
 test('D2 persist() is requested once, at the first win or first pack, never on load; an installed app asks at launch', async () => {
@@ -298,8 +314,39 @@ test('D2 persist() is requested once, at the first win or first pack, never on l
     await Promise.all([saves.battleFinished('player'), saves.packOpened()]);
     assert.equal(d.calls.persist, 1);
   }
+  {
+    // A page closed before the browser answered leaves "requested". The next page start asks
+    // persisted() (no prompt) instead of persist(), and records granted or unanswered.
+    for (const [kept, state] of [[true, 'granted'], [false, 'unanswered']]) {
+      const data = new Map(), calls = { persist: 0, persisted: 0 };
+      const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+      const pending = { storage: { persist: () => { calls.persist++; return new Promise(() => {}); }, persisted: async () => { calls.persisted++; return false; } } };
+      createSaveStatus({ storage, navigator: pending, now: () => new Date(at) }).battleFinished('player');
+      await new Promise(resolve => setTimeout(resolve, 0));
+      assert.equal(JSON.parse(data.get(SAVES_KEY)).persistence.state, 'requested');
+      const later = { storage: { persist: async () => { calls.persist++; return true; }, persisted: async () => { calls.persisted++; return kept; } } };
+      const next = createSaveStatus({ storage, navigator: later, now: () => new Date(at) });
+      assert.equal(await next.launch({ fresh: false, standalone: false }), null);
+      assert.deepEqual(next.status().persistence, { state, at, trigger: 'first-win' });
+      assert.match(saveStatusMarkup(next.status()), new RegExp(`data-persistence="${state}"`));
+      await next.battleFinished('player'); await next.packOpened();
+      assert.equal(calls.persist, 1, 'persist() was never asked again');
+    }
+    assert.match(saveStatusMarkup({ persistence: { state: 'unanswered', at, trigger: 'first-win' } }), /長期保存：未有回覆/);
+    // An answer that lands first is kept.
+    const data = new Map([[SAVES_KEY, JSON.stringify({ v: 1, persistence: { state: 'requested', at, trigger: 'first-pack' } })]]);
+    const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+    const racing = createSaveStatus({ storage, navigator: { storage: { persisted: async () => {
+      data.set(SAVES_KEY, JSON.stringify({ v: 1, persistence: { state: 'denied', at, trigger: 'first-pack' } })); return false;
+    } } }, now: () => new Date(at) });
+    await racing.launch();
+    assert.equal(racing.status().persistence.state, 'denied');
+  }
   assert.deepEqual(await requestPersistence({ navigator: {} }), { state: 'unsupported', asked: false });
   assert.deepEqual(await requestPersistence({ navigator: { storage: { persist: async () => { throw Error('denied'); } } } }), { state: 'error', asked: true });
+  assert.equal(await checkPersistence({ navigator: {} }), false);
+  assert.equal(await checkPersistence({ navigator: { storage: { persisted: async () => { throw Error('blocked'); } } } }), false);
+  assert.equal(await checkPersistence({ navigator: { storage: { persisted: async () => true } } }), true);
   assert.equal(isStandalone({ window: { matchMedia: query => ({ matches: query === '(display-mode: standalone)' }) }, navigator: {} }), true);
   assert.equal(isStandalone({ window: { matchMedia: () => ({ matches: false }) }, navigator: { standalone: true } }), true);
   assert.equal(isStandalone({ window: { matchMedia: () => ({ matches: false }) }, navigator: {} }), false);
@@ -392,21 +439,39 @@ test('D2 save markup: status, notices and the import confirmation', () => {
   assert.match(exported, new RegExp(`<time datetime="${at}">`));
   assert.match(exported, /匯出檔案/); assert.match(exported, /瀏覽器已答應保留/);
   assert.match(saveStatusMarkup({ lastBackup: { at, kind: 'cloud' } }), /雲端備份/);
+  assert.match(saveStatusMarkup({}), /勝出一局或開匣後/, 'not 首勝: an existing journey is asked at its next win');
   const offer = saveNoticeMarkup('restore-offer');
   assert.match(offer, /有舊旅程？由備份還原/);
   assert.match(offer, /data-action="import-save"/);
-  assert.doesNotMatch(offer, /restore-offer-cloud/, 'cloud restore is offered only when signed in');
-  assert.match(saveNoticeMarkup('restore-offer', { signedIn: true }), /data-action="restore-offer-cloud"/);
+  // The lobby never knows the account on a fresh load, so the cloud path is there without it.
+  assert.match(offer, /data-action="restore-offer-cloud"/, 'a cloud path while the account is unknown');
+  assert.match(offer, /<span class="save-notice-glyph" aria-hidden="true"> ↗<\/span>/);
+  const noCloud = saveNoticeMarkup('restore-offer', { cloud: false });
+  assert.doesNotMatch(noCloud, /restore-offer-cloud/);
+  assert.doesNotMatch(noCloud, /雲端/, 'nor a label promising one');
   for (const kind of ['first-win', 'first-pack']) {
     const prompt = saveNoticeMarkup(kind);
     assert.match(prompt, /data-action="export-save"/); assert.match(prompt, /data-action="account-open"/);
     assert.match(prompt, new RegExp(`data-action="save-notice-dismiss" data-id="${kind}"`));
     assert.doesNotMatch(prompt, /role="dialog"|modal/, 'never a dialog');
+    assert.doesNotMatch(prompt, /稍後再說/, 'a prompt never comes back, so its close does not say later');
+    assert.match(prompt, /最新進度只保存在此瀏覽器/);
+  }
+  // 首勝 only on a journey's first win; the first win this device records may be a later one.
+  assert.match(saveNoticeMarkup('first-win', { wins: 1 }), /首勝已記 · 留份備份？/);
+  for (const wins of [6, 0, null, undefined]) {
+    const later = saveNoticeMarkup('first-win', { wins });
+    assert.doesNotMatch(later, /首勝/, `wins ${wins}`);
+    assert.match(later, /勝局已記 · 留份備份？/); assert.match(later, /data-save-notice="first-win"/);
   }
   assert.equal(saveNoticeMarkup(null), '');
   const dialog = importConfirmMarkup({ current: journeySummary(fresh()), backup: journeySummary(travelled()), fileName: '<x>.json' });
   assert.match(dialog, /將被取代/); assert.match(dialog, /將還原/); assert.match(dialog, /&lt;x&gt;\.json/);
   assert.match(dialog, /data-action="import-confirm"/); assert.match(dialog, /data-action="close-modal"/);
+  assert.doesNotMatch(dialog, /data-recovery-replaced/, 'no existing recovery copy, nothing to warn about');
+  // One recovery slot: the dialog says an existing copy is replaced, and how to keep it.
+  const replacing = importConfirmMarkup({ current: journeySummary(fresh()), backup: journeySummary(travelled()), recovery: { savedAt: at } });
+  assert.match(replacing, /data-recovery-replaced>旅程閣現有的回復備份（[^）]+）會被這次取代；如需保留，請先在旅程閣「下載本機回復備份」。/);
 });
 
 test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud restore and local recovery use', async () => {
@@ -418,6 +483,12 @@ test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud rest
   const confirm = source.slice(source.indexOf('function confirmImport('), source.indexOf('async function economy('));
   assert.match(confirm, /restoreLocalProfile\(draft\.snapshot,draft\.fingerprint\)/);
   assert.doesNotMatch(confirm, /setItem|profileStore\.(save|replace)/, 'no second write path');
+  const lobby = source.slice(source.indexOf('function lobbySaveNotice('), source.indexOf('function backupMade('));
+  assert.match(lobby, /saveNoticeMarkup\(saveNotice,\{wins:profile\.stats\.won\}\)/, 'the prompt copy knows the win count');
+  assert.match(lobby, /cloud:Boolean\(known\.account\)\|\|!known\.initialized\|\|known\.emailEnabled/, 'the cloud path stays while the account is unknown');
+  assert.doesNotMatch(lobby, /account\.init/, 'the lobby makes no account request');
+  const cloud = source.slice(source.indexOf("if(action==='restore-offer-cloud')"), source.indexOf("if(action==='navigate-confirm')"));
+  assert.match(cloud, /const looked=account\.init\(\);navigate\('account'\);/, '旅程閣 looks the account up, then the confirmation opens');
   // persist() is never requested on an ordinary load: launch passes the standalone check.
   assert.match(source, /saves\.launch\(\{fresh:freshJourney,standalone:isStandalone\(\)\}\)/);
   assert.match(source, /saves\.battleFinished\(match\.winner\);/);

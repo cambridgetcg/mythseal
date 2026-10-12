@@ -105,6 +105,13 @@ export async function requestPersistence({ navigator: nav = globalThis.navigator
   } catch { return { state: 'error', asked: true }; }
 }
 
+/** Whether the browser already keeps this site's storage, from `persisted()`, which never
+ * prompts. Feature-detected; never throws; false when it cannot tell. */
+export async function checkPersistence({ navigator: nav = globalThis.navigator } = {}) {
+  try { return typeof nav?.storage?.persisted === 'function' && await nav.storage.persisted() === true; }
+  catch { return false; }
+}
+
 /** Launched as an installed web app (or an iOS home-screen app). */
 export function isStandalone({ window: win = globalThis.window, navigator: nav = globalThis.navigator } = {}) {
   try { if (win?.matchMedia?.('(display-mode: standalone)')?.matches === true) return true; } catch {}

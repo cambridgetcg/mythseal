@@ -3,7 +3,8 @@
 .game-shell .save-status{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:2px 16px;margin:0;color:var(--muted);font-size:11px;line-height:1.8}
 .game-shell .save-status time{color:var(--paper);font-variant-numeric:tabular-nums}
 .game-shell .save-status[data-persistence="granted"] [data-persistence-label]{color:var(--green)}
-.game-shell .save-notice{min-width:0}
+/* One row inside the strip's fixed 48 px (adventure.css wraps .resume-banner under 600 px): the label shrinks first. */
+.game-shell .save-notice{min-width:0;flex-wrap:nowrap}
 .game-shell .save-notice>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .game-shell .save-notice>div{flex-shrink:0}
 .game-shell .save-notice .save-notice-close{min-width:44px;padding-left:0;padding-right:0;font-size:14px;line-height:1}
@@ -16,3 +17,5 @@
 .import-side dt{color:var(--muted)}.import-side dd{margin:0;color:var(--paper);font-variant-numeric:tabular-nums}
 .import-side p{margin:8px 0 0;font-size:10px;color:var(--muted)}
 @media(max-width:600px){.game-shell .save-notice>span{font-size:10px}.game-shell .save-notice .small-button{padding:6px 8px}.import-compare{grid-template-columns:minmax(0,1fr)}}
+/* Narrow phones (body min-width 340 px): the arrows go, so the restore offer's label stays whole. */
+@media(max-width:380px){.game-shell .save-notice-glyph{display:none}}

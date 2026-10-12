@@ -4,11 +4,12 @@
  * experience preferences: never part of the v5 profile, an export, a cloud backup or the
  * recovery-originals export, so a restore neither carries nor replaces it. It is a
  * convenience: unreadable or refused storage falls back to defaults and never blocks play. */
-import { requestPersistence as askBrowser } from './platform.mjs';
+import { requestPersistence as askBrowser, checkPersistence } from './platform.mjs';
 
 export const SAVES_KEY = 'shanhai.saves.v1';
 export const SAVE_PROMPTS = Object.freeze(['first-win', 'first-pack']);
-const PERSISTENCE_STATES = ['requested', 'granted', 'denied', 'unsupported', 'error'];
+// `unanswered`: a request an earlier page made never got its answer recorded (§19).
+const PERSISTENCE_STATES = ['requested', 'granted', 'denied', 'unsupported', 'error', 'unanswered'];
 const TRIGGERS = [...SAVE_PROMPTS, 'standalone'];
 const PROMPT_STATES = ['due', 'shown', 'skipped'];
 
@@ -33,9 +34,9 @@ export function normalizeSaveStatus(raw) {
   };
 }
 
-/** `storage` is localStorage (or a test double). `requestPersistence` is platform.mjs's,
- * injected so a spy can count navigator.storage.persist() calls. */
-export function createSaveStatus({ storage, now = () => new Date(), requestPersistence = askBrowser, navigator } = {}) {
+/** `storage` is localStorage (or a test double). `requestPersistence` and `checkPersisted`
+ * are platform.mjs's, injected so a spy can count navigator.storage calls. */
+export function createSaveStatus({ storage, now = () => new Date(), requestPersistence = askBrowser, checkPersisted = checkPersistence, navigator } = {}) {
   let memory = null, asking = null;
   function read() {
     let text;
@@ -53,7 +54,8 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
   const stamp = () => { const date = new Date(now()); return Number.isFinite(date.getTime()) ? date.toISOString() : null; };
 
   /** One request at a time. "requested" is recorded first, so a page closed before the
-   * browser answers is still counted as asked and is never asked again by a milestone. */
+   * browser answers is still counted as asked and is never asked again by a milestone;
+   * the next page start settles that record (`settleUnanswered`). */
   function ask(trigger) {
     if (asking) return asking;
     update(record => { record.persistence = { state: 'requested', at: stamp(), trigger }; });
@@ -64,11 +66,26 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
       .finally(() => { asking = null; });
     return asking;
   }
-  /** The first win and the first pack opening each leave a prompt due once. Persistent
-   * storage is requested at whichever comes first, once per device. */
+  /** The first win and the first pack opening this device records each leave a prompt due
+   * once: a new journey's first, or the next one for a journey from before D2 or brought
+   * onto this device. Persistent storage is requested at whichever comes first, once per
+   * device. */
   function milestone(kind) {
     const record = update(record => { record.prompts[kind] ??= { state: 'due', at: stamp() }; });
     return record.persistence === null ? ask(kind) : Promise.resolve(null);
+  }
+  /** A "requested" record found at page start is no longer waiting on this page: its page
+   * closed before the answer, or another tab is still asking. Ask `persisted()` instead,
+   * which never prompts, and record granted or unanswered, unless an answer lands first.
+   * Never calls persist(). */
+  function settleUnanswered() {
+    return Promise.resolve().then(() => checkPersisted({ navigator })).catch(() => false).then(kept => {
+      update(record => {
+        if (asking || record.persistence?.state !== 'requested') return;
+        record.persistence = { state: kept === true ? 'granted' : 'unanswered', at: stamp(), trigger: record.persistence.trigger };
+      });
+      return null;
+    });
   }
 
   return {
@@ -76,7 +93,9 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
     /** Page start. Never asks on an ordinary load; an installed web app asks until granted. */
     launch({ fresh = false, standalone = false } = {}) {
       if (fresh) update(record => { record.restoreOffer = 'open'; });
-      return standalone && read().persistence?.state !== 'granted' ? ask('standalone') : Promise.resolve(null);
+      const state = read().persistence?.state;
+      if (standalone && state !== 'granted') return ask('standalone');
+      return state === 'requested' ? settleUnanswered() : Promise.resolve(null);
     },
     battleFinished(winner) {
       update(record => { if (record.restoreOffer === 'open') record.restoreOffer = 'closed'; });
@@ -90,8 +109,10 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
     },
     closeRestoreOffer() { update(record => { if (record.restoreOffer === 'open') record.restoreOffer = 'closed'; }); },
     /** The prompt to show now, if any, consumed as it is returned: every due prompt becomes
-     * shown (or skipped) at once, so each appears at most once ever. A signed-in player, or
-     * one who has backed up since the milestone, is not prompted. */
+     * shown (or skipped) at once, so each appears at most once ever. `guest` is false only
+     * for a player the page knows to be signed in (旅程閣 looked the account up earlier in
+     * this page; the lobby makes no account request). That player, or one who has backed up
+     * since the milestone, is not prompted; anyone else is prompted as a guest. */
     takePrompt({ guest = true } = {}) {
       const record = read(), due = SAVE_PROMPTS.filter(kind => record.prompts[kind]?.state === 'due');
       if (!due.length) return null;
