@@ -53,3 +53,46 @@ test('both volume sliders carry their own accessible names', () => {
   assert.ok(names.every(Boolean), 'aria-label on both sliders');
   assert.notEqual(names[0], names[1]);
 });
+
+// Review round 1 (2026-10-12): the rendered checks live in test:shell; these keep the rules in place where CI has no browser.
+const rules = path => [...read(path).replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body]) => ({ selectors: selectors.trim().split(',').map(part => part.trim()), body }));
+const mediaBlock = (path, query) => {
+  const css = read(path), start = css.indexOf(`@media(${query}){`);
+  assert.ok(start >= 0, `${path} has @media(${query})`);
+  let depth = 0;
+  for (let i = css.indexOf('{', start); i < css.length; i++) { depth += css[i] === '{' ? 1 : css[i] === '}' ? -1 : 0; if (!depth) return css.slice(start, i + 1); }
+  assert.fail(`${path}: unterminated @media(${query})`);
+};
+
+test('short-landscape cards hub tabs are anchored to the shell, clear of 旅程閣', () => {
+  const block = mediaBlock('scene-content.css', 'max-height:500px');
+  // Anchored to the shell, #app's safe-area padding moves the tabs with the header; offsetting by the inset again would double it.
+  assert.match(block, /\.shell\.game-shell\{position:relative\}/);
+  const hub = /\.shell\.game-shell \.cards-hub-tabs\{([^}]*)\}/.exec(block)?.[1];
+  assert.ok(hub, 'the short-landscape hub rule exists');
+  assert.match(hub, /position:absolute;right:max\(25%,172px\);top:0;/);
+  assert.doesNotMatch(hub, /safe-area/);
+});
+
+test('narrow phones: compact card grids shrink with the shell and market tabs wrap instead of overlapping', () => {
+  const grids = /\.scene-surface \.bag-grid,\.scene-surface \.collection-grid\{grid-template-columns:repeat\(auto-fit,minmax\(([^,]+(?:,[^,)]+\))?),1fr\)\)/.exec(mediaBlock('scene-content.css', 'max-height:740px'))?.[1];
+  assert.equal(grids, 'min(285px,100%)', 'a 285px track would run past a 302px screen\'s 278px shell');
+  assert.match(mediaBlock('expansion.css', 'max-width:349px'), /\.scene-market>\.viewport-module-tabs\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)\}/);
+});
+
+test('touch, overscroll and card-art rules stay declared, and selection is withheld from card art only', () => {
+  const declared = publicCss.flatMap(path => rules(path).map(rule => ({ path, ...rule })));
+  const touch = declared.find(rule => rule.path === 'styles.css' && /(?:^|;)touch-action:manipulation(?:;|$)/.test(rule.body));
+  assert.ok(touch, 'styles.css gives controls touch-action: manipulation');
+  for (const selector of ['button', 'a[href]', 'input', 'select', 'textarea', 'label', 'summary', '[role="button"]', '[role="tab"]']) assert.ok(touch.selectors.includes(selector), selector);
+  const viewport = rules('viewport.css');
+  assert.ok(viewport.some(rule => rule.selectors.join() === 'html,body' && rule.body === 'overscroll-behavior:none'), 'no pull-to-refresh or rubber band on the document');
+  assert.ok(viewport.some(rule => rule.selectors.join() === '.modal-backdrop,.modal' && rule.body === 'overscroll-behavior:contain'), 'dialogs keep their scroll');
+  const ART = ['.card-art', '.card-shade', '.inheritance-material-art'];
+  const callout = declared.filter(rule => /-webkit-touch-callout:none/.test(rule.body));
+  assert.deepEqual(callout.map(rule => rule.selectors.join()), [ART.join()], 'the long-press callout is withheld from card art only');
+  // .card (whole card faces, pre-N1) and its art may refuse selection; body text never does.
+  for (const rule of declared.filter(rule => /(?:^|;)(?:-webkit-)?user-select:none/.test(rule.body))) {
+    for (const selector of rule.selectors) assert.ok(['.card', ...ART].includes(selector), `${rule.path}: user-select:none on ${selector}`);
+  }
+});

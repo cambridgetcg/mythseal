@@ -1,5 +1,6 @@
 /** N1 mobile shell acceptance (docs/NAVIGATION.md#mobile-shell): safe areas, focus-zoom-safe
- * inputs, narrow widths, landscape dock and slider names. Emulated phones, synthetic saves and
+ * inputs, narrow widths (page, shell gutters and tab rows), landscape dock and header row, slider
+ * names and the computed touch/overscroll/selection rules. Emulated phones, synthetic saves and
  * loopback assets only; not evidence from a physical device. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -29,6 +30,8 @@ const WIDTHS = [[302, 640], [320, 568], [360, 740], [393, 659], [412, 839], [734
 const LANDSCAPES = [[844, 390], [734, 343]];
 // The order is top, right, bottom, left: an iPhone's notch/home-indicator bands, plus landscape side insets.
 const INSETS = { top: 48, right: 44, bottom: 34, left: 44 };
+// An iPhone 15 held in landscape under viewport-fit=cover: no top inset, 59px sides, the home indicator below.
+const IPHONE_LANDSCAPE = [[852, 393], { top: 0, right: 59, bottom: 21, left: 59 }];
 const INPUT_IDS = ['bag-search', 'bag-faction', 'bag-filter', 'bag-sort', 'source-filter', 'training-select', 'experience-sound', 'experience-ambience', 'experience-effects', 'experience-motion', 'experience-pace', 'account-email', 'pill-slider'];
 const contexts = new Set(), checks = [], errors = [], records = [], findings = [];
 // SHELL_AUDIT=1 records every failed expectation instead of stopping at the first (exit 1 at the end).
@@ -83,12 +86,14 @@ async function pageFor(viewport, insets = null) {
   return page;
 }
 
-/** The six screens of the spec, in a fixed order; `inspect` runs on each. */
+/** The six screens of the spec, in a fixed order, with all three collection tabs; `inspect` runs on each. */
 async function screens(page, inspect) {
   await inspect('lobby');
   await click(page, 'experience-settings'); await page.locator('#experience-ambience').waitFor({ state: 'attached' }); await viewportFrames(page);
   await inspect('modal:settings'); await close(page);
   await go(page, 'bag'); await inspect('collection');
+  await click(page, 'cards-tab', 'decks'); await inspect('collection:decks');
+  await click(page, 'cards-tab', 'codex'); await inspect('collection:codex');
   await go(page, 'market'); await inspect('market');
   await click(page, 'account-open'); await page.locator('[data-viewport-surface="account"]').waitFor(); await viewportFrames(page);
   await inspect('旅程閣'); await click(page, 'account-back');
@@ -98,12 +103,14 @@ async function screens(page, inspect) {
   await inspect('battle');
 }
 
-// Visible box of a node after every clipping ancestor; null when nothing of it shows.
+// Visible box of a node after every clipping ancestor; null when nothing of it shows. The walk stops
+// below <body>: its computed overflow:hidden is propagated to the viewport, which the checks measure
+// themselves, so clipping by it would hide anything that runs past the screen edge.
 const GEOMETRY = `
   const shown = node => !node.closest('[hidden],[inert]') && getComputedStyle(node).visibility !== 'hidden' && node.getClientRects().length > 0;
   const clipBox = node => {
     let r = node.getBoundingClientRect(), box = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-    for (let up = node.parentElement; up && up !== document.documentElement; up = up.parentElement) {
+    for (let up = node.parentElement; up && up !== document.body && up !== document.documentElement; up = up.parentElement) {
       const style = getComputedStyle(up);
       if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
       const c = up.getBoundingClientRect();
@@ -112,8 +119,10 @@ const GEOMETRY = `
     }
     return box.right - box.left > .5 && box.bottom - box.top > .5 ? box : null;
   };
-  const label = node => node.dataset.action ? node.dataset.action + (node.dataset.id ? ':' + node.dataset.id : '') : node.dataset.viewportTarget || node.id || node.getAttribute('aria-label') || node.textContent.trim().slice(0, 16) || node.tagName;
+  const label = node => node.dataset.action ? node.dataset.action + (node.dataset.id ? ':' + node.dataset.id : '') : node.dataset.viewportTarget || node.dataset.viewportId || node.id || node.getAttribute('aria-label') || node.textContent.trim().slice(0, 16) || node.tagName;
   const CONTROLS = 'button,a[href],input:not([type="hidden"]),select,textarea,summary,[role="button"],[role="tab"],[role="slider"],[tabindex]:not([tabindex="-1"])';
+  const overlapping = (a, b) => a.left < b.right - .5 && b.left < a.right - .5 && a.top < b.bottom - .5 && b.top < a.bottom - .5;
+  const round = box => [box.left, box.top, box.right, box.bottom].map(Math.round);
 `;
 
 const overflow = (page, label) => page.evaluate(`(() => {${GEOMETRY}
@@ -124,10 +133,55 @@ const overflow = (page, label) => page.evaluate(`(() => {${GEOMETRY}
     const box = clipBox(node); // inside a horizontal scroller, only the shown part counts
     return box && (box.left < -1 || box.right > innerWidth + 1) ? { name: label(node), left: Math.round(r.left), right: Math.round(r.right) } : null;
   }).filter(Boolean);
+  // Controls, modules and list items stay inside the shell's side gutters, not just the screen.
+  const shell = [...document.querySelectorAll('.shell.game-shell')].find(shown), edge = shell && shell.getBoundingClientRect();
+  const spill = shell ? [...shell.querySelectorAll(CONTROLS + ',[data-viewport-module],[data-viewport-id]')].filter(shown).map(node => {
+    const box = clipBox(node);
+    return box && (box.left < edge.left - 1 || box.right > edge.right + 1) ? { name: label(node), box: round(box), shell: [Math.round(edge.left), Math.round(edge.right)] } : null;
+  }).filter(Boolean) : [];
+  // Tabs in a row neither overlap each other nor leave the row.
+  const tabs = [...document.querySelectorAll('.viewport-module-tabs,.cards-hub-tabs')].filter(shown).flatMap(row => {
+    const r = row.getBoundingClientRect(), buttons = [...row.children].filter(shown).map(node => [node, node.getBoundingClientRect()]);
+    return buttons.flatMap(([node, box], i) => [
+      ...(box.left < r.left - .5 || box.right > r.right + .5 ? [{ tab: label(node), box: round(box), row: round(r) }] : []),
+      ...buttons.slice(i + 1).filter(([, other]) => overlapping(box, other)).map(([other]) => ({ tabs: [label(node), label(other)] })),
+    ]);
+  });
   // Recorded, not asserted: the viewport controller's own flag for content taller than its frame.
   const tall = [...document.querySelectorAll('[data-viewport-overflow="true"]')].filter(shown).map(node => node.dataset.viewportList || node.className.split(' ')[0]);
-  return { innerWidth, clientWidth: html.clientWidth, htmlScroll: html.scrollWidth, bodyScroll: document.body.scrollWidth, scrollX, scale: visualViewport ? visualViewport.scale : 1, outside, tall };
+  return { innerWidth, clientWidth: html.clientWidth, htmlScroll: html.scrollWidth, bodyScroll: document.body.scrollWidth, scrollX, scale: visualViewport ? visualViewport.scale : 1, outside, spill, tabs, tall };
 })()`).then(result => ({ label, ...result }));
+
+// Header row (brand, wallet, 旅程閣, settings and, in short landscape, the cards hub tabs): no control
+// overlaps another, and taps across each control's width land on that control.
+const headerClash = page => page.evaluate(`(() => {${GEOMETRY}
+  const nodes = [...document.querySelectorAll('.game-header *,.cards-hub-tabs>*')].filter(node => node.matches(CONTROLS)).filter(shown);
+  const overlaps = nodes.flatMap((node, i) => nodes.slice(i + 1).filter(other => overlapping(node.getBoundingClientRect(), other.getBoundingClientRect())).map(other => [label(node), label(other)]));
+  const misses = nodes.flatMap(node => {
+    const r = node.getBoundingClientRect();
+    return [1, 2, 3, 4, 5, 6, 7].map(k => [r.left + r.width * k / 8, r.top + r.height / 2]).map(([x, y]) => [x, y, document.elementFromPoint(x, y)])
+      .filter(([, , hit]) => !(hit && (hit === node || node.contains(hit)))).map(([x, y, hit]) => ({ control: label(node), at: [Math.round(x), Math.round(y)], hit: hit ? (hit.closest(CONTROLS) ? label(hit.closest(CONTROLS)) : hit.className || hit.tagName) : null }));
+  });
+  return { controls: nodes.map(node => ({ name: label(node), box: round(node.getBoundingClientRect()) })), overlaps, misses };
+})()`);
+
+// Spec item 6, as computed styles: touch-action on controls, overscroll on the document and dialogs,
+// no selection on card art while text stays selectable. -webkit-touch-callout is recorded, not asserted:
+// neither Chromium nor Playwright WebKit parses it, so it is declared for iOS Safari but not observable here.
+const touchStyles = page => page.evaluate(`(() => {${GEOMETRY}
+  const style = node => getComputedStyle(node);
+  const select = node => style(node).userSelect || style(node).webkitUserSelect;
+  const controls = [...document.querySelectorAll('button,a[href],input:not([type="hidden"]),select,textarea')].filter(shown);
+  const art = [...document.querySelectorAll('.card-art')].filter(shown);
+  const text = [...document.querySelectorAll('p,h1,h2,h3')].filter(shown).filter(node => node.textContent.trim());
+  return {
+    controls: controls.length, touch: controls.filter(node => style(node).touchAction !== 'manipulation').map(node => label(node) + '=' + style(node).touchAction),
+    overscroll: ['html', 'body', '.modal-backdrop', '.modal'].map(selector => [selector, ...[...document.querySelectorAll(selector)].filter(shown).map(node => style(node).overscrollBehaviorX + '/' + style(node).overscrollBehaviorY)]),
+    art: art.length, artSelectable: art.filter(node => select(node) !== 'none').length,
+    text: text.length, textUnselectable: text.filter(node => select(node) === 'none' && !node.closest('.card')).map(label),
+    calloutParsed: CSS.supports('-webkit-touch-callout', 'none'),
+  };
+})()`);
 
 const bandHits = (page, insets) => page.evaluate(`(() => {${GEOMETRY}
   const insets = ${JSON.stringify(insets)}, hits = [];
@@ -186,7 +240,7 @@ try {
     await page.context().close(); contexts.delete(page.context());
   }
 
-  // 3 · No horizontal page overflow at six portrait widths on six screens.
+  // 3 · No horizontal page overflow at six portrait widths on six screens (all three collection tabs).
   for (const size of WIDTHS) {
     const tag = size.join('x'), page = await pageFor(size), results = [];
     await screens(page, async label => { await viewportFrames(page); results.push(await overflow(page, `${tag}/${label}`)); });
@@ -195,9 +249,11 @@ try {
       expect(r.innerWidth === size[0] && r.clientWidth === size[0] && r.scale === 1, `${r.label}: layout viewport must stay ${size[0]}px wide ${JSON.stringify(r)}`);
       expect(r.htmlScroll <= size[0] && r.bodyScroll <= size[0] && r.scrollX === 0, `${r.label}: document must not scroll sideways ${JSON.stringify(r)}`);
       expect(!r.outside.length, `${r.label}: controls and panels stay within the width ${JSON.stringify(r.outside)}`);
+      expect(!r.spill.length, `${r.label}: controls, modules and list items stay inside the shell's gutters ${JSON.stringify(r.spill)}`);
+      expect(!r.tabs.length, `${r.label}: tabs neither overlap nor leave their row ${JSON.stringify(r.tabs)}`);
     }
     for (const r of results) if (r.tall.length) console.log(`NOTE ${r.label}: vertical overflow flagged by the viewport controller ${JSON.stringify(r.tall)}`);
-    passed(`${tag}: lobby, settings modal, collection, market, 旅程閣, arena and battle have no horizontal overflow`);
+    passed(`${tag}: ${results.map(r => r.label.slice(tag.length + 1)).join(', ')} have no horizontal overflow, nothing past the shell's gutters and no overlapping tabs`);
     await page.context().close(); contexts.delete(page.context());
   }
 
@@ -208,7 +264,7 @@ try {
     records.push({ check: 'safe-area', size: tag, insets: INSETS, results });
     for (const r of results) expect(!r.hits.length, `${r.label}: controls must stay out of the safe-area bands ${JSON.stringify(r.hits)}`);
     for (const r of results) if (r.tall.length) console.log(`NOTE ${r.label}: vertical overflow flagged by the viewport controller ${JSON.stringify(r.tall)}`);
-    passed(`${tag}: with insets ${JSON.stringify(INSETS)}, no interactive control on seven screens enters a safe-area band`);
+    passed(`${tag}: with insets ${JSON.stringify(INSETS)}, no interactive control on ${results.length} screens enters a safe-area band`);
     await page.context().close(); contexts.delete(page.context());
   }
 
@@ -221,6 +277,41 @@ try {
     assert(result.future, `${tag}: the 來日 tab is shown`);
     expect(!result.overlaps.length, `${tag}: arena controls must not overlap the dock ${JSON.stringify(result)}`);
     passed(`${tag}: 來日 ${JSON.stringify(result.future)} clears the dock ${JSON.stringify(result.dock)}`);
+    await page.context().close(); contexts.delete(page.context());
+  }
+  // 6 · Landscape header row: on the lobby and all three collection tabs (where short landscape lifts the
+  // cards hub tabs into the header), no header control or hub tab covers another, with or without side insets.
+  for (const [size, insets] of [...LANDSCAPES.map(size => [size, null]), [[844, 390], INSETS], IPHONE_LANDSCAPE]) {
+    const page = await pageFor(size, insets), tag = size.join('x') + (insets ? `+${Object.values(insets).join('/')}` : ''), results = [];
+    results.push({ label: `${tag}/lobby`, ...await headerClash(page) });
+    await go(page, 'bag');
+    for (const id of ['cards', 'decks', 'codex']) { await click(page, 'cards-tab', id); await viewportFrames(page); results.push({ label: `${tag}/collection:${id}`, ...await headerClash(page) }); }
+    records.push({ check: 'landscape-header', size: tag, insets, results });
+    for (const r of results) expect(!r.overlaps.length && !r.misses.length, `${r.label}: header controls must not cover each other ${JSON.stringify({ overlaps: r.overlaps, misses: r.misses.slice(0, 6), controls: r.controls })}`);
+    passed(`${tag}: header controls and cards hub tabs stay apart on the lobby and three collection tabs`);
+    await page.context().close(); contexts.delete(page.context());
+  }
+
+  // 7 · Touch, overscroll and card-art selection rules (spec item 6) as the engine computes them.
+  {
+    const page = await pageFor(null), results = [];
+    results.push({ label: 'lobby', ...await touchStyles(page) });
+    await click(page, 'experience-settings'); await page.locator('#experience-ambience').waitFor({ state: 'attached' }); await viewportFrames(page);
+    results.push({ label: 'modal:settings', ...await touchStyles(page) }); await close(page);
+    await go(page, 'bag'); await viewportFrames(page); results.push({ label: 'collection', ...await touchStyles(page) });
+    await click(page, 'cards-tab', 'codex'); await viewportFrames(page); results.push({ label: 'collection:codex', ...await touchStyles(page) });
+    records.push({ check: 'touch-styles', device: DEVICE, results });
+    for (const r of results) {
+      expect(r.controls && !r.touch.length, `${r.label}: controls compute touch-action: manipulation ${JSON.stringify(r.touch)}`);
+      for (const [selector, ...values] of r.overscroll) {
+        const want = selector.startsWith('.modal') ? 'contain/contain' : 'none/none';
+        expect(values.every(value => value === want), `${r.label}: ${selector} computes overscroll-behavior ${want} ${JSON.stringify(values)}`);
+      }
+      expect(!r.artSelectable, `${r.label}: card art computes user-select: none (${r.artSelectable} of ${r.art} do not)`);
+      expect(r.text && !r.textUnselectable.length, `${r.label}: text outside cards stays selectable ${JSON.stringify(r.textUnselectable)}`);
+    }
+    expect(results.some(r => r.art) && results.some(r => r.overscroll.find(([selector]) => selector === '.modal').length > 1), 'card art and a dialog were measured');
+    passed(`${DEVICE}: touch-action, overscroll-behavior and card-art user-select compute as declared; -webkit-touch-callout parsed: ${results[0].calloutParsed} (declared for iOS Safari, not observable here)`);
     await page.context().close(); contexts.delete(page.context());
   }
   assert.deepEqual(errors, []);
