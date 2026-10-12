@@ -38,3 +38,9 @@ test('no signing material or copied web bundle is tracked', () => {
   assert.deepEqual(tracked.filter(path => /\.(p8|p12|jks|keystore|mobileprovision)$/.test(path)), []);
   assert.deepEqual(tracked.filter(path => /(^|\/)public\//.test(path)), [], 'cap sync output stays ignored');
 });
+
+test('the App scheme is shared, so xcodebuild -scheme App works on a fresh runner', () => {
+  const scheme = read('ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme');
+  assert.match(scheme, /BuildableName = "App\.app"/);
+  assert.match(scheme, /<ArchiveAction\s+buildConfiguration = "Release"/);
+});

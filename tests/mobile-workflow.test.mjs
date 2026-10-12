@@ -37,3 +37,18 @@ test('decoded keys are removed even when a step fails', () => {
   assert.match(workflow, /- name: Remove the upload keystore\n        if: always\(\)\n        run: rm -f "\$RUNNER_TEMP\/upload\.keystore"/);
   assert.doesNotMatch(workflow, /set -x|echo "\$\{?(?:ASC_KEY_P8_B64|ANDROID_UPLOAD|PLAY_SERVICE)/);
 });
+
+test('secrets reach only the steps that need them, never npm, tests or cap sync', () => {
+  // Job-level env sits at six spaces; step-level env at ten. Dependencies' install scripts and
+  // tests run in steps without these, so they cannot read a secret from the environment.
+  assert.deepEqual(workflow.split('\n').filter(line => /^ {6}\w+: \$\{\{ secrets\./.test(line)), []);
+  const steps = workflow.split(/\n(?= {6}- name: )/);
+  for (const step of steps.filter(text => /\$\{\{ secrets\./.test(text))) {
+    assert.match(step, /^ {6}- name: (Check the signing secrets|Decode the App Store Connect key|Decode the upload keystore|Build, sign and \(if uploading\) send to (TestFlight|Play internal testing))\n/, step.split('\n')[0]);
+  }
+});
+
+test('only a tag push or an explicit upload input turns uploading on', () => {
+  assert.match(workflow, /\n  MOBILE_UPLOAD: \$\{\{ github\.event_name == 'push' \|\| inputs\.upload == true \}\}\n/);
+  assert.equal(workflow.match(/MOBILE_UPLOAD:/g)?.length, 1, 'set once, at workflow level');
+});

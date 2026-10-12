@@ -33,6 +33,18 @@ export function requiredSecrets(platform, { upload }) {
 
 export const missingSecrets = (env, names) => names.filter(name => !String(env[name] ?? '').trim());
 
+/** Everything that can be checked from package.json and the environment alone, so a bad
+ * version, offset or missing secret fails in seconds rather than after setup and a build. */
+export function preflightProblems({ platform, env, version }) {
+  const problems = [];
+  const missing = missingSecrets(env, requiredSecrets(platform, { upload: env.MOBILE_UPLOAD === 'true' }));
+  if (missing.length) problems.push(`Missing ${platform} secrets or variables: ${missing.join(', ')} (set them in the mobile-stores environment)`);
+  for (const check of [() => marketingVersion(version), () => buildNumber({ runNumber: env.GITHUB_RUN_NUMBER, offset: env.MOBILE_BUILD_OFFSET })]) {
+    try { check(); } catch (error) { problems.push(error.message); }
+  }
+  return problems;
+}
+
 export function summaryMarkdown({ platform, upload, version, number, release }) {
   if (release?.target !== 'native') throw new Error('dist/release.json is not a native build; run npm run build:native');
   return [
@@ -51,19 +63,20 @@ export function summaryMarkdown({ platform, upload, version, number, release }) 
 
 function main([command, platform]) {
   const upload = process.env.MOBILE_UPLOAD === 'true';
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const packageVersion = () => JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).version;
   if (command === 'preflight') {
-    const missing = missingSecrets(process.env, requiredSecrets(platform, { upload }));
-    if (missing.length) {
-      console.error(`Missing ${platform} secrets: ${missing.join(', ')} (set them in the mobile-stores environment)`);
+    const problems = preflightProblems({ platform, env: process.env, version: packageVersion() });
+    if (problems.length) {
+      for (const problem of problems) console.error(problem);
       process.exit(1);
     }
-    console.log(`${LABELS[platform]} secrets present for a ${upload ? 'upload' : 'dry'} run.`);
+    console.log(`${LABELS[platform]} secrets, version and build number are ready for a ${upload ? 'upload' : 'dry'} run.`);
     return;
   }
   if (command === 'info') {
     requiredSecrets(platform, { upload });
-    const root = fileURLToPath(new URL('../', import.meta.url));
-    const version = marketingVersion(JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).version);
+    const version = marketingVersion(packageVersion());
     const number = buildNumber({ runNumber: process.env.GITHUB_RUN_NUMBER, offset: process.env.MOBILE_BUILD_OFFSET });
     const release = JSON.parse(readFileSync(resolve(root, 'dist/release.json'), 'utf8'));
     const summary = summaryMarkdown({ platform, upload, version, number, release });
