@@ -41,10 +41,10 @@ test('narrow phones are not given a wider page', () => {
 
 test('text entry is at least 16px on coarse pointers, so iOS does not zoom on focus', () => {
   const styles = read('styles.css');
-  const rule = /@media\(pointer:coarse\)\{([^{}]*)\{([^}]*)\}\}/.exec(styles);
+  const rule = /@media\(pointer:coarse\)\{([^{}]*)\{([^}]*)\}/.exec(styles);
   assert.ok(rule, 'a coarse-pointer rule exists');
   assert.deepEqual(rule[1].split(',').sort(), ['input', 'select', 'textarea']);
-  assert.match(rule[2], /font-size:16px!important/);
+  assert.equal(rule[2], 'font-size:16px!important');
 });
 
 test('both volume sliders carry their own accessible names', () => {
@@ -98,6 +98,31 @@ test('short-landscape market: the title shares the tab row, so the modules keep 
   assert.match(block, /\.scene-market>\[data-viewport-module\]\{grid-column:1\/-1;grid-row:2\}/);
   // 秘券's note sits beside its button rather than below it.
   assert.match(block, /\.scene-market \.expansion-ticket>div>\.primary\{grid-column:1\}\.scene-market \.expansion-ticket>div>\.expansion-small\{grid-column:2;/);
+});
+
+// Review round 3 (2026-10-12): Safari's toolbar-visible landscape on the 812pt-wide notch iPhones (812×325, 44 or 50px sides).
+test('short landscape: 秘匣, 山行, the codex filters and 秘券 leave room for the lifted dock at 812×325', () => {
+  const block = mediaBlocks('expansion.css', 'max-height:500px) and (min-width:701px').find(css => css.includes('.scene-market .pack-selector{align-self:start}'));
+  assert.ok(block, 'a short-landscape block top-aligns 秘匣\'s picker');
+  assert.match(block, /\.scene-market \.wx01-pack-progress\{justify-content:flex-start\}/);
+  // The odds link sits beside the odds instead of below them.
+  assert.match(block, /\.scene-market \.wx01-next-odds\{display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;padding-left:0;border-left:0\}\.scene-market \.wx01-next-odds>\.wx01-small-label\{flex:0 0 100%\}/);
+  assert.match(block, /\.scene-market \.expansion-ticket\{padding:6px 12px\}\.scene-market \.expansion-ticket p\{margin:3px 0\}/);
+  assert.match(block, /\.scene-arena \.activity-entry\{padding:12px 16px\}\.scene-arena \.activity-entry \.primary\{padding-top:10px;padding-bottom:10px\}/);
+  assert.match(block, /\.scene-surface \[data-viewport-module=filters\]\{gap:6px\}/);
+});
+
+// Review round 3 (2026-10-12): the coarse-pointer 16px is a floor, not a clamp.
+test('on coarse pointers a field drawn larger than 16px keeps its size (旅程閣\'s 20px code field)', () => {
+  const coarse = mediaBlock('styles.css', 'pointer:coarse');
+  // Every selector whose subject is a text-entry field and which the stylesheets size above 16px, outside !important rules.
+  const FIELD = /(?:^|[\s>+~])(?:input|select|textarea)(?:\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*$/;
+  const larger = publicCss.flatMap(path => rules(path).filter(rule => !rule.body.includes('!important')).flatMap(rule => {
+    const size = /(?:^|;)font(?:-size)?:(\d+(?:\.\d+)?)px/.exec(rule.body)?.[1];
+    return size && Number(size) > 16 ? rule.selectors.filter(selector => FIELD.test(selector)).map(selector => `${selector}{font-size:${size}px!important}`) : [];
+  }));
+  assert.ok(larger.includes('.account-auth input[name=token]{font-size:20px!important}'), 'the 20px one-time code field is found');
+  for (const keep of larger) assert.ok(coarse.includes(keep), `the coarse-pointer block keeps ${keep}`);
 });
 
 test('touch, overscroll and card-art rules stay declared, and selection is withheld from card art only', () => {

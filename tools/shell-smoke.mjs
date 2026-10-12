@@ -32,12 +32,17 @@ const LANDSCAPES = [[844, 390], [734, 343]];
 const INSETS = { top: 48, right: 44, bottom: 34, left: 44 };
 // An iPhone 15 held in landscape under viewport-fit=cover: no top inset, 59px sides, the home indicator below.
 const IPHONE_LANDSCAPE = [[852, 393], { top: 0, right: 59, bottom: 21, left: 59 }];
-// Safari's landscape with its toolbar showing, under viewport-fit=cover: an iPhone 15 and an iPhone 13/14. The
-// dock's lift above the home indicator leaves the scene 18px less than the same phone had before cover (734×343, 750×340).
-const SAFARI_LANDSCAPES = [[[852, 343], { top: 0, right: 59, bottom: 21, left: 59 }], [[844, 340], { top: 0, right: 47, bottom: 21, left: 47 }]];
-// Below the 701px short-landscape gate (iPhone SE 2/3 and 6–8 held sideways): a known limit, recorded and not asserted.
-const NARROW_LANDSCAPE = [667, 375];
-const INPUT_IDS = ['bag-search', 'bag-faction', 'bag-filter', 'bag-sort', 'source-filter', 'training-select', 'experience-sound', 'experience-ambience', 'experience-effects', 'experience-motion', 'experience-pace', 'account-email', 'pill-slider'];
+// Safari's landscape with its toolbar showing, under viewport-fit=cover: an iPhone 15, an iPhone 13/14, and the 812pt-wide
+// notch iPhones (X/XS/11 Pro with 44px sides, 12 mini/13 mini with 50px; 724×325 and 712×325 before cover). The dock's lift
+// above the home indicator leaves the scene 18px less than the same phone had before cover (734×343, 750×340).
+const SAFARI_LANDSCAPES = [[[852, 343], { top: 0, right: 59, bottom: 21, left: 59 }], [[844, 340], { top: 0, right: 47, bottom: 21, left: 47 }],
+  [[812, 325], { top: 0, right: 44, bottom: 21, left: 44 }], [[812, 325], { top: 0, right: 50, bottom: 21, left: 50 }]];
+// Below the 701px short-landscape gate (iPhone SE 2/3 and 6–8, an Android phone, a first-generation SE, held sideways):
+// a known limit, recorded and not asserted.
+const NARROW_LANDSCAPES = [[667, 375], [640, 360], [568, 320]];
+const INPUT_IDS = ['bag-search', 'bag-faction', 'bag-filter', 'bag-sort', 'source-filter', 'training-select', 'experience-sound', 'experience-ambience', 'experience-effects', 'experience-motion', 'experience-pace', 'account-email', 'account-token', 'pill-slider'];
+// A placeholder address for the mocked one-time-code request; it never leaves the page's route handler.
+const FIXTURE_EMAIL = 'shell-smoke@example.com';
 const contexts = new Set(), checks = [], errors = [], records = [], findings = [];
 // SHELL_AUDIT=1 records every failed expectation instead of stopping at the first (exit 1 at the end).
 const audit = process.env.SHELL_AUDIT === '1';
@@ -77,6 +82,10 @@ async function pageFor(viewport, insets = null) {
     const request = route.request(), url = new URL(request.url());
     if (url.origin === base.origin && url.pathname === '/api/v1/account' && request.method() === 'GET') {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false, user: null, emailEnabled: true }) });
+    }
+    // Mocked so 旅程閣 reaches its code-sent state and draws the one-time code field; no request leaves the page.
+    if (url.origin === base.origin && url.pathname === '/api/v1/auth/otp' && request.method() === 'POST') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sent: true }) });
     }
     if (url.origin !== base.origin || url.pathname.startsWith('/api/') || !['GET', 'HEAD'].includes(request.method())) {
       errors.push(`Unexpected network ${request.method()} ${url.origin}${url.pathname}`); return route.abort('blockedbyclient');
@@ -230,8 +239,8 @@ async function dockScreens(page, inspect) {
   }
 }
 
-// Which of the arena's module tabs a tap at its centre misses (what it lands on instead).
-const arenaTabHits = page => page.evaluate(`(() => {${GEOMETRY}
+// Which of the scene's module tabs a tap at its centre misses (what it lands on instead).
+const moduleTabHits = page => page.evaluate(`(() => {${GEOMETRY}
   return [...document.querySelectorAll('main [data-viewport-action="module"]')].filter(shown).map(node => {
     const r = node.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     return hit && (hit === node || node.contains(hit)) ? null : { tab: label(node), hit: hit ? hit.tagName + (hit.className ? '.' + String(hit.className).split(' ')[0] : '') + ' ' + hit.textContent.trim().slice(0, 8) : null };
@@ -242,11 +251,32 @@ await mkdir(output, { recursive: true });
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
 let failure = null;
 try {
-  // 1 · Focus zoom: every text-entry control computes at least 16px on the coarse-pointer phone.
+  // 1 · Focus zoom: every text-entry control computes at least 16px on the coarse-pointer phone, and 16px is a floor,
+  // not a clamp: a field the stylesheets draw larger (旅程閣's 20px code field) keeps its size.
   {
-    const page = await pageFor(null), fonts = new Map();
+    const page = await pageFor(null), fonts = new Map(), shrunk = new Map();
     assert(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), `${DEVICE} emulation reports a coarse pointer`);
-    const collect = async () => { for (const [id, size] of await page.evaluate(() => [...document.querySelectorAll('input,select,textarea')].map((node, i) => [node.id || `${node.tagName}#${i}`, parseFloat(getComputedStyle(node).fontSize)]))) fonts.set(id, Math.min(size, fonts.get(id) ?? Infinity)); };
+    // Each field's computed size, then the same field with the coarse-pointer rules taken out of the stylesheets (what a
+    // fine pointer at this width would draw), then the rules put back.
+    const measure = () => page.evaluate(() => {
+      const fields = [...document.querySelectorAll('input,select,textarea')], read = () => fields.map(node => parseFloat(getComputedStyle(node).fontSize));
+      const sizes = read(), removed = [];
+      for (const sheet of document.styleSheets) {
+        let rules; try { rules = sheet.cssRules; } catch { continue; }
+        for (let i = rules.length - 1; i >= 0; i--) if (rules[i] instanceof CSSMediaRule && /pointer:\s*coarse/.test(rules[i].media.mediaText)) { removed.push([sheet, i, rules[i].cssText]); sheet.deleteRule(i); }
+      }
+      const fine = read();
+      for (const [sheet, i, text] of removed.reverse()) sheet.insertRule(text, i);
+      return { removed: removed.length, fields: fields.map((node, i) => [node.id || `${node.tagName}#${i}`, sizes[i], fine[i]]) };
+    });
+    const collect = async () => {
+      const { removed, fields } = await measure();
+      assert(removed, 'the coarse-pointer rules were found');
+      for (const [id, size, fine] of fields) {
+        fonts.set(id, Math.min(size, fonts.get(id) ?? Infinity));
+        if (Math.abs(size - Math.max(16, fine)) > .01) shrunk.set(id, { size, fine });
+      }
+    };
     await collect();
     await click(page, 'experience-settings'); await page.locator('#experience-ambience').waitFor({ state: 'attached' }); await collect();
     // 5 · The two volume sliders have names (the checkbox and selects already took theirs from labels).
@@ -263,13 +293,18 @@ try {
     await go(page, 'bag'); await collect();
     await click(page, 'cards-tab', 'decks'); await collect();
     await click(page, 'cards-tab', 'codex'); await collect();
-    await click(page, 'account-open'); await page.locator('[data-viewport-surface="account"]').waitFor(); await collect(); await click(page, 'account-back');
+    await click(page, 'account-open'); await page.locator('[data-viewport-surface="account"]').waitFor(); await collect();
+    // Request a code (mocked) so the one-time code field is drawn.
+    await clickViewportItem(page, page.locator('#account-email')); await page.locator('#account-email').fill(FIXTURE_EMAIL);
+    await clickViewportItem(page, page.locator('[data-account-form="email"] button[type="submit"]'));
+    await page.locator('#account-token').waitFor({ state: 'attached' }); await collect(); await click(page, 'account-back');
     await go(page, 'arena'); await click(page, 'start'); await click(page, 'confirm-start'); await page.locator('#pill-slider').waitFor({ state: 'attached' }); await collect();
     const small = [...fonts].filter(([, size]) => !(size >= 16));
     records.push({ check: 'input-font', device: DEVICE, fonts: Object.fromEntries(fonts) });
     assert.deepEqual(INPUT_IDS.filter(id => !fonts.has(id)), [], 'every known input was rendered');
     expect(!small.length, `inputs, selects and textareas must compute >=16px on a coarse pointer ${JSON.stringify(small)}`);
-    passed(`${DEVICE}: ${fonts.size} inputs/selects/textareas compute >=16px on a coarse pointer`);
+    expect(!shrunk.size, `on a coarse pointer each field must compute the larger of 16px and its fine-pointer size ${JSON.stringify(Object.fromEntries(shrunk))}`);
+    passed(`${DEVICE}: ${fonts.size} inputs/selects/textareas compute >=16px on a coarse pointer, none smaller than its fine-pointer size (#account-token ${fonts.get('account-token')}px)`);
     await page.context().close(); contexts.delete(page.context());
   }
 
@@ -314,14 +349,23 @@ try {
     passed(`${tag}: ${results.length} screens and modules keep their controls clear of the dock ${JSON.stringify(results[0].dock)}; 來日 at ${JSON.stringify(future)}`);
     await page.context().close(); contexts.delete(page.context());
   }
-  // Known limit (docs/NAVIGATION.md, Limits): below 701px the short-landscape layout does not apply, and the
-  // arena's panel is drawn over its module tabs. Recorded so the run shows it, not asserted.
-  {
-    const page = await pageFor(NARROW_LANDSCAPE), tag = NARROW_LANDSCAPE.join('x');
-    await go(page, 'arena'); await viewportFrames(page);
-    const misses = await arenaTabHits(page);
-    records.push({ check: 'narrow-landscape-arena-tabs', size: tag, recorded: 'not asserted', misses });
-    console.log(`NOTE ${tag}: known limit below the 701px landscape gate, ${misses.length} of the arena's module tabs miss a centre tap ${JSON.stringify(misses)}`);
+  // Known limit (docs/NAVIGATION.md, Limits): below 701px the short-landscape layout does not apply, and some modules
+  // are drawn over their own tab row. Each module of 遊歷, 對弈 and 市集 is opened directly (a dispatched click, since a
+  // covered tab cannot be tapped) and the tabs a centre tap then misses are printed. Recorded, not asserted.
+  for (const size of NARROW_LANDSCAPES) {
+    const page = await pageFor(size), tag = size.join('x'), covered = [];
+    for (const name of ['world', 'arena', 'market']) {
+      await go(page, name); await viewportFrames(page);
+      const tabs = page.locator('main [data-viewport-action="module"]:not(#app[inert] *)');
+      const modules = await tabs.evaluateAll(nodes => nodes.map(node => node.dataset.viewportTarget));
+      for (const module of modules) {
+        await page.locator(`main [data-viewport-action="module"][data-viewport-target="${module}"]`).dispatchEvent('click'); await viewportFrames(page);
+        const misses = await moduleTabHits(page);
+        if (misses.length) covered.push({ module: `${name}/${module}`, missed: `${misses.length}/${modules.length}`, hit: misses[0].hit });
+      }
+    }
+    records.push({ check: 'narrow-landscape-module-tabs', size: tag, recorded: 'not asserted', covered });
+    console.log(`NOTE ${tag}: known limit below the 701px landscape gate; with these modules open, a centre tap misses their tabs ${JSON.stringify(covered.map(item => `${item.module} ${item.missed}`))}`);
     await page.context().close(); contexts.delete(page.context());
   }
   // 6 · Landscape header row: on the lobby and all three collection tabs (where short landscape lifts the
