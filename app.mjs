@@ -493,8 +493,8 @@ function experienceSettingsModal() {
   const p=experience.getPreferences();
   modal(`<div class="eyebrow">旅途隨心</div><h2>聲息與節奏</h2><p>留一點水聲，或安靜落子。依你的步調遊歷。</p>
     <label class="experience-field"><span>開啟聲音<small>水聲與落子音效</small></span><input id="experience-sound" type="checkbox" ${p.sound?'checked':''}></label>
-    <label class="experience-field"><span>環境聲 <output id="experience-ambience-value">${Math.round(p.ambience*100)}%</output></span><input id="experience-ambience" type="range" min="0" max="1" step="0.05" value="${p.ambience}"></label>
-    <label class="experience-field"><span>落子音效 <output id="experience-effects-value">${Math.round(p.effects*100)}%</output></span><input id="experience-effects" type="range" min="0" max="1" step="0.05" value="${p.effects}"></label>
+    <label class="experience-field"><span>環境聲 <output id="experience-ambience-value">${Math.round(p.ambience*100)}%</output></span><input id="experience-ambience" aria-label="環境聲音量" type="range" min="0" max="1" step="0.05" value="${p.ambience}"></label>
+    <label class="experience-field"><span>落子音效 <output id="experience-effects-value">${Math.round(p.effects*100)}%</output></span><input id="experience-effects" aria-label="落子音效音量" type="range" min="0" max="1" step="0.05" value="${p.effects}"></label>
     <label class="experience-field"><span>動態</span><select id="experience-motion"><option value="system" ${p.motion==='system'?'selected':''}>跟隨裝置設定</option><option value="reduce" ${p.motion==='reduce'?'selected':''}>減少動態</option></select></label>
     <label class="experience-field"><span>揭曉節奏</span><select id="experience-pace"><option value="normal" ${p.pace==='normal'?'selected':''}>從容揭曉</option><option value="fast" ${p.pace==='fast'?'selected':''}>直接看結果</option></select></label>
     <p class="panel-footnote">設定會記在此裝置。揭曉時亦可直接跳過。</p><div class="modal-actions"><button class="primary" data-action="close-modal">${screen==='battle'?'返回對局':'返回旅途'} →</button></div>`,'experience-settings',true,'experience-settings');

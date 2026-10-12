@@ -892,8 +892,8 @@ A third pre-merge review of `231ae4f..2bcc15e` reported two low-severity finding
 
 Packet D2, approved by the owner on 2026-10-11 for the v0.6.0 scope, on branch
 `d2/save-durability` from `origin/main` `7712a7b`, which has merged `main`
-`335d2b7` (D1, PR #11) and is merging by D2's PR. Not merged to `main` or
-deployed; no hosted service was called.
+`335d2b7` (D1, PR #11) and then `e785b27` (N1, PR #12), and is merging by D2's
+PR. Not merged to `main` or deployed; no hosted service was called.
 
 **Why.** Research, not measured here: WebKit deletes all script-writable storage
 of a site after seven days of Safari use without interaction with that site
