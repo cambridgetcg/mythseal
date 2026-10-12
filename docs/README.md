@@ -129,6 +129,8 @@ this index.
 | [Backend stack and data boundaries](BACKEND-STACK.md) | The implemented account slice, plus the proposed authoritative economy, schema and cost model | `mixed` · sources checked 2026-09-21 |
 | [iOS and Android release plan](MOBILE-RELEASE.md) | Native packaging route, store-policy notes and phases; native release is now optional | `proposal · 2026-09-22`; policy research 2026-09-21; its "confirmed roadmap goals" line predates the optional framing in [AGENTS.md](../AGENTS.md) and the [roadmap](../ROADMAP.md) |
 | [Mobile cloud pipeline design](superpowers/specs/2026-10-12-mobile-cloud-pipeline-design.md) | Cloud iOS/Android builds (GitHub Actions + fastlane), TestFlight/Play testing stages, offline guest build, runbook and field notes | `proposal · 2026-10-12`; owner-approved design, nothing built yet |
+| [Mobile publishing runbook](MOBILE-PUBLISHING-RUNBOOK.md) | The standard publishing and review flow for any app, with Mythseal as the worked example | `current` for the pipeline; review sections fill in as Stage 2 runs |
+| [Mobile field notes](MOBILE-FIELD-NOTES.md) | Dated evidence for every mobile run, console step and review, each with a "pay attention to" lesson | `record`, dated per entry |
 | [Content release pipeline](CONTENT-RELEASE-PIPELINE.md) | Art versions, animation budget and compatible release manifests (中文) | `proposal · 2026-09-21` |
 
 ## Retired collectible research
