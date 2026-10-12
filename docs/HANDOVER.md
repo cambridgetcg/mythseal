@@ -380,6 +380,24 @@ deployed; no hosted check.
   replace it. Capping the AI's round-1 spend stays an owner fallback after
   that playtest. Also open: physical iOS/Android devices, real Safari,
   VoiceOver/TalkBack, and the owner's review of the copy.
+- **Review round 1 fixes (2026-10-13):** source commit **`9104ef0`**
+  (`battle-teaching.mjs`, `app.mjs`, `tests/battle-teaching.test.mjs`, and
+  comments in `battle-teaching.css` and `nav-stack.mjs`) and smoke commit
+  **`f421044`** (`tools/coach-smoke.mjs`). A clamped attack's formula now states
+  the true sum and the minimum (`… − 6 ＝ −1 → 最低 1`) instead of a false
+  `＝ 1`. With Fury on, the cost line is the pre-D3 `共消耗 N 丹 · 剩 M 丹` again,
+  so the ellipsis never hides the pills left; the damage is on the Fury toggle's
+  note. Coach mark ② is one character shorter and fits two lines at 360 px in
+  Chromium. Mark ④ becomes a Back layer only once the reveal completes, so Back
+  during the animation holds the result instead of skipping ④ unseen.
+  `test:coach` now covers 預計, the announced-card formula, 360 px copy fit, the
+  Fury lines and Back during an animated reveal. New `app.mjs` touch points for
+  the D2 merge: `furyNote` in the `battle-teaching.mjs` import; `draftFormula`
+  above `attackPreviewMarkup`, which now takes the formula; the Fury toggle's
+  note and one formula in `movePanel()`; `dialogCoach` reads the reveal's state;
+  one `nav.queue()` line in `resultModal()`'s `onPhase`. Checks:
+  [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12), "Review
+  round 1 fixes".
 
 ## Experience planning checkpoint · 2026-09-29
 

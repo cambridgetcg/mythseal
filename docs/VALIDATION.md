@@ -100,6 +100,114 @@ and `test:viewport` ran in WebKit); `test:commands`, `test:wx01`,
 (input latency and first paint were not re-measured); deploy dry runs, the
 SQL harness and CI.
 
+**Review round 1 fixes · 2026-10-13.** Review round 1 reported eight findings
+on `98df03b`, and independent reproductions confirmed all of them. They are
+five defects: two pairs of findings describe the same one. They are fixed in
+source commit **`9104ef0`** (`battle-teaching.mjs`, `app.mjs`,
+`tests/battle-teaching.test.mjs`, and comments in `battle-teaching.css` and
+`nav-stack.mjs`) and smoke commit **`f421044`** (`tools/coach-smoke.mjs`). The
+documentation commit after them changes no served, test or tool file. No
+allowlist change. Environment as above; `python3 tools/serve.py --port 4204`
+started fresh from the worktree for these runs.
+
+- **A clamped attack showed a false sum** (reported as medium and as low).
+  When the terms add up to less than 1 (for example an announced 月蝕 −6 at 0
+  pills), the engine counts 1, but every visible form ended `＝ 1` or showed
+  the bare terms beside 1: `（力 6 − 1）×（1＋0 丹）− 6 ＝ 1` is really −1, and
+  `6×1−6` is 0. The reviewers' simulations (the default deck against legacy or
+  default decks, drafts at 0 pills) found it in about 4–7 % of opponent-led
+  rounds, and never in the coached round 1. Every form now states the true sum
+  and the minimum:
+  `（力 6 − 1）×（1＋0 丹）− 6 ＝ −1 → 最低 1`, `(力6−1)×(1+0丹)−6＝−1→最低1`, …
+  `5×1−6→最低1`. **Correction:** the entry above says "Every visible form is
+  parsed and evaluates to the engine's number, including a clamped attack of
+  1". That was not true: the test compared `Math.max(1, value)`, and its fixture
+  pinned the false text. The test now requires each form's sum to equal the
+  attack, or to be under 1 with the minimum shown. The announced-card sweep
+  must now include clamped drafts, and both reviewers' fixtures are pinned. With
+  the old `formulaVariants`, 2 of the 11 tests in that file fail.
+- **With Fury on, the cost line hid the pills left** (low and medium). The
+  `怒擊 傷 N · ` prefix pushed `剩 M 丹` behind the ellipsis of `#cost-note` on
+  every phone size measured, in both engines. Under 600 px tall, where the
+  player's caption yields, the pills left were then shown nowhere as a number
+  (only as pill capsules). The cost
+  line is the pre-D3 `共消耗 N 丹 · 剩 M 丹` again, and the Fury toggle's note
+  states the damage while Fury is on (`另付 3 丹 · 傷害 7`, or `預計傷 7`); off,
+  it still states the rule. `test:coach` now turns Fury on with 0 (or 1) and 9
+  pills on the device and at 360×640 and 360×560. It checks that the cost line
+  reads exactly the cost and the pills left with `scrollWidth ≤ clientWidth`,
+  and that the Fury note names the engine's damage inside its button, clear of
+  the switch. With the old cost text, `test:coach` fails in Chromium at the
+  first of these checks (Pixel 7, 412×839).
+- **Coach mark ② was cut at 360 px in Chromium** (medium twice; one verifier:
+  low). `0029ef0` made it 33 characters. At 360 px the hint is 193 px wide,
+  Chromium needed three lines, and the two-line clamp hid 盡。. WebKit fit it,
+  by about 1 px. The copy is now 按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹撐四回合，莫一次押盡。
+  (32 characters). `test:coach` now measures every copy of marks ①–③ (both
+  leaders, both commit labels) in the real hint at 360×640 and 360×560, and
+  walks ①–③ there. With the old copy it fails in Chromium ("the pills copy …
+  fits two lines, not 3"). The unit test's character count is now only a
+  budget (at most 32). **Correction:** the entry above found the coach sentence
+  unclipped only on the two device sizes (412 and 393 px wide). From
+  `0029ef0` on, the claim in the plan and in code comments that the copy fits
+  two lines at 360 px was false in Chromium, and `test:battle-table`'s 40/40
+  did not check clipping.
+- **Back during the animated round-1 reveal skipped mark ④ unseen** (low).
+  Mark ④ counted as a Back layer as soon as the result opened, while the footer
+  still hid it, so Back recorded 跳過 and ④ never showed. It now counts only
+  once the reveal has completed, and the completed reveal queues the history
+  sync, which pushes its entry on the commit's user turn. With full motion and
+  normal pace, `test:coach` presses Back while `data-reveal-state` is
+  `animating`. The history depth stays 2, nothing is recorded, ④ and 知道了
+  then show, and the next Back closes ④ as 跳過 while the result stays. In a
+  second run without that Back, the depth goes from 2 to 3 when ④ shows. With
+  the old `dialogCoach`, `test:coach` fails ("no coach layer while mark ④ is
+  hidden: … depth 2 (now 3)").
+- **預計 and the announced-card formula were untested in the browser**
+  (medium; one verifier: low). Every formula check had run on an exact,
+  player-led draft. `test:coach` now selects 青霄 in round 1 of the first
+  battle, with 霜璃 still in the opponent's hand. It requires the visible line
+  to start with 預計 and `data-attack-exact` to be `false`. In the opponent-led
+  round 2 it checks every open draft against `resolveRound` with the stored AI
+  move, as exact and with 已計對手亮牌. With the `<b>預計</b>` prefix removed
+  from `app.mjs`, `test:coach` fails at 青霄. With `announcedCardId: null` in
+  the formula call, it fails in round 2. **Correction:** the entry above says
+  "預計 appeared exactly when the number was not exact". The assertion held
+  only trivially: no number in that run was 預計.
+
+Each failure above came from reverting only that fix (for the last item,
+removing only that wiring) in the worktree, before the commits; the file was
+then restored, and the suites below ran on the committed code.
+
+Checks at `f421044`, all browser suites with `GAME_URL=http://127.0.0.1:4204`:
+
+- `node --test tests/*.test.mjs`: exit 0, **569/569**. No test was added; the
+  formula, cost, Fury-note and copy tests in `tests/battle-teaching.test.mjs`
+  were tightened as above.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 86 public files, manifest `d73d6946…f571`.
+- `git diff --check 98df03b f421044`: exit 0.
+- `npm run test:coach`: exit 0, **9/9 checks in each engine** (Chrome
+  154.0.8037.98 with Pixel 7, then WebKit 26.6 with iPhone 15), 36 s for both.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit
+  (286 s). At its six contract sizes it turns Fury on for every open card at 3
+  pills, and its Fury-switch check (the note inside its button, clear of the
+  switch) passed with the new note.
+- `npm run test:back`: exit 0, 16 checks in Chrome and 15 in WebKit.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines; every
+  printed error list was empty.
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack; layouts
+narrower than 360 px (the 340 px minimum) and fonts other than the headless
+engines'; the WebKit runs of `test:browser`'s suites; `test:commands`,
+`test:wx01`, `test:inheritance`, `test:collection-display`, `test:expansion`,
+`test:map-piece` and the literary preview smokes; `tools/battle-measure.mjs`;
+deploy dry runs, the SQL harness and CI.
+
 ## D1 Back model · 2026-10-12
 
 Branch `d1/back-model`, from `origin/main` `7712a7b`; packet D1, approved by the

@@ -448,7 +448,7 @@ and `app.mjs` wires them to the table.
 | Planning hint | One visible line under the round and prompt in the status row: 選一張戰卡 → 定仙丹 → 封丹 · 落子 (落子 · 決勝 outside 霧隱渡口). The reveal-time table reads 查看本回合結果，再進下一回合. The line uses the 44 px the row already had for 對弈紀錄, so the Q0 one-table layout keeps its rows. |
 | Coach marks | Only on the first ever battle: a 霧隱渡口 expedition encounter while `stats.played` is 0 (no battle finished yet) and this device has no coach record, starting in round 1. ① pick a card → ② add pills (攻擊＝力×（1＋丹）; the twelve pills must last four rounds, so not all at once) → ③ commit → ④ read the reveal. ①–③ take the hint line's place (on a portrait phone, both lines of the row) and outline the control they teach with a dashed gold line; nothing covers a control. ④ sits in the round-1 reveal footer with 知道了 and outlines both 實際攻擊 figures. Using the taught control moves to the next mark; using a later one first skips ahead (for example adding pills before choosing a card). |
 | Ending | 跳過 on the table, 知道了 or Back end every mark at once; 繼續 · 下一回合 after ④ completes them. Either way the device-local key `shanhai.coach.v1` records `{"firstBattle":"skipped"}` or `"done"`, and no mark returns, also after a reload or in a restarted first battle. A first battle abandoned before any ending shows the marks again in the next one, because `stats.played` is still 0. A player whose first battle is a practice or arena match never sees them. |
-| Back | A coach mark is one dismissible layer in the [Back model](NAVIGATION.md#back-model--2026-10-12): under any dialog opened over the table, and above the held round result. Back closes it as 跳過 does; the next Back opens keep/abandon or holds the result as before. |
+| Back | A coach mark is one dismissible layer in the [Back model](NAVIGATION.md#back-model--2026-10-12): under any dialog opened over the table, and above the held round result once the reveal has completed and shows ④. Back closes it as 跳過 does; the next Back opens keep/abandon or holds the result as before. While the reveal still animates, ④ is hidden, so it is no layer yet and Back holds the result as it does without the coach. |
 | Formula | The move panel's estimate cell shows the arithmetic behind its number, for example `力 6 ×（1＋3 丹）＝ 24`. See below. |
 | Reveal tip | Once each round's reveal completes, the footer states 對手剩 N 丹 · 你剩 M 丹 and one hint, in the place 直接看結果 leaves. See below. |
 | Match result | A new match result always opens on 勝負已定, so 悟 and its advice show after a loss even when the previous result was left on 旅途所得. Returning from a result card or settings opened over the same result keeps its page. |
@@ -472,10 +472,18 @@ up to the engine's number, only the number would show. The forms, widest
 first, are `力 7 ×（1＋3 丹）＋ 6 ＝ 34`, `力7×(1+3丹)+6＝34`, `力7×(1+3丹)+6`,
 then with power effects folded into the card's power (`力8×(1+2丹)+6`), then
 `8×3+6`. `app.mjs` shows the first that fits the cell on one line and checks
-again on resize and font load. Fury does not change attack. With Fury on, the
-cost line reads `怒擊 傷 7 · 共消耗 6 丹 · 剩 6 丹` (預計傷 when a hidden reply
-could reduce the damage). The cost and damage come from `RULES` (3 pills,
-+2 damage).
+again on resize and font load. When the terms add up to less than 1 (an
+announced 減攻 such as 月蝕 −6 at 0 pills), the engine counts 1. Every form then
+states the true sum and that minimum: `（力 6 − 1）×（1＋0 丹）− 6 ＝ −1 → 最低 1`,
+`(力6−1)×(1+0丹)−6＝−1→最低1`, … `5×1−6→最低1`. (Until review round 1 they
+read `… − 6 ＝ 1` and `5×1−6` beside 1, sums that were really −1.) Fury does
+not change attack. The cost line always reads `共消耗 6 丹 · 剩 6 丹`; it may end
+in an ellipsis on a narrow cell, so it holds nothing else. With Fury on, the
+Fury toggle's note states the damage a win deals in place of its rule:
+`另付 3 丹 · 傷害 7` (`預計傷 7` when a hidden reply could reduce the damage).
+Review round 1 moved it there from the front of the cost line, where it pushed
+剩 N 丹 behind the ellipsis on phones. The cost and damage come from `RULES`
+(3 pills, +2 damage).
 
 **Tip rules.** The tip reads only the public reveal view: both sides' pills
 after the round's spending and refunds, as the table already shows them, and
@@ -498,8 +506,14 @@ separate from the automation.
   reading of the marks. Marks ② and ③ and the endings are announced when they
   change; ① and ④ are page text with an sr-only step number, and the start of
   the battle still announces 對局開始。選一張戰卡，再分配仙丹。
-- The coach copy fits two lines of a 360 px portrait phone with the headless
-  engines' fonts; the two-line clamp would hide a third line on another font.
+- Every copy of marks ①–③ (both leaders, both commit labels) fits two lines at
+  360×640 and 360×560 with headless Chromium's and WebKit's fonts, measured by
+  `npm run test:coach`. Review round 1 found mark ② at three lines in Chromium
+  at 360 px (its last two characters hidden) and shortened it by one
+  character. Narrower layouts, down to the 340 px minimum, and other fonts are
+  not measured; the two-line clamp would hide a third line there.
+- The cost line can still end in an ellipsis beside a three-digit estimate in
+  a 360 px cell, as it could before D3.
 - The compact formula forms drop the spacing, and the folded form shows the
   effective power (`力8`) rather than `力7＋1`.
 - Measured input latency and first-paint cost were not re-measured; the formula
