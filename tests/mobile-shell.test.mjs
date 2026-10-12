@@ -56,13 +56,19 @@ test('both volume sliders carry their own accessible names', () => {
 
 // Review round 1 (2026-10-12): the rendered checks live in test:shell; these keep the rules in place where CI has no browser.
 const rules = path => [...read(path).replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body]) => ({ selectors: selectors.trim().split(',').map(part => part.trim()), body }));
-const mediaBlock = (path, query) => {
-  const css = read(path), start = css.indexOf(`@media(${query}){`);
-  assert.ok(start >= 0, `${path} has @media(${query})`);
-  let depth = 0;
-  for (let i = css.indexOf('{', start); i < css.length; i++) { depth += css[i] === '{' ? 1 : css[i] === '}' ? -1 : 0; if (!depth) return css.slice(start, i + 1); }
-  assert.fail(`${path}: unterminated @media(${query})`);
+// Every `@media(<query>){…}` block in a file, in order; `query` is the text between `@media(` and `){`.
+const mediaBlocks = (path, query) => {
+  const css = read(path), blocks = [];
+  for (let start = css.indexOf(`@media(${query}){`); start >= 0; start = css.indexOf(`@media(${query}){`, start + 1)) {
+    let depth = 0, end = -1;
+    for (let i = css.indexOf('{', start); i < css.length; i++) { depth += css[i] === '{' ? 1 : css[i] === '}' ? -1 : 0; if (!depth) { end = i; break; } }
+    assert.ok(end >= 0, `${path}: unterminated @media(${query})`);
+    blocks.push(css.slice(start, end + 1));
+  }
+  assert.ok(blocks.length, `${path} has @media(${query})`);
+  return blocks;
 };
+const mediaBlock = (path, query) => mediaBlocks(path, query)[0];
 
 test('short-landscape cards hub tabs are anchored to the shell, clear of 旅程閣', () => {
   const block = mediaBlock('scene-content.css', 'max-height:500px');
@@ -78,6 +84,20 @@ test('narrow phones: compact card grids shrink with the shell and market tabs wr
   const grids = /\.scene-surface \.bag-grid,\.scene-surface \.collection-grid\{grid-template-columns:repeat\(auto-fit,minmax\(([^,]+(?:,[^,)]+\))?),1fr\)\)/.exec(mediaBlock('scene-content.css', 'max-height:740px'))?.[1];
   assert.equal(grids, 'min(285px,100%)', 'a 285px track would run past a 302px screen\'s 278px shell');
   assert.match(mediaBlock('expansion.css', 'max-width:349px'), /\.scene-market>\.viewport-module-tabs\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)\}/);
+});
+
+// Review round 2 (2026-10-12): Safari's toolbar-visible landscape (852×343 with a 21px home-indicator inset).
+test('short-landscape market: the title shares the tab row, so the modules keep the height the lifted dock took', () => {
+  // The dock stays lifted out of the home-indicator band; the market makes the room instead.
+  assert.match(mediaBlock('scene-content.css', 'max-height:500px'), /\.shell\.game-shell \.game-dock\{[^}]*margin:3px auto max\(3px,var\(--safe-area-inset-bottom\)\)/);
+  const block = mediaBlocks('expansion.css', 'max-height:500px) and (min-width:701px').find(css => css.includes('.scene-market{display:grid'));
+  assert.ok(block, 'a short-landscape block lays the market out as a grid');
+  assert.match(block, /\.scene-market\{display:grid;grid-template-columns:auto minmax\(0,1fr\);grid-template-rows:auto minmax\(0,1fr\);/);
+  assert.match(block, /\.scene-market>\.scene-heading\{grid-column:1;grid-row:1;/);
+  assert.match(block, /\.scene-market>\.viewport-module-tabs\{grid-column:2;grid-row:1\}/);
+  assert.match(block, /\.scene-market>\[data-viewport-module\]\{grid-column:1\/-1;grid-row:2\}/);
+  // 秘券's note sits beside its button rather than below it.
+  assert.match(block, /\.scene-market \.expansion-ticket>div>\.primary\{grid-column:1\}\.scene-market \.expansion-ticket>div>\.expansion-small\{grid-column:2;/);
 });
 
 test('touch, overscroll and card-art rules stay declared, and selection is withheld from card art only', () => {

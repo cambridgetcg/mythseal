@@ -32,6 +32,11 @@ const LANDSCAPES = [[844, 390], [734, 343]];
 const INSETS = { top: 48, right: 44, bottom: 34, left: 44 };
 // An iPhone 15 held in landscape under viewport-fit=cover: no top inset, 59px sides, the home indicator below.
 const IPHONE_LANDSCAPE = [[852, 393], { top: 0, right: 59, bottom: 21, left: 59 }];
+// Safari's landscape with its toolbar showing, under viewport-fit=cover: an iPhone 15 and an iPhone 13/14. The
+// dock's lift above the home indicator leaves the scene 18px less than the same phone had before cover (734×343, 750×340).
+const SAFARI_LANDSCAPES = [[[852, 343], { top: 0, right: 59, bottom: 21, left: 59 }], [[844, 340], { top: 0, right: 47, bottom: 21, left: 47 }]];
+// Below the 701px short-landscape gate (iPhone SE 2/3 and 6–8 held sideways): a known limit, recorded and not asserted.
+const NARROW_LANDSCAPE = [667, 375];
 const INPUT_IDS = ['bag-search', 'bag-faction', 'bag-filter', 'bag-sort', 'source-filter', 'training-select', 'experience-sound', 'experience-ambience', 'experience-effects', 'experience-motion', 'experience-pace', 'account-email', 'pill-slider'];
 const contexts = new Set(), checks = [], errors = [], records = [], findings = [];
 // SHELL_AUDIT=1 records every failed expectation instead of stopping at the first (exit 1 at the end).
@@ -194,15 +199,43 @@ const bandHits = (page, insets) => page.evaluate(`(() => {${GEOMETRY}
   return { viewport: [innerWidth, innerHeight], hits, tall };
 })()`);
 
+// Controls outside the dock whose visible box reaches under it. An item of a paged list that the viewport
+// controller flags as taller than its frame is the documented vertical-fit limit (it already runs under the
+// list's pager): it is returned separately, to be recorded rather than asserted.
 const dockOverlap = page => page.evaluate(`(() => {${GEOMETRY}
   const dock = document.querySelector('.game-dock'), d = dock.getBoundingClientRect();
   const future = document.querySelector('[data-viewport-action="module"][data-viewport-target="future"]');
-  const overlaps = [...document.querySelectorAll(CONTROLS)].filter(shown).filter(node => !dock.contains(node)).map(node => {
-    const box = clipBox(node);
-    return box && box.left < d.right - .5 && box.right > d.left + .5 && box.top < d.bottom - .5 && box.bottom > d.top + .5 ? { name: label(node), box: [box.left, box.top, box.right, box.bottom].map(Math.round) } : null;
+  const under = [...document.querySelectorAll(CONTROLS)].filter(shown).filter(node => !dock.contains(node)).map(node => {
+    const box = clipBox(node), list = node.closest('[data-viewport-list][data-viewport-overflow="true"]');
+    return box && box.left < d.right - .5 && box.right > d.left + .5 && box.top < d.bottom - .5 && box.bottom > d.top + .5 ? { name: label(node), box: round(box), under: Math.round(box.bottom - d.top), ...(list ? { list: list.dataset.viewportList } : {}) } : null;
   }).filter(Boolean);
   const r = future && future.getBoundingClientRect();
-  return { future: future && shown(future) ? [r.left, r.top, r.right, r.bottom].map(Math.round) : null, dock: [d.left, d.top, d.right, d.bottom].map(Math.round), overlaps };
+  return { future: future && shown(future) ? round(r) : null, dock: round(d), overlaps: under.filter(item => !item.list), flagged: under.filter(item => item.list) };
+})()`);
+
+/** Every dock destination (洞府, 遊歷, 對弈, 藏卡 with its three hub tabs, 市集), and on each every module tab,
+ * opened with an ordinary tap so a covered tab fails; `inspect` runs on each state. */
+async function dockScreens(page, inspect) {
+  for (const name of ['home', 'world', 'arena', 'bag', 'market']) {
+    await go(page, name); await viewportFrames(page);
+    for (const hub of name === 'bag' ? ['cards', 'decks', 'codex'] : [null]) {
+      if (hub) { await click(page, 'cards-tab', hub); await viewportFrames(page); }
+      const tabs = page.locator('main [data-viewport-action="module"]:not(#app[inert] *)');
+      const modules = await tabs.evaluateAll(nodes => nodes.map(node => node.dataset.viewportTarget));
+      for (const module of modules.length ? modules : [null]) {
+        if (module) { await page.locator(`main [data-viewport-action="module"][data-viewport-target="${module}"]`).click({ timeout: 4000 }); await viewportFrames(page); }
+        await inspect(`${name}${hub ? `:${hub}` : ''}${module ? `/${module}` : ''}`);
+      }
+    }
+  }
+}
+
+// Which of the arena's module tabs a tap at its centre misses (what it lands on instead).
+const arenaTabHits = page => page.evaluate(`(() => {${GEOMETRY}
+  return [...document.querySelectorAll('main [data-viewport-action="module"]')].filter(shown).map(node => {
+    const r = node.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return hit && (hit === node || node.contains(hit)) ? null : { tab: label(node), hit: hit ? hit.tagName + (hit.className ? '.' + String(hit.className).split(' ')[0] : '') + ' ' + hit.textContent.trim().slice(0, 8) : null };
+  }).filter(Boolean);
 })()`);
 
 await mkdir(output, { recursive: true });
@@ -268,20 +301,32 @@ try {
     await page.context().close(); contexts.delete(page.context());
   }
 
-  // 4 · Landscape phones: 來日 and every other arena control stay clear of the dock.
-  for (const [size, insets] of [...LANDSCAPES.map(size => [size, null]), [[844, 390], INSETS]]) {
-    const page = await pageFor(size, insets), tag = size.join('x') + (insets ? '+insets' : '');
+  // 4 · Landscape phones: on every dock destination and each of its modules (the arena's 來日 among them, the
+  // market's 秘匣, 西行印 and 秘券), no control sits under the dock, including Safari's toolbar-visible landscape.
+  for (const [size, insets] of [...LANDSCAPES.map(size => [size, null]), [[844, 390], INSETS], ...SAFARI_LANDSCAPES]) {
+    const page = await pageFor(size, insets), tag = size.join('x') + (insets ? `+${Object.values(insets).join('/')}` : ''), results = [];
+    await dockScreens(page, async label => { results.push({ label: `${tag}/${label}`, ...await dockOverlap(page) }); });
+    records.push({ check: 'landscape-dock', size: tag, insets, results });
+    const future = results.find(r => r.label.endsWith('/arena/future'))?.future;
+    assert(future, `${tag}: the 來日 tab is shown`);
+    for (const r of results) expect(!r.overlaps.length, `${r.label}: controls must not sit under the dock ${JSON.stringify({ dock: r.dock, overlaps: r.overlaps })}`);
+    for (const r of results) if (r.flagged.length) console.log(`NOTE ${r.label}: an item of a list flagged as taller than its frame reaches under the dock ${JSON.stringify(r.flagged)}`);
+    passed(`${tag}: ${results.length} screens and modules keep their controls clear of the dock ${JSON.stringify(results[0].dock)}; 來日 at ${JSON.stringify(future)}`);
+    await page.context().close(); contexts.delete(page.context());
+  }
+  // Known limit (docs/NAVIGATION.md, Limits): below 701px the short-landscape layout does not apply, and the
+  // arena's panel is drawn over its module tabs. Recorded so the run shows it, not asserted.
+  {
+    const page = await pageFor(NARROW_LANDSCAPE), tag = NARROW_LANDSCAPE.join('x');
     await go(page, 'arena'); await viewportFrames(page);
-    const result = await dockOverlap(page);
-    records.push({ check: 'landscape-dock', size: tag, ...result });
-    assert(result.future, `${tag}: the 來日 tab is shown`);
-    expect(!result.overlaps.length, `${tag}: arena controls must not overlap the dock ${JSON.stringify(result)}`);
-    passed(`${tag}: 來日 ${JSON.stringify(result.future)} clears the dock ${JSON.stringify(result.dock)}`);
+    const misses = await arenaTabHits(page);
+    records.push({ check: 'narrow-landscape-arena-tabs', size: tag, recorded: 'not asserted', misses });
+    console.log(`NOTE ${tag}: known limit below the 701px landscape gate, ${misses.length} of the arena's module tabs miss a centre tap ${JSON.stringify(misses)}`);
     await page.context().close(); contexts.delete(page.context());
   }
   // 6 · Landscape header row: on the lobby and all three collection tabs (where short landscape lifts the
   // cards hub tabs into the header), no header control or hub tab covers another, with or without side insets.
-  for (const [size, insets] of [...LANDSCAPES.map(size => [size, null]), [[844, 390], INSETS], IPHONE_LANDSCAPE]) {
+  for (const [size, insets] of [...LANDSCAPES.map(size => [size, null]), [[844, 390], INSETS], IPHONE_LANDSCAPE, ...SAFARI_LANDSCAPES]) {
     const page = await pageFor(size, insets), tag = size.join('x') + (insets ? `+${Object.values(insets).join('/')}` : ''), results = [];
     results.push({ label: `${tag}/lobby`, ...await headerClash(page) });
     await go(page, 'bag');
