@@ -21,5 +21,7 @@
 .import-side p{margin:8px 0 0;font-size:10px;color:var(--muted)}
 /* Phones keep the two journeys side by side, one figure per row, so both items share a 340×640 page. */
 @media(max-width:600px){.game-shell .save-notice>span{font-size:10px}.game-shell .save-notice .small-button{padding:6px 8px}.import-compare{gap:8px}.import-side{padding:8px 10px}.import-side h3{margin-bottom:6px;font-size:12px;letter-spacing:0}.import-side dl{grid-template-columns:minmax(0,1fr);gap:1px}.import-side p{margin-top:6px}}
-/* Narrow phones (body min-width 340 px): the arrows go, so the restore offer's label stays whole. */
+/* Narrow phones: the arrows go, so the restore offer's label stays whole on one line at 340 px. */
 @media(max-width:380px){.game-shell .save-notice-glyph{display:none}}
+/* Below 340 px (N1 removed the body's 340 px minimum, so 302 px phones are 302 px wide) the label takes a second line inside the 48 px instead of being cut. */
+@media(max-width:339px){.game-shell .save-notice>span{white-space:normal;line-height:1.3;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}}

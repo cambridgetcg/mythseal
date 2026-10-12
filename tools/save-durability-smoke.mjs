@@ -2,7 +2,7 @@ import { installViewportNavigation, viewportFrames } from './viewport-browser-he
 /** D2 save durability (docs/LOCAL-COMMANDS.md §19): export → clear site data → the new journey's
  * restore offer → import restores the same journey; declining changes nothing; each backup
  * prompt appears once; the 旅程閣 status line; the cloud option with intercepted fixture APIs;
- * the strips on a 340 px phone; refused downloads never count as a backup; a cloud backup ends
+ * the strips on 340 px and 302 px phones; refused downloads never count as a backup; a cloud backup ends
  * a prompt; a WX receipt's strip comes first; a v0.5.1 (v3) export restores; the import
  * confirmation on short phone pages; a deleted cloud backup. Synthetic saves, loopback assets
  * only, no download written to disk. */
@@ -187,7 +187,7 @@ async function noOverflow(page, label) {
   assert(size.document <= size.viewport + 1, `${label}: ${JSON.stringify(size)}`);
 }
 /** The strip keeps one row inside its 48 px: every button within it and taking its own taps
- * to the bottom edge, the label whole, nothing below it covered. */
+ * to the bottom edge, the label whole (on a second line below 340 px), nothing below it covered. */
 async function stripFits(page, label) {
   const strip = await page.evaluate(() => {
     const notice = document.querySelector('[data-save-notice]'), box = notice.getBoundingClientRect(), text = notice.querySelector(':scope > span');
@@ -196,7 +196,7 @@ async function stripFits(page, label) {
       const hit = y => button.contains(document.elementFromPoint(x, y));
       return { action: button.dataset.action, top: rect.top, bottom: rect.bottom, height: rect.height, taps: hit(rect.top + 3) && hit(rect.bottom - 3) };
     });
-    return { top: box.top, bottom: box.bottom, height: box.height, wrap: getComputedStyle(notice).flexWrap, buttons, cut: text.scrollWidth > text.clientWidth + 1, text: text.textContent, below: document.querySelector('.lobby-kicker')?.getBoundingClientRect().top ?? null };
+    return { top: box.top, bottom: box.bottom, height: box.height, wrap: getComputedStyle(notice).flexWrap, buttons, cut: text.scrollWidth > text.clientWidth + 1 || text.scrollHeight > text.clientHeight + 1, lines: Math.round(text.getBoundingClientRect().height / parseFloat(getComputedStyle(text).lineHeight)), text: text.textContent, below: document.querySelector('.lobby-kicker')?.getBoundingClientRect().top ?? null };
   });
   assert(strip.height <= 48.5, `${label}: ${JSON.stringify(strip)}`);
   // A longer label or larger text shrinks the label instead of wrapping out of the 48 px.
@@ -442,14 +442,19 @@ try {
   }
 
   {
-    // S5a: on a 340 px phone (the body's min-width) the restore offer keeps one row in its strip.
-    const page = await pageIn(await contextFor({ width: 340 }));
-    await notice(page).waitFor();
-    const offer = await stripFits(page, 'restore offer at 340 px');
-    assert.deepEqual(offer.buttons.map(button => button.action), ['import-save', 'restore-offer-cloud', 'save-notice-dismiss']);
-    assert.equal(offer.text, '有舊旅程？由備份還原');
-    passed('S5a at 340 px the restore offer and its three buttons stay inside the 48 px strip, label whole, the lobby heading uncovered');
-    contexts.delete(page.context()); await page.context().close();
+    // S5a: on a 340 px phone the restore offer keeps one row in its strip, its label on one line.
+    // At 302 px (N1 removed the body's 340 px minimum) the label takes a second line instead of
+    // being cut, inside the same 48 px.
+    for (const [width, lines] of [[340, 1], [302, 2]]) {
+      const page = await pageIn(await contextFor({ width }));
+      await notice(page).waitFor();
+      const offer = await stripFits(page, `restore offer at ${width} px`);
+      assert.deepEqual(offer.buttons.map(button => button.action), ['import-save', 'restore-offer-cloud', 'save-notice-dismiss']);
+      assert.equal(offer.text, '有舊旅程？由備份還原');
+      assert.equal(offer.lines, lines, `restore offer at ${width} px: ${JSON.stringify(offer)}`);
+      contexts.delete(page.context()); await page.context().close();
+    }
+    passed('S5a at 340 px and 302 px the restore offer and its three buttons stay inside the 48 px strip, label whole (two lines at 302 px), the lobby heading uncovered');
   }
   {
     // S5b: a journey from before D2 (five wins) whose first win on this device left a prompt
