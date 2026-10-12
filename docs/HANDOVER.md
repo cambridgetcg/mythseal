@@ -243,9 +243,10 @@ v0.6.0, which would be the first public v5 release, is planned to include it
 
 Packet **D2 · saves never vanish silently**, approved by the owner on
 2026-10-11 for the v0.6.0 scope, is implemented on the branch
-**`d2/save-durability`** from `origin/main` `7712a7b`. **Status:** not merged,
-pushed or deployed; no hosted service was called. Built alongside D1 (Back
-model) and N1 (mobile shell CSS) in sibling worktrees; D1 also edits `app.mjs`.
+**`d2/save-durability`** from `origin/main` `7712a7b`, after one review round
+(fixes `a290151` and `4ba6e31`, 2026-10-12). **Status:** not merged, pushed or
+deployed; no hosted service was called. Built alongside D1 (Back model) and N1
+(mobile shell CSS) in sibling worktrees; D1 also edits `app.mjs`.
 
 - **Changed:** 匯入旅程備份 in the 旅程閣 tools imports the journey export
   (only that format; oversize, unparsable, old or future, unfinished,
@@ -255,11 +256,16 @@ model) and N1 (mobile shell CSS) in sibling worktrees; D1 also edits `app.mjs`.
   lineage retired, one profile write, nothing on refusal. Those checks now live
   in `profile-store.mjs` `store.restore`. The 旅程閣 tools show the date of this
   device's last export or cloud backup and the browser's answer to
-  `navigator.storage.persist()`, which is asked once, at the first win or first
-  pack opening, or at launch as an installed web app; never on an ordinary load.
-  A guest gets one low-key lobby strip after each of those milestones, at most
-  once ever. A journey this device has just started, because no journey key
-  existed, shows 有舊旅程？由備份還原 until dismissed, restored or its first battle.
+  `navigator.storage.persist()`. It is asked once per device, at the first win or
+  first pack opening this device records (an existing journey's next one), and in
+  an installed web app at every launch until granted; never on an ordinary load.
+  A request whose page closed before the answer is settled at the next start from
+  `persisted()` (granted or 未有回覆). A player not known to be signed in gets one
+  low-key lobby strip after each of those milestones, at most once ever; the
+  lobby knows a player is signed in only after 旅程閣 looked the account up in
+  that page. A journey this device has just started, because no journey key
+  existed, shows 有舊旅程？由備份還原 until dismissed, restored or its first battle,
+  with 備份檔 and 雲端旅程 (into 旅程閣 and its cloud restore).
   New allowlisted files: `platform.mjs` (the seam M5.2's native adapter extends),
   `save-status.mjs` (device-local record `shanhai.saves.v1`), `save-ui.mjs`,
   `saves.css`. `PROFILE_VERSION`, the snapshot format, the Worker, the SQL and
@@ -268,21 +274,37 @@ model) and N1 (mobile shell CSS) in sibling worktrees; D1 also edits `app.mjs`.
   `npm run test:saves` in Chromium and WebKit, `npm run test:commands` in both,
   and the 14 Chromium `npm run test:browser` suites, headless against this
   worktree's server on port 4202
-  ([VALIDATION](VALIDATION.md#d2-save-durability--2026-10-12)).
+  ([VALIDATION](VALIDATION.md#d2-save-durability--2026-10-12)); again after the
+  review fixes, with `test:viewport` and `test:wx01` in both engines
+  ([VALIDATION](VALIDATION.md#d2-review-fixes--2026-10-12)).
+- **Review round 1 (2026-10-12):** twelve findings, several overlapping, all low
+  after verification (one was first rated medium).
+  Fixed: 雲端旅程 on the first lobby after an eviction; the strip at 340 px; 勝局已記
+  instead of 首勝 for a journey with earlier wins, and a close label that no
+  longer says "later"; a `requested` persistence record stuck "waiting"; the
+  import confirmation now names the recovery copy it replaces; a test now pins
+  the offer closing on a restore. Documented instead of changed: a quote from
+  before an import into a journey without a ledger commits once on an identical
+  copy (§15 decision 1), and a signed-in player who has not opened 旅程閣 in the
+  page is prompted like a guest (the lobby makes no account request).
 - **UNVERIFIED:** real iPhone seven-day eviction, iOS home-screen storage
   isolation and real `persist()` answers (the smoke uses a spy). Not run: the
   account smoke in WebKit (it is Chromium-only), devices, deploy dry runs, CI.
 - **Open:** importing a v0.5.1 (v3) export, which is refused today, belongs with
-  the owner's stranded-v3 decision in the v0.6.0 plan; LOCAL-COMMANDS §15
-  decision 1 still applies to the import.
+  the owner's stranded-v3 decision in the v0.6.0 plan. LOCAL-COMMANDS §15
+  decision 1 still applies to the import, so the packet's exit item "a command ID
+  issued before the import is expired or refused" holds only for a journey with
+  a command ledger: without one, a quote on a copy the file holds unchanged
+  commits once, at its quoted price.
   [LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
   own the rules.
 - **Merge notes:** `app.mjs` changes are localised: imports, the `saves` record
   next to `profileStore`, `restoreLocalProfile`'s lock body, one block after
-  `recoveryMarkup`, `homeMarkup`, the 旅程閣 page's tools in `render`, one line
-  each in `recordFinishedMatch`, `showPackReceipt` and the legacy `buy-pack`
-  modal, the click handler's export/import/notice actions, `account-upload`, and
-  the startup `saves.launch`. Add `npm run test:saves` beside `test:commands` in
+  `recoveryMarkup` (`lobbySaveNotice`, `reviewImport` and the import helpers),
+  `homeMarkup`, the 旅程閣 page's tools in `render`, one line each in
+  `recordFinishedMatch`, `showPackReceipt` and the legacy `buy-pack` modal, the
+  click handler's export/import/notice actions and `restore-offer-cloud`,
+  `account-upload`, and the startup `saves.launch`. Add `npm run test:saves` beside `test:commands` in
   the release checks, and the new files to `docs/README.md`.
 
 ## Experience planning checkpoint · 2026-09-29

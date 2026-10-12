@@ -62,10 +62,13 @@ lose a journey that lives only in `localStorage`.
 
 Packet D2 (branch `d2/save-durability`, not merged or deployed) adds
 `platform.mjs`, the seam the M5.2 native adapter extends: `requestPersistence()`
-asks `navigator.storage.persist()` once, after the first win or first pack
-opening, and at launch when the game runs as an installed web app;
-`exportJourney()` and `importJourney(file)` move the journey export out and back
-in through the strict restore. 旅程閣 shows the last backup's date and the
+makes one feature-detected `navigator.storage.persist()` request and
+`checkPersistence()` reads `persisted()`, which never prompts; `exportJourney()`
+and `importJourney(file)` move the journey export out and back in through the
+strict restore. `save-status.mjs` decides when to ask: once per device, at the
+first win or first pack opening this device records, and, in an installed web
+app, at every launch until the browser agrees (corrected after the first D2
+review; this note said "once"). 旅程閣 shows the last backup's date and the
 browser's answer; a new journey offers a restore. A native build can replace
 those three functions (durable native storage, a share sheet, a file picker)
 without changing the journey format.

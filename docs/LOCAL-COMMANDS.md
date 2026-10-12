@@ -478,8 +478,12 @@ N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fe
   - a journey that is not canonical at its own day (XP against level, counts against copies, duplicate copy IDs, unknown fields): refused as possibly edited;
   - one that fails `assertLocalProfile`, `createSnapshot` or `restoreSnapshot` (a damaged ledger, a forbidden key such as `__proto__`, an oversize envelope).
 - **The file's ledger** is checked by those rules and then left out by `createSnapshot`: it belongs to the device that wrote it.
-- **Applied only after a confirmation** that compares the two journeys, through `restoreLocalProfile`, the path cloud restore and local recovery use. It takes the strict fenced lock, so it refuses while the fence says `writing` and in a tab that cannot prove its bytes are current. Inside the lock, `store.restore` in `profile-store.mjs` (shared by all three restores since D2) loads the latest journey and refuses an unfinished battle or activity, `economyBusy`, an unacknowledged WX receipt, or a journey changed since the confirmation opened. Then `store.replace` writes the `RECOVERY_KEY` copy of the replaced journey first, retires the replaced lineage when it has a ledger (§15 decision 1 as currently proposed), and makes exactly one profile write. Any refusal writes nothing.
-- **Command IDs.** With a ledger, every ID issued before the import is `expired`. Without one there is nothing to retire, and an earlier quote can commit only on an identical copy record (§13 item 2), so in practice it is refused as `stale`.
+- **Applied only after a confirmation** that compares the two journeys and, when this device already keeps a recovery copy, says that the import replaces it and how to download it first (one recovery slot per browser, [ACCOUNTS](ACCOUNTS.md); added after the first D2 review). It runs through `restoreLocalProfile`, the path cloud restore and local recovery use. It takes the strict fenced lock, so it refuses while the fence says `writing` and in a tab that cannot prove its bytes are current. Inside the lock, `store.restore` in `profile-store.mjs` (shared by all three restores since D2) loads the latest journey and refuses an unfinished battle or activity, `economyBusy`, an unacknowledged WX receipt, or a journey changed since the confirmation opened. Then `store.replace` writes the `RECOVERY_KEY` copy of the replaced journey first, retires the replaced lineage when it has a ledger (§15 decision 1 as currently proposed), and makes exactly one profile write. Any refusal writes nothing.
+- **Command IDs (corrected after the first D2 review).** With a ledger, every ID issued before the import is `expired`. Without one there is nothing to retire (§15 decision 1 as currently proposed), so a quote from before the import keeps its slot:
+  - it is refused as `stale` when the imported journey's copy differs from the one it priced;
+  - it commits once when the file holds that copy's record unchanged, which is what re-importing this device's own recent export usually does. That covers almost every v5 journey that has never used the card-page upgrade. The commit charges the quoted price and applies the upgrade the player pressed, and it is never a duplicate (§13 item 2).
+  - In the app the importing tab drops its card-page quote. Another tab's open card page keeps its quote, as after any restore (§16: no repainting on storage events).
+  - The earlier text here ("in practice it is refused as `stale`") held only for a changed copy. Retiring on every import would close the gap; that is §15 decision 1, left to the owner.
 - **Not detected:** an edit that leaves the journey consistent, such as a different coin balance. Local saves are editable and never an ownership claim; the cloud backup has the same boundary.
 
 **Older builds (forward-only):**
@@ -900,7 +904,8 @@ keep the site's storage, and there was no import path.
 
 - `platform.mjs` (allowlisted): the seam M5.2's native adapter will extend.
   `requestPersistence()` feature-detects `navigator.storage.persist`, reports
-  storage that is already persisted without asking, and never throws.
+  storage that is already persisted without asking, and never throws;
+  `checkPersistence()` reads `navigator.storage.persisted()`, which never prompts.
   `exportJourney()` downloads the existing export; `importJourney(file)` and
   `checkJourneyText(text)` return a validated candidate or a refusal reason (§11).
   `isStandalone()` detects an installed web app.
@@ -912,31 +917,60 @@ keep the site's storage, and there was no import path.
   storage falls back to defaults.
 - `save-ui.mjs` and `saves.css` (allowlisted): the 旅程閣 status line, the lobby
   strip and the import confirmation.
+- **Milestones.** The first win and the first pack opening (a WX pack, box or
+  ticket, or a legacy pack) that **this device records** in `shanhai.saves.v1`.
+  For a new journey that is its first win or pack. For a journey from before D2,
+  or one imported or restored onto this device, it is the next one. This is
+  deliberate: those players have not been asked either. (Clarified after the
+  first D2 review; this section said "the first win".)
 - **Persistent storage.** `navigator.storage.persist()` is requested once per
-  device, after the first win or the first pack opening (a WX pack, box or ticket,
-  or a legacy pack), whichever comes first, and at launch only when the game runs
-  as an installed web app (`display-mode: standalone` or iOS `navigator.standalone`),
-  until the browser agrees. An ordinary page load never asks. The record notes
-  `requested` before asking, so a page closed before the answer is not asked again
-  by a milestone.
+  device, at whichever milestone comes first. An installed web app
+  (`display-mode: standalone` or iOS `navigator.standalone`) also asks at every
+  launch until the browser agrees. An ordinary page load never calls `persist()`.
+  The record notes `requested` before asking, so a page closed before the answer
+  is not asked again by a milestone. **Settled at the next page start (fixed after
+  the first D2 review):** a `requested` record found at page start is no longer
+  waiting on that page, so it is checked with `persisted()` and recorded as
+  `granted`, or `unanswered` (未有回覆（瀏覽器未確認保留）), unless an answer lands
+  first. Before, 旅程閣 read 已要求，等候瀏覽器回覆 on every later visit.
 - **旅程閣 status.** The tools show 上次備份：未曾, or the date and kind of this
   device's last export or cloud backup, and 長期保存 with the recorded answer. An
   export counts only when the file would import (not during an unfinished battle
   or activity; the file is still downloaded, with a toast saying so).
-- **Backup prompts.** After the first win and after the first pack opening, a guest
-  who has not backed up since sees one strip above the lobby, pointing to the
-  export and to 旅程閣, with a dismiss button. Each prompt is consumed as it is
-  shown, so it appears at most once ever (both at once give one prompt). It stays
-  for that page until dismissed or a backup is made; never a dialog, and never
-  during a battle. A signed-in player is not prompted.
+- **Backup prompts.** After each milestone, a player who has not backed up since
+  sees one strip above the lobby, pointing to the export and to 旅程閣, with a
+  dismiss button (關閉提示，不會再出現). Each prompt is consumed as it is shown, so
+  it appears at most once ever (both at once give one prompt). It stays for that
+  page until dismissed or a backup is made; never a dialog, and never during a
+  battle.
+  - **Copy (fixed after the first D2 review).** The win strip says 首勝已記 · 留份備份？
+    only when the journey has exactly one win, and 勝局已記 · 留份備份？ otherwise,
+    so an existing journey's next win is not called its first. The strips say the
+    journey's latest progress is only in this browser, which also holds for a
+    signed-in player: a cloud backup is made only when the player asks.
+  - **Who is not prompted (corrected after the first D2 review).** A player the
+    page knows to be signed in. The lobby makes no account request of its own, so
+    it knows that only after 旅程閣 has looked the account up earlier in the same
+    page; a signed-in player who has not opened 旅程閣 since the page loaded is
+    prompted like a guest. This section used to say "a signed-in player is not
+    prompted" without that condition.
 - **Restore offer.** When the profile store reports no journey key at all
   (`hasJourney()`), the page start marks the offer open. The lobby then shows
-  有舊旅程？由備份還原 with 備份檔 (the file import) and, when 旅程閣 already knows
-  the player is signed in, 雲端旅程, which opens the existing cloud restore
-  confirmation. The lobby makes no account request of its own. The offer closes
-  on dismissal, on any successful restore, and when a battle finishes; it is
-  hidden during a battle. A resume strip for a WX receipt or an activity takes
-  its place first.
+  有舊旅程？由備份還原 with 備份檔 (the file import) and 雲端旅程.
+  - **雲端旅程 (changed after the first D2 review).** It opens 旅程閣, which looks
+    the account up as it always does. A signed-in player with a cloud backup lands
+    on the existing cloud restore confirmation; anyone else sees 旅程閣's sign-in.
+    It is left out only for a guest 旅程閣 has found cannot sign in now (email
+    login off). Before, it appeared only when 旅程閣 already knew the player was
+    signed in, which on the first lobby after an eviction it never does. The lobby
+    still makes no account request of its own.
+  - **On a narrow phone (fixed after the first D2 review).** The strip never wraps
+    out of its 48 px, and at 380 px or narrower the buttons drop their arrows, so
+    at the body's 340 px minimum the label stays whole and the lobby heading is
+    not covered.
+  - The offer closes on dismissal, on any successful restore, and when a battle
+    finishes; it is hidden during a battle. A resume strip for a WX receipt or an
+    activity takes its place first.
 - **Shared restore.** The checks `restoreLocalProfile` made inside the lock moved
   to `store.restore` in `profile-store.mjs`, so the three restores share them. One
   copy changed: the unfinished-battle refusal no longer names the cloud
@@ -957,14 +991,22 @@ exits.
   files are refused with zero writes; a battle, an activity, `economyBusy`, an
   open WX receipt, a changed journey and a `writing` fence refuse the import with
   zero writes; after an import the lineage is retired, `RECOVERY_KEY` holds the
-  previous journey and a command ID from before is `expired` (or `stale` without
-  a ledger); a spy shows `persist()` called exactly once after the first win and
-  never on load; prompts and the offer appear as above.
-- `tools/save-durability-smoke.mjs` (`npm run test:saves`, Chromium then WebKit):
-  export → clear site data → the new journey's offer → import restores an
-  identical journey fingerprint; declining and refusals leave every journey byte
-  unchanged; each prompt appears once per milestone; the status line shows the
-  export date; the cloud option with intercepted fixture APIs.
+  previous journey and a command ID from before is `expired`. Without a ledger, a
+  quote from before is `stale` on a changed copy and commits once, at its quoted
+  price, on an identical one (§11; corrected after the first D2 review, which
+  found "or `stale` without a ledger" true only for the changed copy). A spy
+  shows `persist()` called exactly once after the first win and never on load,
+  and a `requested` record left by a closed page settled from `persisted()`
+  without a second `persist()`. Prompts, their copy and the offer appear as above.
+- `tools/save-durability-smoke.mjs` (`npm run test:saves`, Chromium then WebKit;
+  11 groups since the first D2 review): export → clear site data → the new
+  journey's offer → import restores an identical journey fingerprint and closes
+  the offer; a second import names the recovery copy it would replace; declining
+  and refusals leave every journey byte unchanged; each prompt appears once per
+  milestone; the status line shows the export date; the offer's 雲端旅程 from the
+  first lobby into the cloud restore, with intercepted fixture APIs; at 340 px the
+  strips keep one row; a journey with earlier wins reads 勝局已記; an unanswered
+  request reads 未有回覆.
 
 **UNVERIFIED:** the seven-day eviction on a real iPhone (or in Safari at all),
 iOS 26 home-screen storage isolation, and what real browsers answer to
@@ -977,7 +1019,11 @@ no person. No physical device, Safari app or Firefox was used.
   version. Importing it would need the legacy migration path; that belongs with
   the owner's decision on the stranded v3 key in the v0.6.0 plan.
 - §15 decision 1 is still open: the import retires only a lineage that has a
-  ledger, as restore does.
+  ledger, as restore does. So the packet's exit item "a command ID issued before
+  the import is expired or refused" holds only for a journey with a ledger;
+  without one, a quote on an unchanged copy commits once (§11).
+- A signed-in player who has not opened 旅程閣 in the page is prompted like a
+  guest. Telling them apart on the lobby would need an account request there.
 - An edit that keeps the journey consistent cannot be detected (§11).
 
 ## Appendix · test matrix

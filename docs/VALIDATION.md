@@ -77,6 +77,118 @@ preview suites; separate browser processes; the Safari app, Firefox and
 physical devices; Node 22; deploy dry runs, the SQL harness, CI and any hosted
 service.
 
+### D2 review fixes · 2026-10-12
+
+Source commits **`a290151`** (the fixes, with their Node assertions and smoke
+groups) and **`4ba6e31`** (the smoke checks the strip's no-wrap rule directly),
+after review round 1 of `f6112b8`; the commit that adds this note changes
+documentation only. Still not merged, pushed or deployed; no hosted service and
+no network request outside loopback. Same environment as the entry above, against
+this worktree's `python3 tools/serve.py --port 4202` (started after the changes;
+no allowlist change). The rules:
+[LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12).
+This note corrects two statements in the entry above: its S4 reached 雲端旅程 only
+after 旅程閣 already knew the account, and its "persist() runs once, after the
+first win" holds for a new journey on a page that is not an installed web app.
+
+The review reported twelve findings, several overlapping; all are low after
+verification (the restore-offer one was first rated medium).
+
+**Fixed:**
+
+- **Restore offer without a cloud path.** The offer showed 雲端旅程 only when
+  旅程閣 already knew the player was signed in, which on the first lobby after an
+  eviction it never does. Now 雲端旅程 is there whenever the account is unknown;
+  it opens 旅程閣, which looks the account up as before and opens the cloud
+  restore confirmation for a signed-in player. It is left out only for a guest
+  旅程閣 has found cannot sign in now. The lobby still makes no account request.
+- **Strip at 340 px.** Under 600 px the strip wrapped and its buttons hung 24 px
+  below its 48 px box, over the lobby heading. It now never wraps, and at 380 px
+  or narrower the buttons drop their arrows, so the label stays whole.
+- **首勝 on a sixth win.** The first win this device records is a milestone, so
+  an existing journey's next win showed 首勝已記. The strip now says 首勝 only when
+  the journey has one win, and 勝局已記 otherwise; its close reads
+  關閉提示，不會再出現 instead of 稍後再說. The milestone itself is unchanged and now
+  documented: an existing journey is asked at its next win.
+- **"Waiting" forever.** A `requested` persistence record whose page closed
+  before the answer read 已要求，等候瀏覽器回覆 on every later visit. The next page
+  start now settles it from `persisted()`, which never prompts: `granted`, or
+  the new `unanswered` (未有回覆（瀏覽器未確認保留）). `persist()` is not called again.
+- **Recovery copy replaced silently.** The import confirmation now says when it
+  replaces the one recovery copy this browser keeps, and how to download it
+  first. The cloud restore's own dialog, from before D2, still does not.
+- **Untested offer close.** Both smoke assertions restored a journey that had
+  played, which hides the offer anyway. S1b and S4 now check the record itself.
+
+**Documented, not changed:**
+
+- **A quote from before an import into a journey without a ledger.** Re-importing
+  an unchanged copy (this device's own export) leaves the quote's slot free, so it
+  commits once at its quoted price, never a duplicate (§13 item 2). §11 and §19
+  had said it is refused as `stale`, which holds only for a changed copy. The
+  packet asked for §15 decision 1 as currently proposed, so the import still
+  retires only a lineage with a ledger. A Node case now pins the commit, and
+  HANDOVER says the exit item holds only for journeys with a ledger.
+- **Signed-in players prompted.** The lobby knows a player is signed in only
+  after 旅程閣 looked the account up in that page, so before that a signed-in
+  player is prompted like a guest. Asking at the lobby would make every new
+  journey and first win send an account request; `tools/smoke.mjs` and
+  `tools/journey-smoke.mjs` fail on any 4xx, which `tools/serve.py` returns for
+  `/api/`. The docs and the code comment now state the condition, and the strips
+  say the latest progress is only in this browser, which also holds for a
+  signed-in player.
+- **"Asked once."** HANDOVER and MOBILE-RELEASE now say an installed web app asks
+  at every launch until granted, as LOCAL-COMMANDS §19 already did.
+
+**Checks** (runtime of `4ba6e31`; the documentation commit changes no checked file):
+
+- `node --test tests/*.test.mjs`: exit 0, **542/542** (the new cases are
+  assertions inside the 11 existing D2 tests). Python: 9 tests OK.
+- `npm run audit:content`: exit 0, `findings: []`.
+- `npm run build`: exit 0, **87 public files**, 74,434,167 B, manifest
+  `ef94bbfc…84a0`. `dist/` was deleted afterwards.
+- `git diff --check 7712a7b`: clean (including the documentation edits).
+- `GAME_URL=http://127.0.0.1:4202 npm run test:saves`: exit 0, **11/11 groups in
+  Chromium and 11/11 in WebKit**. New or changed: S1b checks the offer record
+  closes; S1c the import confirmation names the recovery copy it would replace
+  and declining writes nothing; S2c a guest's offer has 雲端旅程 until 旅程閣 finds
+  email login off, then neither the button nor its label mentions the cloud; S3
+  a new journey's first win reads 首勝已記; S4 the first lobby's 雲端旅程 opens
+  旅程閣, which makes one account request and opens the cloud restore
+  confirmation; S5a at 340 px the offer's three buttons stay inside the 48 px
+  strip, take their own taps top and bottom, the label is whole, the lobby
+  heading is uncovered and the strip does not wrap; S5b a journey with five wins
+  reads 勝局已記 in a strip that fits 340 px, and a seeded `requested` record reads
+  未有回覆 in 旅程閣 with no `persist()` call.
+- `npm run test:commands`: exit 0, 13/13 groups in each engine.
+- `npm run test:browser`: exit 0, all 14 Chromium suites (91 `PASS` lines), 417 s.
+- `npm run test:viewport`: exit 0 in both engines (46 `PASS` lines), 573 s.
+- `npm run test:wx01`: exit 0, its three smokes in both engines (54 `PASS` lines).
+- **Negative controls** (each reverted with `git checkout` from the commit, and
+  `git status` checked clean): without the `wins` copy choice, the markup test
+  failed (10/11) and S5b failed; with `cloud` back to the known account only, the
+  `app.mjs` wiring test failed (10/11) and S2c failed ("a cloud path while the
+  account is unknown"); without the page-start settle, the `persist()` test
+  failed (10/11) and S5b failed (`requested` for `unanswered`); without the
+  recovery note, S1c timed out; without `saves.closeRestoreOffer()`, S1b failed
+  ("a successful restore closes the offer"); with `saves.css` as before, S5a
+  failed (buttons at y 88.5–132.5 under a strip ending at 109). Partial controls:
+  without only the arrow rule, S5a failed on a cut label; without only the
+  no-wrap rule, S5a passed at 340 px, so `4ba6e31` checks the computed
+  `flex-wrap` directly, and that control then failed. The browser controls ran in
+  Chromium only.
+- Visual check at 340×700 (WebKit, one screenshot, read and deleted): the offer
+  sits on one row with 備份檔, 雲端旅程 and ×, and 洞府 · 執令者 Lv.1 below it is
+  clear.
+
+**Not run or not verified:** the same items as the entry above, except
+`test:viewport` and `test:wx01`, which ran here; plus the browser negative
+controls in WebKit; `test:inheritance`, `test:battle-table`,
+`test:expansion`, `test:collection-display` and `test:map-piece`; a real
+Firefox permission prompt left unanswered (the stuck record was seeded or made
+with a `persist()` that never settles); a signed-in player on a real hosted
+account.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

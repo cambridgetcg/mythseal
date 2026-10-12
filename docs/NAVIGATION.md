@@ -133,18 +133,27 @@ lobby, in the place the WX-receipt and activity resume strip uses (that strip
 wins when both apply), never a dialog and never in a battle:
 
 - **有舊旅程？由備份還原** on a journey this device has just started because no
-  journey key existed: **備份檔** opens the file import, and **雲端旅程** appears
-  when 旅程閣 already knows the player is signed in. It closes when dismissed,
-  after a restore or when a battle finishes.
-- **首勝已記 · 留份備份？** and **新卡入藏 · 留份備份？** after the first win and the
-  first pack opening, for a guest who has not backed up since: **匯出備份** and
-  **旅程閣**. Each appears at most once ever and stays for that page until
-  dismissed or a backup is made.
+  journey key existed: **備份檔** opens the file import, and **雲端旅程** opens
+  旅程閣, which looks the account up and opens the cloud restore confirmation for
+  a signed-in player (sign-in otherwise). 雲端旅程 is left out only for a guest
+  旅程閣 has found cannot sign in now. It closes when dismissed, after a restore or
+  when a battle finishes.
+- **首勝已記 · 留份備份？** (勝局已記 when the journey already had wins) and
+  **新卡入藏 · 留份備份？** after the first win and the first pack opening this
+  device records, for a player who has not backed up since: **匯出備份** and
+  **旅程閣**. A player is skipped only when 旅程閣 has already found them signed in
+  during this page; the lobby makes no account request. Each appears at most once
+  ever and stays for that page until dismissed or a backup is made.
+- The strip keeps one row inside its 48 px; at 380 px or narrower the buttons drop
+  their arrows.
+
+Changed after the first D2 review (2026-10-12): 雲端旅程 on the first lobby, the
+勝局已記 copy, the 340 px strip, and the corrected rule on who is not prompted.
 
 The 旅程閣 tools add **匯入旅程備份** and a status line (上次備份, 長期保存) beside
 **匯出旅程備份**. Rules and checks:
 [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12);
-`npm run test:saves` covers the strip at 390 px in Chromium and WebKit.
+`npm run test:saves` covers the strip at 390 px and 340 px in Chromium and WebKit.
 
 ## Checks
 

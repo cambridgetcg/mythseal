@@ -54,9 +54,12 @@ same strict restore as **恢復雲端旅程** (recovery copy first, nothing writ
 refusal), and a status line with the date of this device's last export or
 successful **備份此裝置**, recorded on this device only. The unfinished-battle
 refusal of every restore now reads 請先完成或放棄未完對局，再恢復旅程；本機旅程未有更改。
-On a journey this device has just started, the lobby offers 有舊旅程？由備份還原; when
-旅程閣 already knows the player is signed in it adds 雲端旅程, which opens this
-restore confirmation. Nothing is uploaded or restored without the player's
+On a journey this device has just started, the lobby offers 有舊旅程？由備份還原 with
+雲端旅程, which opens 旅程閣; 旅程閣 looks the account up as usual and, for a
+signed-in player with a cloud backup, opens this restore confirmation (changed
+after the first D2 review: 雲端旅程 used to need 旅程閣 to know the account
+already). The import confirmation says when it replaces the one recovery copy
+this browser keeps. Nothing is uploaded or restored without the player's
 confirmation, and the lobby sends no account request of its own.
 [LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
 own the rules.
