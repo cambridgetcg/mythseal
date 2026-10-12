@@ -16,15 +16,20 @@
  * the visible planning hint (taller than 1 px); every teaching element leaves the profile
  * bytes unchanged and writes only its own device-local key; a match result opens on
  * 勝負已定 (悟 and its advice after a loss) even after the previous result was left on
- * 旅途所得. Headless engines only: the owner's playtest with first-time players is the
- * real exit (docs/VALIDATION.md).
+ * 旅途所得. Review round 1 added: 預計 on a draft a hidden reply could change, and the
+ * announced card's formula in an opponent-led round; on a 360 px phone (360×640, and
+ * 360×560 where the player's caption yields) every mark's copy fits its two lines and,
+ * with Fury on, the cost line shows 剩 N 丹 whole while the Fury note states the damage
+ * inside its button (also on the device); with full motion, Back while the round-1 reveal
+ * animates holds the result and skips nothing, and mark ④ then shows. Headless engines
+ * only: the owner's playtest with first-time players is the real exit (docs/VALIDATION.md).
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/coach-smoke.mjs
  */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { viewportFrames, revealViewportItem } from './viewport-browser-helpers.mjs';
-import { createMatch, resolveRound } from '../engine.mjs';
+import { RULES, createMatch, resolveRound } from '../engine.mjs';
 import { createProfile, beginBattle, PROFILE_KEY } from '../progression.mjs';
 import { NAV_STATE_KEY } from '../nav-stack.mjs';
 import { COACH_KEY } from '../battle-teaching.mjs';
@@ -69,11 +74,13 @@ const FIXTURES = { fresh: { profile: null, battle: null }, veteran: { profile: J
 // ── Pages ───────────────────────────────────────────────────────────────────────
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
 const version = browser.version();
-async function open(name) {
+/** size: a viewport in place of the device's (same engine, touch and user agent).
+ * motion: full motion and normal pace, so the round reveal animates. */
+async function open(name, { size = null, motion = false } = {}) {
   const fixture = FIXTURES[name];
-  const context = await browser.newContext({ ...device, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ ...device, ...(size ? { viewport: size, screen: size } : {}), reducedMotion: motion ? 'no-preference' : 'reduce' });
   contexts.add(context);
-  await context.addInitScript(({ fixture, keys, now }) => {
+  await context.addInitScript(({ fixture, keys, now, motion }) => {
     const NativeDate = Date, fixed = new NativeDate(now).getTime();
     globalThis.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
     Math.random = () => 0.23;
@@ -81,14 +88,14 @@ async function open(name) {
       localStorage.setItem('coach-smoke.seeded', 'yes');
       if (fixture.profile) localStorage.setItem(keys.profile, fixture.profile);
       if (fixture.battle) localStorage.setItem(keys.battle, fixture.battle);
-      localStorage.setItem(keys.preferences, JSON.stringify({ sound: false, ambience: 0.35, effects: 0.6, motion: 'reduce', pace: 'fast' }));
+      localStorage.setItem(keys.preferences, JSON.stringify({ sound: false, ambience: 0.35, effects: 0.6, ...(motion ? { motion: 'system', pace: 'normal' } : { motion: 'reduce', pace: 'fast' }) }));
     }
     // Every localStorage write, by key, so a teaching element can be shown to write only its own key.
     const nativeSet = Storage.prototype.setItem, nativeRemove = Storage.prototype.removeItem;
     window.coachSmokeWrites = [];
     Storage.prototype.setItem = function(key, value) { nativeSet.call(this, key, value); if (this === localStorage) window.coachSmokeWrites.push(String(key)); };
     Storage.prototype.removeItem = function(key) { nativeRemove.call(this, key); if (this === localStorage) window.coachSmokeWrites.push(`-${key}`); };
-  }, { fixture, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now });
+  }, { fixture, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now, motion });
   await context.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
     if (url.origin === base.origin && url.pathname === '/api/v1/account' && request.method() === 'GET') {
@@ -189,8 +196,9 @@ async function assertReachable(page, selector, label) {
     assert.ok(item.reached, `${label}: a tap at the centre of ${selector} reaches it (hit ${item.hit})`);
   }
 }
-/** The move panel states the engine's own attack for the current draft. */
-async function assertFormula(page, label) {
+/** The move panel states the engine's own attack for the current draft. `exact` and
+ * `leader`, when given, pin the case a check is meant to cover. */
+async function assertFormula(page, label, { exact = null, leader = null } = {}) {
   const view = await page.evaluate(async battleKey => {
     const { previewMove, resolveRound } = await import('./engine.mjs');
     const saved = JSON.parse(localStorage.getItem(battleKey)), match = saved.match;
@@ -209,8 +217,39 @@ async function assertFormula(page, label) {
   assert.ok(view.formula.includes(`${view.pills}丹`) || view.formula.includes(`${view.pills} 丹`) || view.formula.includes(`×${view.pills + 1}`), `${label}: the formula shows the pills (${view.formula})`);
   assert.ok(view.formula.includes('×'), `${label}: the formula shows the multiplier`);
   assert.equal(view.formula.startsWith('預計'), view.exact === 'false', `${label}: 預計 marks exactly the numbers a hidden reply could change`);
-  if (view.leader === 'opponent') assert.equal(view.exact, 'true', `${label}: an announced card makes the number exact`);
+  if (view.leader === 'opponent') {
+    assert.equal(view.exact, 'true', `${label}: an announced card makes the number exact`);
+    assert.ok(view.formula.includes('已計對手亮牌'), `${label}: the announced card's effects are counted (${view.formula})`);
+  }
+  if (exact !== null) assert.equal(view.exact, String(exact), `${label}: ${exact ? 'an exact number' : 'a number a hidden reply could change'} (${view.formula})`);
+  if (exact === false) assert.ok(view.formula.startsWith('預計'), `${label}: the visible line starts with 預計 (${view.formula})`);
+  if (leader) assert.equal(view.leader, leader, `${label}: the ${leader} leads this round`);
   assert.ok(view.fits, `${label}: the formula fits its cell on one line`);
+  return view;
+}
+/** With Fury on, the cost line shows the pills left whole (it is what carries them where the
+ * player's caption yields), and the Fury toggle's note states the engine's damage inside its
+ * button, clear of the switch. */
+async function assertFuryLines(page, label) {
+  const view = await page.evaluate(async battleKey => {
+    const { previewMove, resolveRound } = await import('./engine.mjs');
+    const saved = JSON.parse(localStorage.getItem(battleKey)), match = saved.match;
+    const cardId = document.querySelector('.player-hand [aria-pressed="true"]')?.dataset.id;
+    const pills = Number(document.querySelector('#pill-amount').textContent), fury = document.querySelector('.move-panel [data-action="fury"]');
+    const draft = { cardId, pills, fury: fury.getAttribute('aria-pressed') === 'true' };
+    const engine = match.initiative === 'opponent' ? resolveRound(match, draft, saved.aiMove).lastResult.player : previewMove(match, 'player', draft);
+    const cost = document.querySelector('.move-panel #cost-note'), note = fury.querySelector('small'), track = fury.querySelector('.toggle-track');
+    const box = fury.getBoundingClientRect(), noteBox = note.getBoundingClientRect(), trackBox = track.getBoundingClientRect();
+    return { size: `${innerWidth}x${innerHeight}`, pressed: draft.fury, damage: engine.damage, spent: engine.cost, reserve: match.player.pills - engine.cost, cost: cost.textContent, scroll: cost.scrollWidth, client: cost.clientWidth,
+      note: note.textContent, noteInside: noteBox.left >= box.left - 0.5 && noteBox.right <= box.right + 0.5 && noteBox.width > 0,
+      clearOfTrack: noteBox.right <= trackBox.left + 0.5 || noteBox.bottom <= trackBox.top + 0.5 || noteBox.top >= trackBox.bottom - 0.5, trackInside: trackBox.right <= box.right + 0.5 && trackBox.left >= box.left - 0.5 };
+  }, battleKey);
+  const at = `${label} (${view.size})`;
+  assert.equal(view.pressed, true, `${at}: Fury is on`);
+  assert.equal(view.cost, `共消耗 ${view.spent} 丹 · 剩 ${view.reserve} 丹`, `${at}: the cost line holds the cost and the pills left`);
+  assert.ok(view.scroll <= view.client + 0.5, `${at}: the cost line shows 剩 ${view.reserve} 丹 whole with Fury on (${view.scroll} > ${view.client}: ${view.cost})`);
+  assert.match(view.note, new RegExp(`^另付 ${RULES.furyCost} 丹 · (傷害|預計傷) ${view.damage}$`), `${at}: the Fury note states the damage a win deals (${view.note})`);
+  assert.ok(view.noteInside && view.clearOfTrack && view.trackInside, `${at}: the Fury note stays inside its button, clear of the switch (${JSON.stringify(view)})`);
 }
 /** The round-reveal tip states the saved match's remaining pills; returns the tip node's data. */
 async function assertRevealTip(page, label) {
@@ -265,6 +304,12 @@ try {
     await tap(page, '.move-panel [data-action="pill-plus"]');
     assert.equal(await page.locator('#pill-amount').textContent(), '2');
     await assertFormula(page, 'two pills');
+    // 青霄's 凌霄 (power +1) is lost if the opponent answers with 霜璃 (照心), still in its open hand: 預計.
+    const hands = JSON.parse(await stored(page, battleKey)).match;
+    assert.ok(hands.player.hand.includes('qingxiao') && hands.opponent.hand.includes('shuangli') && hands.initiative === 'player', 'the first battle holds 青霄 against an open 霜璃, with the player leading');
+    await tap(page, '.player-hand [data-action="select"][data-id="qingxiao"]');
+    await assertCoach(page, 'commit', 'a later card change keeps mark ③');
+    await assertFormula(page, '青霄 before the opponent plays', { exact: false, leader: 'player' });
     await assertReachable(page, '.move-panel [data-action="commit"]', 'mark ③ commit');
     assert.equal(await stored(page, PROFILE_KEY), profile, 'picking, pills and marks ①–③ leave the profile bytes unchanged');
     await settleDepth(page, 2, 'marks ①–③ share one layer');
@@ -284,7 +329,12 @@ try {
     await assertNoCoach(page, 'round 2 after completion');
     await settleDepth(page, 1, 'the coach layer is gone');
     assert.equal(await stored(page, PROFILE_KEY), profile, 'completing the coach leaves the profile bytes unchanged');
-    passed('on the first battle marks ① card → ② pills (with what they do) → ③ commit → ④ reveal appear in order, each taught control reachable by a tap; the formula equals the engine; the round-1 tip states match-state pills; 繼續 completes the coach without a profile write');
+    // Round 2: the opponent leads, so its announced card's effects count and every open draft is exact.
+    for (const id of await page.locator('.player-hand [data-action="select"]:not([disabled])').evaluateAll(nodes => nodes.map(node => node.dataset.id))) {
+      await tap(page, `.player-hand [data-action="select"][data-id="${id}"]`);
+      await assertFormula(page, `opponent-led round 2 with ${id}`, { exact: true, leader: 'opponent' });
+    }
+    passed('on the first battle marks ① card → ② pills (with what they do) → ③ commit → ④ reveal appear in order, each taught control reachable by a tap; the formula equals the engine (預計 for 青霄 against an open 霜璃; the announced card counted in opponent-led round 2); the round-1 tip states match-state pills; 繼續 completes the coach without a profile write');
 
     // Never again: after a reload, and in a restarted first battle (an abandoned battle is not a played one).
     await page.reload(); await page.locator('.game-lobby').waitFor();
@@ -367,6 +417,13 @@ try {
     await startFirstJourneyBattle(page);
     await assertNoCoach(page, 'a 霧隱渡口 encounter after a played battle');
     await assertFormula(page, 'later battle');
+    // Fury on: the cost line keeps 剩 N 丹 whole; the damage is on the Fury toggle.
+    await tap(page, '.move-panel [data-action="fury"]');
+    await assertFuryLines(page, 'Fury on with no pills');
+    await page.locator('#pill-slider').fill('9'); await viewportFrames(page);
+    await assertFuryLines(page, 'Fury on with nine pills');
+    await tap(page, '.move-panel [data-action="fury"]');
+    await page.locator('#pill-slider').fill('0'); await viewportFrames(page);
     await tap(page, '.move-panel [data-action="commit"]');
     const tip = await assertRevealTip(page, 'round 1 without the coach');
     assert.equal(await page.locator('#overlay-root [data-battle-coach]').count(), 0);
@@ -383,7 +440,7 @@ try {
     assert.equal(JSON.parse(await stored(practice, battleKey)).encounter.kind, 'practice');
     await assertNoCoach(practice, 'a first practice match');
     assert.equal(await coachRecord(practice), null, 'practice leaves the coach for the first journey battle');
-    passed(`no mark outside the first battle; the visible hint (${tip.kind} tip after round 1) and the formula remain`);
+    passed(`no mark outside the first battle; the visible hint (${tip.kind} tip after round 1) and the formula remain; with Fury on the cost line shows the pills left whole and the Fury note the damage`);
     await release(practice);
   }
 
@@ -429,6 +486,76 @@ try {
     assert.equal(JSON.parse(await stored(page, PROFILE_KEY)).pending, null, 'the loss is settled');
     passed('after a result left on 旅途所得, the next match result (a loss) opens on 勝負已定 with 悟 and its advice');
     await release(page);
+  }
+  // ── 6. A 360 px phone: every mark's copy fits its two lines; Fury keeps 剩 N 丹 whole ──
+  // 360×640 is a battle-table contract size; at 360×560 the player's caption yields and the
+  // cost line alone carries the pills left.
+  for (const size of [{ width: 360, height: 640 }, { width: 360, height: 560 }]) {
+    const at = `${size.width}x${size.height}`, page = await open('fresh', { size });
+    await startFirstJourneyBattle(page);
+    await assertCoach(page, 'card', `${at} mark ①`);
+    // Every copy of marks ①–③ (both leaders, both commit labels), measured in the real hint.
+    const copies = await page.evaluate(async () => {
+      const { coachCopy, COACH_STEPS } = await import('./battle-teaching.mjs');
+      const hint = document.querySelector('#app .battle-coach'), text = hint.querySelector('.battle-coach-text'), original = text.textContent, result = [];
+      for (const step of COACH_STEPS.filter(step => step !== 'reveal')) for (const leader of ['player', 'opponent']) for (const commitLabel of ['封丹 · 落子', '落子 · 決勝']) {
+        text.textContent = coachCopy(step, { leader, commitLabel }).text;
+        result.push({ step, leader, commitLabel, text: text.textContent, lines: Math.round(hint.scrollHeight / parseFloat(getComputedStyle(hint).lineHeight)), clipped: hint.scrollHeight > hint.clientHeight + 1 });
+      }
+      text.textContent = original;
+      return result;
+    });
+    for (const copy of copies) assert.equal(copy.clipped, false, `${at}: the ${copy.step} copy (${copy.leader} leads, ${copy.commitLabel}) fits two lines, not ${copy.lines}: ${copy.text}`);
+    const other = await page.locator('.player-hand [data-action="select"][aria-pressed="false"]:not([disabled])').first().getAttribute('data-id');
+    await tap(page, `.player-hand [data-action="select"][data-id="${other}"]`);
+    await assertCoach(page, 'pills', `${at} mark ②`);
+    await tap(page, '.move-panel [data-action="pill-plus"]');
+    await assertCoach(page, 'commit', `${at} mark ③`);
+    await tap(page, '.move-panel [data-action="fury"]');
+    await assertFuryLines(page, 'Fury on with one pill');
+    await page.locator('#pill-slider').fill('9'); await viewportFrames(page);
+    await assertFuryLines(page, 'Fury on with nine pills');
+    await release(page);
+  }
+  passed('at 360×640 and 360×560 every copy of marks ①–③ fits its two lines; with Fury on the cost line shows 剩 N 丹 whole and the Fury note states the damage inside its button');
+
+  // ── 7. Full motion: Back while the round-1 reveal animates holds the result ─────────
+  {
+    const page = await open('fresh', { motion: true });
+    await startFirstJourneyBattle(page);
+    await assertCoach(page, 'card', 'full motion');
+    await tap(page, '.move-panel [data-action="pill-plus"]');
+    await assertCoach(page, 'commit', 'full motion, a pill added');
+    await settleDepth(page, 2, 'the battle and its coach mark');
+    await tap(page, '.move-panel [data-action="commit"]');
+    const reveal = page.locator('#overlay-root .battle-reveal');
+    await page.locator('#overlay-root .battle-reveal[data-reveal-state="animating"]').waitFor({ state: 'attached' });
+    assert.equal(await reveal.locator('[data-battle-coach="reveal"]').isVisible(), false, 'mark ④ is hidden while the reveal animates');
+    await settleDepth(page, 2, 'no coach layer while mark ④ is hidden');
+    assert.equal(await page.evaluate(() => document.querySelector('#overlay-root .battle-reveal')?.dataset.revealState), 'animating', 'Back comes while the reveal still animates');
+    await page.goBack(); await settleDepth(page, 2, 'Back during the animated reveal holds the result');
+    await viewportFrames(page);
+    assert.equal(await coachRecord(page), null, 'Back during the animation skips no mark');
+    await page.locator('#overlay-root .battle-reveal[data-reveal-state="complete"]').waitFor({ state: 'attached' });
+    await reveal.locator('[data-battle-coach="reveal"]').waitFor({ state: 'visible' });
+    assert.ok(await reveal.locator('[data-action="coach-done"]').isVisible(), '知道了 shows with mark ④');
+    assert.equal(await coachRecord(page), null);
+    // The next Back closes the mark the player can now see, as 跳過; the result stays.
+    await page.goBack();
+    await page.waitForFunction(() => !document.querySelector('#overlay-root [data-battle-coach]'), null, { timeout: 4000 });
+    assert.deepEqual(await coachRecord(page), { firstBattle: 'skipped' });
+    assert.equal(await reveal.count(), 1, 'the round result stays');
+    await release(page);
+    // Without a Back, the completed reveal's mark gets its own history entry (one more layer).
+    const control = await open('fresh', { motion: true });
+    await startFirstJourneyBattle(control);
+    await tap(control, '.move-panel [data-action="commit"]');
+    await control.locator('#overlay-root .battle-reveal[data-reveal-state="animating"]').waitFor({ state: 'attached' });
+    await settleDepth(control, 2, 'the animating reveal');
+    await control.locator('#overlay-root [data-battle-coach="reveal"]').waitFor({ state: 'visible' });
+    await settleDepth(control, 3, 'the reveal and its now visible mark');
+    passed('with full motion, Back while the round-1 reveal animates holds the result and skips no mark; mark ④ then shows, and the next Back closes it');
+    await release(control);
   }
   assert.deepEqual(errors, [], 'no page errors, console errors, failed responses or unexpected network');
 } finally {
