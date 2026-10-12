@@ -23,12 +23,16 @@ export const BACK = Object.freeze({
   BATTLE_MENU: 'battle-menu',
   HOME: 'home',
   EXIT: 'exit',
+  DISMISS_COACH: 'dismiss-coach',
 });
 const SUB_VIEW_BACK = Object.freeze({ 'bag-group': BACK.CLOSE_GROUP, 'preparation-deck': BACK.RETURN_PREPARATION, account: BACK.ACCOUNT_BACK });
 // A guard row leaves a decision on screen; further steps of a multi-entry Back stop there.
 const GUARDS = new Set([BACK.HOLD, BACK.BATTLE_MENU]);
 
 const modalLayer = ({ kind = null, dismissible = true } = {}) => ({ kind: 'modal', id: kind || 'dialog', dismissible: dismissible !== false });
+// D3's first-battle coach mark: one dismissible layer. On the table it sits under any dialog
+// opened over the table; in the round reveal it sits over that (non-dismissible) dialog.
+const COACH_LAYER = Object.freeze({ kind: 'coach', id: 'coach', dismissible: true });
 
 function screenLayers(view, screen, nested = false) {
   if (!screen || screen === ROOT_SCREEN) return [];
@@ -49,15 +53,19 @@ function screenLayers(view, screen, nested = false) {
 /**
  * Layers above the 洞府 root, bottom first.
  * view: { screen, battle: 'playing'|'settling'|'finished'|null, accountReturn, bagGroup,
- *         preparationDeck: {screen}|null, modal: {kind, dismissible}|null, modalReturn: {kind, dismissible}|null }
+ *         preparationDeck: {screen}|null, modal: {kind, dismissible}|null, modalReturn: {kind, dismissible}|null,
+ *         coach: 'table'|'dialog'|null }
  * modalReturn is the dialog the open one returns to (a result card or settings opened over a result or preparation).
+ * coach is a first-battle coach mark shown on the battle table ('table') or in the round reveal ('dialog').
  */
 export function navLayers(view = {}) {
   const layers = screenLayers(view, view.screen || ROOT_SCREEN);
+  if (view.coach === 'table') layers.push(COACH_LAYER);
   if (view.modal) {
     if (view.modalReturn) layers.push(modalLayer(view.modalReturn));
     layers.push(modalLayer(view.modal));
   }
+  if (view.coach === 'dialog' && view.modal) layers.push(COACH_LAYER);
   return layers;
 }
 
@@ -68,6 +76,8 @@ export function backDecision(view = {}) {
   const layers = navLayers(view), top = layers.at(-1);
   if (!top) return { action: BACK.EXIT, layer: null };
   if (top.kind === 'modal') return { action: top.dismissible ? BACK.DISMISS_MODAL : BACK.HOLD, layer: top };
+  // A coach mark closes as 跳過 does: every remaining mark, recorded as seen.
+  if (top.kind === 'coach') return { action: BACK.DISMISS_COACH, layer: top };
   if (top.kind === 'battle') {
     if (view.battle === 'playing') return { action: BACK.BATTLE_MENU, layer: top };
     // A commit is resolving or saving: the result is about to open; nothing navigates under it.

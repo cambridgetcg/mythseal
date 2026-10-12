@@ -44,6 +44,7 @@ function harness({ state = null, blank = true, session = sessionHistory(state, {
     if (decision.action === BACK.ACCOUNT_BACK) v.screen = v.accountReturn;
     if (decision.action === BACK.BATTLE_MENU) v.modal = modal('leave-battle');
     if (decision.action === BACK.HOME) { v.screen = 'home'; v.modal = null; v.preparationDeck = null; }
+    if (decision.action === BACK.DISMISS_COACH) v.coach = null;
     nav.queue();
     return decision;
   };
@@ -587,4 +588,51 @@ test('N22 a bfcache restore after 3 s or more on the later page walks back once:
   k.nav.pagehide(true);
   k.user(v => { v.screen = 'world'; });
   assert.equal(depthOnEntry(k), 1, 'the push was made');
+});
+
+test('N23 D3 decision table: a first-battle coach mark is one dismissible layer, under table dialogs and over the round reveal', () => {
+  const table = view({ screen: 'battle', battle: 'playing', coach: 'table' });
+  assert.equal(navSignature(table), 'battle:battle>coach:coach');
+  assert.equal(backDecision(table).action, BACK.DISMISS_COACH);
+  assert.equal(isGuardDecision(backDecision(table)), false);
+  // A card inspected over the coached table closes first; the coach mark is next.
+  const inspected = view({ screen: 'battle', battle: 'playing', coach: 'table', modal: modal(null) });
+  assert.equal(navSignature(inspected), 'battle:battle>coach:coach>modal:dialog');
+  assert.equal(backDecision(inspected).action, BACK.DISMISS_MODAL);
+  // In the round reveal the last mark sits over the result, which still holds after it.
+  const reveal = view({ screen: 'battle', battle: 'playing', coach: 'dialog', modal: modal('round-result', false) });
+  assert.equal(navSignature(reveal), 'battle:battle>modal:round-result>coach:coach');
+  assert.equal(backDecision(reveal).action, BACK.DISMISS_COACH);
+  assert.equal(backDecision({ ...reveal, coach: null }).action, BACK.HOLD);
+  assert.equal(navLayers(view({ screen: 'battle', battle: 'playing', coach: 'dialog' })).length, 1, 'a dialog coach without its dialog is no layer');
+  assert.equal(navLayers(view({ screen: 'battle', battle: 'playing', coach: 'elsewhere' })).length, 1);
+});
+
+test('N24 D3 Back closes the coach mark once, then the table and reveal behave as before; 跳過 walks back over its entry', () => {
+  const h = started();
+  h.user(v => { v.screen = 'battle'; v.battle = 'playing'; v.coach = 'table'; });
+  assert.equal(depthOnEntry(h), 2, 'starting the first battle pushes the battle and its coach mark');
+  h.back();
+  assert.equal(h.app.view.coach, null); assert.equal(h.app.view.screen, 'battle');
+  assert.deepEqual(h.app.decisions, [BACK.DISMISS_COACH]);
+  h.back();
+  assert.equal(h.app.view.modal.kind, 'leave-battle', 'the next Back is the battle menu, as without a coach');
+  h.back();
+  assert.equal(h.app.view.modal, null);
+  // A coach mark over the round reveal: Back closes it, then the result holds.
+  h.user(v => { v.modal = modal('round-result', false); v.coach = 'dialog'; });
+  assert.equal(depthOnEntry(h), 3);
+  h.back();
+  assert.equal(h.app.view.coach, null); assert.equal(h.app.view.modal.kind, 'round-result');
+  h.back();
+  assert.equal(h.app.view.modal.kind, 'round-result');
+  assert.deepEqual(h.app.decisions.slice(-2), [BACK.DISMISS_COACH, BACK.HOLD]);
+  // 跳過 in the UI walks back over the coach entry instead of leaving it for a second Back.
+  const skip = started();
+  skip.user(v => { v.screen = 'battle'; v.battle = 'playing'; v.coach = 'table'; });
+  skip.user(v => { v.coach = null; });
+  assert.deepEqual(skip.session.log.gos, [-1]);
+  assert.equal(depthOnEntry(skip), 1);
+  assert.deepEqual(skip.app.decisions, []);
+  assert.equal(h.session.log.left + skip.session.log.left, 0);
 });
