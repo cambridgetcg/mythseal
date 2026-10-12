@@ -2,6 +2,327 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## D1 Back model · 2026-10-12
+
+Branch `d1/back-model`, from `origin/main` `7712a7b`; packet D1, approved by the
+owner on 2026-10-11 for the proposed v0.6.0 scope. Source commits `17a64e0`,
+`97543e8`, `37ca36c`, `c86e529` (comments only), `cf14ee7` and `e2e1474`
+(smoke messages only); the documentation commits after them change no served,
+test or tool file. Not merged, pushed or deployed; no hosted check, no network
+request beyond the loopback server. Design and decision table:
+[NAVIGATION](NAVIGATION.md#back-model--2026-10-12).
+
+**Environment.** macOS 26.6.2 (Darwin 25.6.0), Node 26.0.0, Python 3.14.6,
+Playwright 1.63.0, installed Google Chrome 154.0.8037.98 for Chromium and
+Playwright WebKit 26.6, all headless. `python3 tools/serve.py --port 4201` from
+the worktree, started after `nav-stack.mjs` entered the allowlist;
+`GAME_URL=http://127.0.0.1:4201` for every browser suite. Synthetic saves only.
+
+**Problem reproduced.** With `7712a7b`'s `app.mjs` served (everything else as
+on the branch), a scratch Playwright script opened the game, then either tapped
+遊歷 in the dock or opened the quest panel, then called `page.goBack()`. In
+Chrome (Pixel 7 descriptor) and WebKit (iPhone 15 descriptor) both cases landed
+on `about:blank`. With the branch's `app.mjs` all four stayed on the game.
+
+**Checks at `e2e1474`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **548/548** (530 on `7712a7b`, plus
+  17 in `tests/nav-stack.test.mjs`, N1–N17, and one in `tests/hosting.test.mjs`).
+  N1–N3 cover every row of the decision table; N5 checks that each Back closes
+  one layer and only the root leaves; N6 replaceState for destination switches;
+  N7 that ×/Escape/backdrop consume their own entry and that popstate is not a
+  second close; N8 that a result holds, the guard entry is re-armed with
+  `history.go(+1)`, there is no push from popstate and the settlement count is
+  unchanged; N9 the battle guard; N10 pushes only on a user turn; N11–N12 stale
+  entries after a reload (the root leaves in one Back); N13 Forward and a
+  bfcache `pageshow`; N14 a user Back racing the game's own walk; N15
+  `requestBack()` for native shells; N16 a seeded 30-step walk (25 runs) keeping
+  `history.length` ≤ initial + 4; N17 recovery from a walk that never lands.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, **84 public files** (83 plus `nav-stack.mjs`),
+  manifest `91a83554…998b`.
+- `git diff --check 7712a7b HEAD`: exit 0.
+- `npm run test:back` (new; `tools/back-smoke.mjs`, Chrome with the Pixel 7
+  descriptor, then WebKit with the iPhone 15 descriptor): exit 0, **11/11
+  checks in each engine**, about 12 s per engine. From 遊歷, 對弈, 藏卡, 市集,
+  the codex tab, a collection group, a card page, quests, settings, rules,
+  preparation, its deck editor, the lobby's two-layer continue and 旅程閣
+  (from 洞府 and from 遊歷), each `page.goBack()` closed exactly one layer, and
+  no `about:blank` occurred before the 洞府 root. After Back closed a card page
+  opened from the second page of a 雲-filtered copy list, the same copies (by
+  UID) and the filter were shown. A seeded 30-step walk (3 ×, 2 Escape,
+  2 backdrop and 4 Back steps, 19 openings, up to three layers) kept
+  `history.length` at most 5 against 2 on load (≤ initial + 4). In a battle,
+  Back opened keep/abandon twice, closed it in between, and left the profile
+  bytes and write count unchanged. On the round and the match result, two
+  Backs each held the dialog. The save equaled exactly one `finishBattle`
+  computed in Node on the same synthetic save (+90 coins, `stats.played` 1),
+  with one profile write. A reload with a card page open, and a reload on the
+  match result, then Back: the page opened at 洞府 and Back left it in one
+  step past the earlier load's entries, with no prompt and no write; Forward
+  came back with the same save bytes and no second settlement.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:commands`: exit 0, 13/13 groups (B1–B11) in Chrome and in WebKit.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit.
+- `npm run test:browser` (Chrome, the 14 suites chained with `&&`): exit 0,
+  91 `PASS` lines; every suite that prints an error list printed an empty one.
+
+Also run earlier: `npm run test:browser` at `37ca36c`, before `cf14ee7`
+changed `nav-stack.mjs` (and while `c86e529` changed two comments): exit 0,
+the same 91 `PASS` lines. A sibling packet's suites shared the machine for part
+of that run.
+
+**Not run or not shown:** physical Android phones with gesture navigation
+(including Android 16 predictive back) and the iOS Safari edge swipe, which are
+M5.1 items not yet verified. Also not covered: whether a real Back button skips
+any entry under Chrome's or WebKit's history-manipulation rules, since
+Playwright's `goBack()` steps to the previous entry by index; a real bfcache
+restore: in both engines Forward loaded a new document (a scratch script saw
+`pageshow.persisted` false and navigation type `back_forward`), so the bfcache
+path is covered only by the Node test N13; Firefox; desktop sizes in
+`test:back`; the Capacitor back-button wiring (M5.2); the literary preview
+smokes, since no preview file changed; the WebKit runs in `test:wx01`,
+`test:inheritance` and `test:collection-display` (their Chrome suites ran
+inside `test:browser`); `test:expansion` and `test:map-piece`; deploy dry runs,
+the SQL harness and CI.
+
+**Review fixes · 2026-10-12.** Review round 1 reported two findings, and both
+were confirmed. They are fixed in source commits **`cfaa315`**
+(`nav-stack.mjs`, `tests/nav-stack.test.mjs`) and **`ab73577`**
+(`tools/back-smoke.mjs`). The documentation commit after them changes no served,
+test or tool file. The environment is the same as above.
+
+- **Medium: dead Back after a reload when the game is the tab's first entry.**
+  The reload result above (Back left 洞府 "in one step past the earlier load's
+  entries") held only because the Node harness and every Playwright page put
+  `about:blank` before the game. A reload kept the earlier load's entries below
+  its root, and Back at the root jumped past them with `history.go(-(abs+1))`.
+  With no page before the game (a new tab, a home-screen shortcut, a Custom
+  Tab), that jump is out of range and the browser ignores it. Back then did
+  nothing once for each layer that was open at the reload. Each such reload
+  also added entries for good: six cycles took `history.length` from 2 to 14.
+  Now `start()` walks back to the tab's first game entry and makes it the root.
+  The earlier entries then sit ahead, and the next push drops them. If the walk
+  never lands within 3 s, the reloaded entry stays the root as before.
+  Regression tests: N18 (no `about:blank` in the simulated tab) and N19 (six
+  reload cycles). Both fail with `nav-stack.mjs` reverted to `1a1ff8f`
+  (`0 !== 1` system Backs; `6 !== 4` entries) and pass with the fix. N11, N12
+  (now the fallback for a walk that never lands) and N15 were updated. With the
+  same revert, the full `test:back` stopped at its new wait for the walk back
+  (`abs now 3`). A scratch copy that ran only the two new smoke checks, without
+  that wait, showed `history.length` 2→4→6→8→10→12→14 in both engines. In the
+  popup, Back at 洞府 landed on an earlier entry: the CDP history index was not 0
+  in Chrome, and a popstate fired in WebKit.
+- **Low: `requestBack()` wording.** NAVIGATION, MOBILE-RELEASE and the code
+  comment said it makes no history traversal. In fact, when a row closes a
+  layer it walks back over that layer's entry with `history.go(-1)`. The wording
+  is corrected, and N15 now asserts that `go(-1)`.
+
+Checks at `ab73577`, all browser suites with `GAME_URL=http://127.0.0.1:4201`:
+
+- `node --test tests/*.test.mjs`: exit 0, **550/550** (N18 and N19 added).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 84 public files, manifest `7e445126…f2d`.
+- `git diff --check 7712a7b HEAD`: exit 0.
+- `npm run test:back`: exit 0, **13/13 checks in each engine** (the 11 above
+  plus two). Six reloads with 遊歷 and settings open kept `history.length` at
+  2→4→4→4→4→4→4, and one Back then left 洞府. A `window.open` popup started
+  with `history.length` 1. After a reload with two layers open, it was on the
+  tab's first entry (CDP index 0 in Chrome), and the first Back at 洞府 fired
+  no popstate and left it at 洞府. The next push left `history.length` at 2.
+- `npm run test:commands`: exit 0, 13/13 groups in each engine.
+- `npm run test:battle-table`: exit 0, 40/40 in each engine.
+- `npm run test:viewport`: exit 0, 23/23 in each engine.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines, and
+  every printed error list empty.
+- `npm run test:wx01` (Chrome then WebKit): exit 0, 54 `PASS` lines.
+  `npm run test:inheritance`: exit 0, 18. `npm run test:collection-display`:
+  exit 0, 20. All printed error lists were empty.
+- `npm run test:expansion`: **exit 1**. Chrome passed (16 checks, 899 layout checks).
+  WebKit failed after 6, at `360x740/rewards/grants`, because one `module`
+  action was 43.08 px wide (under 44 px). With `7712a7b`'s `app.mjs` served
+  (no Back model; D1 changes no CSS or HTML), the WebKit run failed the same way
+  at the same width. So the failure predates D1 in this environment, and D1 did
+  not cause it.
+
+Not run or not shown: physical phones, so the system Back at a first-entry root
+(Android Custom Tab or home-screen launch, iOS) is unverified; a Capacitor
+WebView's `canGoBack`; a startup walk that a real browser drops (only N12
+covers that fallback); `test:map-piece`; the literary preview smokes; deploy
+dry runs, the SQL harness and CI.
+
+**Review round 2 fixes · 2026-10-12.** Review round 2 reported two low
+findings, and independent reproductions confirmed both. They are fixed in
+source commits **`64918c1`** (`nav-stack.mjs`, `tests/nav-stack.test.mjs`),
+**`0b60592`** (`app.mjs`) and **`73e84ed`** (`tools/back-smoke.mjs`). The
+documentation commit after them changes no served, test or tool file. The
+environment is the same as above (versions re-read). For this round,
+`python3 tools/serve.py --port 4201` was started from the worktree; no
+allowlist file changed.
+
+- **Low: after a game reload, Forward could not reach a later page.**
+  `cfaa315`'s startup walk also runs when Back returns to a game entry from a
+  page opened in the same tab and the bfcache misses (the loopback server's
+  `no-store`, Playwright's default, eviction). The earlier load's entries then
+  sat between 洞府 and that page, and Forward into them stepped back to the
+  root, so the page was never reached again. Reviewers saw this in both
+  engines; at `1a1ff8f` the first Forward reached it. Each entry now also
+  stores `first`, the tab-history index of the tab's first game entry. A
+  Forward onto an entry above the layers held steps on with `history.go(+1)`
+  while `history.length` shows an entry past it, and steps back as before when
+  none does. This also lets Forward pass a closed layer's own entries without a
+  reload. A bfcache restore on the entry Forward left from walks back to the
+  layers held, and a Back racing a step on counts from the layers held.
+  Regression tests: N20, and the back-smoke check "Back into the game from a
+  page opened in the same tab", which mirrors the reviewers' steps (遊歷,
+  settings, `/playtest.html`, Back, then Forward). With `nav-stack.mjs` at
+  `d1120b5`, N20 fails ("Forward reached the page opened after the game":
+  false). `tools/back-smoke.mjs` then passed 13 checks in each engine and
+  failed at the new check (`page.waitForURL` timeout for `/playtest.html`). N20's
+  racing-Back assertion also fails when only the new count from the layers held
+  is reverted.
+- **Low: Back held forever after a failed settlement on resume.** `navView`
+  read the battle as "settling" from `busy`. `resumeBattle()` leaves `busy` set
+  for a finished snapshot when `recordFinishedMatch()` throws (a full quota).
+  The first Back closed the pending dialog, and every later Back held on what
+  the player sees as 洞府. `recordFinishedMatch()` now sets `settling` around its
+  save (`try`/`finally`), and `navView` reads that flag. Regression test: the
+  back-smoke check "a settlement that fails on resume". It makes the profile
+  save throw a `QuotaExceededError` and clicks 繼續對局. Back then closes the
+  dialog, then the battle layer (entry depth 0), then leaves, with no profile
+  write. With `app.mjs` at `d1120b5` and everything else at `73e84ed`, it fails
+  in both engines after 14 checks (`home: history entry depth 0–0 (now 1)`).
+  `resumeBattle()`'s catch still leaves `screen` at `'battle'` under the lobby.
+  That predates D1, so on this path one Back changes nothing visible before the
+  next one leaves.
+
+Checks at `73e84ed`, all browser suites with `GAME_URL=http://127.0.0.1:4201`:
+
+- `node --test tests/*.test.mjs`: exit 0, **551/551** (N20 added).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 84 public files, manifest `cff14488…0fae`.
+- `git diff --check 7712a7b HEAD`: exit 0.
+- `npm run test:back`: exit 0, **15/15 checks in each engine** (the 13 above
+  plus two). In both engines, the game came back from `/playtest.html` as a new
+  load (navigation type `back_forward`, `pageshow.persisted` false) and walked
+  back to abs 0. One `page.goForward()` then reached `/playtest.html` with no
+  entry added, and after Back again one Back left 洞府.
+- `npm run test:commands`: exit 0, 13/13 groups in each engine.
+- `npm run test:battle-table`: exit 0, 40/40 in each engine.
+- `npm run test:viewport`: exit 0, 23/23 in each engine.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines, and
+  every printed error list empty.
+- `node tools/expansion-smoke.mjs` (Chrome only): exit 0, 16 checks and 899
+  layout checks.
+
+Not run or not shown: a real bfcache restore after Forward stepped past
+entries (only N20 covers it; every return in these runs was a new load); a
+browser that has dropped its oldest entries, where `first` is too high (reasoned,
+not run); physical phones; the WebKit half of `test:expansion` (it failed
+before D1 in this environment, above); `test:wx01`, `test:inheritance`,
+`test:collection-display` and `test:map-piece`; the literary preview smokes;
+deploy dry runs, the SQL harness and CI.
+
+**Review round 3 fixes · 2026-10-12.** Review round 3 reported two medium
+findings with one cause, and independent reproductions in Chrome with the
+bfcache on confirmed both. They are fixed in source commit **`4e99590`**
+(`nav-stack.mjs`, one `app.mjs` line, `tests/nav-stack.test.mjs`) and smoke
+commit **`dde373d`** (`tools/back-smoke.mjs`). The documentation commit after
+them changes no served, test or tool file. The environment is the same as
+above. For this round, `python3 tools/serve.py --port 4201` was started from
+the worktree; no allowlist file changed.
+
+- **Medium (both findings): after Forward stepped past an earlier load's
+  entries, Back bounced between the game and the later page.** Production
+  allows the bfcache (`hosting/_headers` sends `public, max-age=0,
+  must-revalidate`). The reviewers reached it in two ways: a reload at 洞府,
+  or `history.go(-2)` / `history.go(-3)` from the later page (the Back menu,
+  or a fast double Back), which loads the game anew below its top entry. In
+  both, the entries ahead of the root still hold the earlier load's state,
+  and `64918c1`'s Forward steps past them, so the page leaves from one of
+  them. `pageshow` trusted a restored entry's position only when the entry
+  held this load's session id; otherwise it took the root. Restored on that
+  abs-2 entry, the page walked nothing back. The next Back landed on abs 1,
+  which the Forward step-on read as a Forward, and stepped on to the later
+  page again. So every Back from the game returned to that page. The round 2
+  note's sentence "A bfcache restore on the entry Forward left from walks back
+  to the layers held" (and the matching NAVIGATION sentence) held only for an
+  entry the current load wrote. From `4e99590`, `pageshow` takes the position
+  stored in the restored entry, whichever load wrote it, since `abs` counts the
+  tab's game entries from the first one across reloads. The sentence then holds
+  for every entry, and NAVIGATION says so.
+- **Also fixed, found while checking the fix: a second walk past 洞府 after 3 s
+  away.** A restore fires `visibilitychange` before `pageshow`, and the game's
+  handler renders, which queues a reconciliation. After 3 s or more away
+  (`NAV_STALL_MS`), that reconciliation gave up the pending step and walked
+  back on its own; `pageshow` then walked again. Restored on an entry the
+  current load wrote, with a page before the game, Chrome ended on that page
+  (`about:blank`, history index 0) with `893f2d4`'s `app.mjs` and
+  `nav-stack.mjs` served. On an earlier load's entry `893f2d4` walked only once,
+  because `pageshow` took the root; the first fix alone would have made that
+  case walk twice too. Now a persisted `pagehide` holds reconciliation until
+  `pageshow` (a popstate or an input also releases it). `app.mjs` gains one
+  line after the `pageshow` listener:
+  `window.addEventListener('pagehide',event=>nav.pagehide(event.persisted));`.
+- **Regression checks.** N21 runs the three ways to leave from an earlier
+  load's entry (a reload at 洞府, a jump of 2, a jump of 3), each with and
+  without `about:blank` before the game: the restore walks back to the root,
+  and the next Back leaves (or goes to the system). N22 restores after 5 s
+  away, on this load's entry and on an earlier load's, with the render before
+  `pageshow`: exactly one `history.go(-2)`. The harness now fires `pagehide`
+  whenever the page leaves. The new back-smoke check (Chrome only) uses a
+  second browser launched without `--disable-back-forward-cache`, whose route
+  serves production's `Cache-Control` instead of `no-store`. It runs a reload
+  at 洞府 and a `history.go(-2)`, each restored on the earlier load's abs-2
+  entry. It also runs closed layers with a page before the game and 5 s away:
+  the smoke's fixed clock moves on when the page is shown again, before the
+  game's `visibilitychange` handler. Each case asserts a real restore
+  (`pageshow.persisted`), one walk to 洞府 (CDP history index) and that the next
+  Back leaves.
+- **With each fix reverted.** In Node, with the `pageshow` line reverted (hold
+  kept), N21 fails (`reload at 洞府: the restore walked back to the root`,
+  `3 !== 1`) and N22 fails on the earlier load's entry (no walk). With the hold
+  removed (`pagehide` a no-op), N22 fails on this load's entry (`[-2, -2]`).
+  With `893f2d4`'s `nav-stack.mjs` plus an empty `pagehide()`, both fail. The
+  other tests pass each time. In Chrome, a scratch copy of the smoke had its route
+  serve the variant `app.mjs` and `nav-stack.mjs`. With `893f2d4`'s files, the
+  reload and jump cases failed (`abs now 2`) and the 5 s case ended on
+  `about:blank` at index 0. With only the `pageshow` line reverted, the reload
+  and jump cases failed and the 5 s case passed. With only the hold removed,
+  the reload and jump cases passed and the 5 s case ended on `about:blank`.
+
+Checks on the tree committed unchanged as `4e99590` and `dde373d`, all browser
+suites with `GAME_URL=http://127.0.0.1:4201`:
+
+- `node --test tests/*.test.mjs`: exit 0, **553/553** (N21 and N22 added).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 84 public files, manifest `2beb9777…bb80`.
+- `git diff --check 7712a7b`: exit 0.
+- `npm run test:back`: exit 0, **16/16 checks in Chrome** (the 15 above plus
+  the bfcache check) and **15/15 in WebKit**.
+- `npm run test:commands`: exit 0, 13/13 groups in each engine.
+- `npm run test:viewport`: exit 0, 23/23 in each engine.
+- `npm run test:battle-table`: exit 0, 40/40 in each engine.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines, and
+  every printed error list empty.
+
+Not run or not shown: a bfcache restore in WebKit (the reviewers saw
+`pageshow.persisted` false in Playwright's WebKit; not re-checked here, and the
+new check is Chrome only); real phones, including iOS Safari's page cache; a
+real browser restoring an earlier load's entry after 3 s away (only N22 covers
+that; the Chrome case after 5 s away restores this load's entry); Firefox;
+`test:expansion`, `test:wx01`, `test:inheritance`, `test:collection-display` and
+`test:map-piece`; the literary preview smokes; deploy dry runs, the SQL harness
+and CI.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings
