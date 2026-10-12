@@ -68,8 +68,11 @@ and `importJourney(file)` move the journey export out and back in through the
 strict restore. `save-status.mjs` decides when to ask: once per device, at the
 first win or first pack opening this device records, and, in an installed web
 app, at every launch until the browser agrees (corrected after the first D2
-review; this note said "once"). 旅程閣 shows the last backup's date and the
-browser's answer; a new journey offers a restore. A native build can replace
+review; this note said "once"). 旅程閣 shows the last cloud backup's date, when
+the last export download started (a browser page cannot confirm the file was
+saved; corrected after the second D2 review) and the browser's answer; a new
+journey offers a restore, from a v0.5.1 export too. A native share sheet that
+reports a completed save could record a confirmed backup instead. A native build can replace
 those three functions (durable native storage, a share sheet, a file picker)
 without changing the journey format.
 [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)

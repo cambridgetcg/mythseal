@@ -470,10 +470,11 @@ N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fe
 **File import (D2, 2026-10-12; §19).** 匯入旅程備份 in the 旅程閣 tools, and the lobby's restore offer on a new journey, read that export back. `export-save` now goes through `exportJourney` in `platform.mjs`, which writes the same indented text and file name, and writes compact JSON only when the indented text would pass 4 MiB, so every export the game can make stays importable.
 
 - **Only the export.** The file must be one JSON object with a numeric `version` and no `format` key. A cloud snapshot envelope, the bootstrap recovery-originals file and anything else are refused as not an export.
+- **Exports from before v0.6.0 (added after the second D2 review).** v0.4.1, v0.5.0 and v0.5.1 all exported the raw v3 profile, which the first D2 build refused as an older version. A v3 file (or a v4 one, the other namespace `load()` migrates) is now migrated exactly as `load()` migrates the same journey found under its own legacy key on this device: `assertLegacyCopies` (exact copies, canonical at its own day, no v5-only data, no `commands`), `hydrateProfile` at the file's own day, and the same-copies check (`platform.mjs` runs `createProfileStore(...).load()` over an in-memory storage that holds only the file). The result is then checked by every v5 rule below, and `createSnapshot` wraps it as a v5 backup (snapshot v3: 10,000 copies, 4 MiB), so a v0.5.1 journey over a legacy cloud backup's 2,000 copies still restores, as `load()` would migrate it. A legacy file exported mid-battle is refused as unfinished: no served build can finish that battle. The confirmation says the file is migrated before the restore.
 - **Refused before anything is written,** with copy that says the local journey did not change:
   - a file over 4 MiB (`MAX_IMPORT_BYTES`, the backup envelope), from its size, before it is read;
   - unparsable JSON;
-  - `version` below 5 (this includes v0.5.1's v3 exports, see §19 Open) or above 5;
+  - `version` above 5, or below 3 (`這份備份來自 v0.4.1 之前的萬象契…`; v3 and v4 are migrated, above);
   - a journey exported with an unfinished battle or activity;
   - a journey that is not canonical at its own day (XP against level, counts against copies, duplicate copy IDs, unknown fields): refused as possibly edited;
   - one that fails `assertLocalProfile`, `createSnapshot` or `restoreSnapshot` (a damaged ledger, a forbidden key such as `__proto__`, an oversize envelope).
@@ -910,9 +911,10 @@ keep the site's storage, and there was no import path.
   `checkJourneyText(text)` return a validated candidate or a refusal reason (§11).
   `isStandalone()` detects an installed web app.
 - `save-status.mjs` (allowlisted): one device-local record under
-  `shanhai.saves.v1`, following `shanhai.experience.v1`: the time and kind of this
-  device's last export or cloud backup, the browser's persistence answer, the two
-  backup prompts and the restore offer. It is never in the v5 profile, an export,
+  `shanhai.saves.v1`, following `shanhai.experience.v1`: the time of this device's
+  last cloud backup and, separately, of the last export download it started
+  (`lastExport`, since the second D2 review), the browser's persistence answer,
+  the two backup prompts and the restore offer. It is never in the v5 profile, an export,
   a cloud backup or the recovery-originals export, and unreadable or refused
   storage falls back to defaults.
 - `save-ui.mjs` and `saves.css` (allowlisted): the 旅程閣 status line, the lobby
@@ -933,16 +935,34 @@ keep the site's storage, and there was no import path.
   waiting on that page, so it is checked with `persisted()` and recorded as
   `granted`, or `unanswered` (未有回覆（瀏覽器未確認保留）), unless an answer lands
   first. Before, 旅程閣 read 已要求，等候瀏覽器回覆 on every later visit.
-- **旅程閣 status.** The tools show 上次備份：未曾, or the date and kind of this
-  device's last export or cloud backup, and 長期保存 with the recorded answer. An
-  export counts only when the file would import (not during an unfinished battle
-  or activity; the file is still downloaded, with a toast saying so).
-- **Backup prompts.** After each milestone, a player who has not backed up since
-  sees one strip above the lobby, pointing to the export and to 旅程閣, with a
-  dismiss button (關閉提示，不會再出現). Each prompt is consumed as it is shown, so
-  it appears at most once ever (both at once give one prompt). It stays for that
-  page until dismissed or a backup is made; never a dialog, and never during a
-  battle.
+- **旅程閣 status (changed after the second D2 review).** The tools show what the
+  page knows, and 長期保存 with the recorded answer:
+  - 上次備份：(date) · 雲端備份 for this device's last cloud backup, recorded only
+    after the account API said it saved;
+  - 上次匯出：(date) · 已開始下載，此頁無法確認檔案已儲存 for the last export. A page
+    cannot tell whether the browser saved an `<a download>` file: a cancelled save
+    dialog, a blocked download or (unverified) iOS Safari's download sheet look
+    the same as a saved file. The toast says 已開始下載旅程備份；請確認檔案已儲存。;
+  - 上次備份：未曾 only when there is neither.
+
+  An export is recorded only when the file would import (not during an unfinished
+  battle or activity; the file is still downloaded, with a toast saying so).
+  **Before the second D2 review** an export was recorded as the last backup as soon
+  as its link was clicked: 旅程閣 read 上次備份：(date) · 匯出檔案 after a refused
+  download, the strip it was pressed from went away, and a prompt due before it was
+  skipped for good. The spec's "date of the last successful local export" cannot be
+  known for a browser download, so the status says when the download started.
+  `showSaveFilePicker` (Chromium) and `navigator.share({ files })` could report a
+  cancel, but they change the export flow on each platform; M5.2's native adapter
+  can record a confirmed save as a backup instead.
+- **Backup prompts.** After each milestone, a player who has not made a cloud
+  backup since sees one strip above the lobby, pointing to the export and to
+  旅程閣, with a dismiss button (關閉提示，不會再出現). Each prompt is consumed as it
+  is shown, so it appears at most once ever (both at once give one prompt). It
+  stays for that page until dismissed or a cloud backup is made; an export from
+  the strip leaves it up, because the page cannot tell whether the file was saved
+  (changed after the second D2 review: an export used to end it, and to skip a
+  prompt due before it). Never a dialog, and never during a battle.
   - **Copy (fixed after the first D2 review).** The win strip says 首勝已記 · 留份備份？
     only when the journey has exactly one win, and 勝局已記 · 留份備份？ otherwise,
     so an existing journey's next win is not called its first. The strips say the
@@ -959,7 +979,11 @@ keep the site's storage, and there was no import path.
   有舊旅程？由備份還原 with 備份檔 (the file import) and 雲端旅程.
   - **雲端旅程 (changed after the first D2 review).** It opens 旅程閣, which looks
     the account up as it always does. A signed-in player with a cloud backup lands
-    on the existing cloud restore confirmation; anyone else sees 旅程閣's sign-in.
+    on the existing cloud restore confirmation; anyone else lands on 旅程閣's
+    雲端旅程 tab: a guest's sign-in, a signed-in player's cloud panel, or the
+    offline note. **Fixed after the second D2 review:** they landed on the 此裝置
+    tab, which shows only the new journey, with the sign-in hidden under 雲端旅程;
+    this section already said they see the sign-in.
     It is left out only for a guest 旅程閣 has found cannot sign in now (email
     login off). Before, it appeared only when 旅程閣 already knew the player was
     signed in, which on the first lobby after an eviction it never does. The lobby
@@ -998,26 +1022,46 @@ exits.
   shows `persist()` called exactly once after the first win and never on load,
   and a `requested` record left by a closed page settled from `persisted()`
   without a second `persist()`. Prompts, their copy and the offer appear as above.
+  Since the second D2 review (12 tests): an export is recorded apart from a backup
+  and never skips a prompt, while a cloud backup does; a v0.5.1-shaped v3 export
+  (byte-identical to v0.5.1's own export of a new journey) restores as the same
+  journey through the same path, one over 2,000 copies too, and `load()`'s legacy
+  refusals (unfinished, a ledger, an edited copy, v5-only data, `__proto__`) write
+  nothing. Source checks also pin the three rules the smoke's S2d, S7 and S9 check
+  in the browser.
 - `tools/save-durability-smoke.mjs` (`npm run test:saves`, Chromium then WebKit;
-  11 groups since the first D2 review): export → clear site data → the new
-  journey's offer → import restores an identical journey fingerprint and closes
-  the offer; a second import names the recovery copy it would replace; declining
-  and refusals leave every journey byte unchanged; each prompt appears once per
-  milestone; the status line shows the export date; the offer's 雲端旅程 from the
-  first lobby into the cloud restore, with intercepted fixture APIs; at 340 px the
-  strips keep one row; a journey with earlier wins reads 勝局已記; an unanswered
-  request reads 未有回覆.
+  11 groups since the first D2 review, 16 since the second): export → clear site
+  data → the new journey's offer → import restores an identical journey
+  fingerprint and closes the offer; a second import names the recovery copy it
+  would replace; declining and refusals leave every journey byte unchanged; each
+  prompt appears once per milestone; the status line shows when the export
+  download started, not a backup; the offer's 雲端旅程 from the first lobby into
+  the cloud restore, with intercepted fixture APIs; at 340 px the strips keep one
+  row; a journey with earlier wins reads 勝局已記; an unanswered request reads
+  未有回覆. Added after the second D2 review: an export during an unfinished
+  battle is not recorded (S2d); with every download refused, the strip stays,
+  旅程閣 claims no backup and a prompt due before the export is still shown (S6);
+  a confirmed cloud backup ends the prompt (S7); the offer's 雲端旅程 lands on the
+  雲端旅程 tab for a guest with email sign-in and for an offline player at 390 px
+  (S8); an open WX receipt's strip comes first and the due prompt waits for it
+  (S9); a v0.5.1 export restores from the offer (S10).
 
 **UNVERIFIED:** the seven-day eviction on a real iPhone (or in Safari at all),
 iOS 26 home-screen storage isolation, and what real browsers answer to
 `persist()`: the smoke replaces `persist()` with a spy, and headless engines ask
-no person. No physical device, Safari app or Firefox was used.
+no person. No physical device, Safari app or Firefox was used. Also unverified
+(second D2 review): what iOS Safari's download sheet does with the export, and
+whether the export's 1 s `revokeObjectURL` races that sheet; a refused download
+was checked only with Playwright's `acceptDownloads: false`.
 
 **Open:**
 
-- v0.5.1's 匯出旅程備份 wrote a v3 profile, which this import refuses as an older
-  version. Importing it would need the legacy migration path; that belongs with
-  the owner's decision on the stranded v3 key in the v0.6.0 plan.
+- **Resolved after the second D2 review:** v0.5.1's 匯出旅程備份 wrote a v3
+  profile, which the first D2 build refused as an older version and left to the
+  owner's decision on the stranded v3 key. A v3 or v4 file is now migrated as
+  `load()` migrates a legacy key (§11). That decision (A5 in the v0.6.0 plan) is
+  about reading the key from `localStorage`, which the import does not do; a
+  player can now import what a v0.5.1 tab's footer exported.
 - §15 decision 1 is still open: the import retires only a lineage that has a
   ledger, as restore does. So the packet's exit item "a command ID issued before
   the import is expired or refused" holds only for a journey with a ledger;

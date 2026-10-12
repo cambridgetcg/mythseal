@@ -189,6 +189,108 @@ Firefox permission prompt left unanswered (the stuck record was seeded or made
 with a `persist()` that never settles); a signed-in player on a real hosted
 account.
 
+### D2 second review fixes · 2026-10-12
+
+Source commit **`22c9f90`** (the fixes, their Node cases and smoke groups S6–S10),
+after review round 2 of `394f98e`; the commit that adds this note changes
+documentation only. Still not merged, pushed or deployed; no hosted service and
+no network request outside loopback. Same environment as the entries above,
+against this worktree's `python3 tools/serve.py --port 4202`, started fresh for
+this round (no allowlist change). The rules:
+[LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12).
+This note corrects the entries above: their S1a ("the status date", "shows its
+date as the last backup") checked the defect below as intended behaviour, and
+"old … files are refused" now holds only below profile v3.
+
+The review reported five findings; two (1 and 3) are the same defect.
+
+**Fixed:**
+
+- **An export counted as a backup (findings 1 and 3, low).** `exportSave()`
+  recorded the last backup as soon as the download link was clicked, but a page
+  cannot tell whether the browser saved an `<a download>` file. With
+  `acceptDownloads: false` (every download refused) the reviewers saw
+  上次備份：(date) · 匯出檔案, the toast 旅程備份已匯出。, the first-win strip gone after
+  its own 匯出備份, and a prompt due before the export marked `skipped`. Now
+  `shanhai.saves.v1` keeps the export apart (`lastExport`), 旅程閣 reads
+  上次匯出：(date) · 已開始下載，此頁無法確認檔案已儲存, the toast reads
+  已開始下載旅程備份；請確認檔案已儲存。, and only a cloud backup the account API
+  confirmed saved is 上次備份, ends the strip and skips a prompt. A record an
+  earlier D2 build wrote with `kind: 'export'` now reads as no backup (D2 never
+  shipped). `showSaveFilePicker` and `navigator.share({ files })` were not used:
+  they would change the export flow per platform. The reviewers' narrower point
+  holds: only a prompt due before the export, not one after it, was skipped.
+- **The offer's 雲端旅程 landed on 此裝置 (finding 2, medium).** Without a cloud
+  backup to confirm (a guest, a signed-in player without one, an offline
+  player), 旅程閣 opened on its default 此裝置 tab with the new journey's stats and
+  the sign-in hidden under 雲端旅程, although §19 and NAVIGATION said the sign-in
+  shows. The handler now selects the 雲端旅程 module after `navigate('account')`;
+  a confirmation still takes over when there is a backup.
+- **v0.5.1 exports refused (finding 4, medium; one verifier rated it low).**
+  Every public release (v0.4.1, v0.5.0, v0.5.1) exported a v3 profile, which the
+  import refused as old, while the restore offer promised a restore from an
+  exported backup. A v3 or v4 file is now migrated exactly as `load()` migrates
+  the same journey under its legacy key (an in-memory store holding only the
+  file), then checked by every v5 rule and wrapped as a v5 backup, so a journey
+  over the legacy cloud cap of 2,000 copies also restores. Files below v3 are
+  still refused (`這份備份來自 v0.4.1 之前的萬象契…`). The confirmation says the file
+  is migrated.
+- **Three documented rules without a test (finding 5, low).** An export counts
+  only when the file would import (S2d now exports mid-battle), a backup ends the
+  prompt (S7, with a cloud backup since the fix above), and a WX receipt's
+  resume strip comes first (S9: the due prompt stays `due` and appears once the
+  receipt is acknowledged). The Node wiring test pins the same three lines.
+
+**Real v0.5.1 exports** (scratch script; `git archive v0.5.1 '*.mjs'` into the
+scratchpad, deleted afterwards): v0.5.1's own `claimLogin(createProfile())`
+export is byte-identical to the v3 projection the new Node test uses, and through
+this tree's `checkJourneyText` a fresh 16-card export, a 24+1-card export after
+three packs, a won battle and a merchant sale, and a 2,001-copy export (which
+v0.5.1's legacy cloud wrap refuses) all pass as legacy with identical UIDs,
+coins, XP and stats; a mid-battle export is refused as `unfinished`.
+
+**Checks** (runtime of `22c9f90`; the documentation commit changes no checked file):
+
+- `node --test tests/*.test.mjs`: exit 0, **543/543** (one new D2 test, 12 in
+  `tests/save-durability.test.mjs`). Python: 9 tests OK.
+- `npm run audit:content`: exit 0, `findings: []`.
+- `npm run build`: exit 0, **87 public files**, 74,423,348 B, manifest
+  `4eee83e5…b10c`. `dist/` was deleted afterwards.
+- `git diff --check 7712a7b`: clean.
+- `GAME_URL=http://127.0.0.1:4202 npm run test:saves`: exit 0, **16/16 groups in
+  Chromium and 16/16 in WebKit** (about 20 s each), before the commit and again
+  on it. Changed: S1a reads 上次匯出
+  and no backup; S2d an export during the battle is not recorded. New: S6 with
+  every download refused, the strip stays, 旅程閣 claims no backup and a prompt
+  due before the export is still shown; S7 a confirmed cloud backup ends the
+  prompt (fixture API); S8 at 390 px the offer's 雲端旅程 lands on the 雲端旅程 tab
+  with the email form shown for a guest, and the cloud panel for an offline
+  player; S9 the WX receipt strip first; S10 a v0.5.1 export restores from the
+  offer as the same journey in v5.
+- `GAME_URL=http://127.0.0.1:4202 npm run test:browser`: exit 0, all 14 Chromium
+  suites (91 `PASS` lines), 305 s, on the tree before the commit; the only later
+  runtime change reflows a comment in `save-status.mjs`.
+- **Negative controls** (each reverted from a scratch copy of the fixed files,
+  and `git diff` checked byte-identical afterwards): with the export recorded as
+  the backup again (`save-status.mjs` and the status markup from `394f98e`, and
+  `backupMade('export')`), 4 of 12 Node tests failed, S1a timed out waiting for
+  上次匯出 and S6 failed ("the strip stays"); without the 雲端旅程 module
+  selection, the wiring test failed and S8 failed in both engines
+  (`{ tab: '此裝置', shown: false }`) while S4 passed; with v3 refused again, the
+  refusal and legacy tests failed and S10 timed out; recording an export that
+  would not import failed the wiring test and S2d; without `saveNotice=null` on a
+  cloud backup, the wiring test and S7 failed in both engines; without the
+  receipt-first return, the wiring test and S9 failed in both engines. The smoke
+  groups for the controls ran from a filtered scratch copy of the smoke.
+
+**Not run or not verified:** the same items as the entries above; plus
+`test:commands`, `test:viewport` and `test:wx01` this round (the fixes change no
+command, fence, viewport or receipt code; S8 and S9 cover the two paths they
+touch); a real cancelled save dialog, a real blocked download and iOS Safari's
+download sheet (only `acceptDownloads: false`), and whether the export's 1 s
+`revokeObjectURL` races that sheet; a signed-in player without a cloud backup
+pressing 雲端旅程 (the same code path as S8's guest).
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

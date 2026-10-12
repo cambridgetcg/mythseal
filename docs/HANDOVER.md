@@ -243,19 +243,23 @@ v0.6.0, which would be the first public v5 release, is planned to include it
 
 Packet **D2 · saves never vanish silently**, approved by the owner on
 2026-10-11 for the v0.6.0 scope, is implemented on the branch
-**`d2/save-durability`** from `origin/main` `7712a7b`, after one review round
-(fixes `a290151` and `4ba6e31`, 2026-10-12). **Status:** not merged, pushed or
-deployed; no hosted service was called. Built alongside D1 (Back model) and N1
+**`d2/save-durability`** from `origin/main` `7712a7b`, after two review rounds
+(fixes `a290151` and `4ba6e31`, then `22c9f90`, all 2026-10-12). **Status:** not
+merged, pushed or deployed; no hosted service was called. Built alongside D1 (Back model) and N1
 (mobile shell CSS) in sibling worktrees; D1 also edits `app.mjs`.
 
 - **Changed:** 匯入旅程備份 in the 旅程閣 tools imports the journey export
-  (only that format; oversize, unparsable, old or future, unfinished,
-  inconsistent and invalid files are refused before anything is written) and
-  applies it through `restoreLocalProfile`, the strict fenced restore that cloud
+  (only that format, including a v0.5.1 (profile v3) export since the second
+  review, migrated as `load()` migrates a legacy key; oversize, unparsable,
+  older than v3 or future, unfinished, inconsistent and invalid files are
+  refused before anything is written) and applies it through
+  `restoreLocalProfile`, the strict fenced restore that cloud
   restore and local recovery use: recovery copy first, the replaced command
   lineage retired, one profile write, nothing on refusal. Those checks now live
   in `profile-store.mjs` `store.restore`. The 旅程閣 tools show the date of this
-  device's last export or cloud backup and the browser's answer to
+  device's last cloud backup (上次備份), when its last export download started
+  (上次匯出; a page cannot confirm the file was saved, so an export is never a
+  backup and never ends or skips a prompt) and the browser's answer to
   `navigator.storage.persist()`. It is asked once per device, at the first win or
   first pack opening this device records (an existing journey's next one), and in
   an installed web app at every launch until granted; never on an ordinary load.
@@ -265,7 +269,8 @@ deployed; no hosted service was called. Built alongside D1 (Back model) and N1
   lobby knows a player is signed in only after 旅程閣 looked the account up in
   that page. A journey this device has just started, because no journey key
   existed, shows 有舊旅程？由備份還原 until dismissed, restored or its first battle,
-  with 備份檔 and 雲端旅程 (into 旅程閣 and its cloud restore).
+  with 備份檔 and 雲端旅程 (into 旅程閣: its cloud restore, or else its 雲端旅程
+  tab).
   New allowlisted files: `platform.mjs` (the seam M5.2's native adapter extends),
   `save-status.mjs` (device-local record `shanhai.saves.v1`), `save-ui.mjs`,
   `saves.css`. `PROFILE_VERSION`, the snapshot format, the Worker, the SQL and
@@ -276,7 +281,9 @@ deployed; no hosted service was called. Built alongside D1 (Back model) and N1
   worktree's server on port 4202
   ([VALIDATION](VALIDATION.md#d2-save-durability--2026-10-12)); again after the
   review fixes, with `test:viewport` and `test:wx01` in both engines
-  ([VALIDATION](VALIDATION.md#d2-review-fixes--2026-10-12)).
+  ([VALIDATION](VALIDATION.md#d2-review-fixes--2026-10-12)), and after the
+  second round's
+  ([VALIDATION](VALIDATION.md#d2-second-review-fixes--2026-10-12)).
 - **Review round 1 (2026-10-12):** twelve findings, several overlapping, all low
   after verification (one was first rated medium).
   Fixed: 雲端旅程 on the first lobby after an eviction; the strip at 340 px; 勝局已記
@@ -287,24 +294,39 @@ deployed; no hosted service was called. Built alongside D1 (Back model) and N1
   before an import into a journey without a ledger commits once on an identical
   copy (§15 decision 1), and a signed-in player who has not opened 旅程閣 in the
   page is prompted like a guest (the lobby makes no account request).
+- **Review round 2 (2026-10-12):** five findings, two of them the same defect.
+  Fixed: an export was recorded as the last backup when its link was clicked,
+  so a cancelled or blocked download read 上次備份 · 匯出檔案, ended the strip it
+  was pressed from and could skip a due prompt (low); the offer's 雲端旅程 opened
+  旅程閣 on 此裝置 for anyone without a cloud backup to confirm, hiding the sign-in
+  (medium); every v0.4.1–v0.5.1 export was refused although the strict legacy
+  path migrates it (medium; one verifier rated it low); and three documented
+  rules (an export counts only when it would import, a cloud backup ends the
+  prompt, a WX receipt's strip comes first) had no test (low). Each fix has a Node case
+  and a smoke group that failed with the fix reverted.
 - **UNVERIFIED:** real iPhone seven-day eviction, iOS home-screen storage
-  isolation and real `persist()` answers (the smoke uses a spy). Not run: the
-  account smoke in WebKit (it is Chromium-only), devices, deploy dry runs, CI.
-- **Open:** importing a v0.5.1 (v3) export, which is refused today, belongs with
-  the owner's stranded-v3 decision in the v0.6.0 plan. LOCAL-COMMANDS §15
-  decision 1 still applies to the import, so the packet's exit item "a command ID
-  issued before the import is expired or refused" holds only for a journey with
-  a command ledger: without one, a quote on a copy the file holds unchanged
+  isolation, real `persist()` answers (the smoke uses a spy), and iOS Safari's
+  download sheet with the export (a refused download was checked only with
+  Playwright's `acceptDownloads: false`). Not run: the account smoke in WebKit
+  (it is Chromium-only), devices, deploy dry runs, CI.
+- **Open:** LOCAL-COMMANDS §15 decision 1 still applies to the import, so the
+  packet's exit item "a command ID issued before the import is expired or
+  refused" holds only for a journey with a command ledger: without one, a quote on a copy the file holds unchanged
   commits once, at its quoted price.
   [LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
-  own the rules.
+  own the rules. Importing a v0.5.1 export, which this list left to the owner's
+  stranded-v3 decision before the second review, now works; that decision (A5)
+  is about reading the v3 key, not files. `docs/RELEASE-NEXT.md` still says no
+  build imports a save file (§6) and points support at an open v0.5.1 tab's
+  footer export (C4); the orchestrator updates it after merge.
 - **Merge notes:** `app.mjs` changes are localised: imports, the `saves` record
   next to `profileStore`, `restoreLocalProfile`'s lock body, one block after
   `recoveryMarkup` (`lobbySaveNotice`, `reviewImport` and the import helpers),
   `homeMarkup`, the 旅程閣 page's tools in `render`, one line each in
   `recordFinishedMatch`, `showPackReceipt` and the legacy `buy-pack` modal, the
-  click handler's export/import/notice actions and `restore-offer-cloud`,
-  `account-upload`, and the startup `saves.launch`. Add `npm run test:saves` beside `test:commands` in
+  click handler's export/import/notice actions and `restore-offer-cloud` (which
+  selects the 雲端旅程 module since the second review), `account-upload`, and the
+  startup `saves.launch`. Add `npm run test:saves` beside `test:commands` in
   the release checks, and the new files to `docs/README.md`.
 
 ## Experience planning checkpoint · 2026-09-29

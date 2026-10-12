@@ -526,9 +526,11 @@ a persistent-storage request (once per device; an installed web app asks at each
 launch until granted), players not known to be signed in get one backup prompt per
 milestone, and a new journey offers a restore from a file or the cloud.
 `platform.mjs` is the storage seam M5.2's native adapter extends. The first
-review's twelve findings were fixed or documented on 2026-10-12. Headless Chromium
-and WebKit checks pass
-([VALIDATION](docs/VALIDATION.md#d2-review-fixes--2026-10-12)); real iPhone
+review's twelve findings were fixed or documented on 2026-10-12, and the second
+review's five the same day: an export is shown as a started download, never as a
+backup; the offer's 雲端旅程 opens the 雲端旅程 tab; v0.5.1 exports import. Headless
+Chromium and WebKit checks pass
+([VALIDATION](docs/VALIDATION.md#d2-second-review-fixes--2026-10-12)); real iPhone
 eviction and `persist()` behaviour are UNVERIFIED
 ([LOCAL-COMMANDS §19](docs/LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
 
