@@ -15,7 +15,10 @@
  * back to the tab's first game entry, so six reloads with two layers open keep
  * history.length ≤ initial + 2, and in a popup where the game is the tab's first entry
  * the first Back at 洞府 after a reload finds nothing left to step through (the system
- * would close the tab or return to the opener).
+ * would close the tab or return to the opener); Back into the game from a page opened in
+ * the same tab (a new load, not a bfcache restore) still leaves that page one Forward
+ * away; and when a finished match's settlement fails on resume, Back closes the pending
+ * dialog, then the battle layer, then leaves, writing nothing.
  * Headless engines only: physical Android Back gestures and iOS edge swipes are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/back-smoke.mjs
  */
@@ -71,6 +74,8 @@ const FIXTURES = {
   journey: { profile: JSON.stringify(journey()), battle: null },
   playing: battleSeed(playing, opener),
   final: battleSeed(overkill, opener, { selected: killing.cardId, pills: killing.pills, fury: killing.fury }),
+  // As commitMove persists the final round before its settlement is saved.
+  unsettled: battleSeed({ ...overkill, match: finished }, null, { selected: killing.cardId, pills: killing.pills, fury: killing.fury, revealPending: true }),
 };
 /** The fields a settlement changes; a second settlement would change them again. */
 const settlementView = profile => ({
@@ -98,8 +103,9 @@ async function open(name) {
       storage.setItem(keys.preferences, JSON.stringify({ sound: false, ambience: 0.35, effects: 0.6, motion: 'reduce', pace: 'fast' }));
     }
     const nativeSet = Storage.prototype.setItem;
-    window.backSmokeProfileWrites = 0; window.backSmokePops = 0;
+    window.backSmokeProfileWrites = 0; window.backSmokePops = 0; window.backSmokeRestored = null;
     addEventListener('popstate', () => { window.backSmokePops++; });
+    addEventListener('pageshow', event => { window.backSmokeRestored = event.persisted; });
     Storage.prototype.setItem = function(key, value) { nativeSet.call(this, key, value); if (this === localStorage && key === keys.profile) window.backSmokeProfileWrites++; };
   }, { fixture, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now });
   await context.route('**/*', route => {
@@ -457,6 +463,60 @@ try {
     assert.equal(page.dialogs, 0); assert.equal(page.blanks.unexpected, 0);
     passed(`${deviceName}: game as the tab's first entry (popup): after a reload with two layers open, the first Back at 洞府 finds no game entry below it (system Back)`);
     await release(opener);
+  }
+
+  {
+    // Back into the game from a page opened in the same tab. The loopback server sends
+    // no-store, so the game loads again (no bfcache) and walks back to its root; the earlier
+    // entries then sit between 洞府 and that page, and one Forward must still reach it.
+    const page = await open('journey'), start = await page.evaluate(() => history.length);
+    await click(page, '.game-dock [data-action="world"]'); await settle(page, 'world');
+    await click(page, '.game-header [data-action="experience-settings"]'); await settle(page, 'world>settings');
+    const raw = await profileRaw(page), other = new URL('/playtest.html', base).href;
+    await page.goto(other);
+    assert.equal(await page.evaluate(() => history.length), start + 3);
+    const returnToGame = async label => {
+      await page.goBack(); await page.locator('.game-lobby').waitFor();
+      assert.deepEqual(await page.evaluate(() => [performance.getEntriesByType('navigation')[0]?.type, window.backSmokeRestored]), ['back_forward', false], `${label}: a new load, not a bfcache restore`);
+      await page.waitForFunction(key => history.state?.[key]?.abs === 0, NAV_STATE_KEY, { timeout: 4000 })
+        .catch(async () => assert.fail(`${label}: walked back to the first game entry (abs now ${await entryAbs(page)})`));
+      await settle(page, 'home');
+    };
+    await returnToGame('Back from the page');
+    await page.goForward(); await page.waitForURL(other);
+    assert.equal(page.blanks.unexpected, 0);
+    assert.equal(await page.evaluate(() => history.length), start + 3, 'no entry added');
+    await returnToGame('Back again');
+    await leaveFromRoot(page, 'after returning from a page opened in the same tab');
+    assert.equal(await profileRaw(page), raw, 'the save bytes are unchanged');
+    passed(`${deviceName}: Back into the game from a page opened in the same tab (a new load), then one Forward reaches that page past the earlier entries; Back from 洞府 still leaves in one step`);
+    await release(page);
+  }
+
+  {
+    // A finished match whose settlement fails on resume (storage full). resumeBattle keeps the
+    // lobby on screen and opens the pending dialog. Nothing is being saved, so Back must not hold:
+    // it closes the dialog, then the battle layer (洞府), then leaves, writing nothing.
+    const page = await open('unsettled');
+    const raw = await profileRaw(page), writes = await profileWrites(page);
+    await page.evaluate(key => {
+      const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(name, value) {
+        if (this === localStorage && name === key) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+        return set.call(this, name, value);
+      };
+    }, PROFILE_KEY);
+    await click(page, '.game-lobby [data-action="resume"]');
+    await settle(page, 'home>dialog', 2);
+    assert.ok(await page.locator('#overlay-root [data-action="discard-pending"]').count(), 'the pending dialog is open');
+    await back(page, 'home', 1);
+    await page.goBack(); await settle(page, 'home', 0);
+    assert.equal(page.blanks.unexpected, 0);
+    assert.equal(await profileRaw(page), raw, 'no settlement'); assert.equal(await profileWrites(page), writes, 'no profile write');
+    assert.ok(JSON.parse(raw).pending, 'the match is still pending');
+    await leaveFromRoot(page, 'after a failed settlement on resume');
+    passed(`${deviceName}: a settlement that fails on resume: Back closes the pending dialog, then the battle layer, then leaves 洞府; nothing written`);
+    await release(page);
   }
 
   assert.deepEqual(errors, []);
