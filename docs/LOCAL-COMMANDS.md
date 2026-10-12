@@ -457,7 +457,7 @@ N27 pins both cases. A bypassing writer is therefore not protected, and a pre-fe
   - Under the lenient lock, a tab that had not received another tab's commit within 0.5 s restored from its older bytes. It retired the ledger from the old `nextSeq`, so a quote minted after that commit stayed valid and committed in the restored journey. Its recovery copy also missed the commit, which then existed nowhere, although its tab had shown 此卡修練完成.
   - Now such a tab waits up to 2 s and otherwise refuses with 其他分頁剛儲存的旅程仍未同步到這裡；未有更改旅程。 Nothing is written. Once the commit arrives, the confirmation no longer matches (§12).
   - **Cost.** A restore also refuses while the fence says `writing` (a reload heals it while IndexedDB accepts writes; on a full disk the refusal asks for space, §10.1), on a full disk that refuses the fence write, and in a browser without usable IndexedDB. Before, it needed only Web Locks. Restore is rare and confirmed first, and a refusal changes nothing.
-- **A refused local recovery restore can be retried from its dialog (fixed after the final review).** The refusal changes nothing and leaves the dialog open, so `app.mjs` keeps its confirmation draft until a restore succeeds. Pressing 復原本機旅程 again, as the `unavailable` text invites, runs the backup (`savedAt`) and fingerprint checks again and restores once the fence passes; a journey that changed meanwhile is still refused as changed. A press while a restore is in flight is ignored, also in a dialog closed and opened again meanwhile, which keeps the in-flight restore's draft (fixed after the second pre-merge review). Cloud restore needs no change: `account-client.mjs` clears its confirmation and shows the error, so the player confirms again.
+- **A refused local recovery restore can be retried from its dialog (fixed after the final review).** The refusal changes nothing and leaves the dialog open, so `app.mjs` keeps its confirmation draft until a restore succeeds. Pressing 復原本機旅程 again, as the `unavailable` text invites, runs the backup (`savedAt`) and fingerprint checks again and restores once the fence passes; a journey that changed meanwhile is still refused as changed. A press while a restore is in flight is ignored, also in a dialog closed and opened again meanwhile, which keeps the in-flight restore's draft (fixed after the second pre-merge review). Since the D2 integration review (2026-10-13) the dialog is also held while its restore is written, as the file import's is (§19): × is hidden, its buttons are disabled and Escape, the backdrop and Back do nothing, since closing it could not stop the restore, only hide its outcome. A refusal releases it for the retry, and success closes only that dialog, never one opened since. Cloud restore needs no change: `account-client.mjs` clears its confirmation and shows the error, so the player confirms again.
 - **Order (fixed after review).** `store.replace(current, restored)` in `profile-store.mjs` first builds the profile to save, with the retired ledger, and checks it with `assertLocalProfile`. Only then does it write the `RECOVERY_KEY` copy of `current`, and then the profile. A refused restore therefore leaves both untouched. If the profile write throws, the store reads the profile again under the same lock, because a throwing write may still have landed (§7 step 11):
   - the replaced bytes are still stored: the previous recovery copy is put back, or removed when there was none;
   - the restored bytes are stored: the restore landed and is reported as done;
@@ -1016,6 +1016,11 @@ keep the site's storage, and there was no import path.
   `closeModal()`. While a confirmed import is written the dialog is not
   dismissible and Back holds, so a Back can neither abort the restore nor start a
   second one; the restore is still the single `restoreLocalProfile` call above.
+  復原上次本機旅程 shares the profile lock and, since the D2 integration review
+  (2026-10-13), the same hold (`holdRestore`). Each restore's success closes
+  only its own dialog: before, the recovery's closed whatever dialog was open
+  when it landed, including an import dialog opened after Back closed the
+  recovery's, and the file picked in it opened nothing.
   The lobby strips are not layers. Details:
   [NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2).
 - **Below 340 px (after merging N1).** N1 removed the body's 340 px minimum; the
@@ -1082,15 +1087,20 @@ exits.
   v0.5.1 file with a recovery copy kept) at 340×640, 375×667 and 390×664 on one
   page and at 844×390 on two, with no item and no warning reaching the pager; S11
   backs up, deletes the cloud backup and reads 雲端備份已刪除, after a reload too.
+  Since the D2 integration review (19 groups): S12 opens a dialog over an import
+  held behind the profile lock, and that dialog stays open when the import lands.
 - `tools/back-smoke.mjs` (`npm run test:back`, Chrome as a Pixel 7, then WebKit as
-  an iPhone 15; three D2 groups since D1 was merged into the branch): the import
+  an iPhone 15; four D2 groups since D1 was merged into the branch): the import
   dialog from the restore offer, with a file that arrives after the tap's
   activation expired, and from 旅程閣 closes one layer per Back with no profile
   write; Back twice and Escape hold the dialog while a confirmed import waits for
   the profile lock, which then restores once (one profile write, the backup's
   fingerprint, the replaced journey as the recovery copy); a backup prompt after
   a win is a strip on 洞府, its 旅程閣 closes on Back and Back at 洞府 leaves in one
-  step. S5a in `test:saves` also runs at 302 px since N1 was merged.
+  step; after an import, 復原上次本機旅程 waiting for the profile lock holds on
+  Back twice, Escape and the backdrop, restores once, closes only its own
+  dialog, and 匯入旅程備份 then opens with the picked file compared. S5a in
+  `test:saves` also runs at 302 px since N1 was merged.
 
 **UNVERIFIED:** the seven-day eviction on a real iPhone (or in Safari at all),
 iOS 26 home-screen storage isolation, and what real browsers answer to
@@ -1164,7 +1174,7 @@ Where each row is implemented. The `N` rows are Node tests and the `B` rows brow
 | B8 | A `writing` record or an edit outside the lock refuses the upgrade with no write; a reload heals the fence and the upgrade commits, keeping the edit | `tools/command-smoke.mjs` |
 | B9 | IndexedDB refusing the fence write with a synthetic `QuotaExceededError` refuses the upgrade with the quota copy, never the `no-lock` copy, and no write; it commits once writes work again. A `writing` record on that full disk refuses the upgrade and a local recovery restore with the quota copies, never a reload, with no write and the record still `writing`; the next load after writes work heals it | `tools/command-smoke.mjs` |
 | B10 | A local recovery restore refused by the fence (a synthetic transient IndexedDB failure, then a record the tab's bytes do not match) changes no byte and keeps its dialog; pressing it again after the fence passes restores once, two presses give one restore, and no toast says the backup changed; the second press is ignored, with no refusal after the restore | `tools/command-smoke.mjs` |
-| B11 | A local recovery dialog closed and opened again while its restore waits behind a held `PROFILE_LOCK`: a press in the reopened dialog is ignored, so one restore and one write land and the success toast is the only toast; when that restore is refused (a synthetic transient IndexedDB failure), the reopened dialog stays open and a press restores | `tools/command-smoke.mjs` |
+| B11 | While a local recovery restore waits behind a held `PROFILE_LOCK` its dialog is held (× hidden, buttons disabled, Escape ignored; changed in the D2 integration review, 2026-10-13), also when opened again by a synthetic action, so one restore and one write land and the success toast is the only toast; a dialog opened over it meanwhile stays open when it lands; when the restore is refused (a synthetic transient IndexedDB failure), the dialog is released and a press restores | `tools/command-smoke.mjs` |
 | A1 | A `writing` record refuses a local recovery restore with 上次儲存未能完整確認… and nothing changed, and pressing it again repeats that reason; after a reload heals the fence the restore completes (Chromium) | `tools/account-smoke.mjs` |
 | R1 | Regressions: the Node suite, `test:browser`, `test:inheritance`, `test:wx01`, `test:battle-table` and `test:commands` | §18.3, §18.5, §18.6, §18.7, §18.8, §18.9, §18.10 and §18.11 |
 | D2 | File import through the shared strict restore, the save status record, the prompts, the restore offer and the `persist()` request (§19) | `tests/save-durability.test.mjs`, `tools/save-durability-smoke.mjs` |

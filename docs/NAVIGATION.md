@@ -579,6 +579,12 @@ dialog layer (`import-review`), from the restore offer or from 旅程閣:
   entry is re-armed, as for a result). Closing it could not stop the restore,
   only hide its outcome. A refusal releases it as it was; success closes it
   through `closeModal()`.
+- 復原上次本機旅程 in 旅程閣 (`recovery-restore`) waits for the same profile
+  lock and, since the integration review (2026-10-13), holds the same way while
+  its restore is written. Each restore's success closes only its own dialog.
+  Before, Back closed the recovery dialog with its restore still queued, and
+  when it landed it closed whatever was open, such as the import dialog opened
+  meanwhile from 匯入旅程備份, so the file picked in it opened nothing.
 
 `npm run test:back` checks these in Chrome (Pixel 7) and WebKit (iPhone 15)
 ([VALIDATION](VALIDATION.md#d2-integration-with-main--2026-10-12)).

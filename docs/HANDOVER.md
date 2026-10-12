@@ -635,6 +635,13 @@ worktrees; D1 also edits `app.mjs`.
   removed the body's 340 px minimum. Rules:
   [NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2); checks:
   [VALIDATION](VALIDATION.md#d2-integration-with-main--2026-10-12).
+- **Integration review round 1 (2026-10-13):** 復原上次本機旅程 now holds its
+  dialog while its restore is written, as the import does (`holdRestore`), and
+  each restore's success closes only its own dialog, so a recovery landing no
+  longer closes an import dialog and its picked file. `test:back` has a fourth
+  D2 group (20 checks in Chrome, 19 in WebKit), `test:saves` S12 (19 groups) and
+  `test:commands` B11 now checks the held dialog. Checks:
+  [VALIDATION](VALIDATION.md#d2-integration-review-round-1-fixes--2026-10-13).
 
 ## Experience planning checkpoint · 2026-09-29
 

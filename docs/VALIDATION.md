@@ -415,6 +415,114 @@ backup prompt after a win is a strip, not a dialog, so Back does not close it:
 Back at 洞府 leaves (as for the resume strip), and the prompt, consumed when
 shown, does not return.
 
+### D2 integration review round 1 fixes · 2026-10-13
+
+Branch `d2/save-durability` from `18f218a`. Source commit **`ae836e4`**; the
+documentation commit after it changes no served, test or tool file. Not
+pushed, merged to `main` or deployed; no hosted service was called. Node
+26.0.0, Python 3.14.6, Playwright 1.63.0, Google Chrome 154.0.8037.98 and
+Playwright WebKit, headless, on macOS; `python3 tools/serve.py --port 4202`
+from the worktree (its allowlist unchanged); `GAME_URL=http://127.0.0.1:4202`.
+Synthetic saves only.
+
+**Finding (low).** 復原上次本機旅程 (`confirm-restore-recovery`) restores
+through the same `restoreLocalProfile` lock as the file import but was not held
+while written. Its dialog stayed dismissible, so Back, × or Escape closed it
+while the restore waited for the lock, and its success called `closeModal()`
+on whatever dialog was open by then. The reviewers reproduced it at `18f218a`
+in Chrome (Pixel 7) and WebKit (iPhone 15). After an import, which leaves the
+recovery copy that offers this restore, they held `PROFILE_LOCK`, confirmed the
+recovery, pressed Back, opened 匯入旅程備份 and released the lock. The recovery
+closed the import dialog, walking back over its entry (`{abs:1, depth:1,
+layers:'sub-view:account'}`), and the file then picked opened nothing
+(`reviewImport()` returns when `!importOpen()`). An import confirmation held
+behind the recovery in the lock queue lost its dialog too, and its refusal
+toast arrived with no dialog. Nothing was applied twice. The recovery code is
+the same at `7712a7b` and `335d2b7`; `077b394` made the dropped file possible
+by opening the import dialog before the picker.
+
+**Fix (`app.mjs`).**
+- `holdImport()` becomes `holdRestore(kind, held)`, which acts only while the
+  open dialog is of that kind.
+- The recovery dialog gets its own kind, `recovery-restore`; it was an unnamed
+  `dialog` layer. Its confirmation calls `holdRestore('recovery-restore',
+  true)`: the dismissible flag is cleared, and Escape, the backdrop and
+  `navView()` read it, so Back holds and re-arms the entry. × is hidden, the
+  buttons are disabled and the dialog is `aria-busy`. A refusal releases it
+  for the retry that the fence messages invite.
+- A recovery dialog opened again while its restore is in flight keeps that
+  restore's draft, as before, and now opens held.
+- Each success closes only its own dialog:
+  `if(modalKind==='recovery-restore')closeModal()` and
+  `if(importOpen())closeModal()`.
+- `pickJourneyFile()` is unchanged. While the recovery dialog is held, `#app`
+  is inert under it and Back holds, so no control opens the import during a
+  recovery restore.
+
+**Tests.**
+- `tests/save-durability.test.mjs`: a new source test pins the recovery dialog's
+  kind, its hold on confirmation and when reopened, the release on a refusal,
+  and the guarded close. The D2-with-D1 test now reads `holdRestore` and the
+  import's guarded close.
+- `tools/back-smoke.mjs` group (d) replays the reported steps with real input,
+  in both engines. After an import from the restore offer, 旅程閣's
+  復原上次本機旅程 waits behind a held `PROFILE_LOCK`. Back twice, Escape and a
+  backdrop tap leave it at `account>dialog`, depth 2, with no write. On release
+  it closes to `account`, depth 1, toasts 已復原上次本機旅程。 and makes one
+  write. 匯入旅程備份 then opens `account>import` with the picked file compared,
+  and Back walks to 洞府 and leaves.
+- `tools/command-smoke.mjs` B11 is rewritten. The old B11 closed the in-flight
+  dialog with ×, which the hold now hides. The new B11 checks the held state
+  (× hidden, buttons disabled, Escape ignored). A dialog opened again through a
+  synthetic action is held too, and one restore lands with its success toast
+  alone. A rules dialog opened over the held dialog through a synthetic action
+  stays open when the restore lands. After a synthetic transient IndexedDB
+  refusal, the reopened dialog is released (enabled, dismissible, × back) and
+  a press restores. B10's double press now meets a button the first press
+  disabled; it still asserts one restore and the success toast alone.
+- `tools/save-durability-smoke.mjs` S12 holds the import the same way: a rules
+  dialog opened over it through a synthetic action stays open when the import
+  lands, the backup is restored and the replaced journey becomes the recovery
+  copy.
+
+**Checks at `ae836e4`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **579/579** (578 plus the new test).
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), `findings: []`.
+- `npm run build`: exit 0, 88 public files, manifest `7d48f6a8…af2ea`. `dist/`
+  was deleted afterwards.
+- `git diff --check`: clean.
+- Browser suites, each exit 0, run one after another against the server above:
+  `npm run test:saves` **19/19 groups in each engine**, 43 s; `test:back` **20
+  checks in Chrome (Pixel 7) and 19 in WebKit (iPhone 15)** (each one more than
+  before), 57 s; `test:commands` 13 groups in each engine (26 `PASS` lines),
+  72 s; `test:browser`, all 14 Chromium suites (91 `PASS` lines, including
+  `account-smoke`'s recovery restores and their refusal and retry), 299 s.
+- **Negative controls.** Each control reverted the change in the worktree. The
+  file was then restored from a saved copy, and `cmp` confirmed it matched.
+  Chrome unless stated.
+  - With `app.mjs` from `18f218a`, the new Node test and the D2-with-D1 test
+    fail. `test:back` fails waiting for the held recovery dialog. A temporary
+    copy of the smoke without that wait and the held-state asserts fails at the
+    first held Back, in Chrome and in WebKit, with `account>dialog: history
+    entry depth 2–2 (now 1)`. That is the reported Back closing the dialog.
+  - With only the recovery hold removed, B11 fails waiting for the held dialog.
+  - With the recovery's unconditional `closeModal()` back (the hold kept), B11
+    fails: `the dialog opened since stays open`.
+  - With the import's unconditional `closeModal()` back, `test:saves` S12 fails
+    with the same message.
+
+**Not run or not verified:** `test:viewport`, `test:battle-table`, `test:shell`,
+`test:wx01`, `test:inheritance`, `test:expansion`, `test:map-piece`,
+`test:collection-display`, `test:contracts`, the literary preview smokes,
+deploy dry runs and CI. Only `account-smoke`, `command-smoke` and `back-smoke`
+open the recovery dialog. The finding's second case, an import
+confirmation queued behind a recovery, can no longer be reached in one tab by
+any control. S12 and B11 reach a second dialog only through synthetic actions.
+Headless engines only: a physical Android Back gesture or iOS edge swipe over
+the held dialog is unverified.
+
 ## D2 save durability · 2026-10-12
 
 Branch `d2/save-durability`, from `origin/main` `7712a7b`. Source commits
