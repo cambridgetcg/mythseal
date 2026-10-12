@@ -149,15 +149,32 @@ physical phones remain [M5.1 items](MOBILE-RELEASE.md#m51-phone-checklist).
     and battle sit inside the safe area while the background fills the screen.
     The dock and the battle screen keep `max(gap, bottom inset)` below them, in
     short landscape too.
+  - In Safari's landscape with its toolbar showing, that lift costs the scene
+    18px: under `viewport-fit=cover` an iPhone 15 there is 852×343 with
+    0/59/21/59px insets (before, 734×343 with none) and an iPhone 13/14 is
+    844×340 with 0/47/21/47px (before, 750×340). The market's modules had no
+    room to spare, so on 秘匣 the 西行秘匣 picker, 開啟秘匣 and the odds link,
+    on 西行印 both buttons, and on 秘券 the open button ran 10–32px under the
+    opaque dock (fixed 2026-10-12). In short landscape the market's title now
+    shares the tab row, with its subtitle beneath it, which gives the modules
+    35px, and 秘券's note sits beside its button. Every market module now
+    clears the dock at both sizes. At 734×343 with no insets, 秘券's button
+    also clears it now; at `7712a7b` it was 11px under.
   - Short landscape lifts the cards hub tabs (我的戰卡, 三套牌組, 萬象圖鑑) into
     the header row. They are positioned against the shell, not the viewport, so
     `#app`'s inset padding moves them with the header, and they end at least
     172px (settings 44 + gap 18 + the labelled 旅程閣 92 + gap 18) before the
     shell's right edge (`right: max(25%, 172px)`). Positioned against the
     viewport, 萬象圖鑑 had covered the left third of 旅程閣 whenever there were
-    side insets (fixed 2026-10-12). With no insets they now sit up to 18px
-    further left than before (844×390: x 410–615, was 427–633). They still
-    overprint the wallet figures; see Limits.
+    side insets (fixed 2026-10-12). With no insets they now end further left
+    than before (corrected 2026-10-12; this said "up to 18px"). Where 25% of
+    the shell is the larger term, the shift is a quarter of the side gutters,
+    at most 18px (844×390: right edge 615, was 633). On a shell narrower than
+    688px the 172px floor applies and the shift grows: 12px at 720×360, 17px at
+    700×390, 25px at 667×375, 32px at 640×360 and 42px at 568×320 (right edge
+    384, was 426). The tabs still clear the brand and 旅程閣 (568×320: tabs
+    191–384, brand to 100, 旅程閣 from 458). They still overprint the wallet
+    figures; see Limits.
   - `.modal-backdrop` has a transparent border as wide as each inset, so
     dialogs and sheets stay out of the bands while the dim and blur still cover
     them. Dialog heights and the market's card sizes subtract from
@@ -191,7 +208,9 @@ physical phones remain [M5.1 items](MOBILE-RELEASE.md#m51-phone-checklist).
   already did, so 來日 clears the dock: in iPhone 15 landscape (734×343) the
   one-column rail needed 194px in a 188px row, so 來日 ran 6px past the row and
   3px into the dock. Module tabs have a 44px minimum width; WebKit had left the
-  rewards dialog's 異聞 tab at 43.08px at 360px wide.
+  rewards dialog's 異聞 tab at 43.08px at 360px wide. Landscape phones narrower
+  than 701px (an iPhone SE 2/3 or 6–8 at 667×375, 568×320) are outside this
+  layout and keep a known fault; see Limits.
 - **Names.** The ambience and effects sliders carry `aria-label` 環境聲音量 and
   落子音效音量; both had an empty accessible name.
 
@@ -207,12 +226,20 @@ on installed Chrome, then WebKit as an iPhone 15) checks:
 - every interactive control against 48/44/34/44px (top, right, bottom, left)
   overrides of the custom properties, on those nine screens, on the phone
   viewport and at 844×390;
-- the arena's controls against the dock at 844×390, 734×343 and 844×390 with
-  those insets;
-- the header row at 844×390, 734×343, 844×390 with those insets and 852×393
-  with 0/59/21/59 (an iPhone 15 in landscape), on the lobby and the three
-  collection tabs: no header control or hub tab overlaps another, and taps at
-  seven points across each control land on it;
+- every control against the dock at 844×390, 734×343, 844×390 with those
+  insets, 852×343 with 0/59/21/59 and 844×340 with 0/47/21/47 (Safari's
+  toolbar-visible landscape on an iPhone 15 and an iPhone 13/14), on each dock
+  destination and each of its module tabs: 28 states (洞府, 遊歷's modules,
+  對弈's four, 藏卡's three hub tabs and their modules, 市集's seven), each
+  tab opened with an ordinary tap, so a covered tab fails. An item of a list
+  the viewport controller flags as taller than its frame is printed as a
+  `NOTE` instead (see Limits);
+- the header row at 844×390, 734×343, 844×390 with those insets, 852×393
+  with 0/59/21/59 (an iPhone 15 in landscape), 852×343 and 844×340, on the
+  lobby and the three collection tabs: no header control or hub tab overlaps
+  another, and taps at seven points across each control land on it;
+- at 667×375, below the 701px gate, which of the arena's module tabs a centre
+  tap misses, printed as a `NOTE` (a known limit, not asserted);
 - the computed `touch-action`, `overscroll-behavior` and card-art `user-select`
   rules, with text outside cards still selectable. `-webkit-touch-callout` is
   only recorded: neither engine parses it, so it cannot be observed here.
@@ -241,6 +268,31 @@ Limits:
     insets (the collection; on the iPhone 15 also the decks tab and the
     arena) and short landscape with insets (844×390: the three collection
     tabs, the market, 旅程閣 and the arena).
+  - Where such a list item runs past its frame it can also reach under the
+    dock, and `test:shell` prints it as a `NOTE`. In Safari's toolbar-visible
+    landscape the collection's 我的戰卡 group, already running under its
+    pager, reaches 3px under the dock at 852×343 and 6px at 844×340; with
+    48/44/34/44px insets at 844×390, that group reaches 17px under, the
+    三套牌組 draft cards 6px and the 圖鑑 cards 5px (2026-10-12).
+- **Landscape below 701px wide** (an iPhone SE 2/3 or 6–8 at 667×375, an
+  Android phone at 640×360, a first-generation iPhone SE at 568×320): the
+  short-landscape layout (the arena's tab rail, the compact market, the world
+  rail) needs `min-width: 701px`, so these phones get the portrait layout in a
+  short frame. Measured 2026-10-12 in both engines with no insets; `7712a7b`
+  gives the same results, so N1 did not cause this, but its landscape fixes do
+  not reach these phones.
+  - The arena's 問道 panel overflows upward over its four module tabs. A
+    centre tap on each tab lands on the 問道擂台 heading at 667×375, 640×360
+    and 700×390, and on the rank line at 667×331, so 山行, 切磋 and 來日 cannot
+    be opened by touch. At 568×320 the tabs are reachable. `test:shell` prints
+    the 667×375 misses as a `NOTE`.
+  - On the market, once 整盒 is open its module covers the whole tab row at
+    667×375, 700×390, 667×331 and 568×320 (both engines), so no other market
+    tab can be tapped there.
+  - Controls under the dock (Chromium): 秘匣's odds link (`wx01-odds`), 18px
+    at 667×375 and wholly at 568×320; 整盒's two buy buttons, 12–45px from
+    700×390 down to 568×320; 進入AI擂台 (`ranked`), 15px at 667×331; and
+    山行's open button (`activity-open`), wholly at 568×320.
 - **Short-landscape collection header:** the cards hub tabs are still drawn over
   the wallet figures (coins and dust). They were before N1 too: at 844×390 with
   no insets the tabs spanned x 427–633 and the wallet 432–636 (with 50,000

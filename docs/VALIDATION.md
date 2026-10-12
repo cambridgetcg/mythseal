@@ -246,6 +246,132 @@ deploy dry runs, the SQL harness and CI. Not fixed: in short landscape the hub
 tabs still overprint the wallet figures (coins and dust). They did before N1
 too, and they no longer cover any control.
 
+### N1 review round 2 · 2026-10-12
+
+Review round 2 sent three independently verified low-severity findings. The
+fix and its guards are in source commits **`751c35a`** (the short-landscape
+market) and **`70d713c`** (`test:shell` and a static guard). The documentation
+commit after them changes no served file. The records above stay as written;
+these notes correct them. Not merged, pushed or deployed. No hosted check,
+service call or third-party request.
+
+Environment: as above (macOS 26.6.2, Node 26.0.0, Python 3.14.6, Playwright
+1.63.0, WebKit from Playwright's cache, installed Chrome), with
+`python3 tools/serve.py --port 4203` started from this worktree; no allowlist
+changed. Probes used the shell smoke's fixture with Playwright emulating a
+Pixel 7 in Chromium and an iPhone 15 in WebKit, and set the
+`--safe-area-inset-*` properties the way `test:shell` does.
+
+**Base comparison.** For the `7712a7b` figures, the worktree was cloned with
+`cp -c` (APFS) without `.git`, `node_modules`, `dist` or `test-results`, and
+the eleven served files N1 changes were overwritten with
+`git show 7712a7b:<path>` run in the worktree. No git command ran inside the
+copy. The worktree's server on 4203 was stopped, the copy was served on 4203
+(its `index.html` had no `viewport-fit=cover`, and the arena's 來日 was 3px
+into the dock at 734×343, as at `7712a7b`), then the copy was stopped and
+deleted and the worktree's server restarted. At the start of this round the
+worktree was clean on `n1/mobile-shell` at `28c6ae3`. Its reflog holds a 03:12 (+0100)
+checkout to `7712a7b` from a reviewer's clone that had kept the worktree's
+`.git` file; that reviewer reported restoring HEAD and the index.
+
+**Findings:**
+1. *(low, N1 regression)* In Safari's toolbar-visible landscape the dock's
+   lift above the home indicator (`margin-bottom: max(3px, bottom inset)`,
+   short landscape) covered the market's buttons.
+   - Under `viewport-fit=cover` an iPhone 15 there is 852×343 with 0/59/21/59px
+     insets (734×343 with none before) and an iPhone 13/14 844×340 with
+     0/47/21/47px (750×340). The dock rises 18px, and the market cannot scroll.
+   - Measured at `28c6ae3` (both engines; the dock's top at 272 and 269):
+
+     | Tab | Control | Under the dock at 852×343 / 844×340 |
+     | --- | --- | --- |
+     | 秘匣 | `pack-set:wx01` (西行秘匣) | 15 / 18px |
+     | 秘匣 | `buy-pack` (開啟秘匣) | 14 / 17px |
+     | 秘匣 | `wx01-odds` | 10 / 13px |
+     | 西行印 | `wx01-redeem`, `world` | 12–13 / 15–16px |
+     | 秘券 | `ticket-open` | 29 / 32px of 44 |
+
+     At 734×343 with no insets only `ticket-open` was under the dock (11px),
+     which `7712a7b` shares.
+   - **Fix:** the dock keeps its lift. In short landscape (`max-height: 500px`
+     and `min-width: 701px`) the market is a grid: its title (with the
+     subtitle beneath it) shares the tab row, so modules start 35px higher
+     (y 103, was 138). 秘券's ticket card puts its note beside its button and
+     trims its padding (12px to 8px top and bottom) and its heading and
+     paragraph margins. Afterwards,
+     no market control is under the dock at 852×343, 844×340, 734×343 or
+     844×390 with 48/44/34/44px insets, in either engine, and 秘匣, 西行印 and
+     秘券 no longer flag vertical overflow at 852×343 and 844×340. The rules
+     sit inside that media query, so portrait phones and desktop do not match
+     them.
+   - **Also found:** with every dock destination and module scanned, the
+     collection's 我的戰卡 group, an item of a list the viewport controller
+     flags as taller than its frame (it already runs under the pager), reaches
+     3px under the dock at 852×343 and 6px at 844×340. At 844×390 with
+     48/44/34/44px insets, that group reaches 17px under, the 三套牌組 draft
+     cards 6px and the 圖鑑 cards 5px. Not fixed: the vertical-fit limit,
+     recorded in NAVIGATION and printed as `NOTE` lines.
+2. *(low, docs)* NAVIGATION said the hub tabs moved "up to 18px" left with no
+   insets. Chromium, Pixel 7, collection, right edge now (and `0.75 ×` width
+   before, which the reviewers measured at `7712a7b`): 568×320 384 (426),
+   640×360 448 (480), 667×375 475 (500), 700×390 508 (525), 720×360 528 (540),
+   740×360 545 (555), 780×360 567 (585), 844×390 615 (633). The 172px floor
+   applies below a 688px shell, and the shift reaches 42px. At 568×320 the
+   tabs (191–384) still clear the brand (to 100) and 旅程閣 (from 458).
+   NAVIGATION now gives these figures.
+3. *(low, docs; predates N1)* Landscape phones below 701px wide get the
+   portrait layout in a short frame. Measured in both engines at `70d713c` and
+   on the `7712a7b` copy, with identical results:
+   - A centre tap on each of the arena's four module tabs lands on the 問道擂台
+     heading at 667×375, 640×360 and 700×390, and on the rank line at
+     667×331. At 568×320 and 701×390 every tab is reached.
+   - With 整盒 open, a centre tap on each of the market's seven tabs lands on
+     整盒's content at 667×375, 700×390, 667×331 and 568×320 (not at 640×360
+     or 701×390).
+   - Under the dock (Chromium, `clipBox`): `wx01-odds` 18px at 667×375 and
+     wholly at 568×320; 整盒's buy buttons 12–45px from 700×390 to 568×320;
+     `ranked` 15px at 667×331; `activity-open` wholly at 568×320.
+   - Recorded in NAVIGATION (Limits), the M5.1 "Landscape dock and header"
+     row, HANDOVER and ROADMAP (the 來日 line now reads "701px and wider").
+     `test:shell` prints the 667×375 arena misses as a `NOTE` and asserts
+     nothing there. No code change: vertical fit is outside N1.
+
+**The new check fails with the fix reverted.** `expansion.css` was replaced
+with its `28c6ae3` version, then restored byte for byte (`cmp`):
+
+| Fix reverted | `SHELL_AUDIT=1` shell smoke (Chromium / WebKit) | Static guard |
+| --- | --- | --- |
+| Short-landscape market | 11 / 11 findings, all on the market: 秘匣, 西行印 and 秘券 at 852×343 and 844×340 with the overlaps in the table above, 秘券 at 734×343 (11px), and 秘匣, 整盒 (3px), 西行印 and 秘券 at 844×390 with 48/44/34/44px insets | Fails |
+
+Findings 2 and 3 change no behaviour, so they have no regression test;
+`test:shell` records the finding-3 state as a `NOTE`.
+
+**Commands** (at `70d713c`; the docs commit changes no served file):
+
+| Command | Result |
+| --- | --- |
+| `node --test tests/*.test.mjs` | exit 0, **539/539** (1 new static guard) |
+| `npm run audit:content` | exit 0, 150 entries (120 `local-playable`, 30 `preview`), no findings |
+| `npm run build` | exit 0, 83 public files, manifest `971dc75c…a20c`; `dist/` deleted afterwards |
+| `git diff --check` | clean |
+| `GAME_URL=http://127.0.0.1:4203 npm run test:shell` | exit 0 (82 s): **22/22** checks in Chromium, then 22/22 in WebKit (18 before: the dock check went from 3 sizes on the arena to 5 sizes on 28 states, and the header check gained 852×343 and 844×340) |
+| `… npm run test:expansion` | exit 0 (218 s): 16/16 in each engine (899 and 892 layout checks) |
+| `… npm run test:wx01` | exit 0 (205 s): 54 PASS lines |
+| `… npm run test:viewport` | exit 0 (556 s): 23/23 in each engine |
+| `… npm run test:browser` | exit 0 (293 s): all 14 Chromium suites |
+
+The browser suites ran one after another from 02:35:40 to 02:58:14 UTC on
+2026-10-12.
+
+Not run: physical phones (every [M5.1](MOBILE-RELEASE.md#m51-phone-checklist)
+item is still open); `test:battle-table`, `test:collection-display`,
+`test:map-piece`, `test:commands` and `test:inheritance` (the change is
+limited to the market in short landscape, which none of them opens there);
+`test:liaozhai` and `test:honglou`; the Python unit tests; a desktop
+screenshot comparison (the new rules are inside
+`@media(max-height:500px) and (min-width:701px)`, which 1440×900 and 1280×720
+do not match); preview, deploy dry runs, the SQL harness and CI.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

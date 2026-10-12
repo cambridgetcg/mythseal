@@ -116,6 +116,42 @@ notes correct it.
 - **Still open:** the hub tabs overprint the wallet figures in short landscape,
   as they did before N1, plus everything listed under Open above.
 
+### N1 review round 2 · 2026-10-12
+
+Three verified low-severity findings, handled on the same branch in source
+commits `751c35a` (the market) and `70d713c` (`test:shell` and a static
+guard), with a documentation commit after them. Still not merged, pushed or
+deployed. The notes above stay as written; these correct them.
+- **Fixed (N1 regression):** in Safari's toolbar-visible landscape under
+  `viewport-fit=cover` (an iPhone 15 at 852×343 with 0/59/21/59px insets, an
+  iPhone 13/14 at 844×340 with 0/47/21/47px), the dock's lift above the home
+  indicator left the scene 18px less than the same phone had before cover, and
+  the market's 秘匣, 西行印 and 秘券 buttons ran 10–32px under the opaque dock.
+  In short landscape the market's title now shares its tab row and 秘券's note
+  sits beside its button; every market module clears the dock at both sizes.
+  The dock keeps its lift.
+- **Guarded:** `test:shell` now opens every dock destination and module tab (28
+  states) at five landscape sizes, those two included, and fails on any control
+  under the dock; the header check covers the two sizes too. It failed on the
+  market in both engines with the fix reverted.
+- **Corrected docs:** with no insets the short-landscape hub tabs moved up to
+  42px left (568×320), not "up to 18px"; 18px holds only where 25% of the shell
+  beats the 172px floor. They still clear the brand and 旅程閣.
+- **Recorded as open (predates N1):** landscape phones below 701px wide (an
+  iPhone SE 2/3 or 6–8 at 667×375, 568×320) get the portrait layout in a short
+  frame. The arena's panel covers its module tabs, so 山行, 切磋 and 來日 cannot
+  be tapped; the market's 整盒 module covers its tab row; some market and arena
+  buttons sit under the dock. `7712a7b` behaves the same. NAVIGATION (Limits),
+  the M5.1 "Landscape dock and header" row and ROADMAP now say so, and
+  `test:shell` prints the 667×375 arena misses as a NOTE.
+- **Also recorded:** in Safari's landscape the collection's 我的戰卡 group,
+  which already runs under its list's pager (the vertical-fit limit), reaches
+  3px (852×343) and 6px (844×340) under the dock.
+- **Checked** ([VALIDATION](VALIDATION.md#n1-review-round-2--2026-10-12)): 539/539
+  Node tests, the content audit, an 83-file build, `test:shell` (22/22 per
+  engine), and `test:expansion`, `test:wx01` and `test:viewport` in both
+  engines plus the 14 Chromium `test:browser` suites, all exit 0.
+
 ## Q0 battle-table checkpoint · 2026-10-11 (local only)
 
 Roadmap packet Q0 is implemented on the branch **`q0/battle-table`**,
