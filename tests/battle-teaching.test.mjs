@@ -4,7 +4,7 @@ import { CARDS, RULES, createMatch, previewMove, resolveRound, validateDeck, has
 import { createRevealView, permittedAnnouncement } from '../battle-presentation.mjs';
 import { PROFILE_KEY } from '../progression.mjs';
 import {
-  attackFormula, formulaVariants, costText, planningHint, revealTip,
+  attackFormula, formulaVariants, costText, furyNote, planningHint, revealTip,
   coachStart, advanceCoach, coachCopy, createCoachMemory, COACH_KEY, COACH_STEPS,
 } from '../battle-teaching.mjs';
 
@@ -36,10 +36,12 @@ function drafts(match) {
 }
 const bids = match => [{ pills: 0, fury: false }, { pills: Math.min(5, match.opponent.pills), fury: false }, ...(match.opponent.pills >= RULES.furyCost ? [{ pills: match.opponent.pills - RULES.furyCost, fury: true }] : [])];
 
-/** Evaluates a shown formula ("（力 7 ＋ 1）×（1＋3 丹）＋ 6 ＝ 38") with a tiny parser: digits, + − × and parentheses only. */
+/** Evaluates a shown formula ("（力 7 ＋ 1）×（1＋3 丹）＋ 6 ＝ 38") with a tiny parser: digits, + − × and parentheses
+ * only, then an optional "＝ total" and an optional "→ 最低 N" (the engine's minimum, for a sum under 1). */
 function evaluateShown(text) {
   const normalized = text.replace(/[力丹\s]/g, '').replace(/[（(]/g, '(').replace(/[）)]/g, ')').replace(/[＋+]/g, '+').replace(/[−－]/g, '-');
-  const [expression, total] = normalized.split('＝');
+  const [stated, minimum] = normalized.split('→最低');
+  const [expression, total] = stated.split('＝');
   assert.match(expression, /^[0-9+\-×()]+$/, `only arithmetic is shown: ${text}`);
   let position = 0;
   const peek = () => expression[position];
@@ -49,21 +51,33 @@ function evaluateShown(text) {
   const sumOf = () => { let value = product(); while (peek() === '+' || peek() === '-') { const sign = expression[position++]; value += (sign === '+' ? 1 : -1) * product(); } return value; };
   const value = sumOf();
   assert.equal(position, expression.length, `the whole formula parses: ${text}`);
-  return { value, total: total === undefined ? null : Number(total) };
+  if (total !== undefined) assert.match(total, /^-?[0-9]+$/, `the total is a number: ${text}`);
+  if (minimum !== undefined) assert.match(minimum, /^[0-9]+$/, `the minimum is a number: ${text}`);
+  return { value, total: total === undefined ? null : Number(total), minimum: minimum === undefined ? null : Number(minimum) };
 }
+/** Every visible form is a true statement: its sum is the engine's attack, or, for a sum under 1, it says
+ * so and names the engine's minimum. No form claims a sum it does not have. */
 function assertShownMatches(formula) {
   assert.ok(formula.consistent, 'the terms add up to the engine number');
   assert.ok(formula.variants.length >= 2);
   assert.equal(formula.text, formula.variants[0]);
   for (const variant of formula.variants) {
-    const { value, total } = evaluateShown(variant);
-    assert.equal(Math.max(1, value), formula.attack, `${variant} states the engine's attack`);
-    if (total !== null) assert.equal(total, formula.attack, `${variant} ends with the engine's attack`);
+    const { value, total, minimum } = evaluateShown(variant);
+    if (total !== null) assert.equal(total, value, `${variant}: the stated total is the sum shown`);
+    if (formula.clamped) {
+      assert.ok(value < 1, `${variant}: a clamped sum is under 1`);
+      assert.equal(minimum, formula.attack, `${variant} names the engine's minimum`);
+      assert.equal(formula.attack, 1);
+    } else {
+      assert.equal(minimum, null, `${variant}: no minimum on a sum of 1 or more`);
+      assert.equal(value, formula.attack, `${variant} states the engine's attack`);
+    }
   }
+  return formula.clamped;
 }
 
 test('D3 formula: an announced opponent card gives exactly resolveRound\'s player attack and damage, whatever the hidden bid', () => {
-  let checked = 0;
+  let checked = 0, clamped = 0;
   for (let seed = 1; seed <= 60; seed++) {
     let match = randomMatch(seed);
     // Rounds 1–3, so used cards and spent pills are exercised too.
@@ -77,7 +91,7 @@ test('D3 formula: an announced opponent card gives exactly resolveRound\'s playe
           assert.equal(formula.damage, result.damage);
           assert.equal(formula.cost, result.cost);
         }
-        assertShownMatches(formula);
+        if (assertShownMatches(formula)) clamped++;
         checked++;
       }
       const next = open(match, 'player')[0], reply = open(match, 'opponent')[0];
@@ -85,6 +99,7 @@ test('D3 formula: an announced opponent card gives exactly resolveRound\'s playe
     }
   }
   assert.ok(checked > 5000, `${checked} announced drafts checked`);
+  assert.ok(clamped > 0, `clamped sums are among them (${clamped})`);
 });
 
 test('D3 formula: without an announced card it is previewMove\'s number, exact only when every possible reply agrees, otherwise 預計', () => {
@@ -121,7 +136,14 @@ test('D3 formula: the packet example reads 力 6 ×（1＋3 丹）＝ 24; Fury a
   const fury = attackFormula(match, { cardId: 'chiling', pills: 2, fury: true }, { announcedCardId: 'yaoheng' });
   assert.equal(fury.text, `力 7 ×（1＋2 丹）＋ 6 ＝ ${7 * 3 + 6}`);
   assert.equal(fury.damage, resolveRound(match, { cardId: 'chiling', pills: 2, fury: true }, { cardId: 'yaoheng', pills: 0, fury: false }).lastResult.player.damage);
-  assert.equal(costText(fury, match.player.pills), `怒擊 傷 ${fury.damage} · 共消耗 ${2 + RULES.furyCost} 丹 · 剩 ${12 - 2 - RULES.furyCost} 丹`);
+  // The cost line keeps only the cost and the pills left (it may end in an ellipsis on a phone);
+  // Fury's damage is on the Fury toggle, whose note states the rule while it is off.
+  assert.equal(costText(fury, match.player.pills), `共消耗 ${2 + RULES.furyCost} 丹 · 剩 ${12 - 2 - RULES.furyCost} 丹`);
+  assert.equal(furyNote(fury), `另付 ${RULES.furyCost} 丹 · 傷害 ${fury.damage}`);
+  assert.equal(furyNote(plain), `另付 ${RULES.furyCost} 丹 · 傷害 +${RULES.furyDamage}`);
+  // Without an announced card, a reply that could reduce the damage makes it 預計傷.
+  const unknown = attackFormula(match, { cardId: 'chiling', pills: 2, fury: true });
+  assert.equal(furyNote(unknown), `另付 ${RULES.furyCost} 丹 · ${unknown.exactDamage ? '傷害' : '預計傷'} ${unknown.damage}`);
   assert.match(fury.sentence, new RegExp(`怒擊另付 ${RULES.furyCost} 丹，不加攻擊`));
   // 霜璃 announced: 照心 blocks the player's ability, and the sentence says so.
   const blocked = attackFormula(match, { cardId: 'chiling', pills: 2 }, { announcedCardId: 'shuangli' });
@@ -147,16 +169,28 @@ test('D3 formula: only the announced card ID reaches it, so two hidden bids give
   assert.throws(() => attackFormula(match, { cardId: match.player.hand[0] }, { announcedCardId: 'not-a-card' }), RangeError);
 });
 
-test('D3 formula: opponent power and attack effects of an announced card show as minus terms, and a clamped attack still reads 1', () => {
+test('D3 formula: opponent power and attack effects of an announced card show as minus terms; a sum under 1 shows its true total and the engine\'s minimum of 1', () => {
   const match = createMatch({ rng: () => 0.23 });
   // 貂蟬 announced: 離間 opponent power −1, and with 霜璃 in the same hand 月蝕 attack −6.
   match.player.hand = ['duying', 'qingxiao', 'chiling', 'cangjiao']; match.opponent.hand = ['diaochan', 'shuangli', 'yaoheng', 'yanxin'];
   assert.equal(hasFactionBonus(match, 'opponent', 'diaochan'), true);
   const clamped = attackFormula(match, { cardId: 'duying', pills: 0 }, { announcedCardId: 'diaochan' });
   assert.equal(clamped.attack, 1); assert.equal(clamped.clamped, true);
-  assert.equal(clamped.text, '（力 6 − 1）×（1＋0 丹）− 6 ＝ 1');
+  // Review round 1: these forms used to read '… − 6 ＝ 1' and '5×1−6' beside 1, sums that are really −1.
+  assert.equal(clamped.raw, -1);
+  assert.deepEqual(clamped.variants, ['（力 6 − 1）×（1＋0 丹）− 6 ＝ −1 → 最低 1', '(力6−1)×(1+0丹)−6＝−1→最低1', '(力6−1)×(1+0丹)−6→最低1', '力5×(1+0丹)−6→最低1', '5×1−6→最低1']);
   assert.match(clamped.sentence, /最低為 1/);
   assertShownMatches(clamped);
+  const zero = attackFormula(match, { cardId: 'cangjiao', pills: 0 }, { announcedCardId: 'diaochan' });
+  assert.equal(zero.text, '（力 7 − 1）×（1＋0 丹）− 6 ＝ 0 → 最低 1');
+  assertShownMatches(zero);
+  // The default deck at 0 pills: 霜璃's 照心 blocks 翠弦's +8 and 月蝕 (with 渡影 in the same hand) takes 6.
+  const blocked = createMatch({ rng: () => 0.23 });
+  blocked.player.hand = ['cuixian', 'qingxiao', 'chiling', 'cangjiao']; blocked.opponent.hand = ['shuangli', 'duying', 'yaoheng', 'yanxin']; blocked.initiative = 'opponent';
+  const silenced = attackFormula(blocked, { cardId: 'cuixian', pills: 0 }, { announcedCardId: 'shuangli' });
+  assert.equal(silenced.attack, resolveRound(blocked, { cardId: 'cuixian', pills: 0, fury: false }, { cardId: 'shuangli', pills: 0, fury: false }).lastResult.player.attack);
+  assert.deepEqual(silenced.variants, ['力 6 ×（1＋0 丹）− 6 ＝ 0 → 最低 1', '力6×(1+0丹)−6＝0→最低1', '力6×(1+0丹)−6→最低1', '6×1−6→最低1']);
+  assertShownMatches(silenced);
   const raised = attackFormula(match, { cardId: 'duying', pills: 4 }, { announcedCardId: 'diaochan' });
   assert.equal(raised.attack, resolveRound(match, { cardId: 'duying', pills: 4, fury: false }, { cardId: 'diaochan', pills: 3, fury: false }).lastResult.player.attack);
   assert.equal(raised.text, `（力 6 − 1）×（1＋4 丹）− 6 ＝ ${5 * 5 - 6}`);
@@ -250,7 +284,8 @@ test('D3 coach marks advance in order card → pills → commit → reveal → d
   for (const [index, step] of COACH_STEPS.entries()) {
     const copy = coachCopy(step, { leader: 'opponent', commitLabel: '封丹 · 落子' });
     assert.equal(copy.index, index); assert.equal(copy.total, 4); assert.equal(copy.mark, '①②③④'[index]);
-    assert.ok([...copy.text].length <= 34, `${step} fits two lines of a 360 px phone: ${copy.text}`);
+    // A budget only: whether the copy fits two lines at 360 px is measured in the browser (npm run test:coach).
+    assert.ok([...copy.text].length <= 32, `${step} stays within the copy budget: ${copy.text}`);
   }
   assert.match(coachCopy('commit', { commitLabel: '封丹 · 落子' }).text, /「封丹 · 落子」/);
   assert.match(coachCopy('pills').text, /攻擊＝力×（1＋丹）/);

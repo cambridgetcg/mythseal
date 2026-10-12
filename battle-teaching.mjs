@@ -7,8 +7,8 @@
  * The formula's number is always the engine's own: resolveRound for an opponent
  * card the player can see, previewMove otherwise. Its terms are derived from the
  * same public card data and checked against that number; a term list that would
- * not add up is dropped rather than shown (docs/BATTLE-LAYOUT-PLAN.md, "First
- * battle teaching").
+ * not add up is dropped rather than shown, and a sum under 1 is shown with the
+ * engine's minimum of 1 (docs/BATTLE-LAYOUT-PLAN.md, "First battle teaching").
  */
 import { RULES, FACTIONS, getBattleCard, hasFactionBonus, previewMove, resolveRound } from './engine.mjs';
 
@@ -80,14 +80,15 @@ export function attackFormula(match, { cardId, pills = 0, fury = false } = {}, {
     exactDamage = replies.every(reply => reply.damage === engine.damage);
   }
   const parts = compose(match, move, announcedCardId);
-  // The terms must add up to the engine's numbers; if a rule ever changes without
-  // this module, the engine's number is shown alone rather than a wrong sum.
+  // The terms must add up to the engine's numbers (a sum under 1 is shown with the
+  // engine's minimum, see formulaVariants); if a rule ever changes without this
+  // module, the engine's number is shown alone rather than a wrong sum.
   const consistent = parts.attack === engine.attack && parts.damage === engine.damage;
   const formula = {
     cardId: parts.card.id, name: parts.card.name, basePower: parts.card.power, baseDamage: parts.card.damage,
     pills, multiplier: 1 + pills, fury, cost: engine.cost, furyCost: RULES.furyCost, furyDamage: RULES.furyDamage,
     power: parts.power, powerTerms: parts.powerTerms, attackTerms: parts.attackTerms, damageTerms: parts.damageTerms,
-    attack: engine.attack, damage: engine.damage, clamped: parts.raw < 1, blocked: parts.blocked ? short(parts.blocked.label) : null,
+    raw: parts.raw, attack: engine.attack, damage: engine.damage, clamped: parts.raw < 1, blocked: parts.blocked ? short(parts.blocked.label) : null,
     exact, exactDamage, known: announcedCardId, consistent,
   };
   const variants = consistent ? formulaVariants(formula) : [];
@@ -98,15 +99,21 @@ export function attackFormula(match, { cardId, pills = 0, fury = false } = {}, {
  * Visible forms of one formula, widest first; the move panel shows the first that
  * fits its cell on one line. Each states the same arithmetic as the engine:
  * 力 7 ×（1＋3 丹）＋ 6 ＝ 34 · 力7×(1+3丹)+6＝34 · 力7×(1+3丹)+6 · 7×4+6.
- * Power terms fold into the card's power only in the last two forms.
+ * Power terms fold into the card's power only in the last two forms. When the sum
+ * is under 1 (an opponent's 減攻), the engine counts 1, and every form says so
+ * rather than claim the sum is 1: （力 6 − 1）×（1＋0 丹）− 6 ＝ −1 → 最低 1 · … · 5×1−6→最低1.
  */
 export function formulaVariants(formula) {
-  const { basePower, power, pills, attack, powerTerms, attackTerms } = formula;
+  const { basePower, power, pills, attack, powerTerms, attackTerms, clamped } = formula;
   const net = sum(attackTerms), folded = net ? signed(net) : '';
-  const wide = `${powerTerms.length ? `（力 ${basePower} ${powerTerms.map(item => spaced(item.value)).join(' ')}）` : `力 ${basePower} `}×（1＋${pills} 丹）${attackTerms.map(item => `${spaced(item.value)} `).join('')}＝ ${attack}`;
+  const raw = formula.raw ?? attack, total = raw < 0 ? `${MINUS}${-raw}` : `${raw}`;
+  const expression = `${powerTerms.length ? `（力 ${basePower} ${powerTerms.map(item => spaced(item.value)).join(' ')}）` : `力 ${basePower} `}×（1＋${pills} 丹）${attackTerms.map(item => `${spaced(item.value)} `).join('')}`;
   const head = powerTerms.length ? `(力${basePower}${powerTerms.map(item => signed(item.value)).join('')})` : `力${basePower}`;
   const compact = `${head}×(1+${pills}丹)${attackTerms.map(item => signed(item.value)).join('')}`;
-  const list = [wide, `${compact}＝${attack}`, compact, `力${power}×(1+${pills}丹)${folded}`, `${power}×${1 + pills}${folded}`];
+  const shorter = [compact, `力${power}×(1+${pills}丹)${folded}`, `${power}×${1 + pills}${folded}`];
+  const list = clamped
+    ? [`${expression}＝ ${total} → 最低 ${attack}`, `${compact}＝${total}→最低${attack}`, ...shorter.map(item => `${item}→最低${attack}`)]
+    : [`${expression}＝ ${attack}`, `${compact}＝${attack}`, ...shorter];
   return list.filter((item, index) => list.indexOf(item) === index);
 }
 
@@ -124,10 +131,18 @@ export function formulaSentence(formula) {
   return `${head}${blocked}${fury}${hidden}`;
 }
 
-/** The move panel's cost line; with Fury on it also states the damage a win deals. */
+/** The move panel's cost line. It ends in an ellipsis when its cell is too narrow, so
+ * it holds only the cost and the pills left, and Fury's damage is on its toggle. */
 export function costText(formula, reserve) {
-  const cost = `共消耗 ${formula.cost} 丹 · 剩 ${reserve - formula.cost} 丹`;
-  return formula.fury ? `怒擊 ${formula.exactDamage ? '' : '預計'}傷 ${formula.damage} · ${cost}` : cost;
+  return `共消耗 ${formula.cost} 丹 · 剩 ${reserve - formula.cost} 丹`;
+}
+
+/** The Fury toggle's note: its rule while off; with Fury on, the damage a win deals
+ * (預計傷 when a hidden reply could reduce it). */
+export function furyNote(formula) {
+  const price = `另付 ${formula.furyCost} 丹`;
+  if (!formula.fury) return `${price} · 傷害 +${formula.furyDamage}`;
+  return `${price} · ${formula.exactDamage ? '傷害' : '預計傷'} ${formula.damage}`;
 }
 
 /** What to do now on the planning table: one short, always visible line. */
@@ -189,13 +204,15 @@ export function advanceCoach(step, event) {
 }
 
 const MARKS = ['①', '②', '③', '④'];
-/** The coach mark's words, in the table's voice. Each fits two lines of a 360 px phone. */
+/** The coach mark's words, in the table's voice. Each must fit the two lines its hint
+ * has on a 360 px portrait phone; npm run test:coach measures the rendered copy there
+ * in Chromium and WebKit (a character count is no proof of fit). */
 export function coachCopy(step, { leader = 'player', commitLabel = '落子 · 決勝' } = {}) {
   const index = COACH_STEPS.indexOf(step);
   if (index < 0) throw new RangeError('Unknown coach step.');
   const text = {
     card: leader === 'opponent' ? '對手已亮出本輪戰卡。點你的一張戰卡應戰，金框即已選。' : '你持先手，先出牌。點一張戰卡出戰，金框即已選。',
-    pills: '按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹要撐四回合，莫一次押盡。',
+    pills: '按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹撐四回合，莫一次押盡。',
     commit: `定好便按「${commitLabel}」。雙方暗置的仙丹此刻一同揭曉。`,
     reveal: '比「實際攻擊」：高者勝，敗方受勝方傷害。留意對手還剩幾丹。',
   }[step];

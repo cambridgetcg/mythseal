@@ -33,7 +33,7 @@ import { prepareScene, preparePack } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
-import { attackFormula, costText, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
+import { attackFormula, costText, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -219,8 +219,8 @@ const commitLabel=()=>isMistGate()?'封丹 · 落子':'落子 · 決勝';
 /** D3: the live formula for the draft, from the engine's own numbers (battle-teaching.mjs).
  * A leading opponent's announced card is public, so its effects count; otherwise 預計. */
 let attackVariants=[];
-function attackPreviewMarkup() {
-  const formula=attackFormula(match,{cardId:selected,pills,fury},{announcedCardId:permittedAnnouncement(match,aiMove,{revealPending})});
+const draftFormula=()=>attackFormula(match,{cardId:selected,pills,fury},{announcedCardId:permittedAnnouncement(match,aiMove,{revealPending})});
+function attackPreviewMarkup(formula=draftFormula()) {
   const note=formula.known?'· 已計對手亮牌':formula.exact?'· 對手出牌亦不變':'· 未計對手影響';
   attackVariants=formula.variants;
   const label=formula.text?`${formula.exact?'':'<b>預計</b> '}<span class="attack-formula-text">${safe(formula.text)}</span>`:`${formula.exact?'己方攻擊':'己方預估攻擊'}`;
@@ -239,11 +239,11 @@ function fitAttackFormula() {
 }
 window.addEventListener('resize',fitAttackFormula);document.fonts?.addEventListener?.('loadingdone',fitAttackFormula);
 function movePanel() {
-  const maxPills = match.player.pills - (fury ? RULES.furyCost : 0);
+  const maxPills = match.player.pills - (fury ? RULES.furyCost : 0), formula = draftFormula();
   return `<aside class="move-panel" aria-label="出牌設定">
     <div class="pill-control"><button data-action="pill-minus" aria-label="減少一枚仙丹" ${pills===0?'disabled':''}>−</button><div class="pill-number"><span id="pill-amount">${pills}</span><small>暗置仙丹</small></div><input class="pill-slider" id="pill-slider" aria-label="投入仙丹" type="range" min="0" max="${maxPills}" step="1" value="${pills}"><button data-action="pill-plus" aria-label="增加一枚仙丹" ${pills===maxPills?'disabled':''}>+</button></div>
-    <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<RULES.furyCost?'disabled':''}><span>怒擊 <small>另付 ${RULES.furyCost} 丹 · 傷害 +${RULES.furyDamage}</small></span><span class="toggle-track"></span></button>
-    ${attackPreviewMarkup()}
+    <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<RULES.furyCost?'disabled':''}><span>怒擊 <small>${safe(furyNote(formula))}</small></span><span class="toggle-track"></span></button>
+    ${attackPreviewMarkup(formula)}
     <button class="primary" data-action="commit" ${busy?'disabled':''}>${commitLabel()} <span aria-hidden="true">↗</span></button></aside>`;
 }
 
@@ -262,7 +262,9 @@ function battleTableOptions(view,actionsHtml) {
 const coachMemory=createCoachMemory({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
 let coachStep=null;
 const tableCoach=()=>['card','pills','commit'].includes(coachStep)&&screen==='battle'&&match?.status==='playing'&&!revealPending;
-const dialogCoach=()=>coachStep==='reveal'&&modalKind==='round-result';
+// Mark ④ is a Back layer only once the reveal has completed and shows it (the footer hides
+// it while the reveal animates); until then Back holds the result, as without the coach.
+const dialogCoach=()=>coachStep==='reveal'&&modalKind==='round-result'&&overlay.querySelector('.modal.battle-reveal')?.dataset.revealState==='complete';
 function statusOptions(view) {
   const mist=isMistGate(),copy=view.phase==='planning'&&tableCoach()?coachCopy(coachStep,{leader:view.leader,commitLabel:commitLabel()}):null;
   return {eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader}):'',
@@ -969,6 +971,7 @@ function resultModal({animate=false}={}) {
     <div class="result-effects"><div><h4>你的技能與共鳴</h4>${effectList('player')}</div><div><h4>對手的技能與共鳴</h4>${effectList('opponent')}</div></div>
     <div class="battle-reveal-footer"><div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div><div class="mist-reveal-controls battle-reveal-controls">${revealTeachingMarkup()}<button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div></div>`,`result-modal battle-reveal${mist?' mist-reveal':''}`,false,'round-result',dialog=>experience.reveal(dialog,{animate:Boolean(animate&&presentation?.canAnimate),battle:true,onPhase:(phase,element)=>{
     paintRoundResources(element,presentation,phase);
+    if(phase==='complete'&&coachStep==='reveal')nav.queue();
     if(phase==='recovery'&&presentation&&['player','opponent'].some(side=>presentation[side].hpRecovered>0||presentation[side].pillsRecovered>0))playTone('recovery');
   }}));
   announce(`第 ${r.round} 回合，${won?'你':'對手'}獲勝，造成 ${r.damage} 點傷害。`);

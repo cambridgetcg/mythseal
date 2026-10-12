@@ -56,7 +56,8 @@ function screenLayers(view, screen, nested = false) {
  *         preparationDeck: {screen}|null, modal: {kind, dismissible}|null, modalReturn: {kind, dismissible}|null,
  *         coach: 'table'|'dialog'|null }
  * modalReturn is the dialog the open one returns to (a result card or settings opened over a result or preparation).
- * coach is a first-battle coach mark shown on the battle table ('table') or in the round reveal ('dialog').
+ * coach is a first-battle coach mark shown on the battle table ('table') or in the round reveal ('dialog');
+ * app.mjs reports 'dialog' only once the reveal has completed and shows the mark.
  */
 export function navLayers(view = {}) {
   const layers = screenLayers(view, view.screen || ROOT_SCREEN);
