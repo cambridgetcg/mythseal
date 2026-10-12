@@ -517,6 +517,32 @@ M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 **Current status:** the shared lobby and navigation pass desktop/phone Chrome
 emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
+**N1 mobile shell (2026-10-11, branch `n1/mobile-shell`, not merged or
+deployed; owner-approved for v0.6.0 scope):** safe-area insets under
+`viewport-fit=cover` as overridable custom properties, 16px text entry on touch
+screens (no iOS focus zoom), no horizontal overflow from 302 to 734px wide, the
+arena's 來日 clear of the dock in landscape 701px and wider, named volume
+sliders, and the two WebKit failures RELEASE-NEXT A6 named (the 43.08px rewards
+tab and the map-piece launch). Checked in Chromium and WebKit emulation (`npm run
+test:shell`, [NAVIGATION](docs/NAVIGATION.md#mobile-shell)); the physical-phone
+items are open in the [M5.1 checklist](docs/MOBILE-RELEASE.md#m51-phone-checklist).
+Review round 1 (2026-10-12) fixed what the first pass missed: the
+short-landscape cards hub tabs covered 旅程閣 under side insets, and at 302px
+the codex was 1px too wide, collection items ran past the shell and the
+market's seven tabs overlapped; `test:shell` now opens all three collection
+tabs and checks shell gutters, tab rows, the landscape header row and the
+computed touch rules. Review round 2 (2026-10-12): in Safari's toolbar-visible
+landscape (852×343, 844×340) the dock's lift above the home indicator had put
+the market's buy buttons under the dock; the market's title now shares its tab
+row, and `test:shell` checks every dock destination and module against the dock
+at those sizes. Review round 3 (2026-10-12): the 812pt-wide notch iPhones in
+the same Safari landscape (812×325) still had a few controls 2–18px under the
+dock, and the coarse-pointer 16px rule had shrunk 旅程閣's 20px code field;
+both are fixed and checked by `test:shell`. Landscape phones below 701px wide
+(iPhone SE/8 at 667×375, Android at 640×360, the first SE at 568×320) keep a
+fault that predates N1: opened, the market's 西行印 and 整盒, the arena's 問道,
+切磋 and 來日 and the world's chapter module cover their own tab row, and
+西行秘匣's buy button is hidden (NAVIGATION, Limits).
 
 **Back model (D1) · status 2026-10-12:** implemented on branch `d1/back-model`
 (from `main` `7712a7b`), with the fixes from three review rounds; not merged or
