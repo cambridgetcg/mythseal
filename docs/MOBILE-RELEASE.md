@@ -82,8 +82,8 @@ M5.2; the plugin is not installed in this repository yet.
 
 The browser smoke uses Playwright's `page.goBack()`. It does not cover Android
 gesture navigation (including predictive back), the iOS Safari edge swipe or
-real bfcache restores; those are M5.1 items not yet verified (see the table
-below).
+bfcache restores on phones (it runs them only in headless Chrome); those are
+M5.1 items not yet verified (see the table below).
 
 ## Packaging route
 

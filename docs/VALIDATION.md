@@ -229,6 +229,100 @@ before D1 in this environment, above); `test:wx01`, `test:inheritance`,
 `test:collection-display` and `test:map-piece`; the literary preview smokes;
 deploy dry runs, the SQL harness and CI.
 
+**Review round 3 fixes · 2026-10-12.** Review round 3 reported two medium
+findings with one cause, and independent reproductions in Chrome with the
+bfcache on confirmed both. They are fixed in source commit **`4e99590`**
+(`nav-stack.mjs`, one `app.mjs` line, `tests/nav-stack.test.mjs`) and smoke
+commit **`dde373d`** (`tools/back-smoke.mjs`). The documentation commit after
+them changes no served, test or tool file. The environment is the same as
+above. For this round, `python3 tools/serve.py --port 4201` was started from
+the worktree; no allowlist file changed.
+
+- **Medium (both findings): after Forward stepped past an earlier load's
+  entries, Back bounced between the game and the later page.** Production
+  allows the bfcache (`hosting/_headers` sends `public, max-age=0,
+  must-revalidate`). The reviewers reached it in two ways: a reload at 洞府,
+  or `history.go(-2)` / `history.go(-3)` from the later page (the Back menu,
+  or a fast double Back), which loads the game anew below its top entry. In
+  both, the entries ahead of the root still hold the earlier load's state,
+  and `64918c1`'s Forward steps past them, so the page leaves from one of
+  them. `pageshow` trusted a restored entry's position only when the entry
+  held this load's session id; otherwise it took the root. Restored on that
+  abs-2 entry, the page walked nothing back. The next Back landed on abs 1,
+  which the Forward step-on read as a Forward, and stepped on to the later
+  page again. So every Back from the game returned to that page. The round 2
+  note's sentence "A bfcache restore on the entry Forward left from walks back
+  to the layers held" (and the matching NAVIGATION sentence) held only for an
+  entry the current load wrote. From `4e99590`, `pageshow` takes the position
+  stored in the restored entry, whichever load wrote it, since `abs` counts the
+  tab's game entries from the first one across reloads. The sentence then holds
+  for every entry, and NAVIGATION says so.
+- **Also fixed, found while checking the fix: a second walk past 洞府 after 3 s
+  away.** A restore fires `visibilitychange` before `pageshow`, and the game's
+  handler renders, which queues a reconciliation. After 3 s or more away
+  (`NAV_STALL_MS`), that reconciliation gave up the pending step and walked
+  back on its own; `pageshow` then walked again. Restored on an entry the
+  current load wrote, with a page before the game, Chrome ended on that page
+  (`about:blank`, history index 0) with `893f2d4`'s `app.mjs` and
+  `nav-stack.mjs` served. On an earlier load's entry `893f2d4` walked only once,
+  because `pageshow` took the root; the first fix alone would have made that
+  case walk twice too. Now a persisted `pagehide` holds reconciliation until
+  `pageshow` (a popstate or an input also releases it). `app.mjs` gains one
+  line after the `pageshow` listener:
+  `window.addEventListener('pagehide',event=>nav.pagehide(event.persisted));`.
+- **Regression checks.** N21 runs the three ways to leave from an earlier
+  load's entry (a reload at 洞府, a jump of 2, a jump of 3), each with and
+  without `about:blank` before the game: the restore walks back to the root,
+  and the next Back leaves (or goes to the system). N22 restores after 5 s
+  away, on this load's entry and on an earlier load's, with the render before
+  `pageshow`: exactly one `history.go(-2)`. The harness now fires `pagehide`
+  whenever the page leaves. The new back-smoke check (Chrome only) uses a
+  second browser launched without `--disable-back-forward-cache`, whose route
+  serves production's `Cache-Control` instead of `no-store`. It runs a reload
+  at 洞府 and a `history.go(-2)`, each restored on the earlier load's abs-2
+  entry. It also runs closed layers with a page before the game and 5 s away:
+  the smoke's fixed clock moves on when the page is shown again, before the
+  game's `visibilitychange` handler. Each case asserts a real restore
+  (`pageshow.persisted`), one walk to 洞府 (CDP history index) and that the next
+  Back leaves.
+- **With each fix reverted.** In Node, with the `pageshow` line reverted (hold
+  kept), N21 fails (`reload at 洞府: the restore walked back to the root`,
+  `3 !== 1`) and N22 fails on the earlier load's entry (no walk). With the hold
+  removed (`pagehide` a no-op), N22 fails on this load's entry (`[-2, -2]`).
+  With `893f2d4`'s `nav-stack.mjs` plus an empty `pagehide()`, both fail. The
+  other tests pass each time. In Chrome, a scratch copy of the smoke had its route
+  serve the variant `app.mjs` and `nav-stack.mjs`. With `893f2d4`'s files, the
+  reload and jump cases failed (`abs now 2`) and the 5 s case ended on
+  `about:blank` at index 0. With only the `pageshow` line reverted, the reload
+  and jump cases failed and the 5 s case passed. With only the hold removed,
+  the reload and jump cases passed and the 5 s case ended on `about:blank`.
+
+Checks on the tree committed unchanged as `4e99590` and `dde373d`, all browser
+suites with `GAME_URL=http://127.0.0.1:4201`:
+
+- `node --test tests/*.test.mjs`: exit 0, **553/553** (N21 and N22 added).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 84 public files, manifest `2beb9777…bb80`.
+- `git diff --check 7712a7b`: exit 0.
+- `npm run test:back`: exit 0, **16/16 checks in Chrome** (the 15 above plus
+  the bfcache check) and **15/15 in WebKit**.
+- `npm run test:commands`: exit 0, 13/13 groups in each engine.
+- `npm run test:viewport`: exit 0, 23/23 in each engine.
+- `npm run test:battle-table`: exit 0, 40/40 in each engine.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines, and
+  every printed error list empty.
+
+Not run or not shown: a bfcache restore in WebKit (the reviewers saw
+`pageshow.persisted` false in Playwright's WebKit; not re-checked here, and the
+new check is Chrome only); real phones, including iOS Safari's page cache; a
+real browser restoring an earlier load's entry after 3 s away (only N22 covers
+that; the Chrome case after 5 s away restores this load's entry); Firefox;
+`test:expansion`, `test:wx01`, `test:inheritance`, `test:collection-display` and
+`test:map-piece`; the literary preview smokes; deploy dry runs, the SQL harness
+and CI.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

@@ -113,10 +113,15 @@ above the root has one entry:
   returns to the app that opened it (not checked on a phone). If the walk back
   never lands within 3 s, the reloaded entry stays the root, and a Back from it
   jumps past the earlier entries, which the browser ignores when nothing
-  precedes the game. A bfcache restore (`pageshow` with `persisted`) re-reads
-  the position and pushes nothing until the next input. If the page left from
-  an entry that Forward stepped past, it walks back to the layers held, so the
-  next Back at 洞府 still leaves in one step.
+  precedes the game. A bfcache restore (`pageshow` with `persisted`) reads the
+  position stored in the restored entry, whichever load wrote it (`abs` counts
+  the tab's game entries from the first one, across reloads), and pushes
+  nothing until the next input. If the page left from an entry that Forward
+  stepped past (a closed layer's, or an earlier load's), it walks back to the
+  layers held, so the next Back at 洞府 still leaves in one step. From a
+  persisted `pagehide` until `pageshow` the page reconciles nothing: a restore
+  fires `visibilitychange` first, and the render it causes must not start a
+  walk of its own, or the walk on `pageshow` would be a second one past 洞府.
 - **Forward** never reopens a closed layer. Forward onto an entry above the
   layers held (a closed layer's, or an earlier load's) steps on with
   `history.go(+1)` while the tab has an entry past it. A page opened in the same
@@ -140,15 +145,17 @@ recognised as the game's own. It returns `'exit'` at the root. A future
 Capacitor back-button listener calls it
 ([MOBILE-RELEASE](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
 
-**Checks.** `node --test tests/nav-stack.test.mjs` (N1–N20) covers every table
+**Checks.** `node --test tests/nav-stack.test.mjs` (N1–N22) covers every table
 row against a simulated session history, including one where the game is the
 tab's first entry. `GAME_URL=… npm run test:back` runs
 `tools/back-smoke.mjs` in Chrome with the Pixel 7 descriptor, then WebKit with
 the iPhone 15 descriptor ([VALIDATION](VALIDATION.md#d1-back-model--2026-10-12)).
-Playwright's `page.goBack()` steps to the previous entry by index. It does not
-show whether a real Back button would skip an entry, so physical Android
-gesture navigation (including predictive back), the iOS Safari edge swipe and
-real bfcache restores are M5.1 items not yet verified.
+In Chrome it also runs real bfcache restores in a second browser with the
+bfcache on and production's `Cache-Control`; WebKit's page cache is not
+covered. Playwright's `page.goBack()` steps to the previous entry by index. It
+does not show whether a real Back button would skip an entry, so physical
+Android gesture navigation (including predictive back), the iOS Safari edge
+swipe and bfcache restores on phones are M5.1 items not yet verified.
 
 ## Encounter loop
 

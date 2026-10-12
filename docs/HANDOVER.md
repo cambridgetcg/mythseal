@@ -307,6 +307,21 @@ input, popstate and pageshow listeners after the `pagehide` listener, and
   which is older than D1, so there one Back changes nothing visible before the
   next leaves. Checks: [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12),
   "Review round 2 fixes".
+- **Review round 3 fixes (2026-10-12):** source commit **`4e99590`**
+  (`nav-stack.mjs`, its tests and one `app.mjs` line) and smoke commit
+  **`dde373d`** (`tools/back-smoke.mjs`). With the bfcache on, as production's
+  headers allow, a restore on an entry an earlier load wrote (one that Forward
+  stepped past after a reload at 洞府, or after a jump of two or three entries
+  back) took the root as its position. Back then bounced between the game and
+  the later page. `pageshow` now reads the position stored in the entry,
+  whichever load wrote it. A restore after 3 s or more away could also walk
+  back twice (the render on `visibilitychange` runs before `pageshow`), past
+  洞府 to the page before the game. A persisted `pagehide` now holds
+  reconciliation until `pageshow`. New `app.mjs` touch point for the D2 merge:
+  a `pagehide` listener line after the `pageshow` listener. `test:back` now
+  also runs real bfcache restores in Chrome; WebKit's page cache and phones
+  remain open. Checks: [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12),
+  "Review round 3 fixes".
 
 ## Experience planning checkpoint · 2026-09-29
 
