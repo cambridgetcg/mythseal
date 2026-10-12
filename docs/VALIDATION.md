@@ -88,6 +88,73 @@ smokes, since no preview file changed; the WebKit runs in `test:wx01`,
 inside `test:browser`); `test:expansion` and `test:map-piece`; deploy dry runs,
 the SQL harness and CI.
 
+**Review fixes · 2026-10-12.** Review round 1 reported two findings, and both
+were confirmed. They are fixed in source commits **`cfaa315`**
+(`nav-stack.mjs`, `tests/nav-stack.test.mjs`) and **`ab73577`**
+(`tools/back-smoke.mjs`). The documentation commit after them changes no served,
+test or tool file. The environment is the same as above.
+
+- **Medium: dead Back after a reload when the game is the tab's first entry.**
+  The reload result above (Back left 洞府 "in one step past the earlier load's
+  entries") held only because the Node harness and every Playwright page put
+  `about:blank` before the game. A reload kept the earlier load's entries below
+  its root, and Back at the root jumped past them with `history.go(-(abs+1))`.
+  With no page before the game (a new tab, a home-screen shortcut, a Custom
+  Tab), that jump is out of range and the browser ignores it. Back then did
+  nothing once for each layer that was open at the reload. Each such reload
+  also added entries for good: six cycles took `history.length` from 2 to 14.
+  Now `start()` walks back to the tab's first game entry and makes it the root.
+  The earlier entries then sit ahead, and the next push drops them. If the walk
+  never lands within 3 s, the reloaded entry stays the root as before.
+  Regression tests: N18 (no `about:blank` in the simulated tab) and N19 (six
+  reload cycles). Both fail with `nav-stack.mjs` reverted to `1a1ff8f`
+  (`0 !== 1` system Backs; `6 !== 4` entries) and pass with the fix. N11, N12
+  (now the fallback for a walk that never lands) and N15 were updated. With the
+  same revert, the full `test:back` stopped at its new wait for the walk back
+  (`abs now 3`). A scratch copy that ran only the two new smoke checks, without
+  that wait, showed `history.length` 2→4→6→8→10→12→14 in both engines. In the
+  popup, Back at 洞府 landed on an earlier entry: the CDP history index was not 0
+  in Chrome, and a popstate fired in WebKit.
+- **Low: `requestBack()` wording.** NAVIGATION, MOBILE-RELEASE and the code
+  comment said it makes no history traversal. In fact, when a row closes a
+  layer it walks back over that layer's entry with `history.go(-1)`. The wording
+  is corrected, and N15 now asserts that `go(-1)`.
+
+Checks at `ab73577`, all browser suites with `GAME_URL=http://127.0.0.1:4201`:
+
+- `node --test tests/*.test.mjs`: exit 0, **550/550** (N18 and N19 added).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 84 public files, manifest `7e445126…f2d`.
+- `git diff --check 7712a7b HEAD`: exit 0.
+- `npm run test:back`: exit 0, **13/13 checks in each engine** (the 11 above
+  plus two). Six reloads with 遊歷 and settings open kept `history.length` at
+  2→4→4→4→4→4→4, and one Back then left 洞府. A `window.open` popup started
+  with `history.length` 1. After a reload with two layers open, it was on the
+  tab's first entry (CDP index 0 in Chrome), and the first Back at 洞府 fired
+  no popstate and left it at 洞府. The next push left `history.length` at 2.
+- `npm run test:commands`: exit 0, 13/13 groups in each engine.
+- `npm run test:battle-table`: exit 0, 40/40 in each engine.
+- `npm run test:viewport`: exit 0, 23/23 in each engine.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines, and
+  every printed error list empty.
+- `npm run test:wx01` (Chrome then WebKit): exit 0, 54 `PASS` lines.
+  `npm run test:inheritance`: exit 0, 18. `npm run test:collection-display`:
+  exit 0, 20. All printed error lists were empty.
+- `npm run test:expansion`: **exit 1**. Chrome passed (16 checks, 899 layout checks).
+  WebKit failed after 6, at `360x740/rewards/grants`, because one `module`
+  action was 43.08 px wide (under 44 px). With `7712a7b`'s `app.mjs` served
+  (no Back model; D1 changes no CSS or HTML), the WebKit run failed the same way
+  at the same width. So the failure predates D1 in this environment, and D1 did
+  not cause it.
+
+Not run or not shown: physical phones, so the system Back at a first-entry root
+(Android Custom Tab or home-screen launch, iOS) is unverified; a Capacitor
+WebView's `canGoBack`; a startup walk that a real browser drops (only N12
+covers that fallback); `test:map-piece`; the literary preview smokes; deploy
+dry runs, the SQL harness and CI.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

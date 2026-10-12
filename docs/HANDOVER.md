@@ -278,6 +278,17 @@ input, popstate and pageshow listeners after the `pagehide` listener, and
   [MOBILE-RELEASE](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
   The owner default in the packet stands as built: Back at 洞府 leaves the site
   with no prompt.
+- **Review round 1 fixes (2026-10-12):** source commits **`cfaa315`**
+  (`nav-stack.mjs` and its tests) and **`ab73577`** (`tools/back-smoke.mjs`);
+  still no `app.mjs` change beyond the touch points above. A reload used to keep
+  the earlier load's entries below its root, so when the game was the tab's
+  first entry (a new tab, a home-screen shortcut, a Custom Tab), Back at 洞府
+  did nothing once for each layer open at the reload, and each such reload
+  grew `history.length` for good. The reloaded page now walks back to the tab's
+  first game entry and makes it the root. The docs no longer say that
+  `requestBack()` makes no traversal: when a layer closes, it walks back over
+  that layer's entry with `history.go(-1)`. Checks:
+  [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12), "Review fixes".
 
 ## Experience planning checkpoint · 2026-09-29
 
