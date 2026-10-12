@@ -18,7 +18,10 @@
  * would close the tab or return to the opener); Back into the game from a page opened in
  * the same tab (a new load, not a bfcache restore) still leaves that page one Forward
  * away; and when a finished match's settlement fails on resume, Back closes the pending
- * dialog, then the battle layer, then leaves, writing nothing.
+ * dialog, then the battle layer, then leaves, writing nothing. Chromium only: with the
+ * bfcache on (a second browser without --disable-back-forward-cache, production's
+ * Cache-Control), a restore on the entry Forward left from, whichever load wrote it,
+ * walks back to 洞府 once, and the next Back leaves the game.
  * Headless engines only: physical Android Back gestures and iOS edge swipes are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/back-smoke.mjs
  */
@@ -86,13 +89,20 @@ const settlementView = profile => ({
 
 // ── Pages ───────────────────────────────────────────────────────────────────────
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
-async function open(name) {
+/** hosting/_headers: production lets the bfcache keep the game; the loopback server sends no-store. */
+const PRODUCTION_CACHE = 'public, max-age=0, must-revalidate';
+/** from: the browser; cache: a Cache-Control to serve instead of no-store; via: a page the tab opens before the game. */
+async function open(name, { from = browser, cache = null, via = null } = {}) {
   const fixture = FIXTURES[name];
-  const context = await browser.newContext({ ...device, reducedMotion: 'reduce' });
+  const context = await from.newContext({ ...device, reducedMotion: 'reduce' });
   contexts.add(context);
   await context.addInitScript(({ fixture, keys, now }) => {
-    const NativeDate = Date, fixed = new NativeDate(now).getTime();
+    const NativeDate = Date;
+    let fixed = new NativeDate(now).getTime();
     globalThis.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
+    // Time away from the page: set before leaving, the fixed clock moves on when the page is
+    // shown again, before the game's own visibilitychange handler runs.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && window.backSmokeAwayMs) { fixed += window.backSmokeAwayMs; window.backSmokeAwayMs = 0; } });
     Math.random = () => 0.23;
     let storage;
     try { storage = localStorage; } catch { return; } // about:blank after the root hands Back on
@@ -103,9 +113,10 @@ async function open(name) {
       storage.setItem(keys.preferences, JSON.stringify({ sound: false, ambience: 0.35, effects: 0.6, motion: 'reduce', pace: 'fast' }));
     }
     const nativeSet = Storage.prototype.setItem;
-    window.backSmokeProfileWrites = 0; window.backSmokePops = 0; window.backSmokeRestored = null;
+    window.backSmokeProfileWrites = 0; window.backSmokePops = 0; window.backSmokeRestored = null; window.backSmokeShown = null;
     addEventListener('popstate', () => { window.backSmokePops++; });
-    addEventListener('pageshow', event => { window.backSmokeRestored = event.persisted; });
+    // Runs before the game's own listener: the state of the entry the page was shown on.
+    addEventListener('pageshow', event => { window.backSmokeRestored = event.persisted; window.backSmokeShown = history.state; });
     Storage.prototype.setItem = function(key, value) { nativeSet.call(this, key, value); if (this === localStorage && key === keys.profile) window.backSmokeProfileWrites++; };
   }, { fixture, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now });
   await context.route('**/*', route => {
@@ -116,9 +127,11 @@ async function open(name) {
     if (url.origin !== base.origin || url.pathname.startsWith('/api/') || !['GET', 'HEAD'].includes(request.method())) {
       errors.push(`Unexpected network ${request.method()} ${url.origin}${url.pathname}`); return route.abort('blockedbyclient');
     }
-    return route.continue();
+    if (!cache) return route.continue();
+    return route.fetch().then(response => route.fulfill({ response, headers: { ...response.headers(), 'cache-control': cache } }));
   });
   const page = watch(await context.newPage(), name);
+  if (via) await page.goto(via);
   await page.goto(base.href); await page.locator('.game-lobby').waitFor();
   return page;
 }
@@ -181,10 +194,11 @@ async function settle(page, description, depth = layerCount(description)) {
   await viewportFrames(page);
   assert.equal(await describe(page), description);
 }
-/** The browser's Back: exactly one layer closes (or the guard row holds/opens its menu). */
-async function back(page, description, depth) {
+/** The browser's Back: exactly one layer closes (or the guard row holds/opens its menu).
+ * After a bfcache restore the document fires no new load, so wait for the commit only. */
+async function back(page, description, depth, { waitUntil = 'load' } = {}) {
   const before = await describe(page);
-  await page.goBack();
+  await page.goBack({ waitUntil });
   await settle(page, description, depth);
   if (!['hold', 'menu'].includes(page.expectRow)) assert.equal(layerCount(description), layerCount(before) - 1, `Back from ${before} closes one layer, to ${description}`);
   assert.equal(page.blanks.unexpected, 0, `no about:blank before the root (at ${description})`);
@@ -517,6 +531,103 @@ try {
     await leaveFromRoot(page, 'after a failed settlement on resume');
     passed(`${deviceName}: a settlement that fails on resume: Back closes the pending dialog, then the battle layer, then leaves 洞府; nothing written`);
     await release(page);
+  }
+
+  if (browserName === 'chromium') {
+    // Real bfcache restores. Playwright starts Chromium with --disable-back-forward-cache and
+    // the loopback server sends no-store; this browser drops that flag and the route serves
+    // production's Cache-Control, so Back from a page opened in the same tab restores the
+    // game's document on the entry Forward left from. That entry may hold an earlier load's
+    // state; the restore must still walk back to 洞府 (once), and the next Back must leave.
+    const cached = await engines.chromium.launch({ headless: true, ignoreDefaultArgs: ['--disable-back-forward-cache'], ...(existsSync(chrome) ? { executablePath: chrome } : {}) });
+    try {
+      const other = new URL('/playtest.html', base).href, commit = { waitUntil: 'commit' };
+      const index = async cdp => (await cdp.send('Page.getNavigationHistory')).currentIndex;
+      const withLayers = async page => {
+        await click(page, '.game-dock [data-action="world"]'); await settle(page, 'world');
+        await click(page, '.game-header [data-action="experience-settings"]'); await settle(page, 'world>settings');
+      };
+      /** Back from the later page: a bfcache restore on the abs-2 entry, then one walk back to the root. */
+      const restoreToRoot = async (page, cdp, { root, foreign, label }) => {
+        await page.goBack({ waitUntil: 'commit' });
+        await page.waitForFunction(() => window.backSmokeRestored === true, null, { timeout: 4000 })
+          .catch(async () => assert.fail(`${label}: Back restored the game from the bfcache (pageshow persisted; now ${page.url()}, history index ${await index(cdp)})`));
+        await page.waitForFunction(key => history.state?.[key]?.abs === 0, NAV_STATE_KEY, { timeout: 4000 })
+          .catch(async () => assert.fail(`${label}: the restore walked back to 洞府 (abs now ${await entryAbs(page)})`));
+        await settle(page, 'home');
+        const [shown, landed] = await page.evaluate(key => [window.backSmokeShown?.[key], history.state?.[key]], NAV_STATE_KEY);
+        assert.equal(shown?.abs, 2, `${label}: restored on the entry Forward left from`);
+        assert.equal(shown.sid !== landed.sid, foreign, `${label}: that entry holds ${foreign ? 'an earlier' : 'this'} load's state`);
+        // Let a second walk, if any, land before reading where the page is.
+        await page.waitForTimeout(400); await viewportFrames(page);
+        assert.equal(await index(cdp), root, `${label}: on the root entry`);
+        assert.equal(await describe(page), 'home'); assert.equal(page.blanks.unexpected, 0, `${label}: no about:blank`);
+      };
+      /** Back at 洞府 leaves the game for the entry before it. */
+      const leave = async (page, cdp, { url, root, label }) => {
+        page.leaving = url === 'about:blank';
+        await page.goBack({ waitUntil: 'commit' });
+        await page.waitForURL(url, { waitUntil: 'commit' }).catch(() => assert.fail(`${label}: Back at 洞府 left for ${url} (now ${page.url()})`));
+        assert.equal(await index(cdp), root - 1, `${label}: one entry back`);
+        assert.equal(page.dialogs, 0);
+      };
+      const cases = [];
+      for (const how of ['reload at 洞府', 'jump of 2 entries']) {
+        const page = await open('journey', { from: cached, cache: PRODUCTION_CACHE }), cdp = await page.context().newCDPSession(page);
+        const raw = await profileRaw(page);
+        await withLayers(page);
+        await page.goto(other);
+        if (how === 'reload at 洞府') {
+          // Back restores both layers from the bfcache; two Backs close them; reload at 洞府.
+          await page.goBack({ waitUntil: 'commit' });
+          await page.waitForFunction(() => window.backSmokeRestored === true, null, { timeout: 4000 })
+            .catch(() => assert.fail(`${how}: Back restored the game from the bfcache`));
+          await settle(page, 'world>settings');
+          await back(page, 'world', undefined, commit); await back(page, 'home', undefined, commit);
+          await reloadToRoot(page);
+        } else {
+          // The Back menu (or a fast double Back) two entries back: the game loads on its abs-1
+          // entry and walks back to the first, leaving the earlier load's abs-2 entry ahead.
+          await page.evaluate(() => history.go(-2));
+          await page.waitForURL(base.href, { waitUntil: 'commit' }); await page.locator('.game-lobby').waitFor();
+          await page.waitForFunction(key => history.state?.[key]?.abs === 0, NAV_STATE_KEY, { timeout: 4000 })
+            .catch(async () => assert.fail(`${how}: walked back to the first game entry (abs now ${await entryAbs(page)})`));
+          await settle(page, 'home');
+        }
+        assert.equal(await index(cdp), 1);
+        await page.evaluate(() => { window.backSmokeRestored = null; });
+        await page.goForward(commit); await page.waitForURL(other, commit);
+        await restoreToRoot(page, cdp, { root: 1, foreign: true, label: how });
+        assert.equal(await profileRaw(page), raw, `${how}: the save bytes are unchanged`);
+        await leave(page, cdp, { url: 'about:blank', root: 1, label: how });
+        assert.equal(page.blanks.expected, 1);
+        cases.push(how);
+        await release(page);
+      }
+      {
+        // 3 s or more on the later page (NAV_STALL_MS): the render that runs on visibilitychange
+        // before pageshow must not start a walk of its own, or pageshow's walk would be a second
+        // one, which from this root goes past the page opened before the game.
+        const label = 'closed layers, 5 s on the later page';
+        const page = await open('journey', { from: cached, cache: PRODUCTION_CACHE, via: other }), cdp = await page.context().newCDPSession(page);
+        assert.equal(await index(cdp), 2, 'a page before the game');
+        await withLayers(page);
+        await page.goto(other);
+        await page.goBack({ waitUntil: 'commit' });
+        await page.waitForFunction(() => window.backSmokeRestored === true, null, { timeout: 4000 })
+          .catch(() => assert.fail(`${label}: Back restored the game from the bfcache`));
+        await settle(page, 'world>settings');
+        await back(page, 'world', undefined, commit); await back(page, 'home', undefined, commit);
+        await page.evaluate(() => { window.backSmokeRestored = null; window.backSmokeAwayMs = 5000; });
+        await page.goForward(commit); await page.waitForURL(other, commit);
+        assert.equal(await index(cdp), 5, `${label}: Forward stepped past the closed layers' entries to the page`);
+        await restoreToRoot(page, cdp, { root: 2, foreign: false, label });
+        await leave(page, cdp, { url: other, root: 2, label });
+        cases.push(label);
+        await release(page);
+      }
+      passed(`${deviceName}: bfcache on (production Cache-Control): Back from a page Forward reached past entries that hold no layer restores the game, which walks back to 洞府 once (${cases.join('; ')}), and the next Back leaves`);
+    } finally { await cached.close(); }
   }
 
   assert.deepEqual(errors, []);
