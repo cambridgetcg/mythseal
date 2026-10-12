@@ -418,3 +418,89 @@ commit list and the final checks.
 - A public build and a hosted release are separate steps that have not
   happened. Merging has: PR #5 (`bca9ab4`) took this work into `main`.
 
+## First battle teaching · 2026-10-12
+
+Roadmap packet D3, approved by the owner on 2026-10-11 for the proposed v0.6.0
+scope. Implemented on the branch `d3/first-battle-teaching` from `main`
+`335d2b7`; not merged, pushed or deployed. Checks:
+[VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12).
+
+**Problem (measured 2026-10-11 for the packet brief; not re-measured here).**
+In a WebKit iPhone 15 playtest with a fresh profile, the new player lost 8, 6
+and 10 HP in round 1 of the first three encounters. The only instruction
+(選一張戰卡，再分配仙丹) was in the sr-only `#announcer`, which is 1 px tall, and
+the rules dialog never opens by itself. In an engine simulation (default deck
+against default deck) the AI spent at least 8 of its 12 pills, with Fury, in
+round 1 of 96–98 % of 400 seeded games. A player who never adds pills (the UI
+default is 0) won 0 of 300 games; 3 pills every round won 70 %; none in round 1
+and an even spread afterwards won 82 %. The game is winnable; the table did not
+teach it.
+
+**What changed.** Only the battle surface. `engine.mjs`, `chooseAIMove`,
+rewards, the save schema and the battle snapshot format are unchanged.
+Capping the AI's round-1 spend stays an owner fallback, to be considered only
+after human playtests. The pure rules are in
+[`battle-teaching.mjs`](../battle-teaching.mjs); `battle-ui.mjs` renders them
+and `app.mjs` wires them to the table.
+
+| Element | Behaviour |
+| --- | --- |
+| Planning hint | One visible line under the round and prompt in the status row: 選一張戰卡 → 定仙丹 → 封丹 · 落子 (落子 · 決勝 outside 霧隱渡口). The reveal-time table reads 查看本回合結果，再進下一回合. The line uses the 44 px the row already had for 對弈紀錄, so the Q0 one-table layout keeps its rows. |
+| Coach marks | Only on the first ever battle: a 霧隱渡口 expedition encounter while `stats.played` is 0 (no battle finished yet) and this device has no coach record, starting in round 1. ① pick a card → ② add pills (攻擊＝力×（1＋丹）; the twelve pills must last four rounds, so not all at once) → ③ commit → ④ read the reveal. ①–③ take the hint line's place (on a portrait phone, both lines of the row) and outline the control they teach with a dashed gold line; nothing covers a control. ④ sits in the round-1 reveal footer with 知道了 and outlines both 實際攻擊 figures. Using the taught control moves to the next mark; using a later one first skips ahead (for example adding pills before choosing a card). |
+| Ending | 跳過 on the table, 知道了 or Back end every mark at once; 繼續 · 下一回合 after ④ completes them. Either way the device-local key `shanhai.coach.v1` records `{"firstBattle":"skipped"}` or `"done"`, and no mark returns, also after a reload or in a restarted first battle. A first battle abandoned before any ending shows the marks again in the next one, because `stats.played` is still 0. A player whose first battle is a practice or arena match never sees them. |
+| Back | A coach mark is one dismissible layer in the [Back model](NAVIGATION.md#back-model--2026-10-12): under any dialog opened over the table, and above the held round result. Back closes it as 跳過 does; the next Back opens keep/abandon or holds the result as before. |
+| Formula | The move panel's estimate cell shows the arithmetic behind its number, for example `力 6 ×（1＋3 丹）＝ 24`. See below. |
+| Reveal tip | Once each round's reveal completes, the footer states 對手剩 N 丹 · 你剩 M 丹 and one hint, in the place 直接看結果 leaves. See below. |
+| Match result | A new match result always opens on 勝負已定, so 悟 and its advice show after a loss even when the previous result was left on 旅途所得. Returning from a result card or settings opened over the same result keeps its page. |
+
+No teaching element writes the profile, the battle snapshot, an export or a
+backup. The only stored value is `shanhai.coach.v1`, beside
+`shanhai.experience.v1`. If storage throws, only the record is lost: the marks
+stay closed for the rest of that page's life.
+
+**Formula rules.** The number is always the engine's own. When the opponent
+leads, its announced card is public, so the number is `resolveRound`'s player
+attack against that card, both sides' effects included, and it is exact. When
+the player leads, it is `previewMove`'s (own ability and resonance only). It is
+exact when every card the opponent may still play gives the same attack;
+otherwise the line starts with **預計**, because the opponent's hidden reply
+(封鎖, 減力 or 減攻) can change it. The terms come from public card data:
+power effects inside the parentheses (`（力 7 ＋ 1）`), attack effects after the
+multiplier (`＋ 6`, `− 6`). A blocked ability is left out and named in the
+screen-reader sentence (`#attack-sentence`). If the terms ever stopped adding
+up to the engine's number, only the number would show. The forms, widest
+first, are `力 7 ×（1＋3 丹）＋ 6 ＝ 34`, `力7×(1+3丹)+6＝34`, `力7×(1+3丹)+6`,
+then with power effects folded into the card's power (`力8×(1+2丹)+6`), then
+`8×3+6`. `app.mjs` shows the first that fits the cell on one line and checks
+again on resize and font load. Fury does not change attack. With Fury on, the
+cost line reads `怒擊 傷 7 · 共消耗 6 丹 · 剩 6 丹` (預計傷 when a hidden reply
+could reduce the damage). The cost and damage come from `RULES` (3 pills,
++2 damage).
+
+**Tip rules.** The tip reads only the public reveal view: both sides' pills
+after the round's spending and refunds, as the table already shows them, and
+the rounds left. It never reads a bid, Fury or the next AI move. The view holds
+none, and a unit test records every field the tip reads. The hints are
+此局已定 (match over), 對手丹藥已盡 (0 left), 提防對手重注 (the opponent has
+at least 4 more than the player), 對手丹藥將盡 (fewer than two per remaining
+round, for example 4 after round 1), 你丹較多，可後發制人 (the player has at
+least 4 more), otherwise 雙方丹藥相近.
+
+**Exit.** Automated checks are listed in VALIDATION. The real exit is a human
+playtest that the owner runs with **at least three first-time players** (fresh
+profiles, on a phone). Record round-1 HP lost, whether each player adds pills
+before committing, and whether they can explain a reveal. It is pending and
+separate from the automation.
+
+**Open:**
+- The owner playtest above, and the owner's review of the copy's tone.
+- Physical iPhone and Android phones, real Safari, and VoiceOver/TalkBack
+  reading of the marks. Marks ② and ③ and the endings are announced when they
+  change; ① and ④ are page text with an sr-only step number, and the start of
+  the battle still announces 對局開始。選一張戰卡，再分配仙丹。
+- The coach copy fits two lines of a 360 px portrait phone with the headless
+  engines' fonts; the two-line clamp would hide a third line on another font.
+- The compact formula forms drop the spacing, and the folded form shows the
+  effective power (`力8`) rather than `力7＋1`.
+- Measured input latency and first-paint cost were not re-measured; the formula
+  fit adds a synchronous layout read after each move-panel change.
