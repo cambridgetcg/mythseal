@@ -31,3 +31,6 @@ build/
 fastlane/report.xml
 fastlane/README.md
 fastlane/test_output/
+# Local Bundler settings and gems (CI installs its own via ruby/setup-ruby)
+.bundle/
+vendor/bundle/
