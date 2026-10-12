@@ -107,7 +107,12 @@ saved; corrected after the second D2 review) and the browser's answer; a new
 journey offers a restore, from a v0.5.1 export too. A native share sheet that
 reports a completed save could record a confirmed backup instead. A native build can replace
 those three functions (durable native storage, a share sheet, a file picker)
-without changing the journey format.
+without changing the journey format. With D1 merged into the branch, the import
+dialog is one Back layer: it opens on the tap that opens the picker, Back closes
+it as × does, and Back holds while a confirmed import is written, so
+`requestBack()` follows the same rows; a native picker that replaces the file
+input should keep that dialog open while it is up
+([NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2)).
 [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
 has the rules and checks. **UNVERIFIED:** eviction and `persist()` answers on a
 real iPhone, in Safari or in a home-screen app; physical-device storage checks

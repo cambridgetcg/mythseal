@@ -623,6 +623,18 @@ worktrees; D1 also edits `app.mjs`.
   after the save succeeds, and the startup runs `saves.launch` then
   `nav.start()` before the first render. The allowlist has `nav-stack.mjs`
   followed by D2's four files.
+- **Integrated with D1 and N1 (2026-10-12):** `077b394` gives the file import
+  one Back layer. Its dialog opens on the tap that opens the picker, so the entry
+  is pushed with that tap's activation, and the file replaces its contents with
+  the confirmation; refusals and success close it through `closeModal()`; while
+  a confirmed import is written it is not dismissible and Back holds. The lobby
+  strips are not layers. `tools/back-smoke.mjs` has three D2 groups (19 checks
+  in Chrome, 18 in WebKit). Then `origin/main` `e785b27` (N1, PR #12) was merged
+  (`37bb0ce`; only the three documents conflicted), and `272f3c2` lets the
+  strip's label take a second line below 340 px, which phones reach since N1
+  removed the body's 340 px minimum. Rules:
+  [NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2); checks:
+  [VALIDATION](VALIDATION.md#d2-integration-with-main--2026-10-12).
 
 ## Experience planning checkpoint · 2026-09-29
 

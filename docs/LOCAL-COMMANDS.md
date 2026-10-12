@@ -1008,6 +1008,19 @@ keep the site's storage, and there was no import path.
   to `store.restore` in `profile-store.mjs`, so the three restores share them. One
   copy changed: the unfinished-battle refusal no longer names the cloud
   (請先完成或放棄未完對局，再恢復旅程；本機旅程未有更改。).
+- **With the Back model (D1, merged into the branch on 2026-10-12).** The import
+  is one dismissible dialog layer: it opens on the tap that opens the file picker
+  (選擇旅程備份檔), so its history entry is pushed with that tap's activation, and
+  the chosen file replaces its contents with the confirmation on the same entry.
+  Back closes it as × does and writes nothing; a refused file closes it through
+  `closeModal()`. While a confirmed import is written the dialog is not
+  dismissible and Back holds, so a Back can neither abort the restore nor start a
+  second one; the restore is still the single `restoreLocalProfile` call above.
+  The lobby strips are not layers. Details:
+  [NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2).
+- **Below 340 px (after merging N1).** N1 removed the body's 340 px minimum; the
+  strip's label now takes a second line inside its 48 px there instead of being
+  cut.
 
 `PROFILE_VERSION`, the snapshot format, the Worker, the SQL and the journey flags
 are unchanged.
@@ -1069,6 +1082,15 @@ exits.
   v0.5.1 file with a recovery copy kept) at 340×640, 375×667 and 390×664 on one
   page and at 844×390 on two, with no item and no warning reaching the pager; S11
   backs up, deletes the cloud backup and reads 雲端備份已刪除, after a reload too.
+- `tools/back-smoke.mjs` (`npm run test:back`, Chrome as a Pixel 7, then WebKit as
+  an iPhone 15; three D2 groups since D1 was merged into the branch): the import
+  dialog from the restore offer, with a file that arrives after the tap's
+  activation expired, and from 旅程閣 closes one layer per Back with no profile
+  write; Back twice and Escape hold the dialog while a confirmed import waits for
+  the profile lock, which then restores once (one profile write, the backup's
+  fingerprint, the replaced journey as the recovery copy); a backup prompt after
+  a win is a strip on 洞府, its 旅程閣 closes on Back and Back at 洞府 leaves in one
+  step. S5a in `test:saves` also runs at 302 px since N1 was merged.
 
 **UNVERIFIED:** the seven-day eviction on a real iPhone (or in Safari at all),
 iOS 26 home-screen storage isolation, and what real browsers answer to

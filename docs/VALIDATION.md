@@ -323,6 +323,98 @@ that; the Chrome case after 5 s away restores this load's entry); Firefox;
 `test:map-piece`; the literary preview smokes; deploy dry runs, the SQL harness
 and CI.
 
+## D2 integration with `main` · 2026-10-12
+
+Branch `d2/save-durability`, for D2's PR. Two `--no-ff` merges of
+`origin/main`: **`a0c1ec9`** brings `335d2b7` (D1, PR #11) into `9f1b6ab`, and
+**`37bb0ce`** brings `e785b27` (N1, PR #12). Source commits: **`077b394`**
+(between the merges: the file import as one Back layer, held while written,
+and three `test:back` groups) and **`272f3c2`** (the strip's label below 340 px,
+and S5a at 302 px); the documentation commit after them changes no served,
+test or tool file. Not pushed, merged to `main` or deployed; no hosted service
+was called. Node 26.0.0, Python 3.14.6, Playwright 1.63.0, Google Chrome
+154.0.8037.98 and Playwright WebKit, headless, on macOS;
+`python3 tools/serve.py --port 4202` from the worktree, restarted after the
+second merge; `GAME_URL=http://127.0.0.1:4202`. Synthetic saves only.
+
+**Merges.** `a0c1ec9`: git reported conflicts in `app.mjs`,
+`hosting/public-assets.json`, `ROADMAP.md`, `docs/HANDOVER.md`,
+`docs/MOBILE-RELEASE.md` and `docs/VALIDATION.md`. In `app.mjs` D1's `settling`
+flag wraps `recordFinishedMatch()`'s save with `saves.battleFinished` inside it
+after the save succeeds, and the startup runs `saves.launch` then `nav.start()`
+before the first render; the allowlist lists `nav-stack.mjs`, then D2's four
+files. `37bb0ce`: conflicts only in `docs/HANDOVER.md`, `docs/NAVIGATION.md` and
+`docs/VALIDATION.md`; N1's `app.mjs` change (two slider `aria-label`s), CSS,
+`index.html` and `package.json` merged cleanly. In both, every path outside the
+conflicted files equals the tree `git merge-tree --write-tree` produces, except
+the documents whose status lines were brought up to the merges (ACCOUNTS,
+LOCAL-COMMANDS and NAVIGATION in `a0c1ec9`; ROADMAP and LOCAL-COMMANDS in
+`37bb0ce`). Each side's sections are kept whole: D1 before D2, N1's "Mobile
+shell" subsection under Viewport scenes before D2's lobby section, and here D1,
+D2, then N1.
+
+**Integration (`077b394`).** D2's only new dialog is the file import
+(`import-review`); its strips are not dialogs. Before this commit the
+confirmation opened when the file arrived. A person usually stays in the picker
+longer than the tap's activation (about 5 s), and Chromium's picker consumes
+it, so the confirmation got no entry (depth 0 in the first control below) and
+Back would leave the game. Now the dialog
+opens on the tap (選擇旅程備份檔), its entry is pushed at once (`nav.sync()`), and
+the file replaces its contents on that entry. Refusals and success close it
+through `closeModal()`. While a confirmed import is written, `holdImport()`
+clears its dismissible flag (which Escape, the backdrop and `navView()` read),
+hides ×, disables its buttons and marks it `aria-busy`. Rules:
+[NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2).
+
+**After N1 (`272f3c2`).** N1 removed the body's 340 px minimum, so a 302 px
+phone lays the lobby out at 302 px. A scratch probe of `37bb0ce` found the
+restore offer's and a prompt's labels cut by the ellipsis at 302 and 320 px in
+both engines (74–94 px of 98–102 px shown), the buttons whole and tappable,
+no horizontal overflow. Below 340 px the label now wraps to a second line
+inside the 48 px. The import confirmation was already whole at 302×640 (one
+page) and 320×568 (two pages, no item reaching the pager).
+
+**Checks at `272f3c2`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **578/578** (567 before the N1 merge:
+  D2's 543, D1's 23 and the D2-with-D1 source test; then N1's 11).
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), `findings: []`.
+- `npm run build`: exit 0, **88 public files** (`main`'s 84 with `nav-stack.mjs`,
+  plus `platform.mjs`, `save-status.mjs`, `save-ui.mjs` and `saves.css`), manifest
+  `7c0b3add…8572d`. `dist/` was deleted afterwards.
+- `git diff --check`: clean on every commit.
+- Browser suites, each exit 0, run one after another against the server above:
+  `npm run test:back` **19 checks in Chrome (Pixel 7) and 18 in WebKit (iPhone
+  15)**, D1's 16 and 15 plus the three D2 groups, 58 s; `test:saves` 18/18 groups
+  in each engine, 45 s; `test:commands` 13 groups in each (26 `PASS` lines),
+  79 s; `test:viewport` 46 `PASS` lines over both engines, 561 s;
+  `test:battle-table` 40 checks in each engine, no errors, 256 s; `test:shell`
+  26 checks in each engine, 105 s, printing 28 distinct `NOTE` lines, the same
+  set as an earlier N1 `test:shell` log from this session's scratch (whose tree
+  is not recorded), none of them about the strips; `test:browser`, all 14
+  Chromium suites (91 `PASS` lines), 308 s.
+- **Negative controls** (Chromium, the change reverted in the worktree, then
+  restored from Git or a saved copy and compared): without the picker dialog
+  (the confirmation opening on the file, as before `077b394`), `test:back`
+  failed at the first D2 group with `home>import: history entry depth 1–1 (now
+  0)`; with the held dialog left dismissible (and the smoke's held-dialog
+  selector relaxed to match), it failed at the first held Back with the same
+  depth 0 message; with `holdImport()` a no-op it failed waiting for the held
+  dialog. Without the narrow-strip rule, `test:saves` failed at S5a:
+  `restore offer at 302 px: the label is cut`.
+
+**Not run or not verified:** `npm run test:contracts` (no contract changed, and
+Foundry would first download solc 0.8.30, which is not cached here);
+`test:wx01`, `test:inheritance`, `test:expansion`, `test:map-piece`,
+`test:collection-display` and the literary preview smokes; deploy dry runs, the
+SQL harness and CI. Headless engines only: a physical Android Back gesture or
+iOS edge swipe over the import dialog, a real file picker's timing and its
+`cancel` event on phones, and enlarged text at 302 px are unverified. The
+backup prompt after a win is a strip, not a dialog, so Back does not close it:
+Back at 洞府 leaves (as for the resume strip), and the prompt, consumed when
+shown, does not return.
+
 ## D2 save durability · 2026-10-12
 
 Branch `d2/save-durability`, from `origin/main` `7712a7b`. Source commits

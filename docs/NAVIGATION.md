@@ -528,7 +528,9 @@ strip wins when both apply), never a dialog and never in a battle:
   export from the strip leaves it up: the page cannot tell whether the browser
   saved the file.
 - The strip keeps one row inside its 48 px; at 380 px or narrower the buttons drop
-  their arrows.
+  their arrows. Below 340 px, which phones reach since N1 removed the body's 340 px
+  minimum, the label takes a second line inside the same 48 px instead of being
+  cut (added when `main` with N1 was merged into the branch).
 
 Changed after the first D2 review (2026-10-12): 雲端旅程 on the first lobby, the
 勝局已記 copy, the 340 px strip, and the corrected rule on who is not prompted.
@@ -547,8 +549,39 @@ The 旅程閣 tools add **匯入旅程備份** and a status line (上次備份 f
 backup, 上次匯出 for the last export download started, 長期保存) beside
 **匯出旅程備份**. Rules and checks:
 [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12);
-`npm run test:saves` covers the strip at 390 px and 340 px, and the import
+`npm run test:saves` covers the strip at 390 px, 340 px and 302 px, and the import
 confirmation from 340×640 to 844×390, in Chromium and WebKit.
+
+**With the Back model (D1, merged into the branch on 2026-10-12).** The strips are
+not layers: like the WX-receipt and activity resume strip, they add no history
+entry, so Back on 洞府 with a strip showing still leaves in one step. The restore
+offer stays open for the next visit; a prompt was consumed when it was shown and
+does not return. What they open follows the
+[decision table](#back-model--2026-10-12): 雲端旅程 and a prompt's 旅程閣 open
+旅程閣, which Back closes back to 洞府. The file import is one dismissible
+dialog layer (`import-review`), from the restore offer or from 旅程閣:
+
+- It opens on the tap that opens the file picker, with 選擇旅程備份檔 and 取消, and
+  its entry is pushed on that tap. A person usually stays in the picker longer
+  than the tap's user activation lasts (about 5 s), and Chromium's picker consumes
+  it, so an entry pushed when the file arrived would be refused and Back would
+  leave the game instead of closing the dialog. The chosen file replaces the
+  dialog's contents with the confirmation: the same layer, on the same entry.
+  Where the browser reports a cancelled picker (`cancel`), the dialog closes;
+  elsewhere it stays, with the picker again and 取消. A file that arrives after
+  the dialog was closed opens nothing.
+- Back, ×, Escape and the backdrop close it and write nothing. A refused file
+  closes it through `closeModal()`, which walks back over its entry, then
+  toasts the reason.
+- While a confirmed import is being written (it may wait for the profile lock
+  behind another tab) the dialog is not dismissible: × is hidden, its buttons
+  are disabled, Escape and the backdrop do nothing and Back holds (the guard
+  entry is re-armed, as for a result). Closing it could not stop the restore,
+  only hide its outcome. A refusal releases it as it was; success closes it
+  through `closeModal()`.
+
+`npm run test:back` checks these in Chrome (Pixel 7) and WebKit (iPhone 15)
+([VALIDATION](VALIDATION.md#d2-integration-with-main--2026-10-12)).
 
 ## Checks
 

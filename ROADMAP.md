@@ -575,6 +575,9 @@ Chromium and WebKit checks pass
 ([VALIDATION](docs/VALIDATION.md#d2-third-review-fixes--2026-10-12)); real iPhone
 eviction and `persist()` behaviour are UNVERIFIED
 ([LOCAL-COMMANDS §19](docs/LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
+With D1 merged in, the file import is one Back layer that Back closes like ×, and
+holds while a confirmed import is written; the lobby strips are not layers
+([VALIDATION](docs/VALIDATION.md#d2-integration-with-main--2026-10-12)).
 
 ### Retired collectible launch phases
 
