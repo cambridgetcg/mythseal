@@ -171,9 +171,11 @@ async function stripFits(page, label) {
       const hit = y => button.contains(document.elementFromPoint(x, y));
       return { action: button.dataset.action, top: rect.top, bottom: rect.bottom, height: rect.height, taps: hit(rect.top + 3) && hit(rect.bottom - 3) };
     });
-    return { top: box.top, bottom: box.bottom, height: box.height, buttons, cut: text.scrollWidth > text.clientWidth + 1, text: text.textContent, below: document.querySelector('.lobby-kicker')?.getBoundingClientRect().top ?? null };
+    return { top: box.top, bottom: box.bottom, height: box.height, wrap: getComputedStyle(notice).flexWrap, buttons, cut: text.scrollWidth > text.clientWidth + 1, text: text.textContent, below: document.querySelector('.lobby-kicker')?.getBoundingClientRect().top ?? null };
   });
   assert(strip.height <= 48.5, `${label}: ${JSON.stringify(strip)}`);
+  // A longer label or larger text shrinks the label instead of wrapping out of the 48 px.
+  assert.equal(strip.wrap, 'nowrap', `${label}: the strip may wrap`);
   for (const button of strip.buttons) {
     assert(button.top >= strip.top - 0.5 && button.bottom <= strip.bottom + 0.5 && button.height >= 43.5, `${label}: ${button.action} leaves the strip ${JSON.stringify(strip)}`);
     assert(button.taps, `${label}: ${button.action} does not take its own taps ${JSON.stringify(strip)}`);
