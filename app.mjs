@@ -180,6 +180,11 @@ function backupMade() {
   saves.recordBackup();saveNotice=null;
   if(['account','home'].includes(screen))render();
 }
+// A cloud backup the account API confirmed deleted: 上次備份 says so, and no longer counts.
+function backupDeleted() {
+  saves.recordBackupDeleted();
+  if(screen==='account')render();
+}
 // The page cannot tell whether the browser saved the file (a cancelled or blocked download
 // looks the same), so an export is recorded as started, never as a backup: it neither ends
 // nor skips a prompt. Only a file that would import is recorded.
@@ -1037,7 +1042,7 @@ document.addEventListener('click', event=>{
     'account-confirm-delete': () => account.setConfirmation('delete'),
     'account-cancel-confirmation': () => {account.cancelConfirmation();viewport.selectModule({key:viewKey(),moduleId:'cloud'});},
     'account-restore': () => account.restore(),
-    'account-delete': () => account.deleteBackup(),
+    'account-delete': () => account.deleteBackup().then(deleted => { if (deleted) backupDeleted(); }),
     'account-change-email': () => account.changeEmail(),
     'account-logout': async () => { await account.logout(); accountChannel?.postMessage({type:'session-changed'}); },
   };
@@ -1182,6 +1187,14 @@ document.addEventListener('click', event=>{
     // on 此裝置, which would show only the new journey.
     const looked=account.init();navigate('account');viewport.selectModule({key:viewKey(),moduleId:'cloud'});
     looked.then(()=>{const state=account.getState();if(screen==='account'&&state.backup&&!state.confirmation)account.setConfirmation('restore');});
+    return;
+  }
+  if(action==='backup-prompt-cloud'){
+    // A backup prompt's 旅程閣 opens where the backup is: the 雲端旅程 tab, with a guest's
+    // sign-in, or 備份此裝置 brought onto its page once 旅程閣 knows the account; never the
+    // header's default 此裝置 tab, which has neither.
+    const looked=account.init();navigate('account');viewport.selectModule({key:viewKey(),moduleId:'cloud'});
+    looked.then(()=>{const upload=screen==='account'&&app.querySelector('[data-action="account-upload"]');if(upload&&!upload.closest('[data-viewport-module]')?.hidden)viewport.revealElement(upload);});
     return;
   }
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}

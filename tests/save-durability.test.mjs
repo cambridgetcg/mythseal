@@ -74,9 +74,10 @@ async function importInto(o, file, { busy = false } = {}) {
 // restoreLocalProfile hands the store restoreSnapshot(snapshot); checkJourneyText already ran it.
 const createdFrom = result => JSON.parse(JSON.stringify(result.snapshot.profile));
 const blob = text => new Blob([text], { type: 'application/json' });
-/** What v0.4.1, v0.5.0 and v0.5.1 exported: the raw v3 profile. Checked against `git archive
- * v0.5.1` (2026-10-12): v0.5.1's own claimLogin(createProfile()) serialises to exactly this
- * projection of the same journey, which has no `weekly` (v0.5.1 had none). */
+/** The v3 profile v0.4.1, v0.5.0 and v0.5.1 stored, projected from a v5 journey (no `weekly`,
+ * which v0.5.1 had none of). Checked against `git archive v0.5.1` (2026-10-12): for a new
+ * journey this equals v0.5.1's stored claimLogin(createProfile()) byte for byte. It is not the
+ * download: see v051Download. */
 function v051Profile(profile = claimLogin(fresh(), now)) {
   const raw = structuredClone(profile);
   raw.version = 3; raw.collectionVersion = 1; raw.collectionExpansion = 1; delete raw.wx01; delete raw.expansion; delete raw.weekly;
@@ -84,6 +85,15 @@ function v051Profile(profile = claimLogin(fresh(), now)) {
   for (const key of ['inventory', 'levels']) raw[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, raw[key][id]]));
   if (raw.pending) delete raw.pending.cardPrints;
   return raw;
+}
+/** What v0.5.1's 匯出旅程備份 downloaded: JSON.stringify(loadProfile(), null, 2), and loadProfile
+ * is hydrateProfile(stored), which rebuilds a v3 record from createBaseProfile and so lists the
+ * collection fields after `serial` in this order. Checked against `git archive v0.5.1` (D2
+ * review round 3, 2026-10-12): for a new journey, JSON.stringify(v051Download(v051Profile()),
+ * null, 2) equals v0.5.1's download byte for byte (5,782 B), and a second hydration keeps it. */
+function v051Download(raw) {
+  const { collectionVersion, instances, instanceSerial, deckSlots, activeDeckId, merchantVault, ...rest } = raw;
+  return { ...rest, collectionVersion, instances, instanceSerial, deckSlots, activeDeckId, merchantVault };
 }
 /** The v4 namespace load() also migrates (no public build exported it). */
 const v4Profile = profile => { const raw = structuredClone(profile); raw.version = 4; delete raw.expansion; return raw; };
@@ -181,9 +191,14 @@ test('D2 tampered, oversize, unparsable, foreign, old, future-version and mid-ba
 
 test('D2 an export from v0.4.1–v0.5.1 (profile v3) is migrated as load() migrates it and restored through the same strict path', async () => {
   assert.deepEqual(LEGACY_EXPORT_VERSIONS, [3, 4]);
-  // The 16-card journey every v0.5.1 player started with, as its footer export wrote it.
-  const first = claimLogin(fresh(), now), text = JSON.stringify(v051Profile(first), null, 2);
+  // The 16-card journey every v0.5.1 player started with, as its footer export wrote it (key
+  // order included); the stored order, which the export never wrote, imports the same.
+  const first = claimLogin(fresh(), now), text = JSON.stringify(v051Download(v051Profile(first)), null, 2);
+  assert.deepEqual(Object.keys(JSON.parse(text)).slice(-7), ['serial', 'collectionVersion', 'instances', 'instanceSerial', 'deckSlots', 'activeDeckId', 'merchantVault']);
   const checked = checkJourneyText(text, { now: new Date(now) });
+  const stored = checkJourneyText(JSON.stringify(v051Profile(first), null, 2), { now: new Date(now) });
+  assert.notEqual(JSON.stringify(v051Profile(first), null, 2), text, 'the stored order is not the download');
+  assert.deepEqual(stored.snapshot, checked.snapshot, 'key order changes nothing');
   assert.equal(checked.ok, true, checked.message);
   assert.equal(checked.legacy, true);
   assert.deepEqual([checked.snapshot.version, checked.snapshot.profile.version], [3, PROFILE_VERSION], 'migrated to v5, then wrapped as a v5 backup');
@@ -196,7 +211,7 @@ test('D2 an export from v0.4.1–v0.5.1 (profile v3) is migrated as load() migra
   // A travelled journey (XP, a merchant-held copy, a second deck) restores onto a new device:
   // recovery copy first, then one profile write.
   const journey = travelled({ coins: 4321 }), device = origin(fresh());
-  const restored = await importInto(device, blob(JSON.stringify(v051Profile(journey), null, 2)));
+  const restored = await importInto(device, blob(JSON.stringify(v051Download(v051Profile(journey)), null, 2)));
   assert.equal(restored.version, PROFILE_VERSION);
   assert.deepEqual(copies(restored), copies(journey), 'every UID, legacy printing, XP and level');
   assert.deepEqual(restored.deckSlots, journey.deckSlots);
@@ -466,6 +481,24 @@ test('D2 backup prompts appear at most once per milestone, only for guests witho
   open().recordBackup();
   assert.deepEqual(open().status().lastBackup, { at: '2026-09-21T13:05:00.000Z', kind: 'cloud' });
   assert.equal(open().takePrompt(), null, 'a cloud backup since the milestone');
+  // Review round 3: 刪除雲端備份, confirmed by the API, marks the last backup deleted; it stays
+  // as history, and no longer counts against a prompt due before it.
+  data.clear(); clock = '2026-09-21T13:00:00.000Z';
+  open().battleFinished('player');
+  clock = '2026-09-21T13:05:00.000Z'; open().recordBackup();
+  clock = '2026-09-21T13:07:00.000Z'; open().recordBackupDeleted();
+  assert.deepEqual(open().status().lastBackup, { at: '2026-09-21T13:05:00.000Z', kind: 'cloud', deletedAt: '2026-09-21T13:07:00.000Z' });
+  open().recordBackupDeleted();
+  assert.equal(open().status().lastBackup.deletedAt, '2026-09-21T13:07:00.000Z', 'the first delete is kept');
+  assert.equal(open().takePrompt(), 'first-win', 'a deleted backup does not skip the prompt');
+  clock = '2026-09-21T13:08:00.000Z'; open().recordBackup();
+  assert.deepEqual(open().status().lastBackup, { at: '2026-09-21T13:08:00.000Z', kind: 'cloud' }, 'a new backup is not deleted');
+  data.clear(); open().recordBackupDeleted();
+  assert.equal(open().status().lastBackup, null, 'no backup of this device to mark');
+  data.clear(); clock = '2026-09-21T13:00:00.000Z';
+  open().battleFinished('player');
+  clock = '2026-09-21T13:05:00.000Z';
+  open().recordBackup();
   clock = '2026-09-21T13:10:00.000Z';
   open().packOpened();
   assert.equal(open().takePrompt({ guest: false }), null, 'a signed-in player is not prompted');
@@ -509,6 +542,8 @@ test('D2 the device-local record is fail-safe and never enters a journey, an exp
   // Only a cloud backup is a backup: an export record in its place is not kept as one.
   assert.equal(normalizeSaveStatus({ v: 1, lastBackup: { at, kind: 'export' } }).lastBackup, null);
   assert.deepEqual(normalizeSaveStatus({ v: 1, lastBackup: { at, kind: 'cloud' }, lastExport: { at } }), { v: 1, lastBackup: { at, kind: 'cloud' }, lastExport: { at }, persistence: null, prompts: {}, restoreOffer: null });
+  assert.deepEqual(normalizeSaveStatus({ v: 1, lastBackup: { at, kind: 'cloud', deletedAt: now } }).lastBackup, { at, kind: 'cloud', deletedAt: now });
+  assert.deepEqual(normalizeSaveStatus({ v: 1, lastBackup: { at, kind: 'cloud', deletedAt: 'later' } }).lastBackup, { at, kind: 'cloud' }, 'an unreadable delete mark is dropped');
   assert.deepEqual(normalizeSaveStatus({ v: 2, restoreOffer: 'open' }).restoreOffer, null, 'an unknown version is ignored');
   assert.deepEqual(normalizeSaveStatus({ v: 1, lastBackup: { at: 'yesterday', kind: 'export' }, persistence: { state: 'maybe', at, trigger: 'first-win' }, prompts: { 'first-win': { state: 'due', at }, other: { state: 'due', at } } }),
     { v: 1, lastBackup: null, lastExport: null, persistence: null, prompts: { 'first-win': { state: 'due', at } }, restoreOffer: null });
@@ -541,6 +576,9 @@ test('D2 save markup: status, notices and the import confirmation', () => {
   const cloud = saveStatusMarkup({ lastBackup: { at, kind: 'cloud' } });
   assert.match(cloud, new RegExp(`<span data-last-backup>上次備份：<time datetime="${at}">[^<]+</time> · 雲端備份</span>`));
   assert.doesNotMatch(cloud, /上次匯出/);
+  assert.doesNotMatch(cloud, /已刪除|data-backup-deleted/);
+  const deleted = saveStatusMarkup({ lastBackup: { at, kind: 'cloud', deletedAt: now } });
+  assert.match(deleted, new RegExp(`<span data-last-backup data-backup-deleted>上次備份：<time datetime="${at}">[^<]+</time> · 雲端備份已刪除</span>`), 'a confirmed delete is not shown as a backup');
   const both = saveStatusMarkup({ lastBackup: { at, kind: 'cloud' }, lastExport: { at: now } });
   assert.match(both, /上次備份：.+雲端備份.+上次匯出：.+已開始下載/);
   assert.match(saveStatusMarkup({}), /勝出一局或開匣後/, 'not 首勝: an existing journey is asked at its next win');
@@ -555,7 +593,9 @@ test('D2 save markup: status, notices and the import confirmation', () => {
   assert.doesNotMatch(noCloud, /雲端/, 'nor a label promising one');
   for (const kind of ['first-win', 'first-pack']) {
     const prompt = saveNoticeMarkup(kind);
-    assert.match(prompt, /data-action="export-save"/); assert.match(prompt, /data-action="account-open"/);
+    assert.match(prompt, /data-action="export-save"/);
+    // Review round 3: the header's account-open lands on 此裝置, which has no backup or sign-in.
+    assert.match(prompt, /data-action="backup-prompt-cloud">旅程閣</); assert.doesNotMatch(prompt, /account-open/);
     assert.match(prompt, new RegExp(`data-action="save-notice-dismiss" data-id="${kind}"`));
     assert.doesNotMatch(prompt, /role="dialog"|modal/, 'never a dialog');
     assert.doesNotMatch(prompt, /稍後再說/, 'a prompt never comes back, so its close does not say later');
@@ -578,7 +618,16 @@ test('D2 save markup: status, notices and the import confirmation', () => {
   assert.match(replacing, /data-recovery-replaced>旅程閣現有的回復備份（[^）]+）會被這次取代；如需保留，請先在旅程閣「下載本機回復備份」。/);
   // A file from before v0.6.0 says it is migrated before the restore.
   assert.doesNotMatch(dialog, /data-import-legacy/);
-  assert.match(importConfirmMarkup({ current: journeySummary(fresh()), backup: journeySummary(travelled()), legacy: true }), /data-import-legacy>這份備份來自較舊版本的萬象契；還原時會按此裝置載入舊旅程的同一規則轉為現行格式/);
+  const legacy = importConfirmMarkup({ current: journeySummary(fresh()), backup: journeySummary(travelled()), fileName: 'old.json', recovery: { savedAt: at }, legacy: true });
+  assert.match(legacy, /data-import-legacy>這份備份來自較舊版本的萬象契；還原時會按此裝置載入舊旅程的同一規則轉為現行格式/);
+  // Review round 3: one block taller than a phone's dialog page drew the last note under the
+  // pager. Two page items instead, the file and its notes (warnings included) first, then the
+  // comparison; the browser smoke's S10b checks the layout.
+  const items = [...legacy.matchAll(/<div class="(import-[a-z]+)" data-viewport-id="\1">/g)].map(match => match[1]);
+  assert.deepEqual(items, ['import-notes', 'import-compare']);
+  const notes = legacy.slice(legacy.indexOf('class="import-notes"'), legacy.indexOf('class="import-compare"'));
+  for (const part of ['class="import-file">old.json', 'data-import-legacy', '還原前，此裝置現在的旅程會先留作回復備份', 'data-recovery-replaced']) assert.ok(notes.includes(part), part);
+  assert.doesNotMatch(legacy, /import-review/);
 });
 
 test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud restore and local recovery use', async () => {
@@ -604,6 +653,13 @@ test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud rest
   assert.doesNotMatch(lobby, /account\.init/, 'the lobby makes no account request');
   const cloud = source.slice(source.indexOf("if(action==='restore-offer-cloud')"), source.indexOf("if(action==='navigate-confirm')"));
   assert.match(cloud, /const looked=account\.init\(\);navigate\('account'\);viewport\.selectModule\(\{key:viewKey\(\),moduleId:'cloud'\}\);/, '旅程閣 looks the account up on its 雲端旅程 tab, then the confirmation opens');
+  // Review round 3: a prompt's 旅程閣 opens 雲端旅程 too, with 備份此裝置 on its page.
+  const prompt = source.slice(source.indexOf("if(action==='backup-prompt-cloud')"), source.indexOf("if(action==='navigate-confirm')"));
+  assert.match(prompt, /navigate\('account'\);viewport\.selectModule\(\{key:viewKey\(\),moduleId:'cloud'\}\);/);
+  assert.match(prompt, /viewport\.revealElement\(upload\)/);
+  // Review round 3: a confirmed 刪除雲端備份 marks the last backup deleted.
+  assert.match(source, /'account-delete': \(\) => account\.deleteBackup\(\)\.then\(deleted => \{ if \(deleted\) backupDeleted\(\); \}\)/);
+  assert.match(source, /function backupDeleted\(\) \{\n  saves\.recordBackupDeleted\(\);/);
   // persist() is never requested on an ordinary load: launch passes the standalone check.
   assert.match(source, /saves\.launch\(\{fresh:freshJourney,standalone:isStandalone\(\)\}\)/);
   assert.match(source, /saves\.battleFinished\(match\.winner\);/);

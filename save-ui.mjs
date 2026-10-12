@@ -20,11 +20,13 @@ export const PERSISTENCE_LABELS = Object.freeze({
 
 const time = value => `<time datetime="${safe(value)}">${safe(stampLabel(value))}</time>`;
 /** What the page knows, and no more: '上次備份' is a cloud backup the account API confirmed
- * saved; '上次匯出' is when this device last started an export download, because a page
- * cannot tell whether the browser saved the file (a cancelled or blocked download looks the
- * same). '上次備份：未曾' only when there is neither. */
+ * saved, marked 雲端備份已刪除 once this device deleted it (the API confirmed that too);
+ * '上次匯出' is when this device last started an export download, because a page cannot tell
+ * whether the browser saved the file (a cancelled or blocked download looks the same).
+ * '上次備份：未曾' only when there is neither. */
 export function saveStatusMarkup({ lastBackup = null, lastExport = null, persistence = null } = {}) {
-  const backup = lastBackup || !lastExport ? `<span data-last-backup>上次備份：${lastBackup ? `${time(lastBackup.at)} · 雲端備份` : '未曾'}</span>` : '';
+  const deleted = Boolean(lastBackup?.deletedAt);
+  const backup = lastBackup || !lastExport ? `<span data-last-backup${deleted ? ' data-backup-deleted' : ''}>上次備份：${lastBackup ? `${time(lastBackup.at)} · ${deleted ? '雲端備份已刪除' : '雲端備份'}` : '未曾'}</span>` : '';
   const exported = lastExport ? `<span data-last-export>上次匯出：${time(lastExport.at)} · 已開始下載，此頁無法確認檔案已儲存</span>` : '';
   const kept = PERSISTENCE_LABELS[persistence?.state ?? 'none'];
   return `<p class="save-status" data-save-status data-persistence="${safe(persistence?.state ?? 'none')}">${backup}${exported}<span data-persistence-label>長期保存：${safe(kept)}</span></p>`;
@@ -49,13 +51,14 @@ const glyph = mark => `<span class="save-notice-glyph" aria-hidden="true"> ${mar
 /** A small strip above the lobby; never a dialog. `wins` is the journey's win count, so a
  * first-win prompt says 首勝 only on its first win. `cloud: false` drops the restore offer's
  * cloud path, for a guest 旅程閣 knows cannot sign in now; otherwise 雲端旅程 leads into
- * 旅程閣, which looks the account up (the lobby does not). */
+ * 旅程閣, which looks the account up (the lobby does not). A prompt's 旅程閣 opens its
+ * 雲端旅程 tab, where the sign-in and 備份此裝置 are, not the header's default 此裝置. */
 export function saveNoticeMarkup(kind, { cloud = true, wins = null } = {}) {
   const notice = kind === 'first-win' && wins !== 1 ? laterWin : notices[kind];
   if (!notice) return '';
   const actions = kind === 'restore-offer'
     ? `<button type="button" class="small-button" data-action="import-save">備份檔${glyph('↗')}</button>${cloud ? `<button type="button" class="small-button" data-action="restore-offer-cloud">雲端旅程${glyph('→')}</button>` : ''}`
-    : '<button type="button" class="small-button" data-action="export-save">匯出備份</button><button type="button" class="small-button" data-action="account-open">旅程閣</button>';
+    : '<button type="button" class="small-button" data-action="export-save">匯出備份</button><button type="button" class="small-button" data-action="backup-prompt-cloud">旅程閣</button>';
   const label = kind === 'restore-offer' && !cloud ? '這是此裝置的新旅程。若你曾匯出旅程備份，可以由這裡還原。' : notice.label;
   return `<div class="resume-banner scene-resume-strip save-notice" data-save-notice="${kind}" role="region" aria-label="${safe(label)}"><span>${safe(notice.text)}</span><div>${actions}<button type="button" class="small-button save-notice-close" data-action="save-notice-dismiss" data-id="${kind}" aria-label="${kind === 'restore-offer' ? '不用還原，關閉提示' : '關閉提示，不會再出現'}">×</button></div></div>`;
 }
@@ -67,12 +70,15 @@ function summaryMarkup(title, summary) {
 
 /** What an import replaces, before anything is written. `recovery` is the recovery copy
  * this device keeps now ({ savedAt }), if any: there is one slot, so the import replaces it.
- * `legacy` marks a file from before v0.6.0 (profile v3 or v4), migrated as load() would. */
+ * `legacy` marks a file from before v0.6.0 (profile v3 or v4), migrated as load() would.
+ * Two items of the dialog's paged list (scene-dialogs.mjs fallback): first the file and what
+ * the restore does, its warnings included, then the comparison. Each fits a dialog page on
+ * its own, so a short window pages them (warnings first) instead of drawing the last note
+ * under the pager; from 340×640 up a phone shows both on one page (saves.css). */
 export function importConfirmMarkup({ current, backup, fileName = '', recovery = null, legacy = false }) {
   const replaced = recovery
     ? `<p class="panel-footnote" data-recovery-replaced>旅程閣現有的回復備份${recovery.savedAt ? `（${safe(stampLabel(recovery.savedAt))}）` : ''}會被這次取代；如需保留，請先在旅程閣「下載本機回復備份」。</p>`
     : '';
-  // One block, so a phone's dialog page shows the comparison and the recovery note together.
   const older = legacy ? '<p class="panel-footnote" data-import-legacy>這份備份來自較舊版本的萬象契；還原時會按此裝置載入舊旅程的同一規則轉為現行格式，每張卡牌照舊保留。</p>' : '';
-  return `<div class="eyebrow">RESTORE FROM A BACKUP</div><h2>由備份檔還原旅程？</h2><div class="import-review"><p class="import-file">${safe(fileName)}</p>${older}<div class="import-compare">${summaryMarkup('此裝置現在（將被取代）', current)}${summaryMarkup('備份檔（將還原）', backup)}</div><p class="panel-footnote">還原前，此裝置現在的旅程會先留作回復備份，可在旅程閣「復原上次本機旅程」取回。雲端備份不會改變。</p>${replaced}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="import-confirm">由備份還原</button></div>`;
+  return `<div class="eyebrow">RESTORE FROM A BACKUP</div><h2>由備份檔還原旅程？</h2><div class="import-notes" data-viewport-id="import-notes"><p class="import-file">${safe(fileName)}</p>${older}<p class="panel-footnote">還原前，此裝置現在的旅程會先留作回復備份，可在旅程閣「復原上次本機旅程」取回。雲端備份不會改變。</p>${replaced}</div><div class="import-compare" data-viewport-id="import-compare">${summaryMarkup('此裝置現在（將被取代）', current)}${summaryMarkup('備份檔（將還原）', backup)}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="import-confirm">由備份還原</button></div>`;
 }

@@ -27,8 +27,10 @@ export function normalizeSaveStatus(raw) {
   }
   return {
     v: 1,
-    // Only a backup the page saw succeed (a cloud backup the account API confirmed saved).
-    lastBackup: isRecord(backup) && backup.kind === 'cloud' && typeof backup.at === 'string' && isStamp(backup.at) ? { at: backup.at, kind: backup.kind } : null,
+    // Only a backup the page saw succeed (a cloud backup the account API confirmed saved),
+    // with `deletedAt` once this device saw the API confirm that backup deleted.
+    lastBackup: isRecord(backup) && backup.kind === 'cloud' && typeof backup.at === 'string' && isStamp(backup.at)
+      ? { at: backup.at, kind: backup.kind, ...(typeof backup.deletedAt === 'string' && isStamp(backup.deletedAt) ? { deletedAt: backup.deletedAt } : {}) } : null,
     // An export download the page started. The browser does not say whether the file was
     // saved (a cancelled or blocked download looks the same), so this is never a backup.
     lastExport: isRecord(exported) && typeof exported.at === 'string' && isStamp(exported.at) ? { at: exported.at } : null,
@@ -109,6 +111,12 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
     packOpened: () => milestone('first-pack'),
     /** A cloud backup the account API confirmed saved. */
     recordBackup() { update(record => { record.lastBackup = { at: stamp(), kind: 'cloud' }; }); },
+    /** The account API confirmed this device's 刪除雲端備份: the last backup stays as history,
+     * marked deleted, and no longer counts as a backup for a prompt. Without a recorded
+     * backup there is nothing of this device's to mark. */
+    recordBackupDeleted() {
+      update(record => { if (record.lastBackup && !record.lastBackup.deletedAt) record.lastBackup = { ...record.lastBackup, deletedAt: stamp() || record.lastBackup.at }; });
+    },
     /** An export whose download the page started. It neither skips nor clears a prompt. */
     recordExport() { update(record => { record.lastExport = { at: stamp() }; }); },
     /** Shown only on a journey this device just started and before its first battle. */
@@ -120,12 +128,13 @@ export function createSaveStatus({ storage, now = () => new Date(), requestPersi
      * shown (or skipped) at once, so each appears at most once ever. `guest` is false only
      * for a player the page knows to be signed in (旅程閣 looked the account up earlier in
      * this page; the lobby makes no account request). That player, or one who has made a
-     * cloud backup since the milestone, is not prompted; anyone else is prompted as a guest.
-     * An export does not count: the page cannot tell whether its file was saved. */
+     * cloud backup since the milestone and not deleted it, is not prompted; anyone else is
+     * prompted as a guest. An export does not count: the page cannot tell whether its file
+     * was saved. */
     takePrompt({ guest = true } = {}) {
       const record = read(), due = SAVE_PROMPTS.filter(kind => record.prompts[kind]?.state === 'due');
       if (!due.length) return null;
-      const backedUp = record.lastBackup !== null && due.every(kind => record.lastBackup.at >= (record.prompts[kind].at ?? ''));
+      const backedUp = record.lastBackup !== null && !record.lastBackup.deletedAt && due.every(kind => record.lastBackup.at >= (record.prompts[kind].at ?? ''));
       const show = guest && !backedUp, at = stamp();
       update(next => { for (const kind of due) next.prompts[kind] = { state: show ? 'shown' : 'skipped', at }; });
       return show ? due[0] : null;

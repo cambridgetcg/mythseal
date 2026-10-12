@@ -1,10 +1,11 @@
-import { installViewportNavigation } from './viewport-browser-helpers.mjs';
+import { installViewportNavigation, viewportFrames } from './viewport-browser-helpers.mjs';
 /** D2 save durability (docs/LOCAL-COMMANDS.md §19): export → clear site data → the new journey's
  * restore offer → import restores the same journey; declining changes nothing; each backup
  * prompt appears once; the 旅程閣 status line; the cloud option with intercepted fixture APIs;
  * the strips on a 340 px phone; refused downloads never count as a backup; a cloud backup ends
- * a prompt; a WX receipt's strip comes first; a v0.5.1 (v3) export restores. Synthetic saves,
- * loopback assets only, no download written to disk. */
+ * a prompt; a WX receipt's strip comes first; a v0.5.1 (v3) export restores; the import
+ * confirmation on short phone pages; a deleted cloud backup. Synthetic saves, loopback assets
+ * only, no download written to disk. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -50,13 +51,18 @@ function travelled() {
   return { ...profile, coins: 4321, dust: 87 };
 }
 
-/** What v0.4.1–v0.5.1 exported: the raw v3 profile (see tests/save-durability.test.mjs). */
+/** The v3 profile v0.4.1–v0.5.1 stored, projected from a v5 journey (see tests/save-durability.test.mjs). */
 function v051Profile(profile) {
   const raw = structuredClone(profile);
   raw.version = 3; raw.collectionVersion = 1; raw.collectionExpansion = 1; delete raw.wx01; delete raw.expansion; delete raw.weekly;
   for (const card of [...raw.instances, ...raw.merchantVault.map(entry => entry.instance)]) delete card.printId;
   for (const key of ['inventory', 'levels']) raw[key] = Object.fromEntries(LEGACY_CARD_IDS.map(id => [id, raw[key][id]]));
   return raw;
+}
+/** In the key order v0.5.1's 匯出旅程備份 downloaded it (hydrateProfile; see the Node test). */
+function v051Download(raw) {
+  const { collectionVersion, instances, instanceSerial, deckSlots, activeDeckId, merchantVault, ...rest } = raw;
+  return { ...rest, collectionVersion, instances, instanceSerial, deckSlots, activeDeckId, merchantVault };
 }
 
 /** A guest on the fixture API: 旅程閣 asks who is signed in; nothing else is expected. */
@@ -67,18 +73,20 @@ const guestApiWith = ({ emailEnabled = false } = {}) => (route, request, url) =>
 const guestApi = guestApiWith();
 /** `downloads: false` makes the browser refuse every download, as a cancelled save dialog or a
  * blocked download would; the page is told nothing either way. */
-async function contextFor({ seed = null, saves = null, api = guestApi, width = 1440, downloads = true } = {}) {
+/** `stored` seeds other keys once (for example a recovery copy) without a journey. */
+async function contextFor({ seed = null, saves = null, stored = null, api = guestApi, width = 1440, height = null, downloads = true } = {}) {
   const mobile = width < 600;
-  const context = await browser.newContext({ viewport: { width, height: mobile ? 844 : 1000 }, reducedMotion: 'reduce', deviceScaleFactor: 1, acceptDownloads: downloads, ...(mobile && browserName === 'chromium' ? { isMobile: true, hasTouch: true } : {}) });
+  const context = await browser.newContext({ viewport: { width, height: height ?? (mobile ? 844 : 1000) }, reducedMotion: 'reduce', deviceScaleFactor: 1, acceptDownloads: downloads, ...(mobile && browserName === 'chromium' ? { isMobile: true, hasTouch: true } : {}) });
   contexts.add(context);
-  await context.addInitScript(({ seed, saves, key, savesKey, now }) => {
+  await context.addInitScript(({ seed, saves, stored, key, savesKey, now }) => {
     const NativeDate = Date, fixed = new NativeDate(now).getTime();
     globalThis.Date = class extends NativeDate { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
     Math.random = () => 0.23;
     // The seed is written once per tab; clearing site data below must not bring it back.
-    if ((seed || saves) && !sessionStorage.getItem('save-smoke.seeded')) {
+    if ((seed || saves || stored) && !sessionStorage.getItem('save-smoke.seeded')) {
       if (seed) localStorage.setItem(key, seed);
       if (saves) localStorage.setItem(savesKey, saves);
+      for (const [name, value] of Object.entries(stored || {})) localStorage.setItem(name, value);
       sessionStorage.setItem('save-smoke.seeded', 'yes');
     }
     // A spy in place of the browser's answer, which headless engines do not ask a person for.
@@ -90,7 +98,7 @@ async function contextFor({ seed = null, saves = null, api = guestApi, width = 1
     window.saveSmokeToasts = [];
     new MutationObserver(records => { for (const record of records) for (const node of record.addedNodes) if (node.classList?.contains('toast')) window.saveSmokeToasts.push(node.textContent); })
       .observe(document, { childList: true, subtree: true });
-  }, { seed: seed && JSON.stringify(seed), saves: saves && JSON.stringify(saves), key: PROFILE_KEY, savesKey: SAVES_KEY, now });
+  }, { seed: seed && JSON.stringify(seed), saves: saves && JSON.stringify(saves), stored: stored && Object.fromEntries(Object.entries(stored).map(([name, value]) => [name, JSON.stringify(value)])), key: PROFILE_KEY, savesKey: SAVES_KEY, now });
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
     if (url.origin === base.origin && url.pathname.startsWith('/api/')) return api(route, request, url);
@@ -101,8 +109,10 @@ async function contextFor({ seed = null, saves = null, api = guestApi, width = 1
   });
   return context;
 }
-async function pageIn(context) {
-  const page = await context.newPage(); installViewportNavigation(page); page.setDefaultTimeout(12000);
+/** `navigation: false` leaves out the helper that opens tabs and pages before each click, so
+ * a check sees what the player sees after the page's own navigation. */
+async function pageIn(context, { navigation = true } = {}) {
+  const page = await context.newPage(); if (navigation) installViewportNavigation(page); page.setDefaultTimeout(12000);
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { const url = new URL(response.url()); if (response.status() >= 400 && !url.pathname.startsWith('/api/')) errors.push(`${response.status()} ${url.pathname}`); });
   await page.goto(base.href); await page.locator('.game-lobby').waitFor(); return page;
@@ -369,7 +379,7 @@ try {
     await noOverflow(page, 'first-win prompt at 390 px');
     assert.equal(await persistCalls(page), 1, 'persist() exactly once, after the first win');
     assert.equal(await page.locator('[data-save-notice="first-win"] [data-action="export-save"]').count(), 1);
-    assert.equal(await page.locator('[data-save-notice="first-win"] [data-action="account-open"]').count(), 1);
+    assert.equal(await page.locator('[data-save-notice="first-win"] [data-action="backup-prompt-cloud"]').count(), 1);
     await page.reload(); await page.locator('.game-lobby').waitFor();
     assert.equal(await notice(page).count(), 0, 'shown once: not after a reload');
     await winBattle(page);
@@ -489,7 +499,20 @@ try {
   }
 
   {
-    // S7: a cloud backup the API confirmed saved ends the prompt shown on this page.
+    // S7: a cloud backup the API confirmed saved ends the prompt shown on this page. Since review
+    // round 3 the prompt's 旅程閣 opens 旅程閣 on its 雲端旅程 tab, checked at 390 px without the
+    // test's tab/page helper: a guest sees the email sign-in, and a signed-in player 備份此裝置,
+    // which the cloud panel's own pages leave off its first page. It used to open 此裝置.
+    const saves = { v: 1, lastBackup: null, persistence: null, prompts: { 'first-win': { state: 'due', at: now } }, restoreOffer: null };
+    {
+      const page = await pageIn(await contextFor({ seed: travelled(), saves, api: guestApiWith({ emailEnabled: true }), width: 390 }), { navigation: false });
+      await page.locator('[data-save-notice="first-win"]').waitFor();
+      await notice(page).locator('[data-action="backup-prompt-cloud"]').click();
+      await page.locator('.account-shell[aria-busy="false"]').waitFor(); await viewportFrames(page);
+      const view = await accountView(page, '[data-account-form="email"]');
+      assert.deepEqual(view, { tab: '雲端旅程', shown: true }, `a guest: ${JSON.stringify(view)}`);
+      contexts.delete(page.context()); await page.context().close();
+    }
     const journey = travelled(), fixture = { revision: 1, backup: { revision: 1, updatedAt: now, snapshot: createSnapshot(journey) }, puts: 0 };
     const api = (route, request, url) => {
       const reply = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
@@ -502,19 +525,20 @@ try {
       }
       errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
     };
-    const saves = { v: 1, lastBackup: null, persistence: null, prompts: { 'first-win': { state: 'due', at: now } }, restoreOffer: null };
-    const page = await pageIn(await contextFor({ seed: journey, saves, api }));
+    const page = await pageIn(await contextFor({ seed: journey, saves, api, width: 390 }), { navigation: false });
     // The lobby does not know the account yet, so the prompt shows as for a guest.
     await page.locator('[data-save-notice="first-win"]').waitFor();
-    await notice(page).locator('[data-action="account-open"]').click();
-    await page.locator('.account-identity').waitFor();
+    await notice(page).locator('[data-action="backup-prompt-cloud"]').click();
+    await page.locator('.account-shell[aria-busy="false"] .account-identity').waitFor(); await viewportFrames(page);
+    const view = await accountView(page, '[data-action="account-upload"]');
+    assert.deepEqual(view, { tab: '雲端旅程', shown: true }, `signed in: ${JSON.stringify(view)}`);
     await action(page, 'account-upload').click();
-    await page.locator(`[data-last-backup] time[datetime="${now}"]`).waitFor();
-    assert.match(await page.locator('[data-last-backup]').innerText(), /上次備份：.+ · 雲端備份/);
+    await page.locator(`[data-last-backup] time[datetime="${now}"]`).waitFor({ state: 'attached' });
+    assert.match(await page.locator('[data-last-backup]').textContent(), /上次備份：.+ · 雲端備份/);
     assert.equal(fixture.puts, 1);
     await action(page, 'account-back').click(); await page.locator('.game-lobby').waitFor();
     assert.equal(await notice(page).count(), 0, 'the confirmed backup ended the prompt');
-    passed('S7 a cloud backup the API confirmed saved becomes the last backup and ends the prompt shown on this page (fixture API)');
+    passed('S7 at 390 px a prompt\'s 旅程閣 opens the 雲端旅程 tab (the sign-in for a guest, 備份此裝置 on screen when signed in); a cloud backup the API confirmed saved becomes the last backup and ends the prompt (fixture API)');
     contexts.delete(page.context()); await page.context().close();
   }
 
@@ -562,7 +586,7 @@ try {
     const original = travelled(), page = await pageIn(await contextFor({ width: 390 }));
     await notice(page).waitFor();
     const started = await read(page);
-    await pick(page, notice(page).locator('[data-action="import-save"]'), fileOf(v051Profile(original), `萬象契旅程-${original.daily.date}.json`));
+    await pick(page, notice(page).locator('[data-action="import-save"]'), fileOf(v051Download(v051Profile(original)), `萬象契旅程-${original.daily.date}.json`));
     await page.locator('.import-compare').waitFor();
     assert.match(await page.locator('[data-import-legacy]').innerText(), /來自較舊版本的萬象契/);
     assert.equal(await page.locator('.import-side').nth(1).locator('[data-summary="cards"]').innerText(), String(original.instances.length));
@@ -573,6 +597,93 @@ try {
     assert.equal(fingerprintProfile(restored), fingerprintProfile(original), 'the same journey, as v5');
     assert.deepEqual((await read(page, RECOVERY_KEY)).snapshot, createSnapshot(started), 'the new journey is kept as the recovery copy');
     passed('S10 a v0.5.1 export (profile v3) restores from the offer as the same journey in v5, after a confirmation that says it is migrated');
+    contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S10b (review round 3): the longest confirmation, a v0.5.1 export with a recovery copy kept
+    // (the legacy note and the replaced-copy warning), on phone-sized dialog pages, without the
+    // tab/page helper. It was one block taller than the page, so the warning on how to keep the
+    // recovery copy was drawn under the pager (340×640 to 390×664). Now no item of the paged
+    // list reaches the pager, phones from 340×640 show it on one page, and a landscape phone
+    // pages it, the warnings first.
+    const original = travelled(), recovery = { savedAt: now, snapshot: createSnapshot(claimLogin(createProfile({ now }), now)) };
+    for (const [width, height, pages] of [[340, 640, 1], [375, 667, 1], [390, 664, 1], [844, 390, 2]]) {
+      const label = `${width}×${height}`;
+      const page = await pageIn(await contextFor({ stored: { [RECOVERY_KEY]: recovery }, width, height }), { navigation: false });
+      await notice(page).waitFor();
+      const before = await journeyKeys(page);
+      await pick(page, notice(page).locator('[data-action="import-save"]'), fileOf(v051Download(v051Profile(original)), `萬象契旅程-${original.daily.date}.json`));
+      await page.locator('.modal [data-import-legacy]').waitFor(); await viewportFrames(page);
+      const seen = [];
+      for (let index = 0; index < pages; index++) {
+        if (index) { await page.locator('.modal [data-viewport-action="next"]').click(); await viewportFrames(page); }
+        const layout = await page.evaluate(() => {
+          const modal = document.querySelector('.modal'), list = modal.querySelector('[data-viewport-list="dialog-content"]');
+          const pager = list.closest('.viewport-list-frame').querySelector('.viewport-pagination'), pagerTop = pager.getBoundingClientRect().top;
+          const items = [...list.children].filter(item => !item.hidden).map(item => ({ id: item.dataset.viewportId, bottom: item.getBoundingClientRect().bottom }));
+          const note = modal.querySelector('[data-recovery-replaced]'), shown = note && !note.closest('[hidden]');
+          const box = shown ? note.getBoundingClientRect() : null, hit = box && document.elementFromPoint(box.left + 4, box.bottom - 3);
+          return { status: pager.querySelector('[data-viewport-status]').textContent, pagerTop, items, overflow: list.dataset.viewportOverflow,
+            note: shown ? { bottom: box.bottom, own: note.contains(hit), hit: hit?.textContent.trim().slice(0, 12) ?? null } : null,
+            next: pager.querySelector('[data-viewport-action="next"]').disabled, document: document.documentElement.scrollWidth - innerWidth };
+        });
+        const context = `${label} page ${index + 1}: ${JSON.stringify(layout)}`;
+        assert.ok(layout.status.startsWith(`第 ${index + 1} / ${pages} 頁`), context);
+        assert.equal(layout.overflow, 'false', context);
+        for (const item of layout.items) assert.ok(item.bottom <= layout.pagerTop + 0.5, `${item.id} reaches the pager, ${context}`);
+        if (layout.note) assert.ok(layout.note.own && layout.note.bottom <= layout.pagerTop + 0.5, `the replaced-copy warning is covered, ${context}`);
+        assert.equal(layout.next, index === pages - 1, context);
+        assert.ok(layout.document <= 1, context);
+        seen.push(...layout.items.flatMap(item => item.id === 'import-notes' && layout.note ? [item.id, 'warning'] : [item.id]));
+      }
+      assert.deepEqual(seen, ['import-notes', 'warning', 'import-compare'], `${label}: the notes, their warning and the comparison, warnings first`);
+      await action(page, 'close-modal').filter({ hasText: '保留現在進度' }).click();
+      await page.locator('.modal').waitFor({ state: 'hidden' });
+      assert.deepEqual(await journeyKeys(page), before, `${label}: declined, nothing written`);
+      contexts.delete(page.context()); await page.context().close();
+    }
+    passed('S10b with a recovery copy kept, a v0.5.1 export\'s confirmation keeps every note clear of the pager: one page at 340×640, 375×667 and 390×664, two at 844×390 with the warnings first');
+  }
+
+  {
+    // S11 (review round 3): 刪除雲端備份 after 備份此裝置 (fixture API). The status line kept
+    // 上次備份：(date) · 雲端備份 beside the cloud panel's 尚未備份; now it says the backup was
+    // deleted, after a reload too.
+    const fixture = { revision: 0, backup: null, calls: [] };
+    const api = (route, request, url) => {
+      const reply = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
+      const method = request.method(); fixture.calls.push(`${method} ${url.pathname}`);
+      if (url.pathname === '/api/v1/account') return reply({ authenticated: true, user: { id: 'save-smoke-account', email: 'traveller@example.test' }, emailEnabled: true, journeyVersions: [1, 3] });
+      if (url.pathname === '/api/v1/journey' && method === 'GET') return reply({ backup: null, revision: 0 });
+      if (url.pathname === '/api/v3/journey' && method === 'GET') return reply({ backup: fixture.backup, revision: fixture.revision });
+      if (url.pathname === '/api/v3/journey' && ['PUT', 'DELETE'].includes(method)) {
+        fixture.revision += 1;
+        fixture.backup = method === 'DELETE' ? null : { revision: fixture.revision, updatedAt: now, snapshot: request.postDataJSON().snapshot };
+        return reply({ backup: fixture.backup, revision: fixture.revision });
+      }
+      errors.push(`Unexpected fixture API ${method} ${url.pathname}`); return route.abort('blockedbyclient');
+    };
+    const page = await pageIn(await contextFor({ seed: travelled(), api }));
+    await openTools(page);
+    await page.locator('.account-shell[aria-busy="false"] .account-identity').waitFor();
+    assert.match(await page.locator('[data-last-backup]').textContent(), /上次備份：未曾/);
+    await press(page, action(page, 'account-upload'), '此裝置的旅程已備份');
+    assert.match(await page.locator('[data-last-backup]').textContent(), /上次備份：.+ · 雲端備份$/);
+    assert.equal(await page.locator('.account-panel.cloud .account-pill').textContent(), '已有備份');
+    await action(page, 'account-confirm-delete').click();
+    await press(page, action(page, 'account-delete'), '雲端備份已刪除');
+    assert.equal(await page.locator('.account-panel.cloud .account-pill').textContent(), '尚未備份');
+    assert.match(await page.locator('[data-last-backup]').textContent(), /上次備份：.+ · 雲端備份已刪除$/, 'the status no longer claims a cloud backup');
+    assert.equal(await page.locator('[data-last-backup][data-backup-deleted]').count(), 1);
+    assert.deepEqual((await read(page, SAVES_KEY)).lastBackup, { at: now, kind: 'cloud', deletedAt: now });
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    await openTools(page);
+    await page.locator('.account-shell[aria-busy="false"] .account-identity').waitFor();
+    assert.match(await page.locator('[data-last-backup]').textContent(), /· 雲端備份已刪除$/, 'and after a reload');
+    assert.equal(await page.locator('.account-panel.cloud .account-pill').textContent(), '尚未備份');
+    assert.deepEqual(fixture.calls.filter(call => !call.startsWith('GET')), ['PUT /api/v3/journey', 'DELETE /api/v3/journey']);
+    passed('S11 after 備份此裝置 then 刪除雲端備份 (fixture API) 旅程閣 reads 上次備份 … · 雲端備份已刪除 beside 尚未備份, after a reload too');
     contexts.delete(page.context()); await page.context().close();
   }
 
