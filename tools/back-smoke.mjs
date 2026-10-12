@@ -11,7 +11,11 @@
  * history.length ≤ initial + 4; Back in a battle opens the keep/abandon menu without a
  * profile write; Back on a round or match result holds it, and the save equals exactly one
  * settlement computed here by the real rules; a reload mid-flow then Back writes and
- * settles nothing; the root hands Back to the browser without a prompt.
+ * settles nothing; the root hands Back to the browser without a prompt; a reload walks
+ * back to the tab's first game entry, so six reloads with two layers open keep
+ * history.length ≤ initial + 2, and in a popup where the game is the tab's first entry
+ * the first Back at 洞府 after a reload finds nothing left to step through (the system
+ * would close the tab or return to the opener).
  * Headless engines only: physical Android Back gestures and iOS edge swipes are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/back-smoke.mjs
  */
@@ -94,7 +98,8 @@ async function open(name) {
       storage.setItem(keys.preferences, JSON.stringify({ sound: false, ambience: 0.35, effects: 0.6, motion: 'reduce', pace: 'fast' }));
     }
     const nativeSet = Storage.prototype.setItem;
-    window.backSmokeProfileWrites = 0;
+    window.backSmokeProfileWrites = 0; window.backSmokePops = 0;
+    addEventListener('popstate', () => { window.backSmokePops++; });
     Storage.prototype.setItem = function(key, value) { nativeSet.call(this, key, value); if (this === localStorage && key === keys.profile) window.backSmokeProfileWrites++; };
   }, { fixture, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now });
   await context.route('**/*', route => {
@@ -107,7 +112,12 @@ async function open(name) {
     }
     return route.continue();
   });
-  const page = await context.newPage(); installViewportNavigation(page); page.setDefaultTimeout(12000);
+  const page = watch(await context.newPage(), name);
+  await page.goto(base.href); await page.locator('.game-lobby').waitFor();
+  return page;
+}
+function watch(page, name) {
+  installViewportNavigation(page); page.setDefaultTimeout(12000);
   page.blanks = { expected: 0, unexpected: 0 }; page.leaving = false; page.dialogs = 0;
   page.on('framenavigated', frame => {
     if (frame !== page.mainFrame() || frame.url() !== 'about:blank') return;
@@ -117,7 +127,6 @@ async function open(name) {
   page.on('pageerror', error => errors.push(`${name}: ${error.message}`));
   page.on('console', message => { if (message.type() === 'error') errors.push(`${name} console: ${message.text()}`); });
   page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`); });
-  await page.goto(base.href); await page.locator('.game-lobby').waitFor();
   return page;
 }
 async function release(page) { const context = page.context(); await context.close(); contexts.delete(context); }
@@ -144,6 +153,14 @@ const layerCount = description => {
   return (screen === 'home' ? 0 : 1) + rest.reduce((total, part) => total + (part === 'deck' ? 2 : 1), 0);
 };
 const entryDepth = page => page.evaluate(key => history.state?.[key]?.depth ?? null, NAV_STATE_KEY);
+const entryAbs = page => page.evaluate(key => history.state?.[key]?.abs ?? null, NAV_STATE_KEY);
+/** After a reload: the page walks back over the earlier load's entries to the tab's first game entry, its root. */
+async function reloadToRoot(page) {
+  await page.reload(); await page.locator('.game-lobby').waitFor(); await settle(page, 'home');
+  await page.waitForFunction(key => history.state?.[key]?.abs === 0, NAV_STATE_KEY, { timeout: 4000 })
+    .catch(async () => assert.fail(`the reload walked back to the first game entry (abs now ${await entryAbs(page)})`));
+  await settle(page, 'home');
+}
 const profileRaw = page => page.evaluate(key => localStorage.getItem(key), PROFILE_KEY);
 const profileWrites = page => page.evaluate(() => window.backSmokeProfileWrites);
 async function settle(page, description, depth = layerCount(description)) {
@@ -333,14 +350,14 @@ try {
     await click(page, '.game-dock [data-action="bag"]'); await settle(page, groupOpen ? 'bag>group' : 'bag');
     if (!groupOpen) { await click(page, '[data-action="bag-open-group"][data-id="qingxiao"]'); await settle(page, 'bag>group'); }
     await click(page, '.bag-character-copies [data-action="instance-inspect"]'); await settle(page, 'bag>group>instance');
-    await page.reload(); await page.locator('.game-lobby').waitFor(); await settle(page, 'home');
+    await reloadToRoot(page);
     const writes = await profileWrites(page);
     await leaveFromRoot(page, 'reload mid-flow');
     assert.equal(writes, 1, 'only the startup write after the reload');
     await leaveFromRoot(page, 'root');
     assert.equal(page.blanks.unexpected, 0);
     assert.equal(JSON.parse(await profileRaw(page)).coins, JSON.parse(raw).coins);
-    passed(`${deviceName}: reload mid-flow, then Back: 洞府 hands Back on past the earlier entries; the root leaves without a prompt and Forward returns`);
+    passed(`${deviceName}: reload mid-flow walks back to the first game entry, then one Back leaves 洞府 without a prompt or write; Forward returns`);
     await release(page);
   }
 
@@ -388,12 +405,58 @@ try {
     assert.equal(await profileWrites(page), beforeWrites + 1);
     passed(`${deviceName}: Back holds the round and match results; the save equals exactly one settlement (+${settled.coins - overkill.started.profile.coins} coins, played ${settled.stats.played})`);
 
-    await page.reload(); await page.locator('.game-lobby').waitFor(); await settle(page, 'home');
+    await reloadToRoot(page);
     await leaveFromRoot(page, 'reload on a match result');
     assert.deepEqual(settlementView(JSON.parse(await profileRaw(page))), settlementView(settled), 'still exactly one settlement after reload, Back and Forward');
     assert.equal(await page.evaluate(key => localStorage.getItem(key), battleKey), null, 'no battle snapshot to settle again');
     passed(`${deviceName}: reload on a match result, then Back and Forward: nothing settles again`);
     await release(page);
+  }
+
+  {
+    // Reloads with two layers open: the earlier load's entries end up ahead and the next push drops them.
+    const page = await open('journey'), start = await page.evaluate(() => history.length), lengths = [start];
+    for (let cycle = 0; cycle < 6; cycle++) {
+      await click(page, '.game-dock [data-action="world"]'); await settle(page, 'world');
+      await click(page, '.game-header [data-action="experience-settings"]'); await settle(page, 'world>settings');
+      await reloadToRoot(page);
+      lengths.push(await page.evaluate(() => history.length));
+      assert.ok(lengths.at(-1) <= start + 2, `cycle ${cycle}: history.length ${lengths.at(-1)} ≤ ${start} + 2`);
+    }
+    await leaveFromRoot(page, 'after six reloads');
+    assert.equal(page.blanks.unexpected, 0);
+    passed(`${deviceName}: six reloads with 遊歷 and settings open keep history.length bounded (${lengths.join('→')}); one Back then leaves 洞府`);
+    await release(page);
+  }
+
+  {
+    // The game as the tab's first entry (a new tab, home-screen shortcut, Custom Tab): a popup.
+    const opener = await open('journey');
+    const [page] = await Promise.all([opener.context().waitForEvent('page'), opener.evaluate(href => { window.open(href, '_blank'); }, base.href)]);
+    watch(page, 'popup');
+    await page.locator('.game-lobby').waitFor(); await settle(page, 'home');
+    assert.equal(await page.evaluate(() => history.length), 1, 'the game is the tab\'s first entry');
+    await click(page, '.game-dock [data-action="world"]'); await settle(page, 'world');
+    await click(page, '.game-header [data-action="experience-settings"]'); await settle(page, 'world>settings');
+    assert.equal(await page.evaluate(() => history.length), 3);
+    await reloadToRoot(page);
+    const cdp = browserName === 'chromium' ? await page.context().newCDPSession(page) : null;
+    if (cdp) assert.equal((await cdp.send('Page.getNavigationHistory')).currentIndex, 0, 'on the tab\'s first entry');
+    const pops = await page.evaluate(() => window.backSmokePops), writes = await profileWrites(page), raw = await profileRaw(page);
+    // Nothing is left before 洞府: this Back is the system's (it closes the tab or returns to the opener).
+    assert.equal(await page.goBack(), null);
+    await viewportFrames(page);
+    assert.equal(await page.evaluate(() => window.backSmokePops), pops, 'no game entry below the root to land on');
+    assert.equal(await entryAbs(page), 0); assert.equal(await describe(page), 'home');
+    if (cdp) assert.equal((await cdp.send('Page.getNavigationHistory')).currentIndex, 0);
+    // The earlier load's entries sit ahead until the next push drops them.
+    await click(page, '.game-dock [data-action="bag"]'); await settle(page, 'bag');
+    assert.equal(await page.evaluate(() => history.length), 2, 'the next push dropped the earlier entries');
+    await back(page, 'home');
+    assert.equal(await profileRaw(page), raw); assert.equal(await profileWrites(page), writes);
+    assert.equal(page.dialogs, 0); assert.equal(page.blanks.unexpected, 0);
+    passed(`${deviceName}: game as the tab's first entry (popup): after a reload with two layers open, the first Back at 洞府 finds no game entry below it (system Back)`);
+    await release(opener);
   }
 
   assert.deepEqual(errors, []);
