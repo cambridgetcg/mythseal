@@ -27,6 +27,7 @@
     "test:viewport": "node tools/viewport-smoke.mjs && BROWSER=webkit node tools/viewport-smoke.mjs",
     "test:battle-table": "node tools/battle-table-smoke.mjs && BROWSER=webkit node tools/battle-table-smoke.mjs",
     "test:back": "node tools/back-smoke.mjs && BROWSER=webkit node tools/back-smoke.mjs",
+    "test:coach": "node tools/coach-smoke.mjs && BROWSER=webkit node tools/coach-smoke.mjs",
     "test:expansion": "node tools/expansion-smoke.mjs && BROWSER=webkit node tools/expansion-smoke.mjs",
     "test:map-piece": "node tools/map-piece-smoke.mjs && BROWSER=webkit node tools/map-piece-smoke.mjs"
   },
