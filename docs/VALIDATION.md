@@ -2,6 +2,104 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## D3 first-battle teaching · 2026-10-12
+
+Branch `d3/first-battle-teaching`, from `origin/main` `335d2b7`; packet D3,
+approved by the owner on 2026-10-11 for the proposed v0.6.0 scope. Source
+commits `d240078`, `c1284ca`, `cc85bc3`, `d1b7f35`, `4fc692d` and `0029ef0`
+(coach copy only); the documentation commits after them change no served,
+test or tool file. Not merged, pushed or deployed; no hosted check, no network
+request beyond the loopback server. Design:
+[battle-table plan](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12).
+
+**Environment.** macOS 26.6.2 (Darwin 25.6.0), Node 26.0.0, Python 3.14.6,
+Playwright 1.63.0, installed Google Chrome 154.0.8037.98 for Chromium and
+Playwright WebKit 26.6, all headless. `python3 tools/serve.py --port 4204`
+from the worktree, started after both `battle-teaching.*` files entered the
+allowlist; `GAME_URL=http://127.0.0.1:4204` for every browser suite. Synthetic
+saves only.
+
+**Problem, as briefed.** The packet's 2026-10-11 measurements (an iPhone 15
+WebKit playtest losing 8, 6 and 10 HP in round 1; the 400- and 300-game engine
+simulations) are quoted in the plan. They were not re-run here.
+
+**Checks at `0029ef0`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **569/569**, 16 of them new:
+  11 in `tests/battle-teaching.test.mjs`, 2 in `tests/battle-table-view.test.mjs`,
+  N23–N24 in `tests/nav-stack.test.mjs` and 1 in `tests/viewport.test.mjs`.
+  `tests/engine.test.mjs` and `engine.mjs` are unchanged from `335d2b7`. The
+  formula equals `resolveRound`'s player attack, damage and cost for every
+  open announced card × draft × three hidden bids over 60 seeded matches and
+  rounds 1–3 (more than 5,000 drafts); without an announced card it equals
+  `previewMove`'s, is exact exactly when every possible reply agrees (both
+  kinds over 100 cases each) and is otherwise labelled 預計. Every visible form
+  is parsed and evaluates to the engine's number, including a clamped attack
+  of 1. Two different hidden AI bids give the same formula. The tip equals
+  match state after more than 200 seeded rounds, and a recording proxy shows
+  it reads only `phase`, `next.round`, `rounds` and both sides' `pills`.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, **86 public files** (84 plus `battle-teaching.mjs`
+  and `battle-teaching.css`), manifest `5a0d2843…be891`.
+- `git diff --check 335d2b7 HEAD`: exit 0.
+- `npm run test:coach` (new; `tools/coach-smoke.mjs`, Chrome with the Pixel 7
+  descriptor, then WebKit with the iPhone 15 descriptor): exit 0, **7/7 checks
+  in each engine**, 18 s for both. On a fresh journey's first 霧隱渡口 battle the
+  marks came in order ① → ② → ③ → ④; a hit test at the centre of each taught
+  control (every hand card, ＋, Commit, then 繼續 in the reveal) reached it,
+  and a tap on it advanced the mark. The hint box was taller than 1 px,
+  inside the status row and the viewport, with no clipped sentence, and 跳過
+  was a 44 px target clear of 對弈紀錄. The estimate equalled the engine's
+  attack at mark ①, after two pills and in a later battle, and 預計 appeared
+  exactly when the number was not exact. After the round-1 reveal the tip's
+  `data-opponent-pills` and text equalled the saved match state. 繼續 recorded
+  `done`; 跳過 recorded `skipped` and wrote only `shanhai.coach.v1`, with the
+  profile and battle snapshot bytes unchanged; so did Back on the table's mark
+  (the next Back opened keep/abandon) and Back on the reveal's mark (the tip
+  stayed and the next Back held the result). History depth was 2 with a mark
+  on the table and 3 over the reveal, and one less once the mark closed. No mark returned after
+  completion or 跳過, after a reload in round 1, or in a restarted first battle
+  (abandoned, so `stats.played` stayed 0). A 霧隱渡口 battle after one played
+  battle, and a first practice match, showed no mark but the hint, the formula
+  and (after round 1) the tip. A result left on 旅途所得, then a lost match:
+  the loss opened on 勝負已定 with 悟 and its advice visible, and its own
+  旅途所得 tab existed. With `viewport.forget` removed from `matchEndModal`, that
+  check failed (Chromium) and the other six passed; restored, it passes.
+- `npm run test:battle-table`: exit 0, **40/40 in Chrome and 40/40 in WebKit**
+  (256 s). Its Mist Gate fixture is a first battle, so it now runs with the
+  coach mark on the table at the six contract sizes; the 32-size sweep still
+  finds every decision input hit-testable, no row overlap and the attack
+  estimate's label whole on one line beside one-, two- and three-digit
+  numbers.
+- `npm run test:back`: exit 0, 16 checks in Chrome (including the bfcache
+  checks) and 15 in WebKit.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:browser` (Chrome, the 14 suites chained with `&&`): exit 0,
+  91 `PASS` lines; every error list printed empty.
+
+`test:coach`, `test:battle-table`, `test:back`, `test:viewport` and
+`test:browser` also passed (same counts) at `4fc692d`, before `0029ef0`
+changed the wording of mark ②.
+
+**Scratch evidence (not committed).** Before writing the smoke, a scratch
+script measured the hint and the formula at 390×844, 360×640, 360×540,
+844×390, 568×320, 768×1024 and 1440×900, with and without the coach: the hint
+was 14 px tall on one line, or 28 px for a coach mark on a portrait phone, and
+the formula's text box stayed inside its cell (the cell is 111 px wide at
+568×320, where the compact forms are used).
+
+**Not run or not shown:** the owner's playtest with at least three first-time
+players, which is the real exit and is pending; physical iPhone and Android
+phones, real Safari, Firefox, VoiceOver and TalkBack; the WebKit runs of
+`test:browser`'s suites (only `test:coach`, `test:battle-table`, `test:back`
+and `test:viewport` ran in WebKit); `test:commands`, `test:wx01`,
+`test:inheritance`, `test:collection-display`, `test:expansion`,
+`test:map-piece` and the literary preview smokes; `tools/battle-measure.mjs`
+(input latency and first paint were not re-measured); deploy dry runs, the
+SQL harness and CI.
+
 ## D1 Back model · 2026-10-12
 
 Branch `d1/back-model`, from `origin/main` `7712a7b`; packet D1, approved by the

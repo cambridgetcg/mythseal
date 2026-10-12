@@ -498,6 +498,20 @@ real PvP/ranked stays on the M2/M3 authority track.
 
 **Acceptance:** a new player completes a battle → travel/daily → backpack/upgrade loop without assistance, can explain a reveal and identify the exact copies that gained XP; repeated play remains brisk. Selected immersion packets preserve outcomes through mute, reduced motion, skip and interruption; assets and rules have reproducible versioned manifests; selected phone performance/accessibility targets are measured. PvP is complete only when two real clients finish/reconnect without exposing hidden moves, and duplicate settlements cannot change ranking or rewards twice.
 
+**First battle teaching (D3) · status 2026-10-12:** implemented on branch
+`d3/first-battle-teaching` (from `main` `335d2b7`); not merged or deployed, and
+in the proposed v0.6.0 scope. The battle table now shows a visible planning
+hint, four skippable coach marks on the first ever battle (pick a card → pills →
+commit → read the reveal; 跳過 or Back ends them, recorded only under the
+device-local `shanhai.coach.v1`), the formula behind the attack estimate from
+the engine's own numbers (預計 when a hidden reply could change it), and a tip
+after each reveal with both sides' remaining pills. A new match result opens on
+its outcome page, so 悟 and its advice show after a loss. No engine, AI or
+profile change. [Design](docs/BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12)
+and [checks](docs/VALIDATION.md#d3-first-battle-teaching--2026-10-12). The
+exit is an owner playtest with at least three first-time players, which is
+pending; capping the AI's round-1 spend stays an owner fallback after it.
+
 ### M5 · Mobile adaptation → iOS and Android closed beta
 
 **Dependencies:** the approved [M4 game shell](docs/NAVIGATION.md) is the starting point. Touch and

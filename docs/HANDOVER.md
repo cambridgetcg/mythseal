@@ -323,6 +323,64 @@ input, popstate and pageshow listeners after the `pagehide` listener, and
   remain open. Checks: [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12),
   "Review round 3 fixes".
 
+## D3 first-battle teaching checkpoint · 2026-10-12 (local only)
+
+Roadmap packet D3 (approved by the owner on 2026-10-11 for the proposed v0.6.0
+scope) is implemented on the branch **`d3/first-battle-teaching`**, started
+from `origin/main` `335d2b7` (D1 merged). Source commits: **`d240078`**
+(`battle-teaching.mjs`, its tests, allowlist), **`c1284ca`** (the coach layer
+in `nav-stack.mjs` and its tests), **`cc85bc3`** (`viewport.forget` and the
+match result's outcome page), **`d1b7f35`** (the battle-table integration:
+`app.mjs`, `battle-ui.mjs`, `battle-teaching.css`, `index.html`),
+**`4fc692d`** (`tools/coach-smoke.mjs`, `npm run test:coach`) and `0029ef0`
+(the wording of coach mark ②); the commits after them change documentation
+only. **Status:** not merged, pushed or
+deployed; no hosted check.
+
+- **Changed:** a fresh player lost round 1 of each early encounter because the
+  only instruction was sr-only. The battle table now shows a visible planning
+  hint; on the first ever battle (the first 霧隱渡口 encounter while
+  `stats.played` is 0) four skippable coach marks teach card → pills → commit →
+  reveal; the move panel shows the formula behind its number from the engine
+  (預計 when a hidden reply could change it); each reveal ends with both sides'
+  remaining pills and a hint such as 對手丹藥將盡; and a new match result opens
+  on 勝負已定. The design and rules are in the
+  [battle-table plan](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12);
+  the coach's Back layer is in
+  [NAVIGATION](NAVIGATION.md#back-model--2026-10-12).
+- **Saves:** the only new stored value is the device-local
+  `shanhai.coach.v1` (`{"firstBattle":"done"|"skipped"}`), beside
+  `shanhai.experience.v1`. No teaching element writes the profile, the battle
+  snapshot, an export or a backup. `engine.mjs`, `chooseAIMove`, rewards,
+  `PROFILE_VERSION`, the snapshot format, the Worker, SQL and journey flags are
+  unchanged.
+- **Allowlist:** `battle-teaching.mjs` and `battle-teaching.css` are in
+  `hosting/public-assets.json` (86 public files). Restart a `tools/serve.py`
+  started before this branch.
+- **`app.mjs` touch points for the D2 merge** (all on the battle surface): the
+  engine import no longer names `previewMove`; the `battle-ui.mjs` import
+  names five more exports; a `battle-teaching.mjs` import after the
+  `nav-stack.mjs` one; `costNote` became `commitLabel`, `attackPreviewMarkup`
+  and `fitAttackFormula` (with resize and font-load listeners) above
+  `movePanel()`; `battleTableOptions()` takes its status fields from a new
+  block after it (`coachMemory` … `revealTeachingMarkup`); `fitAttackFormula()`
+  after `viewport.refresh` in `render()`; `matchEndModal({returning:true})` in
+  `dismissModal()`; `startCoach` in `enterStartedBattle()` and
+  `resumeBattle()`; the `coach` field in `navView()` and its row in
+  `navBack()`; `fitAttackFormula()` in `updateMovePanel()`; one
+  `coachEvent` call in `commitMove()`; the tip in `resultModal()`'s reveal
+  controls; `matchEndModal`'s `returning` option; the select, pill, Fury,
+  coach-skip, coach-done and next-round click branches; the pill slider's
+  input branch.
+- **Checked:** see [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12)
+  for each command, exit and environment.
+- **Open:** the real exit is the owner's playtest with **at least three
+  first-time players** on a phone (round-1 HP lost, whether they add pills,
+  whether they can explain a reveal); it is pending, and automation does not
+  replace it. Capping the AI's round-1 spend stays an owner fallback after
+  that playtest. Also open: physical iOS/Android devices, real Safari,
+  VoiceOver/TalkBack, and the owner's review of the copy.
+
 ## Experience planning checkpoint · 2026-09-29
 
 The fetched default branch now contains PR #1 at merge commit `22092fc`; start
@@ -862,6 +920,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
 | Battle table / battle UI (Q0, PR #5) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
 | Back model / history entries (D1) | `node --test tests/nav-stack.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:back` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor); `tools/navigation-smoke.mjs` for in-app close and return paths |
+| First-battle teaching (D3) | `node --test tests/battle-teaching.test.mjs tests/battle-table-view.test.mjs tests/nav-stack.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:coach` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor), with `npm run test:battle-table` and `npm run test:back` for the table and Back around it |
 | Local commands / profile fence (Q1, PR #10) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
