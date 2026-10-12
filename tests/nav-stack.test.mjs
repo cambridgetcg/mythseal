@@ -69,7 +69,8 @@ function harness({ state = null, blank = true, session = sessionHistory(state, {
     const target = session.index + delta;
     if (target < 0 || target >= session.entries.length) return;
     session.index = target;
-    if (session.entries[target].doc !== 'game') { session.log.left++; return; }
+    // Leaving the page: browsers fire pagehide (persisted when the page may enter the bfcache).
+    if (session.entries[target].doc !== 'game') { session.log.left++; nav.pagehide(true); return; }
     nav.popstate(structuredClone(session.entries[target].state));
   }
   return {
@@ -511,4 +512,79 @@ test('N20 Back into the game from a page opened in the same tab, as a new load: 
   assert.ok(onOther(k), 'Forward reached the page past the closed layers\' entries');
   assert.equal(k.app.view.screen, 'home'); assert.equal(k.app.view.modal, null);
   assert.equal(k.session.log.pushes, 2);
+});
+
+test('N21 a bfcache restore on an entry an earlier load wrote walks back to the root, so the next Back leaves instead of stepping forward', () => {
+  // The current load leaves from an earlier load's entry when Forward steps past entries that
+  // load left ahead: after a reload at 洞府, or after a jump of two or three entries back from the
+  // later page (the Back menu, a fast double Back) that loads the game anew below its top entry.
+  for (const blank of [true, false]) for (const [how, jump] of [['reload at 洞府', 0], ['jump 2', 2], ['jump 3', 3]]) {
+    const label = `${how}${blank ? '' : ', the game first in the tab'}`;
+    const earlier = started({ blank });
+    earlier.user(v => { v.screen = 'world'; });
+    earlier.user(v => { v.modal = modal('experience-settings'); });
+    const old = earlier.nav.state.sid;
+    visit(earlier);
+    if (jump) earlier.session.index -= jump;
+    else {
+      // Back from the page restores the game with both layers; two Backs close them.
+      earlier.session.index--; earlier.nav.pageshow(true); earlier.settle();
+      earlier.back(); earlier.back();
+      assert.equal(earlier.nav.state.depth, 0); assert.equal(earlier.session.index, blank ? 1 : 0);
+    }
+    const h = reload(earlier), root = blank ? 1 : 0;
+    assert.equal(h.session.index, root, `${label}: the new load is on the root`);
+    h.forward();
+    assert.ok(onOther(h), `${label}: Forward reached the later page`);
+    const left = h.session.log.left;
+    // Back from that page restores the game from the bfcache on the entry Forward left from.
+    h.session.index--;
+    const restored = readNavState(h.session.history.state);
+    assert.equal(restored.sid, old, `${label}: the restored entry holds the earlier load's state`);
+    assert.notEqual(restored.sid, h.nav.state.sid);
+    assert.equal(restored.abs, 2);
+    h.nav.pageshow(true); h.settle();
+    assert.equal(h.session.index, root, `${label}: the restore walked back to the root`);
+    assert.equal(h.nav.state.abs, 0); assert.equal(h.nav.state.depth, 0);
+    h.back();
+    assert.ok(!onOther(h), `${label}: Back did not step on to the later page`);
+    if (blank) { assert.equal(h.session.index, 0); assert.equal(h.session.log.left, left + 1); }
+    else assert.equal(h.session.log.system, 1, `${label}: Back at 洞府 goes to the system`);
+    assert.equal(h.session.log.ignored, 0);
+    assert.deepEqual(h.app.decisions, [], `${label}: no layer opened, nothing closed`);
+  }
+});
+
+test('N22 a bfcache restore after 3 s or more on the later page walks back once: the render before pageshow starts no walk', () => {
+  for (const own of [true, false]) {
+    const label = own ? 'restored on the new load\'s entry' : 'restored on an earlier load\'s entry';
+    let clock = 0;
+    const earlier = started({ now: () => clock });
+    earlier.user(v => { v.screen = 'world'; });
+    earlier.user(v => { v.modal = modal('experience-settings'); });
+    visit(earlier);
+    // As N20 (the new load rewrites the top entry) or N21's jump 2 (it leaves that entry the earlier load's).
+    earlier.session.index -= own ? 1 : 2;
+    const h = reload(earlier, { now: () => clock });
+    h.forward();
+    assert.ok(onOther(h));
+    clock = 5000; // the player stayed on the later page past the 3 s stall window
+    h.session.index--;
+    assert.equal(readNavState(h.session.history.state).sid === h.nav.state.sid, own, label);
+    const gos = h.session.log.gos.length;
+    // On a restore, visibilitychange fires before pageshow; its render queues a reconciliation.
+    h.nav.queue(); h.microtasks();
+    h.nav.pageshow(true); h.settle();
+    assert.deepEqual(h.session.log.gos.slice(gos), [-2], `${label}: one walk back to the root`);
+    assert.equal(h.session.index, 1); assert.equal(h.nav.state.depth, 0);
+    assert.equal(h.session.log.ignored, 0, `${label}: no second walk past the root`);
+    h.back();
+    assert.equal(h.session.index, 0); assert.equal(h.session.log.ignored, 0);
+    assert.deepEqual(h.app.decisions, []);
+  }
+  // A page that never comes back keeps nothing frozen: the next input or popstate reconciles.
+  const k = started();
+  k.nav.pagehide(true);
+  k.user(v => { v.screen = 'world'; });
+  assert.equal(depthOnEntry(k), 1, 'the push was made');
 });

@@ -1187,6 +1187,7 @@ window.addEventListener('pagehide',()=>{if(match?.status==='playing')try{persist
 for(const type of ['pointerdown','keydown','touchend','click','submit'])window.addEventListener(type,event=>{if(event.isTrusted&&!(type==='keydown'&&event.key==='Escape'))nav.noteInput();},{capture:true,passive:true});
 window.addEventListener('popstate',event=>nav.popstate(event.state));
 window.addEventListener('pageshow',event=>nav.pageshow(event.persisted));
+window.addEventListener('pagehide',event=>nav.pagehide(event.persisted));
 function reloadLocalJourney() {
   if(!startupReady)return;
   try {

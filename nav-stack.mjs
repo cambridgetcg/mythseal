@@ -109,6 +109,10 @@ const randomId = () => {
  *   load's) opens nothing. When the tab has an entry past it, the page steps on with
  *   history.go(+1), so Forward still reaches a page opened after the game in this tab;
  *   otherwise it steps back to the layers held.
+ * - A bfcache restore reads its position from the restored entry, whichever load
+ *   wrote it, and walks back to the layers held if it is above them. While the page
+ *   is hidden (pagehide), reconciliation waits, so a render that runs on the restore
+ *   before pageshow (visibilitychange) starts no second walk.
  * Each entry's state: { v, sid, abs, depth, layers, first }. `abs` counts this tab's
  * game entries from the first one, across reloads, so a reload knows how far to walk
  * back. `first` is that first entry's index in the tab's history, read from
@@ -121,8 +125,10 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
   // abs: the entry we are on; base: this load's root entry; top: our highest entry still in
   // the list; pending: where our own traversal lands, from `origin`, started at `pendingAt`.
   // rooting: the reload's walk back to the first game entry is in flight. passing: our own
-  // step on past an entry that holds no layer is in flight. first: see above.
-  let started = false, abs = 0, base = 0, top = 0, pending = null, origin = 0, pendingAt = 0, written = null, queued = false, inputTurn = false, rooting = false, passing = false, first = 0;
+  // step on past an entry that holds no layer is in flight. first: see above. hidden: the
+  // page left with persisted pagehide (it may come back from the bfcache) and has not been
+  // shown again.
+  let started = false, abs = 0, base = 0, top = 0, pending = null, origin = 0, pendingAt = 0, written = null, queued = false, inputTurn = false, rooting = false, passing = false, first = 0, hidden = false;
   const sid = sessionId;
   const entry = at => ({ [NAV_STATE_KEY]: { v: NAV_STATE_VERSION, sid, abs: at, depth: at - base, layers: signature(), first } });
   /** The tab has an entry past the game entry at `at` (a later game entry or another page). */
@@ -147,6 +153,8 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
   }
   function sync() {
     queued = false;
+    // Hidden, or being restored before pageshow: pageshow reconciles once it knows where the page is.
+    if (hidden) return;
     recoverStall();
     if (!started || pending !== null) return;
     const want = base + depth();
@@ -219,7 +227,7 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
     backSteps(1);
   }
   return {
-    get state() { return { started, sid, abs, base, top, pending, inputTurn, rooting, passing, first, depth: abs - base }; },
+    get state() { return { started, sid, abs, base, top, pending, inputTurn, rooting, passing, first, hidden, depth: abs - base }; },
     start() {
       const current = readNavState(history.state);
       abs = base = top = current ? current.abs : 0;
@@ -238,12 +246,12 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
       if (abs > 0) { rooting = true; go(-abs); }
     },
     /** A trusted, activation-giving input: the next reconciliation may push. */
-    noteInput() { inputTurn = true; },
+    noteInput() { inputTurn = true; hidden = false; },
     queue,
     sync,
     popstate(state) {
       if (!started) return;
-      inputTurn = false;
+      inputTurn = false; hidden = false;
       const current = readNavState(state);
       if (rooting) return rooted(current);
       if (current && passOn(current.abs)) return;
@@ -260,14 +268,22 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
       // is past it: reconcile.
       sync();
     },
+    /** The page is leaving. With `persisted` it may come back from the bfcache: until
+     * pageshow, no reconciliation runs (a restore fires visibilitychange, and so a render,
+     * before pageshow). */
+    pagehide(persisted) {
+      if (started && persisted) hidden = true;
+    },
     /** bfcache restore: re-read where we are; settle nothing and push nothing. A page that
      * left from an entry above its layers (Forward stepped past it) walks back to them. */
     pageshow(persisted) {
+      hidden = false;
       if (!started || !persisted) return;
       inputTurn = false; pending = null; rooting = false; passing = false;
       const current = readNavState(history.state);
-      if (current && current.sid === sid) abs = current.abs;
-      else abs = base;
+      // `abs` counts the tab's game entries from the first one across reloads, so an entry
+      // an earlier load wrote (one Forward stepped past to leave) still gives the position.
+      abs = current ? current.abs : base;
       // The entries above the restored one may be gone, so top falls to it. When Forward
       // stepped past this entry to leave, it holds no layer: top stays below it, and the
       // reconciliation walks back to the layers held.
