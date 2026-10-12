@@ -1,0 +1,40 @@
+/* D3 · first-battle teaching (docs/BATTLE-LAYOUT-PLAN.md, "First battle teaching").
+   The hint line and the coach marks use only height the status row already has
+   (44 px, set by 對弈紀錄), and nothing overlays a control: a coach mark outlines
+   the control it teaches, and outlines take no space and catch no taps. */
+.battle-table .battle-status-main{display:flex;flex-direction:column;justify-content:center;gap:1px;flex:1 1 auto;min-width:0}
+.battle-table .battle-status-line{display:flex;align-items:center;gap:8px;min-width:0}
+.battle-table .battle-hint{margin:0;min-width:0;font-size:10px;line-height:14px;letter-spacing:.5px;color:#c9cfbf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.battle-table .battle-coach{color:#f0dfae;letter-spacing:.3px}
+.battle-coach-mark{margin-right:1px;font-weight:600;color:var(--gold)}
+.battle-table .battle-coach-skip,.battle-reveal .battle-coach-done{flex:0 0 auto;min-width:44px;min-height:44px;padding:0 6px;border:1px solid #e9c97f66;border-radius:3px;font-size:11px;letter-spacing:1px;color:#f0dfae;white-space:nowrap}
+.battle-table .battle-coach-skip:focus-visible,.battle-reveal .battle-coach-done:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* Phones in portrait: the coach mark takes both lines of the status row (the round
+   line yields; its words carry the prompt), so the full sentence shows. Each mark's
+   copy fits two lines at 360 px; the clamp only keeps the row's height if it ever not. */
+@media(max-width:600px) and (orientation:portrait){
+ .battle-table[data-coach-step] .battle-status-line{display:none}
+ .battle-table .battle-coach{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:10.5px;line-height:14px;white-space:normal;overflow:hidden}
+}
+.battle-table[data-coach-step="card"] .player-hand,
+.battle-table[data-coach-step="pills"] .move-panel .pill-control,
+.battle-table[data-coach-step="commit"] .move-panel [data-action="commit"]{outline:2px dashed #e9c97f;outline-offset:2px}
+@keyframes battle-coach-glow{0%,100%{outline-color:#e9c97f}50%{outline-color:#e9c97f4d}}
+@media(prefers-reduced-motion:no-preference){
+ body[data-motion="full"]:not([data-page-hidden="true"]) .battle-table[data-coach-step="card"] .player-hand,
+ body[data-motion="full"]:not([data-page-hidden="true"]) .battle-table[data-coach-step="pills"] .move-panel .pill-control,
+ body[data-motion="full"]:not([data-page-hidden="true"]) .battle-table[data-coach-step="commit"] .move-panel [data-action="commit"]{animation:battle-coach-glow 1.6s ease-in-out infinite}
+}
+/* The move panel's estimate cell: the formula is the label line. 預計 marks a number
+   that the opponent's hidden card may still change. app.mjs shows the widest form of
+   the formula that fits on one line (is-compact drops the note first). */
+.game-shell .battle-table .move-panel .attack-formula b{font-weight:500;color:var(--gold)}
+.game-shell .battle-table .move-panel .attack-formula.is-compact i{display:none}
+/* Round reveal: the tip sits where 直接看結果 was once the reveal completes, so
+   the footer keeps its height; on the first battle the last coach mark is above it. */
+.battle-reveal .battle-reveal-controls .battle-reveal-tip{flex:1 1 0;min-width:0;margin:0;font-size:10px;line-height:14px;letter-spacing:.3px;color:#d2d8c8;text-align:left}
+.battle-reveal .battle-reveal-tip>span{display:block}
+.battle-reveal .battle-reveal-coach{color:#f0dfae}
+.battle-reveal[data-reveal-state="animating"] .battle-reveal-tip,.battle-reveal[data-reveal-state="animating"] .battle-coach-done{display:none}
+.battle-reveal[data-reveal-state="complete"] .battle-reveal-controls:has(.battle-reveal-tip){flex-wrap:nowrap;justify-content:space-between;gap:10px}
+.battle-reveal:has([data-battle-coach="reveal"]) .duel-stat{outline:1px dashed #e9c97f;outline-offset:2px}

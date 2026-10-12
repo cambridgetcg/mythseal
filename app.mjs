@@ -1,4 +1,4 @@
-import { CARDS, LEGACY_CARDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, previewMove, resolveRound, hasFactionBonus, getBattleCard } from './engine.mjs';
+import { CARDS, LEGACY_CARDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, resolveRound, hasFactionBonus, getBattleCard } from './engine.mjs';
 
 import { PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, refreshDaily, claimLogin, claimTask, claimWeeklyTask, buyPack, buyCard, sellInstance, buybackInstance, getInstanceSale, trainCard, beginBattle, finishBattle, abandonBattle, claimArenaChest, isNodeUnlocked } from './progression.mjs';
 import { activityMarkup, activitySupplyMarkup, expansionRewardsMarkup } from './expansion-ui.mjs';
@@ -14,7 +14,7 @@ import { worldMarkup, dailyMarkup, marketMarkup, arenaMarkup, rewardText } from 
 import { gameHeaderMarkup, gameDockMarkup, lobbyMarkup } from './navigation-ui.mjs';
 import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResonanceMarkup, mistGateResultMarkup, mistGateRevealMarkup } from './mist-gate-ui.mjs';
 import { createExperienceController } from './experience.mjs';
-import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConfrontationMarkup, battleLineupMarkup, revealPairMarkup } from './battle-ui.mjs';
+import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConfrontationMarkup, battleLineupMarkup, revealPairMarkup, battleStatusMarkup, battleHintMarkup, battleCoachMarkup, COACH_SKIP_MARKUP, revealTipMarkup } from './battle-ui.mjs';
 import { createRoundPresentation, paintRoundResources, permittedAnnouncement, createPlanningView, createRevealView } from './battle-presentation.mjs';
 import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
@@ -33,6 +33,7 @@ import { prepareScene, preparePack } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
+import { attackFormula, costText, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -214,15 +215,36 @@ function updateResourcePreview() {
   element.setAttribute('aria-label',`你剩餘 ${match.player.hp} 生命，${total} 仙丹。預備消耗 ${cost} 丹，留存 ${total-cost} 丹。`);
 }
 
-const costNote=preview=>`共消耗 ${preview.cost} 丹 · 剩 ${match.player.pills-preview.cost} 丹`;
+const commitLabel=()=>isMistGate()?'封丹 · 落子':'落子 · 決勝';
+/** D3: the live formula for the draft, from the engine's own numbers (battle-teaching.mjs).
+ * A leading opponent's announced card is public, so its effects count; otherwise 預計. */
+let attackVariants=[];
+function attackPreviewMarkup() {
+  const formula=attackFormula(match,{cardId:selected,pills,fury},{announcedCardId:permittedAnnouncement(match,aiMove,{revealPending})});
+  const note=formula.known?'· 已計對手亮牌':formula.exact?'· 對手出牌亦不變':'· 未計對手影響';
+  attackVariants=formula.variants;
+  const label=formula.text?`${formula.exact?'':'<b>預計</b> '}<span class="attack-formula-text">${safe(formula.text)}</span>`:`${formula.exact?'己方攻擊':'己方預估攻擊'}`;
+  return `<div class="attack-preview" data-attack-exact="${formula.exact}"><span class="attack-preview-copy"><span class="attack-formula" id="attack-formula" aria-hidden="true">${label} <i>${note}</i></span><small id="cost-note">${safe(costText(formula,match.player.pills))}</small></span><strong id="attack-value">${formula.attack}</strong><span class="sr-only" id="attack-sentence">${safe(formula.sentence)}</span></div>`;
+}
+/** Show the widest form of the formula that fits its cell on one line (the note goes first). */
+function fitAttackFormula() {
+  const line=app.querySelector('.move-panel #attack-formula'),text=line?.querySelector('.attack-formula-text');
+  if(!text||!attackVariants.length||!line.getClientRects().length)return;
+  const fits=()=>line.scrollWidth<=line.clientWidth+0.5;
+  line.classList.remove('is-compact');
+  if(text.textContent!==attackVariants[0])text.textContent=attackVariants[0];
+  if(fits())return;
+  line.classList.add('is-compact');
+  for(const variant of attackVariants){if(text.textContent!==variant)text.textContent=variant;if(fits())return;}
+}
+window.addEventListener('resize',fitAttackFormula);document.fonts?.addEventListener?.('loadingdone',fitAttackFormula);
 function movePanel() {
-  const preview = previewMove(match, 'player', { cardId:selected, pills, fury });
   const maxPills = match.player.pills - (fury ? RULES.furyCost : 0);
   return `<aside class="move-panel" aria-label="出牌設定">
     <div class="pill-control"><button data-action="pill-minus" aria-label="減少一枚仙丹" ${pills===0?'disabled':''}>−</button><div class="pill-number"><span id="pill-amount">${pills}</span><small>暗置仙丹</small></div><input class="pill-slider" id="pill-slider" aria-label="投入仙丹" type="range" min="0" max="${maxPills}" step="1" value="${pills}"><button data-action="pill-plus" aria-label="增加一枚仙丹" ${pills===maxPills?'disabled':''}>+</button></div>
-    <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<3?'disabled':''}><span>怒擊 <small>另付 3 丹 · 傷害 +2</small></span><span class="toggle-track"></span></button>
-    <div class="attack-preview"><span class="attack-preview-copy"><span>己方預估攻擊 <i>· 未計對手影響</i></span><small id="cost-note">${costNote(preview)}</small></span><strong id="attack-value">${preview.attack}</strong></div>
-    <button class="primary" data-action="commit" ${busy?'disabled':''}>${isMistGate()?'封丹 · 落子':'落子 · 決勝'} <span aria-hidden="true">↗</span></button></aside>`;
+    <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<RULES.furyCost?'disabled':''}><span>怒擊 <small>另付 ${RULES.furyCost} 丹 · 傷害 +${RULES.furyDamage}</small></span><span class="toggle-track"></span></button>
+    ${attackPreviewMarkup()}
+    <button class="primary" data-action="commit" ${busy?'disabled':''}>${commitLabel()} <span aria-hidden="true">↗</span></button></aside>`;
 }
 
 const battleArt=(id,side)=>cardPresentation(id,{printId:side==='player'?encounter?.cardPrints?.[id]:undefined});
@@ -232,9 +254,59 @@ function battleTableOptions(view,actionsHtml) {
   const mist=isMistGate();
   const resonance=mist?mistGateResonanceMarkup({factions:Object.entries(FACTIONS).filter(([id])=>match.player.hand.some(cardId=>getCard(cardId).faction===id&&hasFactionBonus(match,'player',cardId))).map(([,value])=>value)}):'';
   return {draft:{selected,pills,fury},actionsHtml,art:battleArt,resonance,className:battleEntering?' battle-turn-enter':'',
-    eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader}):'',
-    playerNote:match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入'};
+    playerNote:match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入',...statusOptions(view)};
 }
+// D3 teaching (docs/BATTLE-LAYOUT-PLAN.md, "First battle teaching"). The hint line is always
+// visible; on the first battle a coach mark takes its place. Only the coach's seen record is
+// stored, under its own device-local key: never the profile, a battle snapshot or a backup.
+const coachMemory=createCoachMemory({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
+let coachStep=null;
+const tableCoach=()=>['card','pills','commit'].includes(coachStep)&&screen==='battle'&&match?.status==='playing'&&!revealPending;
+const dialogCoach=()=>coachStep==='reveal'&&modalKind==='round-result';
+function statusOptions(view) {
+  const mist=isMistGate(),copy=view.phase==='planning'&&tableCoach()?coachCopy(coachStep,{leader:view.leader,commitLabel:commitLabel()}):null;
+  return {eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader}):'',
+    hint:copy?battleCoachMarkup(copy):battleHintMarkup(planningHint(view,{commitLabel:commitLabel()})),coach:copy?.step||null,coachControls:copy?COACH_SKIP_MARKUP:''};
+}
+/** A new first battle starts at its first mark; a resumed one keeps the step it reached. */
+function startCoach({fresh=false}={}) {
+  const start=coachStart({seen:coachMemory.seen(),encounter,played:profile.stats.played,match,revealPending});
+  coachStep=!start?null:fresh||start==='reveal'||!coachStep?start:coachStep;
+}
+function paintCoach(announcement='') {
+  const table=screen==='battle'&&match?.status==='playing'&&!revealPending?app.querySelector('.battle-table[data-battle-phase="planning"]'):null;
+  if(table){
+    const view=planningView(),options=statusOptions(view);
+    patchMarkup(table.querySelector('.battle-status'),battleStatusMarkup(view,options));
+    if(options.coach)table.dataset.coachStep=options.coach;else delete table.dataset.coachStep;
+  }
+  const controls=overlay.querySelector('.battle-reveal .battle-reveal-controls');
+  if(controls&&modalKind==='round-result'){
+    const focused=controls.querySelector('[data-action="coach-done"]')===document.activeElement;
+    controls.querySelectorAll('[data-reveal-tip],[data-action="coach-done"]').forEach(node=>node.remove());
+    controls.insertAdjacentHTML('afterbegin',revealTeachingMarkup());
+    if(focused)overlay.querySelector('[data-action="next-round"]')?.focus({preventScroll:true});
+  }
+  const copy=tableCoach()||dialogCoach()?coachCopy(coachStep,{leader:match.initiative,commitLabel:commitLabel()}):null;
+  if(announcement||copy)announce(`${announcement}${copy?copy.text:''}`);
+  nav.queue();
+}
+function coachEvent(event,announcement='',{paint=true}={}) {
+  if(!coachStep)return;
+  const next=advanceCoach(coachStep,event);
+  if(next===coachStep)return;
+  if(next==='done'){coachMemory.finish('done');coachStep=null;}else coachStep=next;
+  if(paint)paintCoach(announcement);
+}
+function endCoach(outcome) {
+  if(!coachStep)return;
+  const skipFocused=document.activeElement?.dataset?.action==='coach-skip';
+  coachMemory.finish(outcome);coachStep=null;
+  paintCoach(outcome==='skipped'?'已跳過新手指引。':'新手指引完成。');
+  // 跳過 leaves with the mark: keep a keyboard player on the table's selected card.
+  if(skipFocused)(app.querySelector('.player-hand [aria-pressed="true"]')||app.querySelector('[data-action="commit"]'))?.focus({preventScroll:true});
+}
+const revealTeachingMarkup=()=>revealTipMarkup(revealTip(createRevealView(match)),{coach:coachStep==='reveal'?coachCopy('reveal'):null});
 function battleMarkup() {
   const view=planningView();
   return battleTableMarkup(view,battleTableOptions(view,movePanel()));
@@ -297,7 +369,7 @@ function render() {
   const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
   app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?((profile.wx01.receipt||profile.expansion.fireMountain.run)?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
-  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});
+  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});fitAttackFormula();
   const currentMap=app.querySelector('.world-map[data-world]');
   if(currentMap){
     currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
@@ -485,7 +557,7 @@ async function launchActivity({route, supply, expectedRunId, expectedStage}={}) 
 }
 function enterStartedBattle(result) {
   encounter=result.encounter;match=result.nextMatch;recorded=false;lastReward=null;
-  closeModal();preparation=null;preparationReturn=null;screen='battle';prepareRound();battleEntering=true;render();window.scrollTo({top:0,behavior:'instant'});announce('對局開始。選一張戰卡，再分配仙丹。');playTone('select');
+  closeModal();preparation=null;preparationReturn=null;screen='battle';prepareRound();startCoach({fresh:true});battleEntering=true;render();window.scrollTo({top:0,behavior:'instant'});announce('對局開始。選一張戰卡，再分配仙丹。');playTone('select');
 }
 function preparationContent() {
   const kind=preparation.kind,node=NODES.find(n=>n.id===preparation.nodeId),deck=getActiveDeck(profile);
@@ -789,7 +861,7 @@ async function resumeBattle(){
     closeModal();screen='battle';lastRoundPresentation=null;battleEntering=false;
     if(match.status==='finished'){await recordFinishedMatch();render();return matchEndModal();}
     if(!revealPending&&(!match.player.hand.includes(selected)||match.player.used.includes(selected)))selected=match.player.hand.find(id=>!match.player.used.includes(id));
-    ensureLeadingCommitment();
+    ensureLeadingCommitment();startCoach();
     render();if(revealPending)resultModal();announce('已返回未完對局。');
   }catch(error){pendingModal();toast(error.message);}
 }
@@ -819,7 +891,7 @@ function viewKey(){return screen==='bag'?`bag-${bagView.tab}${bagView.tab==='car
 let settling=false;
 function navView() {
   const open=overlay.firstElementChild,chained=open&&['result-card','experience-settings'].includes(modalKind)&&['round-result','match-result','preparation'].includes(experienceReturn?.kind);
-  return {screen,accountReturn,battle:screen!=='battle'?null:settling?'settling':match?.status||null,
+  return {screen,accountReturn,battle:screen!=='battle'?null:settling?'settling':match?.status||null,coach:tableCoach()?'table':dialogCoach()?'dialog':null,
     bagGroup:bagView.tab==='cards'&&Boolean(bagView.expandedCardId),preparationDeck:preparationReturn&&preparation?{screen:preparationReturn.screen}:null,
     modal:open?{kind:modalKind,dismissible:open.dataset.dismissible==='true'}:null,
     modalReturn:chained?{kind:experienceReturn.kind,dismissible:experienceReturn.kind==='preparation'}:null};
@@ -832,6 +904,7 @@ function navBack() {
   else if(decision.action===BACK.ACCOUNT_BACK)navigate(accountReturn);
   else if(decision.action===BACK.BATTLE_MENU)requestNavigation('home');
   else if(decision.action===BACK.HOME)navigate('home');
+  else if(decision.action===BACK.DISMISS_COACH)endCoach('skipped');
   // BACK.HOLD: a result (or a commit being saved) stays on screen; the guard entry is re-armed.
   return decision;
 }
@@ -847,7 +920,7 @@ function switchCardsTab(tab) {
 }
 function updateMovePanel() {
   const panel=app.querySelector('.move-panel');
-  if(panel){const focus=captureFocus(panel);panel.outerHTML=movePanel();restoreFocus(app.querySelector('.move-panel'),focus);}
+  if(panel){const focus=captureFocus(panel);panel.outerHTML=movePanel();fitAttackFormula();restoreFocus(app.querySelector('.move-panel'),focus);}
   updateResourcePreview();
 }
 async function commitMove() {
@@ -861,7 +934,7 @@ async function commitMove() {
     else if(ensureLeadingCommitment()){busy=false;render();return toast('對手剛亮出本輪戰卡，請確認後再落子。');}
     const before={player:{hp:match.player.hp,pills:match.player.pills},opponent:{hp:match.opponent.hp,pills:match.opponent.pills}};
     // resolveRound advances round/initiative; the old move must not outlive it.
-    match=resolveRound(match,playerMove,aiMove);aiMove=null;revealPending=true;
+    match=resolveRound(match,playerMove,aiMove);aiMove=null;revealPending=true;coachEvent('commit','',{paint:false});
     lastRoundPresentation=createRoundPresentation(before,match);
     persistBattle();playTone('commit');
     // The inert table behind the reveal switches to the lastResult view at once.
@@ -894,7 +967,7 @@ function resultModal({animate=false}={}) {
     <div class="battle-resource-results" aria-label="本回合生命與仙丹">${['player','opponent'].map(side=>battleResourcesMarkup({side,hp:match[side].hp,pills:match[side].pills,compact:true,label:side==='player'?'你':'對手'})).join('')}</div>
     <div class="resolution">${tie}${won?'對手':'你'}受到 <strong>${r.damage}</strong> 點傷害。<br>當前生命：你 <strong>${match.player.hp}</strong> · 對手 <strong>${match.opponent.hp}</strong>　｜　剩餘仙丹：你 ${match.player.pills} · 對手 ${match.opponent.pills}</div>
     <div class="result-effects"><div><h4>你的技能與共鳴</h4>${effectList('player')}</div><div><h4>對手的技能與共鳴</h4>${effectList('opponent')}</div></div>
-    <div class="battle-reveal-footer"><div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div><div class="mist-reveal-controls battle-reveal-controls"><button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div></div>`,`result-modal battle-reveal${mist?' mist-reveal':''}`,false,'round-result',dialog=>experience.reveal(dialog,{animate:Boolean(animate&&presentation?.canAnimate),battle:true,onPhase:(phase,element)=>{
+    <div class="battle-reveal-footer"><div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div><div class="mist-reveal-controls battle-reveal-controls">${revealTeachingMarkup()}<button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div></div>`,`result-modal battle-reveal${mist?' mist-reveal':''}`,false,'round-result',dialog=>experience.reveal(dialog,{animate:Boolean(animate&&presentation?.canAnimate),battle:true,onPhase:(phase,element)=>{
     paintRoundResources(element,presentation,phase);
     if(phase==='recovery'&&presentation&&['player','opponent'].some(side=>presentation[side].hpRecovered>0||presentation[side].pillsRecovered>0))playTone('recovery');
   }}));
@@ -1153,14 +1226,17 @@ document.addEventListener('click', event=>{
   if(action==='sound'){experience.setPreferences({sound:!sound});experience.unlockAudio().then(()=>playTone('select'));return;}
   if(action==='select'){
     if(busy||revealPending||match.status!=='playing'||!match.player.hand.includes(id)||match.player.used.includes(id))return;selected=id;playTone('select');
-    updateBattleDraft();announce(`已選擇 ${getCard(id).name}。`);return;
+    updateBattleDraft();announce(`已選擇 ${getCard(id).name}。`);coachEvent('select',`已選擇 ${getCard(id).name}。`);return;
   }
   if(action==='pill-minus'||action==='pill-plus'){
-    const max=match.player.pills-(fury?3:0);pills=Math.max(0,Math.min(max,pills+(action==='pill-plus'?1:-1)));updateMovePanel();playTone('pill');return;
+    const max=match.player.pills-(fury?3:0);pills=Math.max(0,Math.min(max,pills+(action==='pill-plus'?1:-1)));updateMovePanel();playTone('pill');coachEvent('pills');return;
   }
-  if(action==='fury'){fury=!fury;pills=Math.min(pills,match.player.pills-(fury?3:0));updateMovePanel();playTone('select');return;}
+  if(action==='fury'){fury=!fury;pills=Math.min(pills,match.player.pills-(fury?3:0));updateMovePanel();playTone('select');coachEvent('fury');return;}
+  if(action==='coach-skip')return endCoach('skipped');
+  if(action==='coach-done')return endCoach('done');
   if(action==='commit')return commitMove();
   if(action==='next-round'){
+    coachEvent('continue','',{paint:false});
     if(match.status==='finished')return matchEndModal({celebrate:true});closeModal();prepareRound();battleEntering=true;render();
     // The reveal table and its action are gone: keep keyboard and screen-reader
     // players on the new table's Commit rather than dropping them to <body>.
@@ -1218,11 +1294,9 @@ document.addEventListener('input',event=>{
 
   if(event.target.id!=='pill-slider')return;
   pills=Number(event.target.value);const max=match.player.pills-(fury?3:0);
-  const preview=previewMove(match,'player',{cardId:selected,pills,fury});
-  app.querySelector('#pill-amount').textContent=pills;app.querySelector('#attack-value').textContent=preview.attack;
-  app.querySelector('#cost-note').textContent=costNote(preview);
+  app.querySelector('#pill-amount').textContent=pills;patchMarkup(app.querySelector('.move-panel .attack-preview'),attackPreviewMarkup());fitAttackFormula();
   app.querySelector('[data-action="pill-minus"]').disabled=pills===0;app.querySelector('[data-action="pill-plus"]').disabled=pills===max;
-  updateResourcePreview();
+  updateResourcePreview();coachEvent('pills');
   experience.unlockAudio().then(()=>playTone('pill'));
 });
 document.addEventListener('submit',event=>{

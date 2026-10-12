@@ -45,6 +45,7 @@
   "profile-fence.mjs",
   "nav-stack.mjs",
   "battle-teaching.mjs",
+  "battle-teaching.css",
   "wx01-cards.mjs",
   "wx01-pack.mjs",
   "wx01-state.mjs",

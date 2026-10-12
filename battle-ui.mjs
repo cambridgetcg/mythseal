@@ -72,16 +72,38 @@ export function battleConfrontationMarkup(view, { selected = null, art = () => n
   return `<section class="battle-confrontation" data-phase="${view.phase}" aria-label="第 ${bounded(view.round, 9)} 回合對陣"><h3 class="battle-confrontation-title">第 ${bounded(view.round, 9)} 回合 · 對陣</h3>${opponent}<span class="battle-versus" aria-hidden="true">${versus}</span>${player}</section>`;
 }
 
+/** The visible "what to do now" line under the prompt (D3). Never sr-only. */
+export function battleHintMarkup(text) {
+  return `<p class="battle-hint" data-battle-hint>${safe(text)}</p>`;
+}
+
+/**
+ * A first-battle coach mark in the hint's place (D3): words only. It takes no
+ * room the table does not already give the hint line, so it never covers or
+ * moves a control; the taught control is outlined through data-coach-step.
+ */
+export function battleCoachMarkup(copy) {
+  return `<p class="battle-hint battle-coach" data-battle-hint data-battle-coach="${safe(copy.step)}"><b class="battle-coach-mark" aria-hidden="true">${safe(copy.mark)}</b><span class="sr-only">新手指引 ${bounded(copy.index + 1, 9)} / ${bounded(copy.total, 9)}：</span> <span class="battle-coach-text">${safe(copy.text)}</span></p>`;
+}
+
+/** One 跳過 closes every remaining coach mark. */
+export const COACH_SKIP_MARKUP = '<button type="button" class="text-button battle-coach-skip" data-action="coach-skip" aria-label="跳過新手指引">跳過</button>';
+
+/** The status row: round, prompt, the hint (or coach mark) line, and 對弈紀錄. */
+export function battleStatusMarkup(view, { eyebrow = '', ornament = '', hint = '', coachControls = '' } = {}) {
+  const steps = Array.from({ length: view.rounds }, (_, index) => `<span class="${index < view.round - 1 ? 'done' : index === view.round - 1 ? 'current' : ''}"></span>`).join('');
+  return `<header class="battle-status arena-heading">${ornament}<div class="battle-status-main"><div class="battle-status-line"><div class="battle-status-copy"><span class="eyebrow">${safe(eyebrow)}</span><span class="round-steps">第 ${bounded(view.round, 9)} / ${bounded(view.rounds, 9)} 回合 ${steps}</span></div><p class="battle-prompt">${safe(view.prompt)}</p></div>${hint}</div>${coachControls}<button type="button" class="text-button battle-history" data-action="history">對弈紀錄</button></header>`;
+}
+
 /**
  * One primary table for planning and reveal: opponent edge, confrontation, own
  * edge and actions. Only the public view and the player's own draft are read.
  */
-export function battleTableMarkup(view, { draft = {}, actionsHtml = '', eyebrow = '', ornament = '', resonance = '', playerNote = '', art = () => null, className = '' } = {}) {
+export function battleTableMarkup(view, { draft = {}, actionsHtml = '', eyebrow = '', ornament = '', resonance = '', playerNote = '', art = () => null, className = '', hint = '', coach = null, coachControls = '' } = {}) {
   const planning = view.phase === 'planning';
-  const steps = Array.from({ length: view.rounds }, (_, index) => `<span class="${index < view.round - 1 ? 'done' : index === view.round - 1 ? 'current' : ''}"></span>`).join('');
   const resources = side => battleResourcesMarkup({ side, hp: view[side].hp, pills: view[side].pills, ...(side === 'player' && planning ? { plannedPills: draft.pills, fury: draft.fury, preview: true } : {}) });
-  return `<main class="arena battle-table${safe(className)}" data-battle-phase="${view.phase}" data-leader="${view.leader}">`
-    + `<header class="battle-status arena-heading">${ornament}<div class="battle-status-copy"><span class="eyebrow">${safe(eyebrow)}</span><span class="round-steps">第 ${bounded(view.round, 9)} / ${bounded(view.rounds, 9)} 回合 ${steps}</span></div><p class="battle-prompt">${safe(view.prompt)}</p><button type="button" class="text-button battle-history" data-action="history">對弈紀錄</button></header>`
+  return `<main class="arena battle-table${safe(className)}" data-battle-phase="${view.phase}" data-leader="${view.leader}"${coach ? ` data-coach-step="${safe(coach)}"` : ''}>`
+    + battleStatusMarkup(view, { eyebrow, ornament, hint, coachControls })
     + `<section class="battle-edge" data-side="opponent" aria-label="對手：${safe(view.opponent.name)}"><div class="battle-edge-head"><div class="battle-identity"><h2>${safe(view.opponent.name)}</h2><p>對手手牌 · 本局四張</p></div>${resources('opponent')}</div>${battleLineupMarkup(view, 'opponent', { art })}</section>`
     + battleConfrontationMarkup(view, { selected: draft.selected, art })
     + `<section class="battle-edge" data-side="player" aria-label="你：執令者">${battleLineupMarkup(view, 'player', { selected: draft.selected, art })}<div class="battle-edge-head"><div class="battle-identity"><h2>執令者</h2><p>${safe(playerNote)}</p></div>${resources('player')}${resonance}</div></section>`
@@ -100,6 +122,17 @@ export function revealPairMarkup(view) {
     return `<div class="reveal-pair-side" data-side="${side}"${view.center.winner === side ? ' data-winner' : ''}><span class="reveal-pair-owner">${OWNERS[side]}${view.center.winner === side ? '<span class="reveal-pair-outcome"> · 勝</span>' : ''}</span><b>${safe(entry.card.name)}</b><small>暗置 ${bounded(entry.pills)} 丹${entry.fury ? ' ＋ 怒擊' : ''}</small><small class="reveal-pair-attack">· 攻擊 ${bounded(entry.attack, 9999)}</small></div>`;
   };
   return `<div class="reveal-played-pair" role="group" aria-label="第 ${bounded(view.round, 9)} 回合出戰：你 ${safe(view.center.player.card.name)}，對手 ${safe(view.center.opponent.card.name)}"><span class="reveal-pair-round">第 ${bounded(view.round, 9)} 回合</span>${face('player')}${face('opponent')}</div>`;
+}
+
+/**
+ * The tip after a round's reveal (D3), in the reveal footer beside 聲息與節奏: it
+ * takes the place of 直接看結果 once the reveal completes, so the footer keeps its
+ * height. On the first battle's round 1 the last coach mark sits above it.
+ */
+export function revealTipMarkup(tip, { coach = null } = {}) {
+  const line = coach ? `<span class="battle-reveal-coach" data-battle-coach="${safe(coach.step)}"><b class="battle-coach-mark" aria-hidden="true">${safe(coach.mark)}</b><span class="sr-only">新手指引 ${bounded(coach.index + 1, 9)} / ${bounded(coach.total, 9)}：</span> ${safe(coach.text)}</span>` : '';
+  return `<p class="battle-reveal-tip" data-reveal-tip data-tip-kind="${safe(tip.kind)}" data-opponent-pills="${bounded(tip.opponentPills)}">${line}<span class="battle-reveal-tip-text">${safe(tip.text)}</span></p>`
+    + (coach ? '<button type="button" class="text-button battle-coach-done" data-action="coach-done" aria-label="知道了，結束新手指引">知道了</button>' : '');
 }
 
 export function battleResourcesMarkup({ side = 'player', hp, pills, plannedPills = 0, fury = false, preview = false, compact = false, label } = {}) {
