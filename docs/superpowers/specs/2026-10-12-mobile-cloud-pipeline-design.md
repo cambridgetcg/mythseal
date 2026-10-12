@@ -1,7 +1,9 @@
 # Mobile cloud pipeline · design · 2026-10-12
 
 Status: **approved by the owner 2026-10-12**, then amended the same day with
-the review stage, the offline guest build and the field notes.
+the review stage, the offline guest build and the field notes. Planning
+resolved §9 the same day; the findings are folded into §4.3, §4.6, §4.8 and §5.
+The plan is `docs/superpowers/plans/2026-10-12-mobile-cloud-pipeline.md`.
 Nothing in this document has been built, signed, uploaded or registered.
 
 ## 1. Purpose
@@ -125,8 +127,8 @@ Two independent jobs run in parallel. Neither depends on the other.
 
 | Job | Runner | Steps |
 | --- | --- | --- |
-| `ios` | GitHub macOS (image pinned to one whose Xcode meets Apple's current upload SDK minimum) | checkout → Node 22 → `npm ci` → `npm test` → native `npm run build` → `npx cap sync ios` → `fastlane ios beta` |
-| `android` | `ubuntu-latest` + JDK 21 | checkout → Node 22 → `npm ci` → `npm test` → native `npm run build` → `npx cap sync android` → `fastlane android internal` |
+| `ios` | `macos-26` (Xcode 26; Apple has required Xcode 26 / 26 SDKs for uploads since 2026-04-28) | checkout → Node 22 → `npm ci` → `npm test` → native `npm run build` → `npx cap sync ios` → `fastlane ios beta` |
+| `android` | `ubuntu-24.04` + JDK 21 (Capacitor 8 targets SDK 36, which Play has required since 2026-08-31) | checkout → Node 22 → `npm ci` → `npm test` → native `npm run build` → `npx cap sync android` → `fastlane android internal` |
 
 The repository pins actions by commit SHA, and this workflow does too.
 `permissions: contents: read`. Concurrency uses the group `mobile-${{ github.ref }}`
@@ -176,8 +178,8 @@ client version, the commit and the build number into the job summary. That
 makes the "same client digest on both platforms" rule in
 `docs/CONTENT-RELEASE-PIPELINE.md` §8 checkable by eye.
 
-The summary also records each step's duration (install, test, build, sign,
-upload). This is the raw timing data for the field notes.
+Step durations come from the run itself
+(`gh run view <id> --json jobs`), which the field notes copy for each run.
 
 ### 4.7 Runbook and field notes
 
@@ -214,12 +216,15 @@ starts, the runbook is copied or extracted to a shared home as that spec decides
 - **Native build target.** `tools/build.mjs` gains a native target (for example
   `npm run build -- --target native`) that produces the same allowlisted `dist/`,
   except:
-  - the account and cloud-backup entry points are not shown, and their modules
-    are not shipped;
-  - the release manifest's `enabledFeatures` says so.
+  - Cloudflare's `_headers` file is left out;
+  - the release manifest says `target: native`, with no runtime-gated account features.
 
-  The web build stays byte-for-byte unchanged, and the mobile workflow uses the
-  native target. Reasons:
+  Separately, `platform.mjs` detects Capacitor's native bridge. In the native
+  shell, `app.mjs` hides the 旅程閣 button and ignores every account action and
+  account navigation, so the account client never starts. The account modules
+  stay in the bundle, because `app.mjs` imports them statically, but they are
+  inert. The web build keeps every file and feature it has today, and the mobile
+  workflow uses the native target. Reasons:
   - inside a Capacitor WebView, the account client's same-origin `/api/...`
     calls would hit the app bundle and fail, and a visibly broken login is an
     App Review rejection;
@@ -236,6 +241,9 @@ starts, the runbook is copied or extracted to a shared home as that spec decides
   - the website's optional email-code accounts and cloud backups: what is
     stored, which processors are involved, and how to delete it.
 
+  Google requires a privacy policy for every app, and wants it reachable
+  inside the app too, so the rules dialog links it.
+
   **The owner approves the wording before deploy,** because it is published in
   Cambridge TCG Limited's name. It is deployed through the existing
   `docs/HOSTING.md` release procedure.
@@ -248,7 +256,7 @@ owner's standing agreement is that approval happens in conversation.
 
 | Secret / variable | What it is | Notes |
 | --- | --- | --- |
-| `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_B64` | App Store Connect team API key | Use the lowest role that can use cloud-managed distribution signing. Prefer App Manager; use Admin only if App Manager keys can't, and record which in `docs/CONNECTIONS.md`. |
+| `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_B64` | App Store Connect team API key | **Admin** role, the lowest that can use cloud-managed distribution signing. API keys can't carry App Manager's per-user "cloud-managed distribution certificate" permission (Apple developer forum thread 776036; no Apple document names the role). Recorded in `docs/CONNECTIONS.md`. |
 | `APPLE_TEAM_ID` (variable) | Cambridge TCG Limited team ID | Not secret. |
 | `PLAY_SERVICE_ACCOUNT_JSON` | Google Cloud service-account key | Invited in Play Console with app-level "release to testing tracks" permission only. |
 | `ANDROID_UPLOAD_KEYSTORE_B64`, `ANDROID_UPLOAD_KEYSTORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` | Upload keystore | Generated on this Mac with the Homebrew JDK 21 `keytool`. A copy is kept as a macOS keychain item `mythseal-android-upload-keystore`, and the local file is deleted after `gh secret set`. |
@@ -357,8 +365,8 @@ should avoid unless the owner wants that data too. The recommendation is
 4. **Stage 1 done:** the owner installs from TestFlight on an iPhone and from
    the Play internal-testing link on an Android phone, and Mythseal opens to the
    lobby in airplane mode.
-5. A static test confirms that the native build ships no account modules and
-   the web build is unchanged. A network check (§9) confirms that the native
+5. A static test and a browser smoke confirm that the native shell never starts
+   the account client, and that the web build keeps its account entry. A network check (§9) confirms that the native
    bundle makes no requests.
 6. **Stage 2 done:** both reviews have returned an outcome. Each outcome is
    recorded with its timeline and any fix. If approved, an invited tester
@@ -372,6 +380,22 @@ should avoid unless the owner wants that data too. The recommendation is
 Gameplay correctness on phones is M5.1 and M5.2 evidence, not this pipeline's.
 
 ## 9. To verify while planning (not assumed)
+
+**Resolved 2026-10-12** (sources in the plan and field notes):
+
+- Capacitor 8 creates SPM iOS projects by default. Whether `cap add ios` works
+  without full Xcode is unknown, so the plan has a cloud fallback.
+- Runners and SDK floors: as in §4.3.
+- Cloud signing needs an Admin key: as in §5.
+- The Play draft-app rule and the first manual upload are confirmed (fastlane docs).
+- Apple 4.2, 5.1.1(v) and 5.1.1(ix) were quoted verbatim from the current
+  guidelines. They match the summaries in this spec.
+- Google requires a privacy policy for every app.
+- The macOS minute allowance is measured during the first runs.
+- The current Stage 2 fields are read from the consoles at the time and
+  recorded in the field notes.
+
+The original list:
 
 - Whether Capacitor 8.5.2 generates the iOS project with Swift Package Manager
   by default (no CocoaPods), and that `cap add ios` runs without full Xcode on
