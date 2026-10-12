@@ -1,5 +1,6 @@
 [
   "index.html",
+  "privacy.html",
   "app.mjs",
   "engine.mjs",
   "collection.mjs",
@@ -44,6 +45,7 @@
   "local-commands.mjs",
   "profile-fence.mjs",
   "nav-stack.mjs",
+  "platform.mjs",
   "wx01-cards.mjs",
   "wx01-pack.mjs",
   "wx01-state.mjs",

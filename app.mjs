@@ -19,6 +19,7 @@ import { createRoundPresentation, paintRoundResources, permittedAnnouncement, cr
 import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
+import { isNativeShell } from './platform.mjs';
 import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './profile-store.mjs';
 import { previewCommand, commitCommand, readCommandReceipt, duplicateMessage, COMMAND_MESSAGES } from './local-commands.mjs';
 import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
@@ -76,6 +77,9 @@ let inheritanceView=null;
 // Navigation drafts never create, settle or replace a persisted encounter.
 let preparation=null, preparationReturn=null, accountReturn='home', modalKind=null, modalOrigin=null;
 const screenScroll=new Map();
+// Store builds (Capacitor) are offline guest builds: the account client's same-origin /api
+// calls cannot reach mythseal.com from the app, so it is never started or shown there.
+const NATIVE_SHELL = isNativeShell();
 const account = createAccountController({
   getLocalProfile: loadProfile,
   restoreLocalProfile,
@@ -195,7 +199,7 @@ function cardMarkup(card, options = {}) {
 }
 
 function header() {
-  return gameHeaderMarkup({profile,screen,sound,accountButton:accountButtonMarkup(account.getState())});
+  return gameHeaderMarkup({profile,screen,sound,accountButton:NATIVE_SHELL?'':accountButtonMarkup(account.getState())});
 }
 function homeMarkup() { return lobbyMarkup(profile,cardMarkup,selectedNode); }
 
@@ -538,7 +542,7 @@ function rulesModal() {
     <div class="rule"><span class="rule-number">03 / 共鳴</span><h3>同族同行，天賦甦醒</h3><p>抽出的四張牌中，至少兩張不同角色同族，便啟動該族加成。已出過的卡仍計入共鳴。</p></div>
     <div class="rule"><span class="rule-number">04 / 破局</span><h3>明牌暗丹，交替先後</h3><p>先手先亮卡，仙丹一直保密。雙方輪換先手。怒擊另付 3 丹，贏得該回合時傷害 +2。</p></div></div>
     <div class="rules-note">第一回合：四張牌總星數較高的一方先手，相同則隨機。<br>攻擊預估只包含己方效果；對手的封鎖、減力、減攻可能改變結果。</div>
-    <div class="modal-actions"><button class="primary" data-action="${screen==='battle'?'close-modal':'rules-start'}">${screen==='battle'?'明白，返回對局':'知其道，入其局'} <span>↗</span></button></div>`);
+    <p class="rules-privacy"><a href="privacy.html">私隱政策 · Privacy</a></p><div class="modal-actions"><button class="primary" data-action="${screen==='battle'?'close-modal':'rules-start'}">${screen==='battle'?'明白，返回對局':'知其道，入其局'} <span>↗</span></button></div>`);
 }
 function detailModal(id, side='player') {
   const c=screen==='battle'?getBattleCard(match,side,id):getCard(id), f=faction(c);
@@ -794,6 +798,7 @@ async function resumeBattle(){
   }catch(error){pendingModal();toast(error.message);}
 }
 function requestNavigation(destination) {
+  if(NATIVE_SHELL&&destination==='account')return;
   if(screen==='battle'&&match?.status==='playing'){
     modal(`<div class="eyebrow">LEAVE THE DUEL</div><h2>暫別此局？</h2><p>可以保留對局稍後繼續，或放棄本局。放棄不會獲得獎勵；牌組與修練進度會保留。</p><div class="modal-actions"><button class="secondary" data-action="navigate-confirm" data-id="${destination}">保留並離開</button><button class="primary" data-action="abandon-navigate" data-id="${destination}" data-encounter="${encounter.id}">放棄此局</button></div>`);
   }else navigate(destination);
@@ -926,7 +931,7 @@ function roundHoldMarkup(){
 
 document.addEventListener('click', event=>{
   const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
-  const {action,id}=button.dataset;
+  const {action,id}=button.dataset;if(NATIVE_SHELL&&action.startsWith('account'))return;
   experience.unlockAudio().catch(()=>{});
   if(action==='activity-open'||action==='activity-route'){if(action==='activity-route')activityRoute=id==='loaner'?'loaner':'owned';return openActivity(action==='activity-route');}
   if(action==='activity-start')return launchActivity({route:id});

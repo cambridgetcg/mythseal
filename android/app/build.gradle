@@ -1,0 +1,70 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "com.mythseal.game"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.mythseal.game"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        // Set by fastlane from the workflow run (tools/mobile-release.mjs); 1 / 0.0.0 for local builds.
+        versionCode Integer.parseInt((project.findProperty('mythsealVersionCode') ?: '1').toString())
+        versionName (project.findProperty('mythsealVersionName') ?: '0.0.0').toString()
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    // The Play upload key comes only from the CI environment (decoded to $RUNNER_TEMP);
+    // Play App Signing holds the distribution key.
+    signingConfigs {
+        upload {
+            if (System.getenv('MYTHSEAL_UPLOAD_KEYSTORE')) {
+                storeFile file(System.getenv('MYTHSEAL_UPLOAD_KEYSTORE'))
+                storePassword System.getenv('ANDROID_UPLOAD_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_UPLOAD_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_UPLOAD_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (System.getenv('MYTHSEAL_UPLOAD_KEYSTORE')) {
+                signingConfig signingConfigs.upload
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
