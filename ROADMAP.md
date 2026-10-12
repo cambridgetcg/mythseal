@@ -526,6 +526,12 @@ WebKit failures RELEASE-NEXT A6 named (the 43.08px rewards tab and the
 map-piece launch). Checked in Chromium and WebKit emulation (`npm run
 test:shell`, [NAVIGATION](docs/NAVIGATION.md#mobile-shell)); the physical-phone
 items are open in the [M5.1 checklist](docs/MOBILE-RELEASE.md#m51-phone-checklist).
+Review round 1 (2026-10-12) fixed what the first pass missed: the
+short-landscape cards hub tabs covered 旅程閣 under side insets, and at 302px
+the codex was 1px too wide, collection items ran past the shell and the
+market's seven tabs overlapped; `test:shell` now opens all three collection
+tabs and checks shell gutters, tab rows, the landscape header row and the
+computed touch rules.
 
 ### Retired collectible launch phases
 

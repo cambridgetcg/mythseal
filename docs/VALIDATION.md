@@ -106,6 +106,146 @@ the changed stylesheets); a browser check of the local `playtest.html`, which
 loads `styles.css`; `npm run preview -- --dry-run`, deploy dry runs, the SQL
 harness and CI.
 
+### N1 review fixes · 2026-10-12
+
+Review round 1 sent six independently verified findings. They are fixed on
+the same branch in source commits **`a313f08`** (the hub tabs anchored to the
+shell), **`8cdd1d4`** (the compact card grids and market tabs on 302–349px
+screens) and **`5b31a4e`** (the smoke and static guards). The documentation
+commit after them changes no served file. The 2026-10-11 record above stays as
+written, and these notes correct it. Not merged, pushed or deployed. No hosted
+check, service call or third-party request.
+
+Environment: the same as on 2026-10-11 (macOS 26.6.2, Node 26.0.0, Python
+3.14.6, Playwright 1.63.0, WebKit 26.6 from Playwright's cache, Chrome
+154.0.8037.98). The runs used `python3 tools/serve.py --port 4203`, started
+from this worktree; no allowlist changed. Scratch probes used the shell smoke's
+fixture (every WX-01 printing minted, 50,000 coins, 1,000 dust) with Playwright
+emulating a Pixel 7 in Chromium and an iPhone 15 in WebKit.
+
+**Findings and fixes:**
+1. *(medium, N1 regression)* Short landscape positions the cards hub tabs
+   absolutely. No ancestor was positioned, so `right:25%` was measured from the
+   whole viewport, while `#app`'s inset padding moved 旅程閣 inward.
+   - Measured at `64d662c` in WebKit at 852×393 with 0/59/21/59px insets: the
+     tabs spanned x 434–639 and 旅程閣 603–695.
+   - In short landscape the shell is now the containing block. A WebKit scan at
+     844×390 of the lobby, the collection (all tabs and modules), market,
+     arena, world, 旅程閣 and a battle found the hub tabs were the only
+     absolutely positioned element anchored to the viewport. The tabs use
+     `top:0` and `right:max(25%,172px)`.
+   - After the fix, 旅程閣 is clear by 18px at 852×393, 844×390 (59px or 44px
+     sides), 812×375, 874×402 and 780×360 with insets, and by 30–36px at
+     896×414, 932×430 and 956×440 (WebKit). With no insets it is clear by
+     16–74px from 568×320 to 1100×480; at 844×390 the tabs moved from 427–633
+     to 410–615. Chromium matched within 2px. No header control overlapped
+     another at any of these 17 sizes, in either engine.
+2. *(low)* At 302px the compact grid's `minmax(285px,1fr)` track overflowed the
+   278px shell. The fix is `minmax(min(285px,100%),1fr)`.
+3. *(low)* Seven 44px market tabs need 326px with their gaps. At 302px and 320px
+   they overlapped by about 4px and 1.3px, and 回購 ended 7px and 4px past the
+   shell.
+   - Below 350px they now wrap four and three: each tab is at least 67.3px wide
+     at 302px, 71.8px at 320px and 79px at 349px. At 350px the one-row tabs
+     are exactly 44px.
+   - The second row first pushed the 商旅 cards' buy buttons under the pager at
+     302×640. Keeping the market title for screen readers only took that height
+     back. The viewport controller then flagged exactly the same market modules
+     as with one row: none at 302×640, 西行印 and 商旅 at 320×568.
+4. *(low)* The codex tab was 303px wide at 302px: Chromium `innerWidth` 303 and
+   `scrollWidth` 303 in both engines, from the rotated `.rarity-dot` at the end
+   of a 285px track. The grid fix in item 2 removes it, and the dot now ends
+   inside the shell. The dot itself is unchanged: its 1.24px of rotation stays
+   within `.collection-source`'s 2px margin.
+5. *(low, docs)* The open vertical-fit item was scoped as "under about 600px of
+   usable height", which was wrong. These Chromium measurements, with no insets
+   unless stated, show the collection's card list flagging on taller phones too:
+
+   | Viewport | List frame | Tallest card | Flagged |
+   | --- | --- | --- | --- |
+   | 412×839 | 409px | 361px | no |
+   | 412×810 | 380px | 361px | no |
+   | 412×800 | 370px | 361px | no |
+   | 412×790 | 360px | 361px | yes |
+   | 412×760 | 330px | 361px | yes |
+   | 412×741 | 311px | 361px | yes |
+   | 412×740 (compact layout) | 310px | 176px | no |
+   | 393×800 | 370px | 361px | no |
+   | 393×780 | 350px | 361px | yes |
+   | 393×760 | 330px | 361px | yes |
+   | 360×800 | 370px | 361px | no |
+   | 360×780 | 350px | 361px | yes |
+   | 360×740 (compact layout) | 310px | 176px | no |
+   | 412×839 with 48/0/34/0 insets | 333px | 361px | yes |
+   | 412×839 with 0/44/0/44 insets | 409px | 386px | no |
+   | 412×915 with 48/0/34/0 insets | 409px | 361px | no |
+   | 320×568 (compact layout) | 138px | 176px | yes |
+   | 302×640 (compact layout) | 210px | 176px | no |
+
+   In WebKit, 393×852 with 59/0/34/0 insets (list 335px) and 412×790 flag,
+   while 393×852 with no insets (list 422px) does not. 393×659 flags with
+   48/44/34/44 insets (list 153px, card 176px) and not without (229px).
+
+   The 三套牌組 tab at 302×640 flags with or without the grid fix. NAVIGATION
+   (Limits), MOBILE-RELEASE (Short screens) and HANDOVER now say this, and the
+   contradictory "640px" figure is gone.
+6. *(low, docs and guard)* No check read the item-6 rules.
+   - `test:shell` now reads them as computed styles, and
+     `tests/mobile-shell.test.mjs` guards the declarations.
+   - `CSS.supports('-webkit-touch-callout','none')` is false in both engines, so
+     MOBILE-RELEASE now lists that rule as declared, not observable in
+     emulation.
+
+**Each regression check fails with its fix reverted.** Each fix was reverted in
+the worktree in turn, then restored byte for byte. The runs used
+`SHELL_AUDIT=1 GAME_URL=http://127.0.0.1:4203 [BROWSER=webkit] node
+tools/shell-smoke.mjs` and `node --test tests/mobile-shell.test.mjs`.
+
+| Fix reverted | Shell smoke (Chromium / WebKit) | Static guard |
+| --- | --- | --- |
+| Hub anchor | 6 / 6 findings: the header check at 844×390 with 48/44/34/44 insets and at 852×393 with 0/59/21/59 insets, on all three tabs. At 852×393, taps at x 614–637 hit `cards-tab:codex` instead of `account-open` | Fails |
+| Grid | 4 / 3 findings: a 我的戰卡 group at [17,302] against the shell's [12,290]; on the codex, `innerWidth` 303 (Chromium) and `scrollWidth` 303 | Fails |
+| Market wrap | 4 / 4 findings: six overlapping tab pairs, and 回購 past the row and the shell at 302 and 320 | Fails |
+| Touch rules | 14 / 16 findings: `touch-action` and `overscroll-behavior` (and, in WebKit, card-art `user-select`) | Fails |
+
+In Chromium, card art also inherits `user-select:none` from `.card`, a rule on
+`main`. That is why the Chromium count has no art finding.
+
+**Desktop is unchanged.** Screenshots were taken with the fixes in place and
+again with the old rules injected, in each engine. The save was small (900
+coins, 40 dust). The screens were the lobby, collection, decks, codex, market
+and arena, at 1440×900 and 1280×720. All 12 pairs were identical in each
+engine. At 302×640 the injected rules did change the collection, codex and
+market, so the injection worked.
+
+**Commands** (at `5b31a4e`; the docs commit changes no served file):
+
+| Command | Result |
+| --- | --- |
+| `node --test tests/*.test.mjs` | exit 0, **538/538** (3 new static guards) |
+| `npm run audit:content` | exit 0, 150 entries (120 `local-playable`, 30 `preview`), no findings |
+| `npm run build` | exit 0, 83 public files, manifest `f8e13f08…8380`; `dist/` deleted afterwards |
+| `git diff --check` | clean |
+| `GAME_URL=http://127.0.0.1:4203 npm run test:shell` | exit 0: **18/18** checks in Chromium, then 18/18 in WebKit (13 before) |
+| `… npm run test:viewport` | exit 0 (570 s): 23/23 in each engine |
+| `… npm run test:expansion` | exit 0 (216 s): 16/16 in each engine (899 and 892 layout checks) |
+| `… npm run test:battle-table` | exit 0 (251 s): 40/40 in each engine |
+| `… npm run test:collection-display` | exit 0 (39 s): 10/10 in each engine |
+| `… npm run test:map-piece` | exit 0 (59 s): 8/8 in each engine |
+| `… npm run test:browser` | exit 0 (311 s): all 14 Chromium suites |
+| `… npm run test:wx01` | exit 0 (211 s): 54 PASS lines |
+
+The browser suites ran one after another from 01:05:56 to 01:33:33 UTC on
+2026-10-12.
+
+Not run: physical phones (every [M5.1](MOBILE-RELEASE.md#m51-phone-checklist)
+item is still open); `test:commands` and `test:inheritance` (the fixes touch
+no rule their pages use outside the collection, market and short-landscape
+header); `test:liaozhai` and `test:honglou`; the Python unit tests; preview,
+deploy dry runs, the SQL harness and CI. Not fixed: in short landscape the hub
+tabs still overprint the wallet figures (coins and dust). They did before N1
+too, and they no longer cover any control.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

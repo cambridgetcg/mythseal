@@ -83,6 +83,39 @@ in `experienceSettingsModal`.
   usable height (the viewport controller flags overflow there), and CI still
   has no browser job.
 
+### N1 review round 1 · 2026-10-12
+
+Six verified review findings, fixed on the same branch in source commits
+`a313f08`, `8cdd1d4` and `5b31a4e`, with a documentation commit after them.
+Still not merged, pushed or deployed. The record above stays as written; these
+notes correct it.
+- **Fixed:** in short landscape the cards hub tabs were positioned against the
+  viewport, so with side insets 萬象圖鑑 covered the left third of 旅程閣 on
+  all three collection tabs; they are now anchored to the shell and end at
+  least 172px before its right edge. At 302px, the compact collection grid's
+  285px track ran items past the shell, and the codex was 1px wider than the
+  screen: "302px phones no longer get a wider page" was not yet true on the
+  圖鑑 tab. Below 350px the market's seven tabs overlapped; they now wrap four
+  and three, with the market title kept for screen readers only.
+- **Guarded:** `test:shell` now visits all three collection tabs and checks shell
+  gutters, tab rows, the landscape header row (including 852×393 with
+  0/59/21/59px insets) and the computed touch, overscroll and card-art
+  selection rules. `tests/mobile-shell.test.mjs` has static guards for each fix.
+  Each new check failed with its fix reverted.
+- **Corrected docs:** the open vertical-fit item is wider than "under about
+  600px of usable height". The collection's card list also overflows on
+  741–790px-tall phones and on taller phones with top and bottom insets
+  (NAVIGATION, Limits; it predates N1). `-webkit-touch-callout: none` is
+  declared but neither emulated engine parses it, so it is not evidence from
+  emulation.
+- **Checked** ([VALIDATION](VALIDATION.md#n1-review-fixes--2026-10-12)): 538/538
+  Node tests, the content audit, an 83-file build, `test:shell` (18/18 per
+  engine), and `test:viewport`, `test:expansion`, `test:battle-table`,
+  `test:collection-display`, `test:map-piece`, `test:wx01` in both engines and
+  the 14 Chromium `test:browser` suites, all exit 0.
+- **Still open:** the hub tabs overprint the wallet figures in short landscape,
+  as they did before N1, plus everything listed under Open above.
+
 ## Q0 battle-table checkpoint · 2026-10-11 (local only)
 
 Roadmap packet Q0 is implemented on the branch **`q0/battle-table`**,

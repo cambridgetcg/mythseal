@@ -148,7 +148,16 @@ physical phones remain [M5.1 items](MOBILE-RELEASE.md#m51-phone-checklist).
   - `#app` is padded by the top, right and left insets: the header, scene, dock
     and battle sit inside the safe area while the background fills the screen.
     The dock and the battle screen keep `max(gap, bottom inset)` below them, in
-    short landscape too, and the landscape cards tabs sit below the top inset.
+    short landscape too.
+  - Short landscape lifts the cards hub tabs (我的戰卡, 三套牌組, 萬象圖鑑) into
+    the header row. They are positioned against the shell, not the viewport, so
+    `#app`'s inset padding moves them with the header, and they end at least
+    172px (settings 44 + gap 18 + the labelled 旅程閣 92 + gap 18) before the
+    shell's right edge (`right: max(25%, 172px)`). Positioned against the
+    viewport, 萬象圖鑑 had covered the left third of 旅程閣 whenever there were
+    side insets (fixed 2026-10-12). With no insets they now sit up to 18px
+    further left than before (844×390: x 410–615, was 427–633). They still
+    overprint the wallet figures; see Limits.
   - `.modal-backdrop` has a transparent border as wide as each inset, so
     dialogs and sheets stay out of the bands while the dim and blur still cover
     them. Dialog heights and the market's card sizes subtract from
@@ -159,6 +168,15 @@ physical phones remain [M5.1 items](MOBILE-RELEASE.md#m51-phone-checklist).
   The header is a size container: narrower than 330px (a narrow phone, or side
   insets) it keeps the 萬象契 mark as a 44px target with its label and hides the
   brand words, so wallet, account and settings still fit.
+  - Removing the minimum exposed two older rules (fixed 2026-10-12). The compact
+    collection and codex grid (`max-height: 740px`) had a 285px minimum track,
+    wider than a 302px phone's 278px shell, so cards ran to the screen edge and
+    the codex's rotated rarity dot made the page 303px wide; the track is now
+    `minmax(min(285px, 100%), 1fr)`. The market's seven 44px tabs need 326px,
+    so below a 350px screen they overlapped by about 4px and 回購 ran past the
+    shell; there they now wrap four and three, and the market's scene title
+    (the dock already names 市集) stays only for screen readers so the second
+    row costs no height.
 - **Focus zoom and touch.** On a coarse pointer, inputs, selects and textareas
   compute 16px (they were 10–14px; iOS Safari zooms on focus below 16px). A fine
   pointer keeps the desktop sizes. Buttons, links, form controls, labels and
@@ -178,21 +196,55 @@ physical phones remain [M5.1 items](MOBILE-RELEASE.md#m51-phone-checklist).
   落子音效音量; both had an empty accessible name.
 
 `tools/shell-smoke.mjs` (`GAME_URL=… npm run test:shell`; Chromium as a Pixel 7
-on installed Chrome, then WebKit as an iPhone 15) checks every rendered input,
-select and textarea for 16px on the coarse pointer, both slider names,
-horizontal fit at 302, 320, 360, 393, 412 and 734px wide on the lobby, settings
-dialog, collection, market, 旅程閣, arena and battle, every interactive control
-against 48/44/34/44px (top, right, bottom, left) overrides of the custom
-properties on the phone viewport and at 844×390, and the arena's controls
-against the dock at 844×390, 734×343 and 844×390 with those insets.
+on installed Chrome, then WebKit as an iPhone 15) checks:
+- every rendered input, select and textarea for 16px on the coarse pointer, and
+  both slider names;
+- at 302, 320, 360, 393, 412 and 734px wide, on the lobby, settings dialog,
+  collection (all three tabs), market, 旅程閣, arena and battle: no wider layout
+  viewport or sideways document scroll, no control or panel past the screen,
+  no control, module or list item past the shell's side gutters, and no module
+  or hub tab overlapping another or leaving its row;
+- every interactive control against 48/44/34/44px (top, right, bottom, left)
+  overrides of the custom properties, on those nine screens, on the phone
+  viewport and at 844×390;
+- the arena's controls against the dock at 844×390, 734×343 and 844×390 with
+  those insets;
+- the header row at 844×390, 734×343, 844×390 with those insets and 852×393
+  with 0/59/21/59 (an iPhone 15 in landscape), on the lobby and the three
+  collection tabs: no header control or hub tab overlaps another, and taps at
+  seven points across each control land on it;
+- the computed `touch-action`, `overscroll-behavior` and card-art `user-select`
+  rules, with text outside cards still selectable. `-webkit-touch-callout` is
+  only recorded: neither engine parses it, so it cannot be observed here.
+
 `tests/mobile-shell.test.mjs` holds the static guards that CI runs. With zero
 insets and a fine pointer the desktop renders as before; the 2026-10-11 record
 compares screenshots.
 
-Limits: below about 600px of usable height (320×568, or a phone with the
-48/34px test insets) some scenes have more content than their frame, and the
-viewport controller flags it (`data-viewport-overflow`; the smoke prints these
-as `NOTE` lines without failing). Vertical fit under 640px was not part of N1.
+Limits:
+- **Vertical fit** was not part of N1. The viewport controller flags a page
+  whose content is taller than its frame (`data-viewport-overflow`; the smoke
+  prints these as `NOTE` lines without failing), and the overflowing item can
+  run under the list's pager. Measured 2026-10-12 with every WX-01 printing in
+  the save; the round-1 review saw the same collection flags at `7712a7b`
+  (412×790 and 393×780), so that band predates N1:
+  - The collection's 我的戰卡 list flags when the viewport is taller than 740px
+    but the space left for the list is short. Its compact cards are keyed to the
+    viewport height (`max-height: 740px`), not to the height left after the
+    insets, so a full 361px card meets a shorter frame. With no insets that is
+    roughly 741–790px tall on 360–412px-wide phones (412×790, 393×780 and
+    360×780 flag; 412×800 and 393×800 do not); with top and bottom insets it
+    reaches taller phones (412×839 with 48/34px insets, 757px usable; an
+    iPhone 15 Home Screen app, 393×852 with 59/34px, 759px usable).
+  - Shorter screens flag other pages: 320×568 (the collection's cards and
+    decks, the arena), the 三套牌組 tab at 302×640, a phone with 48/44/34/44px
+    insets (the collection; on the iPhone 15 also the decks tab and the
+    arena) and short landscape with insets (844×390: the three collection
+    tabs, the market, 旅程閣 and the arena).
+- **Short-landscape collection header:** the cards hub tabs are still drawn over
+  the wallet figures (coins and dust). They were before N1 too: at 844×390 with
+  no insets the tabs spanned x 427–633 and the wallet 432–636 (with 50,000
+  coins). They no longer cover any control.
 
 ## Checks
 

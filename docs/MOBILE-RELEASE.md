@@ -127,22 +127,24 @@ The privacy and release work should reflect the product actually shipped. An off
 
 ## M5.1 phone checklist
 
-The N1 mobile-shell pass (local, 2026-10-11, branch `n1/mobile-shell`; see
-[NAVIGATION](NAVIGATION.md#mobile-shell)) checked the browser shell in
-emulation only: Playwright's Chromium as a Pixel 7 and WebKit as an iPhone 15,
-headless on a Mac ([VALIDATION](VALIDATION.md#n1-mobile-shell--2026-10-11)).
+The N1 mobile-shell pass (local, 2026-10-11, branch `n1/mobile-shell`, with
+review fixes on 2026-10-12; see [NAVIGATION](NAVIGATION.md#mobile-shell))
+checked the browser shell in emulation only: Playwright's Chromium as a Pixel 7
+and WebKit as an iPhone 15, headless on a Mac
+([VALIDATION](VALIDATION.md#n1-mobile-shell--2026-10-11),
+[review fixes](VALIDATION.md#n1-review-fixes--2026-10-12)).
 That is preliminary evidence. Every item below still needs a physical iPhone and
 Android phone before M5.1 can close; the M5.1 row above keeps its exit evidence.
 
 | Item | Checked in emulation (N1) | On a physical phone |
 | --- | --- | --- |
-| Notch / Dynamic Island, home indicator and landscape side insets under `viewport-fit=cover` | With the inset custom properties set to 48/44/34/44px (top, right, bottom, left), no interactive control enters a band on seven screens, on the phone viewport and at 844×390 | **Not verified.** Real `env()` values in Safari, a Home Screen web app and a Capacitor build; Android Chrome edge-to-edge; rotation while a dialog is open |
+| Notch / Dynamic Island, home indicator and landscape side insets under `viewport-fit=cover` | With the inset custom properties set to 48/44/34/44px (top, right, bottom, left), no interactive control enters a band on nine screens (the collection's three tabs counted separately), on the phone viewport and at 844×390 | **Not verified.** Real `env()` values in Safari, a Home Screen web app and a Capacitor build; Android Chrome edge-to-edge; rotation while a dialog is open |
 | iOS focus zoom | Every rendered input, select and textarea computes 16px on a coarse pointer | **Not verified.** Focus the collection search and filters, deck name, settings selects, daily training select and the 旅程閣 email/code fields in iOS Safari; the page should not zoom |
-| Pull-to-refresh and rubber band | `overscroll-behavior: none` on `html` and `body`, `contain` on dialogs (computed styles only) | **Not verified.** Android Chrome pull-to-refresh and iOS bounce during play, a battle and a scrolling dialog |
-| Double-tap zoom and long press | `touch-action: manipulation` on controls; card art has `-webkit-touch-callout: none` and `user-select: none` | **Not verified.** Rapid taps on the dock and battle controls; a long press on card art; selecting copyable text |
-| Narrow widths | No horizontal overflow at 302, 320, 360, 393, 412 and 734px wide | **Not verified** on a folded cover screen or a 320px phone |
-| Landscape dock | 來日 and the other arena controls clear the dock at 844×390, 734×343 and 844×390 with insets | **Not verified** on a rotated phone |
-| Short screens | Not checked: under about 600px of usable height the viewport controller flags overflow on some scenes | **Not verified** |
+| Pull-to-refresh and rubber band | `overscroll-behavior: none` on `html` and `body`, `contain` on dialogs, read from computed styles by `test:shell` in both engines (no gesture was tried) | **Not verified.** Android Chrome pull-to-refresh and iOS bounce during play, a battle and a scrolling dialog |
+| Double-tap zoom and long press | `test:shell` reads computed `touch-action: manipulation` on every rendered control and `user-select: none` on card art, with text outside cards still selectable. Card art also declares `-webkit-touch-callout: none`, but neither engine parses it, so that rule is **declared, not observable in emulation** | **Not verified.** Rapid taps on the dock and battle controls; a long press on card art; selecting copyable text |
+| Narrow widths | No horizontal overflow at 302, 320, 360, 393, 412 and 734px wide on nine screens; controls, modules and list items stay inside the shell's gutters; no module or hub tab overlaps another or leaves its row (the market's tabs wrap four and three below 350px) | **Not verified** on a folded cover screen or a 320px phone |
+| Landscape dock and header | 來日 and the other arena controls clear the dock at 844×390, 734×343 and 844×390 with insets. On the lobby and the three collection tabs, no header control or cards hub tab covers another at those sizes and at 852×393 with 0/59/21/59px insets | **Not verified** on a rotated phone |
+| Short screens | Not fixed by N1; `test:shell` prints the viewport controller's overflow flags. The collection's card list overflows its frame on 741–790px-tall phones and on taller ones with top/bottom insets (412×839 with 48/34px, 393×852 with 59/34px); the review found the same at `7712a7b`; shorter screens (320×568, 302×640, short landscape with insets) flag more pages ([NAVIGATION](NAVIGATION.md#mobile-shell), Limits) | **Not verified** |
 | Text scaling | Not checked; the 16px input rule is in pixels | **Not verified** |
 | A native shell overriding the inset properties (Capacitor SystemBars `insetsHandling: 'css'`) | Not tried; there is no native project | **Not verified** (M5.2) |
 
