@@ -195,7 +195,7 @@ export function coachCopy(step, { leader = 'player', commitLabel = '落子 · �
   if (index < 0) throw new RangeError('Unknown coach step.');
   const text = {
     card: leader === 'opponent' ? '對手已亮出本輪戰卡。點你的一張戰卡應戰，金框即已選。' : '你持先手，先出牌。點一張戰卡出戰，金框即已選。',
-    pills: '按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹分四回合用，用了不回。',
+    pills: '按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹要撐四回合，莫一次押盡。',
     commit: `定好便按「${commitLabel}」。雙方暗置的仙丹此刻一同揭曉。`,
     reveal: '比「實際攻擊」：高者勝，敗方受勝方傷害。留意對手還剩幾丹。',
   }[step];
