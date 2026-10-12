@@ -92,6 +92,9 @@ const started = options => { const h = harness(options); h.nav.start(); h.settle
 /** A reload on the current entry: a new page (new session id, 洞府) on the same tab history. */
 const reload = (h, options = {}) => started({ ...options, session: h.session });
 const depthOnEntry = h => readNavState(h.session.history.state)?.abs - h.nav.state.base;
+/** Open another page in the same tab (a typed URL or a bookmark): the entries ahead are dropped. */
+function visit(h) { const { session } = h; session.entries.splice(session.index + 1); session.entries.push({ doc: 'other', state: null }); session.index++; }
+const onOther = h => h.session.entries[h.session.index].doc === 'other';
 
 test('N1 decision table: a dismissible dialog closes; result and other blocking dialogs hold', () => {
   for (const kind of [null, 'quests', 'experience-settings', 'preparation', 'codex-detail', 'pack-receipt', 'inheritance-select']) {
@@ -451,4 +454,61 @@ test('N19 reloads with layers open keep history.length bounded; after each, the 
   assert.equal(h.session.log.left, 1);
   assert.equal(h.session.log.ignored, 0);
   assert.deepEqual(h.app.decisions, []);
+});
+
+test('N20 Back into the game from a page opened in the same tab, as a new load: one Forward still reaches that page past the earlier entries', () => {
+  for (const blank of [true, false]) {
+    const earlier = started({ blank });
+    earlier.user(v => { v.screen = 'world'; });
+    earlier.user(v => { v.modal = modal('experience-settings'); });
+    visit(earlier);
+    const length = earlier.session.history.length;
+    // Back from that page misses the bfcache: the game's entry loads again and walks back to the root.
+    earlier.session.index--;
+    const h = reload(earlier);
+    const root = blank ? 1 : 0;
+    assert.equal(h.session.index, root); assert.equal(h.nav.state.depth, 0);
+    h.forward();
+    assert.ok(onOther(h), `blank ${blank}: Forward reached the page opened after the game`);
+    assert.equal(h.session.log.left, 1);
+    assert.deepEqual(h.session.log.gos, [-2, 1, 1], 'the walk to the root, then one step past each earlier entry');
+    assert.deepEqual(h.app.decisions, [], 'no layer opened, nothing closed');
+    assert.equal(h.session.history.length, length, 'no push');
+    // Back from that page restores the game from the bfcache on the entry Forward left from;
+    // it walks back to the root, so the next Back leaves (or goes to the system).
+    h.session.index--;
+    h.nav.pageshow(true); h.settle();
+    assert.equal(h.session.index, root); assert.equal(h.nav.state.depth, 0);
+    h.back();
+    if (blank) assert.equal(h.session.log.left, 2); else assert.equal(h.session.log.system, 1);
+    assert.equal(h.session.log.ignored, 0);
+    assert.deepEqual(h.app.decisions, []);
+  }
+  // A user Back racing the step on (the browser drops ours) lands on 洞府 and stays there.
+  const earlier = started();
+  earlier.user(v => { v.screen = 'world'; });
+  earlier.user(v => { v.modal = modal('experience-settings'); });
+  visit(earlier); earlier.session.index--;
+  const r = reload(earlier);
+  r.land(1); r.microtasks();
+  assert.deepEqual(r.session.queued, [1], 'stepping on from the first earlier entry');
+  r.session.queued.length = 0;
+  r.land(-1); r.settle();
+  assert.equal(r.session.index, 1); assert.equal(r.nav.state.depth, 0);
+  assert.equal(r.session.log.left, 0, 'not counted as a Back from a layer, so 洞府 does not leave');
+  assert.deepEqual(r.app.decisions, []);
+  // Without a reload: the page restored from the bfcache with its two layers; Back closes them,
+  // then Forward steps past their entries to the page again, reopening nothing.
+  const k = started();
+  k.user(v => { v.screen = 'world'; });
+  k.user(v => { v.modal = modal('experience-settings'); });
+  visit(k); k.session.index--;
+  k.nav.pageshow(true); k.settle();
+  assert.equal(depthOnEntry(k), 2);
+  k.back(); k.back();
+  assert.equal(k.nav.state.depth, 0); assert.deepEqual(k.app.decisions, [BACK.DISMISS_MODAL, BACK.HOME]);
+  k.forward();
+  assert.ok(onOther(k), 'Forward reached the page past the closed layers\' entries');
+  assert.equal(k.app.view.screen, 'home'); assert.equal(k.app.view.modal, null);
+  assert.equal(k.session.log.pushes, 2);
 });

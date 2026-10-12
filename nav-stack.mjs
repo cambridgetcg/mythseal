@@ -105,17 +105,28 @@ const randomId = () => {
  *   game entry and makes it the root, so the earlier entries sit ahead (the next push
  *   drops them) and Back at the root is the browser's own, even when nothing precedes
  *   the game in the tab.
- * Each entry's state: { v, sid, abs, depth, layers }. `abs` counts this tab's game
- * entries from the first one, across reloads, so a reload knows how far to walk back.
+ * - Forward onto an entry above the layers held (a closed layer's, or an earlier
+ *   load's) opens nothing. When the tab has an entry past it, the page steps on with
+ *   history.go(+1), so Forward still reaches a page opened after the game in this tab;
+ *   otherwise it steps back to the layers held.
+ * Each entry's state: { v, sid, abs, depth, layers, first }. `abs` counts this tab's
+ * game entries from the first one, across reloads, so a reload knows how far to walk
+ * back. `first` is that first entry's index in the tab's history, read from
+ * history.length on the load that created it; it can only overstate the index (the
+ * browser may drop the oldest entries), so "an entry exists past this one" is never
+ * claimed wrongly.
  */
 export const NAV_STALL_MS = 3000;
 export function createNavHistory({ history, depth, back, signature = () => '', canPush = () => true, schedule = callback => queueMicrotask(callback), now = () => Date.now(), sessionId = randomId() }) {
   // abs: the entry we are on; base: this load's root entry; top: our highest entry still in
   // the list; pending: where our own traversal lands, from `origin`, started at `pendingAt`.
-  // rooting: the reload's walk back to the first game entry is in flight.
-  let started = false, abs = 0, base = 0, top = 0, pending = null, origin = 0, pendingAt = 0, written = null, queued = false, inputTurn = false, rooting = false;
+  // rooting: the reload's walk back to the first game entry is in flight. passing: our own
+  // step on past an entry that holds no layer is in flight. first: see above.
+  let started = false, abs = 0, base = 0, top = 0, pending = null, origin = 0, pendingAt = 0, written = null, queued = false, inputTurn = false, rooting = false, passing = false, first = 0;
   const sid = sessionId;
-  const entry = at => ({ [NAV_STATE_KEY]: { v: NAV_STATE_VERSION, sid, abs: at, depth: at - base, layers: signature() } });
+  const entry = at => ({ [NAV_STATE_KEY]: { v: NAV_STATE_VERSION, sid, abs: at, depth: at - base, layers: signature(), first } });
+  /** The tab has an entry past the game entry at `at` (a later game entry or another page). */
+  const past = at => { try { return first + at < history.length - 1; } catch { return false; } };
   const write = (method, at) => {
     // Browsers throttle and may throw on bursts of history writes; a refused push is a deficit, not an error.
     try { history[method](entry(at), ''); written = signature(); return true; } catch { return false; }
@@ -131,7 +142,7 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
     if (pending === null || now() - pendingAt < NAV_STALL_MS) return;
     const current = readNavState(history.state);
     // A reload's walk that never landed leaves the reloaded entry as the root (entries below it stay stale).
-    pending = null; rooting = false;
+    pending = null; rooting = false; passing = false;
     if (current && current.sid === sid) abs = current.abs;
   }
   function sync() {
@@ -184,10 +195,22 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
     }
     sync();
   }
+  /** Forward (the user's, or our own step on) landed on the entry at `at`. When that entry
+   * is above the layers held, it opens nothing; when the tab has an entry past it, step on,
+   * so a page opened after the game stays reachable. Returns whether it stepped on. */
+  function passOn(at) {
+    const onward = pending === null ? at > abs : at === pending ? passing : at > origin;
+    passing = false;
+    if (!onward || at <= base + depth() || !past(at)) return false;
+    abs = at; passing = true;
+    go(1);
+    return true;
+  }
   function stale(state) {
     pending = null;
-    // An entry from an earlier load of this tab, ahead of ours: step back onto ours.
-    if (state && state.abs > top) { const target = abs; abs = state.abs; return go(target - abs); }
+    // An entry from an earlier load of this tab, ahead of ours, that Forward did not step
+    // past: step back onto the entry that holds our top layer.
+    if (state && state.abs > top) { const target = Math.min(base + depth(), top); abs = state.abs; return go(target - abs); }
     // Below this load's root (only when a reload's walk never landed): it holds no layer.
     // At the root, keep leaving; otherwise this Back closes one layer and our entries ahead
     // are reused.
@@ -196,10 +219,17 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
     backSteps(1);
   }
   return {
-    get state() { return { started, sid, abs, base, top, pending, inputTurn, rooting, depth: abs - base }; },
+    get state() { return { started, sid, abs, base, top, pending, inputTurn, rooting, passing, first, depth: abs - base }; },
     start() {
       const current = readNavState(history.state);
       abs = base = top = current ? current.abs : 0;
+      // This entry's index is at most history.length - 1 (exactly that on a new load,
+      // which opens on the tab's last entry), so the first game entry's is at most that
+      // minus abs. A stored `first`, from the load that created the first entry, is
+      // usually exact. Both can only overstate it.
+      let bound = 0;
+      try { bound = history.length - 1 - abs; } catch {}
+      first = Math.max(0, Number.isSafeInteger(current?.first) && current.first >= 0 ? Math.min(current.first, bound) : bound);
       try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch {}
       started = true;
       write('replaceState', abs);
@@ -216,25 +246,33 @@ export function createNavHistory({ history, depth, back, signature = () => '', c
       inputTurn = false;
       const current = readNavState(state);
       if (rooting) return rooted(current);
+      if (current && passOn(current.abs)) return;
       if (!current || current.sid !== sid) return stale(current);
       // Our own walk landing is not a Back. Landing elsewhere means the user's traversal
-      // superseded ours, counted from where we stood when ours began.
+      // superseded ours, counted from where we stood when ours began, or from the layers
+      // held if that entry was above them (a step on, or a walk back from a closed layer).
       let from = abs;
-      if (pending !== null) { from = current.abs === pending ? pending : origin; pending = null; }
+      if (pending !== null) { from = current.abs === pending ? pending : Math.min(origin, base + depth()); pending = null; }
       abs = current.abs;
       const steps = from - abs;
       if (steps > 0) return backSteps(steps);
-      // Our own walk landed, or Forward reached an entry whose layer is closed: reconcile.
+      // Our own walk landed, or Forward reached an entry whose layer is closed and nothing
+      // is past it: reconcile.
       sync();
     },
-    /** bfcache restore: re-read where we are; settle nothing and push nothing. */
+    /** bfcache restore: re-read where we are; settle nothing and push nothing. A page that
+     * left from an entry above its layers (Forward stepped past it) walks back to them. */
     pageshow(persisted) {
       if (!started || !persisted) return;
-      inputTurn = false; pending = null; rooting = false;
+      inputTurn = false; pending = null; rooting = false; passing = false;
       const current = readNavState(history.state);
       if (current && current.sid === sid) abs = current.abs;
       else abs = base;
-      top = abs;
+      // The entries above the restored one may be gone, so top falls to it. When Forward
+      // stepped past this entry to leave, it holds no layer: top stays below it, and the
+      // reconciliation walks back to the layers held.
+      top = Math.min(abs, top);
+      queue();
     },
     /**
      * One Back that no browser Back started (a future native back button). It applies one
