@@ -21,4 +21,5 @@
 /* Mobile shell (N1): touch controls skip double-tap zoom, card art resists the long-press callout, and text entry never triggers iOS focus zoom. Text players may copy stays selectable. */
 button,a[href],input,select,textarea,label,summary,[role="button"],[role="tab"]{touch-action:manipulation}
 .card-art,.card-shade,.inheritance-material-art{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-@media(pointer:coarse){input,select,textarea{font-size:16px!important}}
+/* 16px is a floor, not a clamp: a field drawn larger keeps its size (旅程閣's one-time code field is 20px, account.css). */
+@media(pointer:coarse){input,select,textarea{font-size:16px!important}.account-auth input[name=token]{font-size:20px!important}}
