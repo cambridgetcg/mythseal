@@ -152,6 +152,63 @@ deployed. The notes above stay as written; these correct them.
   engine), and `test:expansion`, `test:wx01` and `test:viewport` in both
   engines plus the 14 Chromium `test:browser` suites, all exit 0.
 
+### N1 review round 3 · 2026-10-12
+
+Six verified findings (five low, one rated medium by one reviewer and low by
+the other), handled on the same branch in source commits `8c10456` (CSS) and
+`0c3c6dd` (`test:shell` and static guards), with a documentation commit after
+them. Still not merged, pushed or deployed. The notes above stay as written;
+these correct them.
+- **Fixed (N1 regressions):**
+  - Safari's toolbar-visible landscape on the 812pt-wide notch iPhones
+    (X/XS/11 Pro with 44px sides, 12 mini/13 mini with 50px) is 812×325 under
+    `viewport-fit=cover`, 18px shorter than the iPhone 15 case round 2 fixed.
+    The lifted dock covered 山行's button, the 圖鑑 faction filters and 秘券's
+    button by 2–4px, and 秘匣's picker and odds link by 10–18px. In short
+    landscape 秘匣's picker and progress panel now start at the top of the
+    module, its odds link sits beside the odds, and the 山行 card, the codex
+    filter module and 秘券's card give up a few pixels. Every control outside
+    the flagged lists clears the dock there by at least 3px.
+  - The coarse-pointer `font-size:16px!important` clamped every field, so
+    旅程閣's one-time code field (20px) shrank to 16px on phones. It keeps 20px
+    now; 16px is a floor.
+- **Guarded:** `test:shell` adds both 812×325 sizes to the dock and header
+  checks (26 checks per engine, was 22), draws the code field with a mocked
+  code request and checks every field against its size without the
+  coarse-pointer rules, and at 667×375, 640×360 and 568×320 opens every module
+  of 遊歷, 對弈 and 市集 directly and prints the ones that cover their tab row.
+  The static tests guard both fixes. Each new check failed with its fix
+  reverted.
+- **Corrected docs:**
+  - The round-2 "Guarded" bullet above says `test:shell` "fails on any control
+    under the dock". It does not fail on an item of a list the viewport
+    controller flags as taller than its frame; it prints those as NOTE lines.
+    The "Also recorded" bullet missed the cases with 48/44/34/44px insets at
+    844×390 (the 我的戰卡 group 17px under, the 三套牌組 draft cards 6px, the
+    圖鑑 cards 5px); at 812×325 they are 21, 10 and 9px.
+  - The hub-tab shift is a quarter of the two side gutters, (viewport − shell)
+    ÷ 4, with no ceiling: "up to 42px" above was wrong for desktop windows
+    500px tall or less and wider than 1312px, where the 1240px shell cap makes
+    it grow (50px at 1440×500, 170px at 1920×480). There N1 also removed an
+    older overlap: at 1920×480 the old tabs covered 旅程閣.
+  - The below-701px landscape record (round 2, "Recorded as open") named only
+    the arena's 問道 and the market's 整盒, because it tapped through each
+    scene's tabs in turn. Opening each module directly shows more, the same at
+    `7712a7b`: 西行印 covers all seven market tabs at 667×375, 640×360,
+    700×390, 667×331 and 568×320; 來日 covers all four arena tabs at those
+    sizes, 568×320 included (where the record said the tabs were reachable);
+    切磋 covers the 問道 tab; 遊歷's chapter module covers the world tabs. The
+    selected module survives a trip through the dock, so a player who opens
+    西行印 or 來日 cannot reliably tap back out until a reload. With 西行秘匣
+    selected, 開啟秘匣 is hidden entirely, and more buttons sit under the dock
+    than listed. NAVIGATION (Limits) has the full list. Still open; no code
+    change, since vertical fit below 701px is outside N1.
+- **Checked** ([VALIDATION](VALIDATION.md#n1-review-round-3--2026-10-12)): 541/541
+  Node tests, the content audit, an 83-file build, the Python unit tests,
+  `test:shell` (26/26 per engine), and `test:viewport`, `test:expansion`,
+  `test:wx01` and `test:collection-display` in both engines plus the 14
+  Chromium `test:browser` suites, all exit 0.
+
 ## Q0 battle-table checkpoint · 2026-10-11 (local only)
 
 Roadmap packet Q0 is implemented on the branch **`q0/battle-table`**,

@@ -372,6 +372,168 @@ screenshot comparison (the new rules are inside
 `@media(max-height:500px) and (min-width:701px)`, which 1440×900 and 1280×720
 do not match); preview, deploy dry runs, the SQL harness and CI.
 
+### N1 review round 3 · 2026-10-12
+
+Review round 3 sent six independently verified findings: two N1 regressions
+and four documentation errors. The fixes are in source commits **`8c10456`**
+(CSS) and **`0c3c6dd`** (`test:shell` and the static guards). The
+documentation commit after them changes no served file. The records above stay
+as written; these notes correct them. Not merged, pushed or deployed. No hosted
+check, service call or third-party request.
+
+Environment: macOS 26.6.2, Node 26.0.0, Python 3.14.6, Playwright 1.63.0,
+WebKit from Playwright's cache (`webkit-2359`), installed Chrome
+154.0.8037.98. `python3 tools/serve.py --port 4203` was started from this
+worktree at the start of the round; no allowlist changed. Probes used the shell
+smoke's fixture with Playwright emulating a Pixel 7 in Chromium and an iPhone 15
+in WebKit, and set the `--safe-area-inset-*` properties the way `test:shell`
+does. At the start the worktree was clean at `8dbbbe9` (`git status` empty).
+
+**Findings:**
+1. *(low, N1 regression)* Safari's toolbar-visible landscape on the 812pt-wide
+   notch iPhones. The reviewers took 812×325 from Playwright's landscape
+   descriptors (iPhone 11 Pro 724×325, 12 mini 712×325, 13 mini 712×327) plus
+   the cover insets: 0/44/21/44px (X/XS/11 Pro) or 0/50/21/50px
+   (12 mini/13 mini). That height is not a device measurement. The dock sat at
+   y 254–304. Measured at `8dbbbe9`:
+
+   | Control | Under the dock, 0/44 sides (Chromium / WebKit) | 0/50 sides (Chromium / WebKit) |
+   | --- | --- | --- |
+   | 山行 `activity-open` | 4 / 4px | 4 / 4px |
+   | 圖鑑 faction filters (5) | 3 / 3px | 3 / 3px |
+   | 秘券 `ticket-open` | 2 / 2px | 2 / 2px |
+   | 秘匣 `pack-set:wx01` | 10px / clear | 10 / 10px |
+   | 秘匣 `wx01-odds` | 17px / clear | 17 / 18px |
+
+   At 812×327 with 50px sides each was 2px smaller (秘券 clear). (Playwright
+   1.63's iPhone 13 landscape descriptor is 750×342, not the 750×340 round 2
+   gives, so the 844×340 check is 2px stricter than that phone.) On the
+   market the module's grid row (180px, set by the WX-01 offer) was taller
+   than the module (148px): the centred picker ran to y 264 and the progress
+   panel's odds link, stacked under the odds, to y 271.
+   - **Fix** (`expansion.css`, inside `@media(max-height:500px) and
+     (min-width:701px)`): 秘匣's picker is top-aligned, its progress panel
+     starts at the top, and the odds link sits beside the odds (a wrapping flex
+     row without the 28px left indent). 秘匣's heading margin, 秘券's card
+     padding and paragraph margins, the 山行 card's vertical padding and button
+     padding, and the codex filter module's gaps (10px to 6px) are trimmed.
+     Wider and taller short-landscape screens get the same rules; `test:shell`
+     still passes at its other five landscape sizes.
+   - **After:** at 812×325 with either inset, in both engines, every control
+     outside the flagged lists clears the dock by at least 3px: 秘匣's picker
+     8px, 開啟秘匣 and the odds link 7px, 山行 and the filters 5px, 秘券 4px,
+     and the pagers 3px as at every size. 秘匣's footnote (每匣 3 張…) is text
+     and still runs under the dock there. Items of lists the viewport
+     controller flags still reach under the dock, as recorded in NAVIGATION:
+     the 我的戰卡 group 21px, the 三套牌組 draft cards 10px and the 圖鑑 cards
+     9px.
+2. *(low, N1 regression)* `@media(pointer:coarse){input,select,textarea{font-size:16px!important}}`
+   clamped every field to 16px. 旅程閣's one-time code field
+   (`.account-auth input[name=token]{font-size:20px}`, unchanged since
+   `339e4f5`) computed 16px on a Pixel 7 and an iPhone 15, and 20px with the
+   rule removed or on a fine pointer. NAVIGATION said every field had been
+   10–14px.
+   - **Fix** (`styles.css`): the coarse-pointer block also sets that field to
+     `20px!important`. `test:shell` now computes 20px for it in both engines.
+   - No stylesheet sizes any other input, select or textarea above 16px (the
+     new static guard lists them), and `test:shell` found no field smaller
+     than its size without the coarse-pointer rules.
+3. *(low, docs)* The hub-tab shift with no insets is (viewport − shell) ÷ 4,
+   with no ceiling. Chromium, desktop context (DPR 1), 藏卡 open, right edge of
+   the tabs at this branch against `0.75 ×` the width at `7712a7b`: 844×390 615
+   (633), 1280×500 942 (960), 1312×480 966 (984), 1440×500 1030 (1080),
+   1600×450 1110 (1200), 1920×480 1270 (1440), 2560×480 1590 (1920). The
+   `max-height:500px` rule has no width gate, and above a 1312px window the
+   shell stops at 1240px, so the shift grows: 50, 90, 170 and 330px.
+   NAVIGATION's "at most 18px", and "up to 42px" (HANDOVER) and "reaches
+   42px" (round 2 above), were wrong. At 1920×480 the old tabs (1231–1440)
+   covered 旅程閣 (1339–1432), and at 2560×480 too (1711–1920 against
+   1659–1752); anchored to the shell they end at 1270 and 1590. NAVIGATION's
+   "the desktop renders as before" holds only for windows taller than 500px.
+4. *(low, docs)* `test:shell`'s dock check does not fail on an item of a list
+   the viewport controller flags as overflowing; it prints a NOTE. The M5.1
+   "Landscape dock and header" row and HANDOVER's round-2 "Guarded" bullet said
+   no control sits under the dock, and the M5.1 "Short screens" row and
+   HANDOVER's "Also recorded" left out the cases at 844×390 with 48/44/34/44px
+   insets (17, 6 and 5px), which NAVIGATION and round 2 above did record.
+5. *(low to medium, docs; predates N1)* Two findings on the below-701px
+   landscape record (round 2's finding 3). It tapped through each scene's tabs
+   in turn, which stops at the first module that covers the row. Re-measured
+   at this round's working tree, both engines, no insets, at 667×375,
+   640×360, 700×390, 667×331 and 568×320, opening every module of 遊歷, 對弈,
+   市集, 藏卡 and 洞府 with a dispatched click. This round's 812×325 rules
+   apply only from 701px wide and its other rule only to the code field, so
+   these sizes render as at `8dbbbe9`; the reviewers found `7712a7b`
+   identical in both engines, and that base was not re-run here.
+   - Centre taps missed every tab with these modules open: 西行印 (all seven
+     market tabs, every size; 0 of 45 sampled points exposed, 9 at 700×390),
+     來日 (all four arena tabs, every size; 18–21 of 45 points still exposed
+     at 667×331 and 568×320, at most 5 elsewhere), 問道 (all four except at
+     568×320), 整盒 (all seven except at 640×360; 9–31 of 45 exposed) and
+     遊歷's chapter module (all five world tabs except at 667×331). 切磋
+     covered the 問道 tab at 640×360, 700×390, 667×331 and 568×320. So
+     "At 568×320 the tabs are reachable" held only while 問道 was open, and the
+     record missed 西行印, 來日, 切磋 and the chapter module.
+   - After 西行印 or 來日 was opened, a trip to 洞府 and back left it selected
+     at every size in both engines; a reload returned 秘匣 and 問道.
+   - With 西行秘匣 selected (what 秘匣 opens with, `selectedPack='wx01'`),
+     開啟秘匣 had no visible box at any size: `.scene-wx01-offer` is overflow
+     hidden and about 20px tall. With 萬象秘匣 or 群英秘匣 selected their button
+     showed (26–44px of it) and a centre tap reached it (Chromium).
+   - Controls under the dock, beyond round 2's list: 秘券's `ticket-open`,
+     西行印's `world`, 商旅's buy buttons, 寄售's items and pager, 山行 at
+     667×375 and 640×360, `ranked` wholly hidden at 568×320, and 遊歷's
+     `travel` and `map-inspect`. NAVIGATION (Limits) now lists each with its
+     sizes, and the M5.1 row, HANDOVER and ROADMAP summarise it.
+   - No code change: vertical fit below 701px is outside N1.
+
+**Each new check fails with its fix reverted.** Each fix was reverted in the
+worktree in turn, then restored byte for byte (`cmp`), with
+`SHELL_AUDIT=1 GAME_URL=http://127.0.0.1:4203 [BROWSER=webkit] node
+tools/shell-smoke.mjs` and `node --test tests/mobile-shell.test.mjs`:
+
+| Fix reverted | Shell smoke (Chromium / WebKit) | Static guard |
+| --- | --- | --- |
+| 812×325 rules (`expansion.css` at `8dbbbe9`) | 8 / 7 findings, all at the two 812×325 sizes: 山行, the codex filters, 秘券 and 秘匣 (WebKit with 44px sides: no 秘匣 finding), with the overlaps in the table above | Fails |
+| Code-field override (`styles.css`) | 1 / 1 finding: `account-token` 16px against 20px without the coarse-pointer rules | Fails |
+
+Findings 3–5 change no behaviour, so they have no regression test;
+`test:shell` now prints the below-701px module coverage at 667×375, 640×360
+and 568×320 as `NOTE` lines.
+
+**Commands** (at `0c3c6dd`; the docs commit changes no served file):
+
+| Command | Result |
+| --- | --- |
+| `node --test tests/*.test.mjs` | exit 0, **541/541** (2 new static guards) |
+| `npm run audit:content` | exit 0, 150 entries (120 `local-playable`, 30 `preview`), no findings |
+| `npm run build` | exit 0, 83 public files, manifest `f4d3349c…d334`; `dist/` deleted afterwards |
+| `git diff --check` | clean |
+| `python3 -m unittest discover -s tests -p '*_test.py'` | 9 tests OK |
+| `GAME_URL=http://127.0.0.1:4203 npm run test:shell` | exit 0 (99 s): **26/26** checks in Chromium, then 26/26 in WebKit (22 before: the dock and header checks gained the two 812×325 sizes) |
+| `… npm run test:viewport` | exit 0 (554 s): 23/23 in each engine |
+| `… npm run test:expansion` | exit 0 (213 s): 16/16 in each engine (899 and 892 layout checks) |
+| `… npm run test:wx01` | exit 0 (204 s): 54 PASS lines |
+| `… npm run test:collection-display` | exit 0 (36 s): 10/10 in each engine |
+| `… npm run test:browser` | exit 0 (298 s): all 14 Chromium suites, `account-smoke` among them |
+
+`test:viewport`, `test:expansion`, `test:wx01`, `test:collection-display` and
+`test:browser` ran one after another from 03:57:38 to 04:19:23 UTC on
+2026-10-12, against the served files of `8c10456` (the commits were made while
+they ran; no served file changed after they started). `test:shell` ran at
+`0c3c6dd` from 04:19:43 to 04:21:22 UTC.
+
+Not run: physical phones (every [M5.1](MOBILE-RELEASE.md#m51-phone-checklist)
+item is still open); `test:battle-table`, `test:map-piece`, `test:commands` and
+`test:inheritance` (the CSS change is limited to the market, the 山行 card and
+the codex filters in short landscape, and to the code field on coarse
+pointers, none of which they measure); `test:liaozhai` and `test:honglou`; a
+desktop screenshot comparison (the new rules sit inside
+`@media(max-height:500px) and (min-width:701px)` and `@media(pointer:coarse)`,
+which 1440×900 and 1280×720 with a mouse do not match); a base run at
+`7712a7b` for the below-701px measurements (the reviewers' figures are cited);
+preview, deploy dry runs, the SQL harness and CI.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings

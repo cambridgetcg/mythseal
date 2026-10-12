@@ -535,8 +535,14 @@ computed touch rules. Review round 2 (2026-10-12): in Safari's toolbar-visible
 landscape (852×343, 844×340) the dock's lift above the home indicator had put
 the market's buy buttons under the dock; the market's title now shares its tab
 row, and `test:shell` checks every dock destination and module against the dock
-at those sizes. Landscape phones below 701px wide (iPhone SE/8 at 667×375) keep
-a fault that predates N1: the arena's tabs cannot be tapped (NAVIGATION, Limits).
+at those sizes. Review round 3 (2026-10-12): the 812pt-wide notch iPhones in
+the same Safari landscape (812×325) still had a few controls 2–18px under the
+dock, and the coarse-pointer 16px rule had shrunk 旅程閣's 20px code field;
+both are fixed and checked by `test:shell`. Landscape phones below 701px wide
+(iPhone SE/8 at 667×375, Android at 640×360, the first SE at 568×320) keep a
+fault that predates N1: opened, the market's 西行印 and 整盒, the arena's 問道,
+切磋 and 來日 and the world's chapter module cover their own tab row, and
+西行秘匣's buy button is hidden (NAVIGATION, Limits).
 
 ### Retired collectible launch phases
 
