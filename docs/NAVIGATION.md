@@ -52,7 +52,7 @@ dismissible flag). One decision table answers every Back:
 | --- | --- | --- |
 | Dismissible dialog: quests, settings, rules, preparation, card page, codex detail, pack receipt, inheritance, keep/abandon menu, any dialog with × | Closes it, exactly as ×, Escape or the backdrop. A result card or settings opened over a result or preparation returns to it. | `dismissModal()` |
 | Round or match result, or any other non-dismissible dialog | Nothing: it stays open and nothing settles. The guard entry is re-armed. | — |
-| A battle whose final commit is still being saved | Nothing until the result opens. | — |
+| A battle whose final commit is still being saved | Nothing until the result opens. Only the save itself holds: if it fails, the battle is a finished battle (below). | — |
 | Collection group (one character's copies in 藏卡) | 藏卡 | `closeBagGroup()` |
 | Deck editor opened from preparation | That preparation | `returnToPreparation()` |
 | 旅程閣 | The screen it was opened from | `navigate(accountReturn)` |
@@ -67,7 +67,8 @@ stay where they were: they also carry focus and scroll restoration, and the
 stack reads them rather than duplicating them.
 
 **History entries.** Entries are state-only (`history.state["mythseal.nav"]`
-holds a version, a per-load session id, a position and the layer signature).
+holds a version, a per-load session id, a position, the layer signature and
+the tab-history index of the tab's first game entry).
 The URL never changes; there is no hash routing and no deep link. Each layer
 above the root has one entry:
 
@@ -98,11 +99,13 @@ above the root has one entry:
   lands within milliseconds), the next reconciliation reads the entry the page
   is really on, so a walk the browser dropped cannot block later pushes.
 - **Reload and bfcache.** A reload starts at 洞府 with a new session id, so
-  entries from the earlier load are stale. They are never acted on as layers and
+  entries from the earlier load are stale. So does a game entry that Back or
+  Forward returns to when the bfcache misses (for example Back from a page
+  opened in the same tab). Stale entries are never acted on as layers and
   never settle anything. On start, the reloaded page uses the position stored in
   its entry to walk back over them (`history.go(-n)`) to the tab's first game
   entry, which becomes the root; that popstate is the game's own. The earlier
-  entries then sit ahead: Forward into one steps back, and the next push drops
+  entries then sit ahead (see **Forward** below), and the next push drops
   them, so reloads do not grow `history.length`. Back at the root is the
   browser's own and leaves in one step. When the game is the tab's first entry
   (a new tab, a home-screen shortcut, an Android Custom Tab), nothing is left
@@ -111,7 +114,21 @@ above the root has one entry:
   never lands within 3 s, the reloaded entry stays the root, and a Back from it
   jumps past the earlier entries, which the browser ignores when nothing
   precedes the game. A bfcache restore (`pageshow` with `persisted`) re-reads
-  the position and pushes nothing until the next input.
+  the position and pushes nothing until the next input. If the page left from
+  an entry that Forward stepped past, it walks back to the layers held, so the
+  next Back at 洞府 still leaves in one step.
+- **Forward** never reopens a closed layer. Forward onto an entry above the
+  layers held (a closed layer's, or an earlier load's) steps on with
+  `history.go(+1)` while the tab has an entry past it. A page opened in the same
+  tab after the game (a typed URL, a bookmark) is therefore still one Forward
+  away, including after the game came back as a new load and walked back to its
+  root. With nothing past it, the page steps back to the layers held. Whether an
+  entry exists past it comes from `history.length` and the stored index of the
+  tab's first game entry, which is read on a new load (the tab's last entry).
+  That index can only be too high (browsers drop the oldest entries past a cap),
+  so the step on is never out of range; when it is too high, Forward may step
+  back as if nothing were past. A Back that races a step on counts from the layers
+  held, so it does not leave 洞府.
 - `history.scrollRestoration` is `manual`; the app already restores scroll and
   focus when a layer closes.
 
@@ -123,7 +140,7 @@ recognised as the game's own. It returns `'exit'` at the root. A future
 Capacitor back-button listener calls it
 ([MOBILE-RELEASE](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
 
-**Checks.** `node --test tests/nav-stack.test.mjs` (N1–N19) covers every table
+**Checks.** `node --test tests/nav-stack.test.mjs` (N1–N20) covers every table
 row against a simulated session history, including one where the game is the
 tab's first entry. `GAME_URL=… npm run test:back` runs
 `tools/back-smoke.mjs` in Chrome with the Pixel 7 descriptor, then WebKit with

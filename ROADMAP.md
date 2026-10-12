@@ -519,8 +519,8 @@ emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
 
 **Back model (D1) · status 2026-10-12:** implemented on branch `d1/back-model`
-(from `main` `7712a7b`); not merged or deployed, and in the proposed v0.6.0
-scope. Browser and system Back now close one layer at a time (dialog, sub-view,
+(from `main` `7712a7b`), with the fixes from two review rounds; not merged or
+deployed, and in the proposed v0.6.0 scope. Browser and system Back now close one layer at a time (dialog, sub-view,
 destination → 洞府), hold on a battle result, open keep/abandon in a battle in
 progress and leave only from 洞府, with state-only history entries and no URL
 change. The [decision table](docs/NAVIGATION.md#back-model--2026-10-12) is in

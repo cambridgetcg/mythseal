@@ -289,6 +289,24 @@ input, popstate and pageshow listeners after the `pagehide` listener, and
   `requestBack()` makes no traversal: when a layer closes, it walks back over
   that layer's entry with `history.go(-1)`. Checks:
   [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12), "Review fixes".
+- **Review round 2 fixes (2026-10-12):** source commits **`64918c1`**
+  (`nav-stack.mjs` and its tests), **`0b60592`** (`app.mjs`) and **`73e84ed`**
+  (`tools/back-smoke.mjs`). When Back returned to the game from a page opened
+  in the same tab and the bfcache missed, the startup walk left the earlier
+  load's entries between 洞府 and that page, and Forward never reached it. Now
+  Forward steps past entries that hold no layer (an earlier load's, or a closed
+  layer's) while the tab has an entry past them; each history entry also stores
+  the tab-history index of the tab's first game entry (`first`). After a
+  finished match's settlement failed on resume, Back held forever on what the
+  player sees as 洞府, because `navView` read "settling" from `busy`. It now
+  reads a `settling` flag that `recordFinishedMatch()` sets only around its
+  save. New `app.mjs` touch points for the D2 merge: `let settling` above
+  `navView()`, the `battle` field in `navView()`, and a `try`/`finally` around
+  the `transact` call in `recordFinishedMatch()` (that line is only indented).
+  `resumeBattle()`'s catch still leaves `screen` at `'battle'` under the lobby,
+  which is older than D1, so there one Back changes nothing visible before the
+  next leaves. Checks: [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12),
+  "Review round 2 fixes".
 
 ## Experience planning checkpoint · 2026-09-29
 

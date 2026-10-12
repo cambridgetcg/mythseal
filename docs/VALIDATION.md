@@ -155,6 +155,80 @@ WebView's `canGoBack`; a startup walk that a real browser drops (only N12
 covers that fallback); `test:map-piece`; the literary preview smokes; deploy
 dry runs, the SQL harness and CI.
 
+**Review round 2 fixes · 2026-10-12.** Review round 2 reported two low
+findings, and independent reproductions confirmed both. They are fixed in
+source commits **`64918c1`** (`nav-stack.mjs`, `tests/nav-stack.test.mjs`),
+**`0b60592`** (`app.mjs`) and **`73e84ed`** (`tools/back-smoke.mjs`). The
+documentation commit after them changes no served, test or tool file. The
+environment is the same as above (versions re-read). For this round,
+`python3 tools/serve.py --port 4201` was started from the worktree; no
+allowlist file changed.
+
+- **Low: after a game reload, Forward could not reach a later page.**
+  `cfaa315`'s startup walk also runs when Back returns to a game entry from a
+  page opened in the same tab and the bfcache misses (the loopback server's
+  `no-store`, Playwright's default, eviction). The earlier load's entries then
+  sat between 洞府 and that page, and Forward into them stepped back to the
+  root, so the page was never reached again. Reviewers saw this in both
+  engines; at `1a1ff8f` the first Forward reached it. Each entry now also
+  stores `first`, the tab-history index of the tab's first game entry. A
+  Forward onto an entry above the layers held steps on with `history.go(+1)`
+  while `history.length` shows an entry past it, and steps back as before when
+  none does. This also lets Forward pass a closed layer's own entries without a
+  reload. A bfcache restore on the entry Forward left from walks back to the
+  layers held, and a Back racing a step on counts from the layers held.
+  Regression tests: N20, and the back-smoke check "Back into the game from a
+  page opened in the same tab", which mirrors the reviewers' steps (遊歷,
+  settings, `/playtest.html`, Back, then Forward). With `nav-stack.mjs` at
+  `d1120b5`, N20 fails ("Forward reached the page opened after the game":
+  false). `tools/back-smoke.mjs` then passed 13 checks in each engine and
+  failed at the new check (`page.waitForURL` timeout for `/playtest.html`). N20's
+  racing-Back assertion also fails when only the new count from the layers held
+  is reverted.
+- **Low: Back held forever after a failed settlement on resume.** `navView`
+  read the battle as "settling" from `busy`. `resumeBattle()` leaves `busy` set
+  for a finished snapshot when `recordFinishedMatch()` throws (a full quota).
+  The first Back closed the pending dialog, and every later Back held on what
+  the player sees as 洞府. `recordFinishedMatch()` now sets `settling` around its
+  save (`try`/`finally`), and `navView` reads that flag. Regression test: the
+  back-smoke check "a settlement that fails on resume". It makes the profile
+  save throw a `QuotaExceededError` and clicks 繼續對局. Back then closes the
+  dialog, then the battle layer (entry depth 0), then leaves, with no profile
+  write. With `app.mjs` at `d1120b5` and everything else at `73e84ed`, it fails
+  in both engines after 14 checks (`home: history entry depth 0–0 (now 1)`).
+  `resumeBattle()`'s catch still leaves `screen` at `'battle'` under the lobby.
+  That predates D1, so on this path one Back changes nothing visible before the
+  next one leaves.
+
+Checks at `73e84ed`, all browser suites with `GAME_URL=http://127.0.0.1:4201`:
+
+- `node --test tests/*.test.mjs`: exit 0, **551/551** (N20 added).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 84 public files, manifest `cff14488…0fae`.
+- `git diff --check 7712a7b HEAD`: exit 0.
+- `npm run test:back`: exit 0, **15/15 checks in each engine** (the 13 above
+  plus two). In both engines, the game came back from `/playtest.html` as a new
+  load (navigation type `back_forward`, `pageshow.persisted` false) and walked
+  back to abs 0. One `page.goForward()` then reached `/playtest.html` with no
+  entry added, and after Back again one Back left 洞府.
+- `npm run test:commands`: exit 0, 13/13 groups in each engine.
+- `npm run test:battle-table`: exit 0, 40/40 in each engine.
+- `npm run test:viewport`: exit 0, 23/23 in each engine.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines, and
+  every printed error list empty.
+- `node tools/expansion-smoke.mjs` (Chrome only): exit 0, 16 checks and 899
+  layout checks.
+
+Not run or not shown: a real bfcache restore after Forward stepped past
+entries (only N20 covers it; every return in these runs was a new load); a
+browser that has dropped its oldest entries, where `first` is too high (reasoned,
+not run); physical phones; the WebKit half of `test:expansion` (it failed
+before D1 in this environment, above); `test:wx01`, `test:inheritance`,
+`test:collection-display` and `test:map-piece`; the literary preview smokes;
+deploy dry runs, the SQL harness and CI.
+
 ## Q1 integration with `main` · 2026-10-11
 
 Branch `q1/local-commands`, for PR #10. Merge commit **`b527dc3`** brings
