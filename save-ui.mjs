@@ -68,6 +68,14 @@ function summaryMarkup(title, summary) {
   return `<section class="import-side"><h3>${title}</h3><dl>${rows.map(([key, label]) => `<div><dt>${label}</dt><dd data-summary="${key}">${number(summary[key])}</dd></div>`).join('')}</dl><p>旅程日期 ${safe(summary.date)}${summary.vault ? ` · 商旅保管 ${number(summary.vault)} 張` : ''}</p></section>`;
 }
 
+/** The import dialog while the file picker is open. It opens on the tap that opens the picker,
+ * so its Back entry is pushed with that tap's activation (docs/NAVIGATION.md, "Back model"),
+ * and the chosen file replaces its contents with the confirmation below. A browser that does
+ * not report a cancelled picker leaves it open, with the picker again and a way out. */
+export function importPickMarkup() {
+  return '<div class="eyebrow">RESTORE FROM A BACKUP</div><h2>選擇旅程備份檔</h2><p class="panel-footnote" data-import-pick>請在檔案視窗選擇匯出的旅程備份（.json）。選好後會先比較兩段旅程；確認之前，此裝置的旅程不會更改。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">取消</button><button class="primary" data-action="import-save">選擇備份檔 ↗</button></div>';
+}
+
 /** What an import replaces, before anything is written. `recovery` is the recovery copy
  * this device keeps now ({ savedAt }), if any: there is one slot, so the import replaces it.
  * `legacy` marks a file from before v0.6.0 (profile v3 or v4), migrated as load() would.

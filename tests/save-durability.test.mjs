@@ -16,7 +16,8 @@ import {
   journeySummary, MAX_IMPORT_BYTES, IMPORT_MESSAGES, LEGACY_EXPORT_VERSIONS,
 } from '../platform.mjs';
 import { createSaveStatus, normalizeSaveStatus, SAVES_KEY } from '../save-status.mjs';
-import { saveStatusMarkup, saveNoticeMarkup, importConfirmMarkup } from '../save-ui.mjs';
+import { saveStatusMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup } from '../save-ui.mjs';
+import { BACK, backDecision, navLayers } from '../nav-stack.mjs';
 import { nearEnvelopeProfile } from './support/profile-envelope.mjs';
 
 const now = '2026-09-21T12:00:00.000Z';
@@ -628,6 +629,10 @@ test('D2 save markup: status, notices and the import confirmation', () => {
   const notes = legacy.slice(legacy.indexOf('class="import-notes"'), legacy.indexOf('class="import-compare"'));
   for (const part of ['class="import-file">old.json', 'data-import-legacy', '還原前，此裝置現在的旅程會先留作回復備份', 'data-recovery-replaced']) assert.ok(notes.includes(part), part);
   assert.doesNotMatch(legacy, /import-review/);
+  // The dialog while the picker is open: a way out and the picker again, nothing written.
+  const picking = importPickMarkup();
+  assert.match(picking, /data-import-pick/); assert.match(picking, /data-action="close-modal">取消</); assert.match(picking, /data-action="import-save"/);
+  assert.doesNotMatch(picking, /import-confirm|import-review/);
 });
 
 test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud restore and local recovery use', async () => {
@@ -663,4 +668,39 @@ test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud rest
   // persist() is never requested on an ordinary load: launch passes the standalone check.
   assert.match(source, /saves\.launch\(\{fresh:freshJourney,standalone:isStandalone\(\)\}\)/);
   assert.match(source, /saves\.battleFinished\(match\.winner\);/);
+});
+
+test('D2 with D1: the import dialog is one Back layer, opened on the tap, held while a confirmed import is written', async () => {
+  const source = await readFile(new URL('../app.mjs', import.meta.url), 'utf8');
+  // The layer: Back on the dialog closes it as × does; while an import is written it holds.
+  const view = dismissible => ({ screen: 'home', modal: { kind: 'import-review', dismissible } });
+  assert.deepEqual(navLayers(view(true)), [{ kind: 'modal', id: 'import-review', dismissible: true }]);
+  assert.equal(backDecision(view(true)).action, BACK.DISMISS_MODAL);
+  assert.equal(backDecision(view(false)).action, BACK.HOLD);
+  assert.equal(backDecision({ screen: 'account', accountReturn: 'home', modal: { kind: 'import-review', dismissible: true } }).action, BACK.DISMISS_MODAL, 'from 旅程閣 too');
+  // A lobby strip is not a layer: 洞府 with a restore offer or a prompt still hands Back on.
+  assert.equal(backDecision({ screen: 'home', modal: null }).action, BACK.EXIT);
+  // Opened, and its entry pushed, before the picker: a pick slower than the tap's activation
+  // would otherwise open a dialog without an entry, and Chromium's picker consumes it.
+  const pick = source.slice(source.indexOf('function pickJourneyFile('), source.indexOf('async function reviewImport('));
+  assert.match(pick, /modal\(importPickMarkup\(\),'import-modal',true,'import-review'\);\n  nav\.sync\(\);\n  importInput\.click\(\);/);
+  assert.match(pick, /addEventListener\('cancel',\(\)=>\{if\(importOpen\(\)&&overlay\.querySelector\('\[data-import-pick\]'\)\)closeModal\(\);\}\)/);
+  // The file replaces that dialog (the same kind, so the same entry); a refusal closes it
+  // through closeModal, which walks back over the entry; a dialog closed meanwhile opens nothing.
+  const review = source.slice(source.indexOf('async function reviewImport('), source.indexOf('function holdImport('));
+  assert.match(review, /if\(!importOpen\(\)\|\|importDraft\?\.restoring\)return;/);
+  assert.match(review, /const refuse=message=>\{closeModal\(\);toast\(message\);\};/);
+  assert.equal((review.match(/return toast\(/g) || []).length, 0, 'no refusal leaves the dialog open');
+  assert.match(review, /modal\(importConfirmMarkup\([^\n]+\),'import-modal',true,'import-review'\);/);
+  // Held while written: not dismissible (Escape, backdrop and Back read this flag), × and the
+  // buttons disabled; released on a refusal; closed through closeModal on success.
+  const hold = source.slice(source.indexOf('function holdImport('), source.indexOf('function confirmImport('));
+  assert.match(hold, /backdrop\.dataset\.dismissible=String\(!held\);/);
+  assert.match(hold, /querySelectorAll\('\.modal-close,\.modal-actions button'\)\)button\.disabled=held;/);
+  const confirm = source.slice(source.indexOf('function confirmImport('), source.indexOf('async function economy('));
+  assert.match(confirm, /draft\.restoring=true;holdImport\(true\);\n  restoreLocalProfile\(/);
+  assert.match(confirm, /\.then\(\(\)=>\{[^}]*closeModal\(\);/);
+  assert.match(confirm, /\.catch\(error=>\{draft\.restoring=false;holdImport\(false\);toast\(error\.message\);\}\)/);
+  assert.match(source, /if\(event\.key==='Escape'&&overlay\.firstElementChild\.dataset\.dismissible==='true'\)dismissModal\(\);/);
+  assert.match(source, /modal:open\?\{kind:modalKind,dismissible:open\.dataset\.dismissible==='true'\}:null/, 'navView reads the same flag');
 });

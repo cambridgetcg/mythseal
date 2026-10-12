@@ -25,7 +25,7 @@ import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
 import { exportJourney, importJourney, journeySummary, isStandalone } from './platform.mjs';
 import { createSaveStatus } from './save-status.mjs';
-import { saveToolsMarkup, saveNoticeMarkup, importConfirmMarkup } from './save-ui.mjs';
+import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup } from './save-ui.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
@@ -201,6 +201,9 @@ function importBlocked(current) {
   if(current.wx01.receipt)return '請先查看並確認已入藏的西行畫作，再匯入旅程備份。';
   return '';
 }
+// The import dialog is one Back layer (docs/NAVIGATION.md, "Back model"): ×, Escape, the
+// backdrop and Back close it; its own closes go through closeModal, which walks back over its entry.
+const importOpen=()=>modalKind==='import-review'&&Boolean(overlay.firstElementChild);
 function pickJourneyFile() {
   if(importDraft?.restoring)return;
   try{const blocked=importBlocked(loadProfile());if(blocked)return toast(blocked);}catch(error){return toast(error.message);}
@@ -210,26 +213,51 @@ function pickJourneyFile() {
     Object.assign(importInput,{type:'file',accept:'.json,application/json',id:'journey-import-file',className:'sr-only',tabIndex:-1});
     importInput.setAttribute('aria-hidden','true');
     importInput.addEventListener('change',()=>{const file=importInput.files?.[0];importInput.value='';if(file)reviewImport(file);});
+    // A cancelled picker closes the dialog where the browser says so; elsewhere it stays, with 取消.
+    importInput.addEventListener('cancel',()=>{if(importOpen()&&overlay.querySelector('[data-import-pick]'))closeModal();});
     document.body.append(importInput);
   }
+  // The dialog opens on this tap, so its history entry is pushed with the tap's activation
+  // (about 5 s). Choosing a file usually takes longer, and an entry the confirmation pushed
+  // then would be refused, so Back would leave the game instead of closing it. The file
+  // replaces the dialog's contents: the same layer, on the same entry. The entry is pushed
+  // now, not on the queued reconciliation: Chromium's file picker consumes the activation.
+  modal(importPickMarkup(),'import-modal',true,'import-review');
+  nav.sync();
   importInput.click();
 }
 async function reviewImport(file) {
   const result=await importJourney(file);
-  if(!result.ok)return toast(result.message);
+  // Closed meanwhile (×, Escape, Back): the file opens nothing.
+  if(!importOpen()||importDraft?.restoring)return;
+  const refuse=message=>{closeModal();toast(message);};
+  if(!result.ok)return refuse(result.message);
   let current;
-  try{current=loadProfile();}catch(error){return toast(error.message);}
-  const blocked=importBlocked(current);if(blocked)return toast(blocked);
+  try{current=loadProfile();}catch(error){return refuse(error.message);}
+  const blocked=importBlocked(current);if(blocked)return refuse(blocked);
   // Nothing is written until the confirmation; it restores only this journey, unchanged.
   importDraft={snapshot:result.snapshot,fingerprint:fingerprintProfile(current)};
   const kept=read(RECOVERY_KEY,null);
   modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null,legacy:result.legacy}),'import-modal',true,'import-review');
 }
+// While a confirmed import is written its dialog cannot be dismissed: ×, Escape and the
+// backdrop are off and Back holds (BACK.HOLD re-arms its entry), since closing it could not
+// stop the restore, only hide its outcome. A refusal releases it as it was.
+function holdImport(held) {
+  if(!importOpen())return;
+  const backdrop=overlay.firstElementChild,dialog=backdrop.querySelector('.modal');
+  backdrop.dataset.dismissible=String(!held);
+  dialog.setAttribute('aria-busy',String(held));
+  dialog.querySelector('.modal-close')?.toggleAttribute('hidden',held);
+  for(const button of dialog.querySelectorAll('.modal-close,.modal-actions button'))button.disabled=held;
+  if(held){dialog.tabIndex=-1;dialog.focus({preventScroll:true});}
+  else dialog.querySelector('[data-action="import-confirm"]')?.focus({preventScroll:true});
+}
 function confirmImport() {
   const draft=importDraft;
   if(!draft||draft.restoring)return;
-  draft.restoring=true;
-  restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(importDraft===draft)importDraft=null;saveNotice=null;closeModal();account.markLocalChanged();render();toast('已由備份還原旅程；原本的本機旅程已留作回復備份。');}).catch(error=>{draft.restoring=false;toast(error.message);});
+  draft.restoring=true;holdImport(true);
+  restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(importDraft===draft)importDraft=null;saveNotice=null;closeModal();account.markLocalChanged();render();toast('已由備份還原旅程；原本的本機旅程已留作回復備份。');}).catch(error=>{draft.restoring=false;holdImport(false);toast(error.message);});
 }
 async function economy(change,message,after,onSaved){
   if(economyBusy)return;economyBusy=true;
