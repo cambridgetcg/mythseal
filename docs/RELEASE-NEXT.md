@@ -43,7 +43,9 @@ captured. Whether the first revision's dry run at `8afbabc` made one too was
 not recorded.
 
 Step markers: **AGENT** = repo change any agent can make and check locally, with
-no hosted access. **CI** = GitHub Actions on the exact commit. **OWNER** =
+no hosted access. **CI** = GitHub Actions on the exact commit, or, while the
+Actions budget blocks it, a local CI record of that commit that the owner
+accepts in writing (G7, §12 item 14). **OWNER** =
 touches hosted services, real player data, credentials, DNS or billing.
 
 ## 1. Goal and scope
@@ -247,7 +249,9 @@ path.** The v0.5.1 deployment used an ignored helper
   `tools/save-durability-smoke.mjs`. They name the earlier release, not the
   client version, so the bump must leave them as they are.
 - Command: `npm version 0.6.0 --no-git-tag-version`, committed in the release
-  PR. Tag `v0.6.0` the exact merged commit after CI passes.
+  PR. Tag `v0.6.0` the exact merged commit after CI passes, or, while the
+  Actions budget blocks CI, after the owner has accepted in writing the local
+  CI record for that commit (B1, §12 item 14).
 - Optional: the hard-coded `enabledFeatures` in `tools/build.mjs:40-41` still
   lists only the v0.5 features. Add `wx01`, `campaign`, `fire-mountain-activity`,
   `journey-v3-backup` and `local-commands`, and for D1–D3 names such as
@@ -290,10 +294,10 @@ derivatives, swap PNG→WebP in `hosting/public-assets.json`, and update
 drop out of the public allowlist. v0.5.1 tabs still open after the deploy will
 then get 404s for the PNGs (§6).
 *Verify:* `npm test`, `npm run build`, the first-screen budget check (A6), and
-the §10 step 3 browser suites in Chromium and WebKit (`test:back`, `test:saves`,
-`test:shell` and `test:coach` among them; since N1 every one of them, WebKit
-`test:expansion` and `test:map-piece` included, exits 0 on the commit before
-A1, §13). The owner reviews the art at 390 px and on desktop.
+the §10 step 3 browser suites in both engines where they run both
+(`test:browser` runs Chromium only; `test:back`, `test:saves`, `test:shell` and
+`test:coach` among them; since N1 every one of them, WebKit `test:expansion`
+and `test:map-piece` included, exits 0 on the commit before A1, §13). The owner reviews the art at 390 px and on desktop.
 *Rollback:* `git revert`. Nothing hosted is involved.
 
 **A2 · Versioned module graph (gate G3).** Recommended design: the build
@@ -552,9 +556,12 @@ fixed on `main` by N1 (PR #12, `e785b27`). Measured on 2026-10-13 at
 
 What remains of A6 is the browser job (§10) and the payload budget check
 (§10 step 4).
-*Verify:* every §10 step 3 suite exits 0 in Chromium and WebKit against the
-preview, and the job is green on GitHub Actions, which needs the Actions
-budget back (G7, §12 item 14).
+*Verify:* every §10 step 3 suite exits 0 against the preview, in both engines
+where it runs both (`test:browser` in Chromium), and the job is green on
+GitHub Actions, which needs the Actions budget back (G7). If the owner instead
+accepts a local CI record in writing (B1, §12 item 14), the same suites' local
+exits against the preview are recorded for that exact commit, with how the
+environment differs from the job's (B1).
 *Rollback:* `git revert`.
 
 **A7 · Version and docs.** Bump to 0.6.0 (§3). Correct stale counts: HOSTING
@@ -814,8 +821,9 @@ follow §8 "Flag only": deploy an explicit `"false"`. Deleting the key keeps
 `true` (A3).
 
 **C5 · AGENT · Record.** Add a v0.6.0 record to [HOSTING.md](HOSTING.md) and
-[VALIDATION.md](VALIDATION.md) (source SHA and tag, both Worker version IDs, CI
-link, check receipts, what was not verified), and update the
+[VALIDATION.md](VALIDATION.md) (source SHA and tag, both Worker version IDs, the
+CI link, or the accepted local CI record and the owner's written acceptance
+(B1), check receipts, what was not verified), and update the
 [HANDOVER.md](HANDOVER.md) baseline.
 
 ## 6. Data safety
