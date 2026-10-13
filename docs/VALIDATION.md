@@ -227,6 +227,71 @@ additions here and in HANDOVER moved 16 of RELEASE-NEXT's `HANDOVER.md:N` and
 text. The scratch scripts and their output were deleted. Network: loopback
 only.
 
+**Review round 3 (same day).** A third independent review verified seven
+findings in documents, one of medium severity and six low (some were
+reported more than once):
+
+- **Correction to the round-2 note above,** which stays as written: its last
+  paragraph says that round moved 16 of RELEASE-NEXT's `HANDOVER.md:N` and
+  `VALIDATION.md:N` citations and re-pointed each. It moved 19 (medium). The
+  remap read only `[X.md:N](X.md)` links, so three bare `` `:N` ``
+  continuations after a HANDOVER link kept their numbers and cited other
+  text: §1's `:306-348` (the Q0 checkpoint) and `:1157-1254` (the WX-01
+  section), and G5's `:1270-1272` (hosted acceptance of old and new
+  backups), whose text had moved to `:319-361`, `:1170-1267` and
+  `:1283-1285` (each pair's `diff` against
+  `git show 50c3cf6:docs/HANDOVER.md` is empty). They are re-pointed, and
+  RELEASE-NEXT's header and its §13 round-2 row now say 19. The scratch
+  citation scan now reads links, `path:N` code spans and bare continuations,
+  and pairs each citation with the same one at `50c3cf6`.
+- **Correction to the round-2 note's vertical-fit figures.** "Its 361 px tile
+  runs 8–35 px past the frame" holds against the list's box, which includes
+  7 px of top padding; the controller pages by the box less its padding
+  (`viewport.mjs:101-102`): 353, 343, 343, 326 and 328 px at the five
+  flagged sizes. The band is also wider than N1's "roughly 741–790px", which
+  was its last flagging size. Re-measured on the code tree of `0281798`
+  with `python3 tools/serve.py --port 4205` (stopped afterwards) and a
+  scratch Playwright script seeded as the shell smoke seeds (N1's fixture;
+  Pixel 7 in installed Chrome, iPhone 15 in WebKit 26.6; deleted
+  afterwards), the `cards` list flags at 412×741, 360×741, 412×789–791,
+  412×795, 412×797, 393×797 and 360×797, and not at 412×740, 360×740 (the
+  compact cards), 412×798, 393×798, 393×799, 360×798, 412×800 or 393×800,
+  with the same figures in both engines. At 741 px the tile runs 49 px under
+  the pager's top; from 791 to 797 px it overruns the box by 7 to 1 px and
+  stays above the pager. RELEASE-NEXT §1 and §12 item 18 and ROADMAP's N1
+  line now say about 741–797 px. N1's own records, NAVIGATION's Limits and
+  the N1 column of the M5.1 checklist's "Short screens" row, are left as
+  written.
+- RELEASE-NEXT §13's closing "Not run for the 2026-10-13 revision" still
+  listed `test:shell`, which review round 2 ran (99 s); it now limits that to
+  the first pass, and §10's 2026-10-13 timings include the 99 s.
+- Owner decisions 15–18 can each mean new code but were taken at B0, after
+  A7 and A8, with no way back through Phase A. A0 now takes their
+  keep-or-change choices before any Phase A work; B0 keeps whether v0.6.0
+  waits for D3's playtest, and a B0 answer that needs code returns to Phase
+  A, redoing at least A7 and A8 on the new candidate before B1.
+- ROADMAP's Q1 status line still called the Q1 integration check the newest
+  entry in this file; it now calls it Q1's last.
+- No packet ran in Firefox, desktop or Android, and the plan did not say so.
+  RELEASE-NEXT §12 item 1 and the
+  [handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only)
+  now name the gap for the owner.
+
+Checks on the corrected tree, before committing the record: `node --test
+tests/*.test.mjs` exit 0, **603/603**; `npm run build` exit 0, 90 public
+files, manifest `e05db797…8746` (`dist/` deleted afterwards); `npm run
+audit:content` exit 0, 150 entries, no findings; `git diff --check` clean;
+the scratch link and anchor check finds all 494 local link targets and
+anchors in RELEASE-NEXT, this file, HANDOVER, ROADMAP and the docs index
+(the same script finds 487 at `e1aba12`, as round 2 recorded). This round's
+own additions here, in HANDOVER and in ROADMAP moved RELEASE-NEXT's
+citations of those files again: 17 HANDOVER ones by 6 lines, both
+VALIDATION ones by 65 lines and G3's ROADMAP one by 1. Each was re-pointed,
+and the three-form scan pairs all 21 of the plan's citations of these files
+with the same citation at `50c3cf6` and finds every one citing the same
+text. `grep -rli firefox tools/ package.json .github/` finds nothing. The
+scratch scripts and their output were deleted. Network: loopback only.
+
 ## D3 first-battle teaching · 2026-10-12
 
 Branch `d3/first-battle-teaching`, from `origin/main` `335d2b7`; packet D3,
