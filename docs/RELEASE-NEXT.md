@@ -289,7 +289,7 @@ path.** The v0.5.1 deployment used an ignored helper
 | G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:355-361](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
 | G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e 0281798` exits 0). `test:commands` last passed 13/13 groups per engine at `11d86d9`, the tree of `0281798` (orchestrating session, 2026-10-13, §13); before that at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)). The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
 | G10 | D1, N1, D2 and D3 release checks: `npm run test:back`, `test:shell`, `test:saves` and `test:coach` pass in Chromium and WebKit ([NAVIGATION · Back model](NAVIGATION.md#back-model--2026-10-12), "Checks", for `test:back`; [NAVIGATION · Checks](NAVIGATION.md#checks) for `test:shell`; [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12); [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12); the D2 merge notes in [HANDOVER](HANDOVER.md#d2-save-durability-checkpoint--2026-10-12-local-only)). `test:browser` runs none of the four | New at `0281798`. All four passed at `11d86d9` (orchestrating session, 2026-10-13, §13): `test:back` 21 checks in Chromium and 20 in WebKit, `test:shell` 26 per engine, `test:saves` 20 groups per engine, `test:coach` 16 checks per engine. No CI job runs them yet (G7) | A6, A8, B1 |
-| G11 | The packets' owner-pending exits: D3's human playtest with at least three first-time players and the owner's review of the coach copy ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12), Exit); D1's root Back without a confirm, the owner default as built ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)); the physical-phone items of D1, N1, D2 and D3: N1's in the [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only N1's rows, and D1's, D2's and D3's in their own records (listed in §12 item 1); the landscape fault below 701 px wide that N1 recorded and v0.6.0 would ship publicly for the first time (§1, §12 item 17); the vertical-fit fault on portrait phones that N1 also recorded and v0.6.0 would also ship publicly for the first time (§1, §12 item 18) | Open | B0 (owner accepts or defers); §12 items 1, 15, 16, 17 and 18 |
+| G11 | The packets' owner-pending exits: D3's human playtest with at least three first-time players and the owner's review of the coach copy ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12), Exit); D1's root Back without a confirm, the owner default as built ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)); the physical-phone items of D1, N1, D2 and D3: N1's in the [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only N1's rows, and D1's, D2's and D3's in their own records (listed in §12 item 1); the landscape fault below 701 px wide that N1 recorded and v0.6.0 would ship publicly for the first time (§1, §12 item 17); the vertical-fit fault on portrait phones that N1 also recorded and v0.6.0 would also ship publicly for the first time (§1, §12 item 18) | Open | A0 (items 15–18: kept or changed, shipped documented or fixed first), B0 (owner accepts or defers the rest; a B0 answer that needs code returns to Phase A); §12 items 1, 15, 16, 17 and 18 |
 
 ## 5. Ordered checklist
 
@@ -298,10 +298,19 @@ Do not start a step until the previous step's verification has passed.
 
 ### Phase A · Build the release candidate (AGENT, no hosted access)
 
-**A0 · OWNER · Staging decision, before any Phase A work.** Choose S1, S2, S3
+**A0 · OWNER · Decisions before any Phase A work.** Choose S1, S2, S3
 or no staging (§7). S1 needs staging-capable tooling inside the tag that B1
 cuts (A4(d)), so this decision cannot wait for B0. Changing it after B1 means
-re-cutting the tag.
+re-cutting the tag. For the same reason, decide here the four choices in §12
+that can mean new code: D1's root Back kept without a confirm or changed
+(item 15; a prompt is new code), D3's coach copy kept or rewritten (item 16,
+the owner's review of its tone), and the landscape fault below 701 px and the
+vertical-fit fault on portrait phones each shipped documented or fixed first
+(items 17 and 18). A change or fix lands on `main` by merge commit before A1,
+so the candidate, A7's release notes (which name each fault shipped) and A8's
+checks all cover it. D3's playtest (item 16) can run while Phase A does;
+whether v0.6.0 waits for it stays at B0.
+*Verify:* the owner's answers are written in the release record.
 
 **A1 · Asset derivatives (gate G6).** Implement `tools/assets/build.mjs` as
 specified in §9. Point the CSS `url()`s and JS asset strings at the WebP
@@ -629,11 +638,17 @@ apex Worker's CPU limit (§6), either the A5 guards or a written acceptance
 of the §6 open-tab and hidden-backup cases, the Q1 contract with its
 forward-only rule (G9, §12 item 12), how exact-source CI happens while the
 Actions budget blocks it (G7, §12 item 14), the packets' physical-phone items
-and the review rounds D2 and N1 ended at their cap (item 1), D1's root Back
-(item 15), D3's playtest exit (G11, item 16), the landscape fault below
-701 px (item 17) and the vertical-fit fault on portrait phones (item 18).
-Staging was decided in A0. The WebKit
-expansion tab (item 13) needs no decision any more: N1 fixed it.
+and the review rounds D2 and N1 ended at their cap (item 1), and whether
+v0.6.0 waits for D3's playtest (G11, item 16). Staging, D1's root Back
+(item 15), D3's coach copy (item 16), the landscape fault below 701 px
+(item 17) and the vertical-fit fault on portrait phones (item 18) were
+decided in A0. The WebKit expansion tab (item 13) needs no decision any
+more: N1 fixed it.
+**Any B0 answer that needs a code change** (a fix after D3's playtest, an A0
+answer changed, a change to the Q1 contract) sends the work back to Phase A:
+land the change on `main` by merge commit, then redo the Phase A steps it
+affects on the new candidate, always including A7's release notes and A8's
+checks, before B1, so B1 never tags code that A8 did not check.
 
 **B1 · CI then OWNER · Exact source.** Open the release PR. CI must pass on the
 final commit, including the new browser job. GitHub Actions starts no job
@@ -1510,19 +1525,22 @@ disables cloud upload for new clients, so the owner decides.
     open hands Back to the system, and on the web the page leaves **without a
     confirmation prompt**. The packet named this the owner default
     ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12); HANDOVER's D1
-    checkpoint). Confirm it, or ask for a prompt or another behaviour. Every
-    layer above the root already closes one at a time, and leaving writes no
-    save.
+    checkpoint). Confirm it, or ask for a prompt or another behaviour, at A0
+    (§5): a change is new code, which has to be in the candidate before A8.
+    Every layer above the root already closes one at a time, and leaving
+    writes no save.
 16. **D3's exit** (G11). The real exit of the first-battle teaching is a human
     playtest that the owner runs with **at least three first-time players**
     (fresh profiles, on a phone), recording round-1 HP lost, whether each adds
     pills before committing and whether they can explain a reveal, plus the
     owner's review of the coach copy's tone
     ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12),
-    Exit and Open). Decide whether v0.6.0 waits for it or ships with it
-    pending. Capping the AI's round-1 spend stays an owner fallback, to be
-    considered only after that playtest; `engine.mjs` and `chooseAIMove` are
-    unchanged.
+    Exit and Open). The copy review belongs in A0 (§5), since rewritten copy
+    is a code change; whether v0.6.0 waits for the playtest or ships with it
+    pending is decided at B0, and a change the playtest leads to goes back
+    through Phase A (B0). Capping the AI's round-1 spend stays an owner
+    fallback, to be considered only after that playtest; `engine.mjs` and
+    `chooseAIMove` are unchanged.
 17. **Landscape phones below 701 px wide** (G11). N1 recorded a fault it did
     not cause and did not fix ([NAVIGATION.md:450-515](NAVIGATION.md);
     [HANDOVER](HANDOVER.md#n1-review-round-3--2026-10-12)). Held sideways at
@@ -1544,9 +1562,9 @@ disables cloud upload for new clients, so the owner decides.
     `scene-navigation.css`, `expansion.css` or WX-01 module ([cmd] `git show
     v0.5.1:hosting/public-assets.json`), so v0.6.0 would ship it to players for
     the first time. How v0.5.1's own simpler market and arena pages lay out at
-    these sizes was not checked. Decide: ship with the fault documented (the
-    A7 release notes then name it), or fix it first, which is new work:
-    vertical fit below 701 px was outside N1.
+    these sizes was not checked. Decide at A0, before Phase A (§5): ship with
+    the fault documented (the A7 release notes then name it), or fix it
+    first, which is new work: vertical fit below 701 px was outside N1.
 18. **Vertical fit on portrait phones** (G11; added 2026-10-13, review round
     2). N1 recorded this limit as well and did not fix it
     ([NAVIGATION.md:422-449](NAVIGATION.md), Limits; the M5.1
@@ -1597,9 +1615,9 @@ disables cloud upload for new clients, so the owner decides.
     v0.5.1:hosting/public-assets.json`), so v0.6.0 would ship this to players
     for the first time. How v0.5.1's own collection page lays out at these
     sizes was not checked, and no phone has been tried. This is not a phone
-    check waiting to happen (item 1): the fault is measured. Decide: ship with
-    it documented (the A7 release notes then name it), or fix it first, which
-    is new work outside N1.
+    check waiting to happen (item 1): the fault is measured. Decide at A0,
+    before Phase A (§5): ship with it documented (the A7 release notes then
+    name it), or fix it first, which is new work outside N1.
 
 ## 13. Checks run for this plan
 
