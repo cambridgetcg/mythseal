@@ -2,6 +2,135 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## v0.6.0 integration · 2026-10-13
+
+Branch `docs/v060-integration`, from `origin/main` **`0281798`** (PR #15's
+merge), for the documentation integration of D1, N1, D2 and D3 into the
+v0.6.0 plan ([RELEASE-NEXT](RELEASE-NEXT.md), revised 2026-10-13). The
+branch's commits change documents only. Nothing was pushed, merged or
+deployed. The only network request beyond loopback was one unauthenticated
+`GET https://mythseal.com/release.json` with a generic User-Agent. Two sources
+of evidence are kept apart below: checks this pass ran, and checks the
+orchestrating session ran on `11d86d9` and handed over
+(`git rev-parse 11d86d9^{tree} 0281798^{tree}` prints `3c211f98…` twice, so
+the trees are identical).
+
+**Environment (this pass).** macOS 26.6.2 (Darwin 25.6.0), Node 26.0.0,
+Python 3.14.6, Playwright 1.63.0 with installed Google Chrome 155.0.8059.40
+and Playwright WebKit 26.6, all headless; synthetic saves only.
+
+**Merges.** `git log --first-parent --format='%h %p' origin/main` shows PR
+#10 (`7712a7b b40c4d2 3140613`), PR #11 (`335d2b7 7712a7b a14ebe7`), PR #12
+(`e785b27 335d2b7 f2b0e49`), PR #14 (`a7bda4b e785b27 3cb2561`) and PR #15
+(`0281798 a7bda4b 11d86d9`), each a two-parent merge. `git merge-base
+--is-ancestor 7a7d03e 0281798`: exit 0, so Q1's fence is in `main`.
+
+**Public build at each merge** (`npm run build`, each exit 0, in one detached
+scratch worktree, `dist/` deleted after each, the worktree removed
+afterwards):
+
+| Merge | Files | Bytes | PNG | Manifest |
+| --- | --- | --- | --- | --- |
+| `7712a7b` (Q1) | 83 | 74,389,154 | 23, 73,418,493 B | `10f594fc…4014` |
+| `335d2b7` (D1) | 84 | 74,408,267 | 23, 73,418,493 B | `2beb9777…bb80` |
+| `e785b27` (N1) | 84 | 74,414,617 | 23, 73,418,493 B | `939f26f8…f49c` |
+| `a7bda4b` (D2) | 88 | 74,456,379 | 23, 73,418,493 B | `5b403015…9c39` |
+| `0281798` (D3) | **90** | **74,496,049** | 23, 73,418,493 B | `e05db797…8746` |
+
+D1 adds `nav-stack.mjs`; N1 adds no file and changes `index.html`, nine
+stylesheets and `app.mjs` (+61 B); D2 adds `platform.mjs`, `save-status.mjs`,
+`save-ui.mjs` and `saves.css`; D3 adds `battle-teaching.mjs` and
+`battle-teaching.css`. From `7712a7b` to `0281798`: +106,895 B, seven files
+added (72,648 B), existing files +34,247 B.
+
+**First screen** (the method of RELEASE-NEXT §13: a scratch Node script over
+the static import graph from `bootstrap.mjs`, its `import('./app.mjs')`,
+`index.html`'s stylesheets and `mark.svg`, compressed with `node:zlib` gzip
+level 6 and brotli quality 11; exit 0). It reproduces `8afbabc` (57 files,
+929,264 / 267,540 / 228,341 B) and `b527dc3` (60 files, 970,661 / 282,691 /
+240,926 B) exactly. At `0281798`: **67 text files, 1,077,556 B raw, 322,718 B
+gzip, 274,196 B brotli**; with the two PNGs (7,085,957 B) **7,408,675 B
+(7.07 MiB) gzip and 7,360,153 B (7.02 MiB) brotli**, against the 1,572,864 B
+budget. No public file's diff from `7712a7b` adds an image reference (`url(`,
+`assets/`, `.png`, `.webp`, `.svg`: no match). No browser measured it.
+
+**Other measurements at `0281798`:**
+
+- `WRANGLER_SEND_METRICS=false npm run preview -- --dry-run`, no
+  `hosting/.dev.vars`: exit 0, `Total Upload: 910.52 KiB / gzip: 189.56 KiB`
+  (906.25 / 188.52 KiB at `8afbabc`). The Worker's 14-module static import
+  graph from `server/account-api.mjs` is unchanged from `7712a7b`. Wrangler's
+  banner reported a newer release, so it made its own version check.
+- From v0.5.1: 223 commits (202 non-merge); 83 of the 90 allowlisted runtime
+  files changed (71 added, 12 modified), +8,486/−390 lines.
+- `curl -A 'Mozilla/5.0'` of `https://mythseal.com/release.json`, about
+  05:23 UTC: HTTP 200, `clientVersion` `0.5.1`, `gitCommit` `ea485586…`, 19
+  files, 11,130,757 B, manifest `7c18fceb…4e88`. Live is still v0.5.1.
+- `grep -n "import('[./]" tools/*.mjs`: 24 lines, 25 in-page imports, 11
+  smokes (16 at `b527dc3`). Loopback guards: 22 of 26 smoke scripts.
+
+**Browser suites run by this pass** at `0281798`, against
+`python3 tools/serve.py --port 4205` from this worktree (started after
+checkout, stopped afterwards), `GAME_URL=http://127.0.0.1:4205`,
+`PLAYWRIGHT_BROWSERS_PATH` unset and no `test-results/webkit-runtime` folder,
+one suite at a time; `test-results/` deleted afterwards:
+
+| Command (Chromium, then WebKit) | Exit | Wall time | Result per engine |
+| --- | --- | --- | --- |
+| `npm run test:expansion` | 0 | 215 s | 16 PASS lines (899 and 892 layout checks). WebKit passes `360x740` and `360x640`: RELEASE-NEXT A6's 43.08 px tab is gone |
+| `npm run test:map-piece` | 0 | 57 s | 8 PASS lines. WebKit launched from Playwright's default cache: A6's launch failure is gone |
+| `npm run test:wx01` | 0 | 205 s | 17 PASS lines, 6 recovery checks and 10 box checks; empty error lists |
+| `npm run test:inheritance` | 0 | 54 s | 9 PASS lines |
+| `npm run test:collection-display` | 0 | 35 s | 10 PASS lines |
+| `npm run test:liaozhai` | 0 | 57 s | 14 PASS lines |
+| `npm run test:honglou` | 0 | 40 s | 14 PASS lines |
+
+**Checks the orchestrating session ran** on `11d86d9` (same tree), as handed
+over; this pass did not repeat them:
+
+- GitHub Actions did not start PR #15's CI job: "The job was not started
+  because an Actions budget is preventing further use." (run 38350385399).
+- Every step of `.github/workflows/ci.yml`, locally: `npm test` 603/603;
+  `tools/test-backup-sql.sh` on a throwaway loopback PostgreSQL 16.14, TCP only
+  (CI uses `postgres:17`); Python unittest 9 OK; `npm run test:contracts`;
+  `npm run build`, 90 public files; `npm run preview -- --dry-run` and
+  `npm run deploy -- --dry-run`, exit 0 with `WRANGLER_SEND_METRICS=false`;
+  `node --check` on all modules; `py_compile` of `serve.py`; `bash -n
+  Play.command`. Node 26.0.0 where CI uses 22; no `npm ci`.
+- Browser suites against `python3 tools/serve.py` on `127.0.0.1:4204`,
+  Chromium as installed Chrome with the Pixel 7 descriptor, WebKit 26.6 with
+  the iPhone 15 descriptor, all exit 0: `test:coach` 16 checks per engine;
+  `test:back` 21 in Chromium and 20 in WebKit; `test:saves` 20 groups per
+  engine; `test:shell` 26 per engine; `test:commands` 13 groups per engine;
+  `test:battle-table` 40/40 per engine; `test:viewport` 23/23 per engine;
+  `test:browser` (Chromium, 14 suites) 91 PASS lines.
+- `npm run audit:content`: 150 entries, no findings.
+
+**Documentation.** RELEASE-NEXT is revised for D1–D3 (its §13 lists every
+check above); the docs index, the roadmap's D1, N1, D2 and D3 status lines and
+a new [handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only)
+are brought up to the merges. The dated N1, D1, D2 and D3 entries below were
+written on their branches before PRs #12, #11, #14 and #15 merged them, and
+their "not merged" lines are left as written. A citation re-check mapped every
+`path:line` in RELEASE-NEXT from `7712a7b` through `git diff -U0` to
+`0281798` (233 citations; 44 drifted or touched by a change, now fixed). On
+the documentation tree, before committing:
+
+- `node --test tests/*.test.mjs`: exit 0, **603/603**.
+- `npm run build`: exit 0, 90 public files, manifest `e05db797…8746`.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `git diff --check`: clean.
+
+**Not run by this pass:** the SQL harness, `npm run deploy -- --dry-run`,
+`test:browser`, `test:commands`, `test:back`, `test:saves`, `test:shell`,
+`test:coach`, `test:battle-table` and `test:viewport` (all run by the
+orchestrating session, above), `test:atelier`, a browser first-screen
+measurement, `wrangler deploy --dry-run` on `wrangler.jsonc`, hosted CI (it
+cannot start), physical devices, real Safari, a rollback in a browser, and
+anything hosted beyond the one `GET`. PR #13 (`mobile/cloud-pipeline`) was
+not read.
+
 ## D3 first-battle teaching · 2026-10-12
 
 Branch `d3/first-battle-teaching`, from `origin/main` `335d2b7`; packet D3,
