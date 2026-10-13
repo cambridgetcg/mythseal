@@ -1020,7 +1020,9 @@ keep the site's storage, and there was no import path.
   (2026-10-13), the same hold (`holdRestore`). Each restore's success closes
   only its own dialog: before, the recovery's closed whatever dialog was open
   when it landed, including an import dialog opened after Back closed the
-  recovery's, and the file picked in it opened nothing.
+  recovery's, and the file picked in it opened nothing. Cloud restore is not
+  held; since integration review round 2 (2026-10-13) it redraws the screen it
+  lands on when the player has left 旅程閣 meanwhile (`restoreCloudJourney`).
   The lobby strips are not layers. Details:
   [NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2).
 - **Below 340 px (after merging N1).** N1 removed the body's 340 px minimum; the
@@ -1089,8 +1091,12 @@ exits.
   backs up, deletes the cloud backup and reads 雲端備份已刪除, after a reload too.
   Since the D2 integration review (19 groups): S12 opens a dialog over an import
   held behind the profile lock, and that dialog stays open when the import lands.
+  Since round 2 of that review (20 groups): S13 leaves 旅程閣 by ← 返回旅途 or the
+  dock while a cloud restore's read is held (fixture API); when it lands, 遊歷
+  (its preparation closed) or 洞府 (no offer, a quests dialog left open) shows
+  the restored journey.
 - `tools/back-smoke.mjs` (`npm run test:back`, Chrome as a Pixel 7, then WebKit as
-  an iPhone 15; four D2 groups since D1 was merged into the branch): the import
+  an iPhone 15; five D2 groups since D1 was merged into the branch): the import
   dialog from the restore offer, with a file that arrives after the tap's
   activation expired, and from 旅程閣 closes one layer per Back with no profile
   write; Back twice and Escape hold the dialog while a confirmed import waits for
@@ -1099,7 +1105,9 @@ exits.
   a win is a strip on 洞府, its 旅程閣 closes on Back and Back at 洞府 leaves in one
   step; after an import, 復原上次本機旅程 waiting for the profile lock holds on
   Back twice, Escape and the backdrop, restores once, closes only its own
-  dialog, and 匯入旅程備份 then opens with the picked file compared. S5a in
+  dialog, and 匯入旅程備份 then opens with the picked file compared; 恢復雲端旅程
+  from the offer's 雲端旅程, with its cloud read held, lets Back return to 洞府,
+  which shows the restored journey without the offer when it lands. S5a in
   `test:saves` also runs at 302 px since N1 was merged.
 
 **UNVERIFIED:** the seven-day eviction on a real iPhone (or in Safari at all),

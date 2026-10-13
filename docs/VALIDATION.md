@@ -523,6 +523,101 @@ any control. S12 and B11 reach a second dialog only through synthetic actions.
 Headless engines only: a physical Android Back gesture or iOS edge swipe over
 the held dialog is unverified.
 
+### D2 integration review round 2 fixes · 2026-10-13
+
+Branch `d2/save-durability` from `ae70c6a`. Source commit **`729781b`**; the
+documentation commit after it changes no served, test or tool file. Not
+pushed, merged to `main` or deployed; no hosted service was called (the cloud
+API in the new checks is a Playwright fixture, with a synthetic user id and no
+email). Node 26.0.0, Python 3.14.6, Playwright 1.63.0, Google Chrome
+154.0.8037.98 and Playwright WebKit, headless, on macOS;
+`python3 tools/serve.py --port 4202` from the worktree (its allowlist
+unchanged); `GAME_URL=http://127.0.0.1:4202`. Synthetic saves only.
+
+**Finding (low).** The restore offer's 雲端旅程 sends a signed-in player with a
+cloud backup to 旅程閣's restore confirmation. 確認恢復旅程 calls
+`account.restore()`, which reads the cloud and then calls the shared
+`restoreLocalProfile`. Unlike the import and 復原上次本機旅程, this restore is not
+held, so Back (or ← 返回旅途, or the dock) leaves 旅程閣 while the cloud read is
+out. `restoreLocalProfile` swaps the journey and closes the restore offer but
+never renders, and the account `onChange` redraws only 旅程閣. The reviewers
+reproduced it at `ae70c6a` in Chrome (Pixel 7) and WebKit (iPhone 15), with the
+restore's own read delayed 3 s. After Back, the stored journey had 7,777 coins
+and the toast read 已恢復雲端旅程…, but 洞府's header still showed 1,200 and the
+closed offer was still shown. It stayed that way until something else
+rendered. Nothing was lost; a second restore needed a second explicit
+confirmation. The mechanism is the same on `main` through 旅程閣's own 雲端旅程
+tab; D2's offer leads restoring players straight into it.
+
+**Fix (`app.mjs`).**
+- The account controller restores through `restoreCloudJourney`, a wrapper of
+  `restoreLocalProfile`. When the restore lands off 旅程閣, it redraws the
+  screen on show from the restored journey, as the import and
+  復原上次本機旅程 redraw theirs. On 旅程閣, `onChange` redraws as before.
+- A dialog opened meanwhile stays, since a restore closes only its own dialog
+  (round 1); `render()` refreshes a quests dialog with the restored journey.
+  The exception is a preparation: the restore clears its draft, and refreshing
+  it would throw inside the restore's promise, so 旅程閣 would report a restore
+  that succeeded as failed. It is closed instead.
+- Back on 旅程閣 during this restore still returns where 旅程閣 was opened from.
+  Holding Back would leave ← 返回旅途 and the dock, which also leave 旅程閣; the
+  landing is now shown wherever it happens.
+
+**Tests.**
+- `tests/save-durability.test.mjs`: a new source test pins the wrapper, its
+  wiring into the account controller, and that the shared restore itself still
+  neither renders nor closes a dialog.
+- `tools/back-smoke.mjs` group (e) replays the reported steps with real input,
+  in both engines. `open()` takes a fixture API; the restore's own cloud read
+  is held until Back has landed on 洞府 (depth 0, offer still shown, no write),
+  then released. 洞府 then shows the backup's coins (◈ 5,000, against the new
+  journey's 1,200) with no offer, the save record says `closed`, one profile
+  write landed with the replaced journey as the recovery copy, the API saw
+  exactly the account lookup and two journey reads, and Back at 洞府 leaves.
+- `tools/save-durability-smoke.mjs` S13 (20 groups) leaves 旅程閣 during the
+  held read by ← 返回旅途, then opens 遊歷's preparation from the lobby; and by
+  the dock's 洞府, then opens quests. On landing, 遊歷 has the restored coins and
+  the preparation is closed; 洞府 has the restored coins and no offer under the
+  quests dialog, which stays open. Each has the success toast alone.
+
+**Checks at `729781b`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **580/580** (579 plus the new test).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), `findings: []`.
+- `npm run build`: exit 0, 88 public files, manifest `5b403015…b79c39`.
+  `dist/` was deleted afterwards.
+- `git diff --check`: clean.
+- Browser suites, each exit 0, run one after another against the server above:
+  `npm run test:saves` **20/20 groups in each engine**, 45 s; `test:back` **21
+  checks in Chrome (Pixel 7) and 20 in WebKit (iPhone 15)** (each one more than
+  before), 59 s; `test:commands` 13 groups in each engine (26 `PASS` lines),
+  74 s; `test:browser`, all 14 Chromium suites (91 `PASS` lines, including
+  `account-smoke`'s cloud restores on 旅程閣), 332 s.
+- **Negative controls.** Each control changed `app.mjs` in the worktree; it
+  was then restored from a saved copy and `cmp` confirmed it matched. Chrome.
+  - With `restoreLocalProfile` passed to the account controller again (the
+    fix unwired), the new Node test fails; `test:back` group (e) fails with
+    `洞府 shows the restored journey's coins` (1200 !== 5000), the reported
+    stale header; S13 fails with the same message for ← 返回旅途 (1200 !==
+    4321), and, run first in a temporary reordering of the smoke, for the dock.
+  - With the wrapper rendering but not closing a preparation, S13 fails
+    waiting for the success toast. By the code, `preparationContent()` reads
+    the cleared draft and throws inside the restore's promise; the error text
+    shown was not captured.
+
+**Not run or not verified:** `test:viewport`, `test:battle-table`, `test:shell`,
+`test:wx01`, `test:inheritance`, `test:expansion`, `test:map-piece`,
+`test:collection-display`, `test:contracts`, the literary preview smokes,
+deploy dry runs and CI. `account-smoke` runs in Chromium only. Dialogs other
+than quests and a preparation open when a cloud restore lands (for example a
+codex card, 秘匣's choice or an import confirmation opened from the offer
+before the landing) are not exercised. By the code they stay open, and such an
+import, confirmed after the landing, is refused as a changed journey. A real
+cloud API, a physical Android Back gesture and an iOS edge swipe are
+unverified.
+
 ## D2 save durability · 2026-10-12
 
 Branch `d2/save-durability`, from `origin/main` `7712a7b`. Source commits

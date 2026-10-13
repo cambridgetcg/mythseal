@@ -585,6 +585,13 @@ dialog layer (`import-review`), from the restore offer or from 旅程閣:
   Before, Back closed the recovery dialog with its restore still queued, and
   when it landed it closed whatever was open, such as the import dialog opened
   meanwhile from 匯入旅程備份, so the file picked in it opened nothing.
+- 恢復雲端旅程 (旅程閣's cloud restore, which the restore offer's 雲端旅程 leads to)
+  is not held: Back, ← 返回旅途 and the dock leave 旅程閣 while it reads the cloud.
+  Since integration review round 2 (2026-10-13), wherever it lands the screen on
+  show is redrawn from the restored journey: 洞府 shows its coins, without the
+  restore offer the restore closed. A dialog opened meanwhile stays, except a
+  preparation, whose draft the restore cleared. Before, the screen kept the
+  replaced journey under the success toast until something else rendered.
 
 `npm run test:back` checks these in Chrome (Pixel 7) and WebKit (iPhone 15)
 ([VALIDATION](VALIDATION.md#d2-integration-with-main--2026-10-12)).

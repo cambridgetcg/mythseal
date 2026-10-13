@@ -642,6 +642,13 @@ worktrees; D1 also edits `app.mjs`.
   D2 group (20 checks in Chrome, 19 in WebKit), `test:saves` S12 (19 groups) and
   `test:commands` B11 now checks the held dialog. Checks:
   [VALIDATION](VALIDATION.md#d2-integration-review-round-1-fixes--2026-10-13).
+- **Integration review round 2 (2026-10-13):** a cloud restore (恢復雲端旅程,
+  which the offer's 雲端旅程 leads to) is not held, so the player can leave
+  旅程閣 while it reads the cloud; it now redraws the screen it lands on
+  (`restoreCloudJourney`), so 洞府 no longer keeps the replaced journey and the
+  closed offer. `test:back` has a fifth D2 group (21 checks in Chrome, 20 in
+  WebKit) and `test:saves` S13 (20 groups). Checks:
+  [VALIDATION](VALIDATION.md#d2-integration-review-round-2-fixes--2026-10-13).
 
 ## Experience planning checkpoint · 2026-09-29
 
