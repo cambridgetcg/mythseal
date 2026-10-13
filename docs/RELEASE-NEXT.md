@@ -152,12 +152,13 @@ added, 72,648 B; existing files +34,247 B); its 23 PNGs are unchanged. PR #13
   ([NAVIGATION.md:450-515](NAVIGATION.md)). It was already at `7712a7b`, but
   those modules are new since v0.5.1, so v0.6.0 would ship it to players for
   the first time (§12 item 17). N1 also left vertical fit open, measured in
-  emulation: on portrait phones 741–790 px tall, and on taller ones with top
-  and bottom insets (an iPhone 15 home-screen web app among them), the 我的戰卡
-  tile of a character with several copies is taller than its list's frame and
-  runs under the list's pager; shorter screens flag more pages
-  ([NAVIGATION.md:422-449](NAVIGATION.md)). The framed lists are new since
-  v0.5.1 too (§12 item 18).
+  emulation: on portrait phones about 741–797 px tall (NAVIGATION records
+  "roughly 741–790px"; re-measured 2026-10-13, §12 item 18), and on taller
+  ones with top and bottom insets (an iPhone 15 home-screen web app among
+  them), the 我的戰卡 tile of a character with several copies is taller than
+  its list's frame, and below 790 px it runs under the list's pager; shorter
+  screens flag more pages ([NAVIGATION.md:422-449](NAVIGATION.md)). The framed
+  lists are new since v0.5.1 too (§12 item 18).
 - **D2 · save durability** (PR #14, `a7bda4b`): 匯入旅程備份 in the 旅程閣
   tools, and 「有舊旅程？由備份還原」 on a journey this device has just started
   because no journey key existed, import a 匯出旅程備份 file, either a v5 export
@@ -1553,19 +1554,31 @@ disables cloud upload for new clients, so the owner decides.
     cards are keyed to the viewport height (`max-height: 740px`), not to the
     height left after the insets. So a character's tile that holds several
     copies can be taller than the list's frame: the viewport controller flags
-    the list (`data-viewport-overflow`) and the tile runs under the list's
-    pager.
+    the list (`data-viewport-overflow`) and, at most such sizes, the tile runs
+    under the list's pager.
     Re-measured on 2026-10-13 on the tree of `0281798`, in emulation only
-    ([cmd] §13):
+    ([cmd] §13, review rounds 2 and 3):
     - With N1's fixture (every WX-01 printing in the save, so six copies of
-      `wukong`), the 我的戰卡 list flags at 412×790, 393×780 and 360×780 in
-      Chromium and WebKit, and on taller phones with top and bottom insets:
-      412×839 with 48/34 px and 393×852 with 59/34 px, an iPhone 15
-      home-screen web app (where D2 asks for persistent storage at every
-      launch, [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
-      It does not flag at 412×800, 393×800, or 412×839 without insets. In
-      Chromium the tallest tile, 361 px, runs 8–35 px past the frame, up to
-      27 px of it under the top of the pager.
+      `wukong`), the 我的戰卡 list flags at every size tried from 741 to
+      797 px tall, at 360, 393 and 412 px wide, in Chromium and WebKit, so
+      the band is about 741–797 px, not the "roughly 741–790px" NAVIGATION
+      recorded from its last flagging size. It does not flag at 740 px, where
+      the compact cards make the tile 176 px, or at any size tried from 798
+      to 839 px without insets. The list's frame depends on the height alone
+      (360, 393 and 412 px wide give the same frame). It also flags on taller
+      phones with top and bottom insets: 412×839 with 48/34 px and 393×852
+      with 59/34 px, an iPhone 15 home-screen web app (where D2 asks for
+      persistent storage at every launch,
+      [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
+    - Both engines give the same figures. The list's box has 7 px of top
+      padding, and the controller pages by the box's height less its padding
+      (`viewport.mjs:101-102`): 353, 343, 343, 326 and 328 px at 412×790,
+      393×780, 360×780 and the two inset sizes. The tallest tile, 361 px,
+      runs 8, 18, 18, 35 and 33 px past the box, and the pager starts 8 px
+      below the box, so 0–27 px of that is under the pager's top. At 741 px
+      tall the tile runs 57 px past the box, 49 px of it under the pager;
+      from 791 to 797 px it runs 7 to 1 px past the box and stays above the
+      pager.
     - A new journey (16 cards, one copy each) flags at none of those sizes, in
       either engine. With two more copies of one character the tile is 336 px
       and flags only with the insets (Chromium only). Which collections in
@@ -1662,9 +1675,10 @@ disables cloud upload for new clients, so the owner decides.
 | 2026-10-13, review round 2: `grep -n 'archive v0.5.1'` over VALIDATION and LOCAL-COMMANDS (C3) | the D2 third-review entry ([VALIDATION](VALIDATION.md#d2-third-review-fixes--2026-10-12), finding 4: "Checked with a scratch script over `git archive v0.5.1 '*.mjs'`") and LOCAL-COMMANDS §19 ("checked against `git archive v0.5.1`") record the check besides the test comment. C3 had said it was done by hand and that only a comment records it |
 | 2026-10-13, review round 2: `package.json`'s `test:browser` split on `&&`; `git log -S'job is green on' -- docs/RELEASE-NEXT.md`; `git show 0281798:docs/RELEASE-NEXT.md` (A6); `grep -n '^## Checks\|^\*\*Checks\.\*\*' docs/NAVIGATION.md` (A1, A6, G10) | 14 smokes, none of `back-smoke`, `save-durability-smoke`, `shell-smoke` or `coach-smoke`; only `e84e44a` added A6's hosted-run requirement, and at `0281798` A6's Verify was local; `## Checks` (`:612`) names no `test:back`, which the Back model's **Checks.** paragraph (`:161`) does |
 | 2026-10-13, review round 2: `python3 tools/serve.py --port 4205` from this worktree (code tree of `0281798`), started after checkout and stopped afterwards; `GAME_URL=http://127.0.0.1:4205 npm run test:shell` (§12 item 18) | exit 0, 99 s, 26 checks per engine. Vertical-overflow NOTE lines in both engines: 302×640 decks; 320×568 cards, decks and the arena; the device size with 48/44/34/44 px insets (Pixel 7: cards; iPhone 15: cards, decks and the arena); 844×390 with those insets: the three collection tabs, the market, 旅程閣 and the arena. Under-dock NOTE lines: 17, 6 and 5 px at 844×390 with insets; 3 px at 852×343; 6 px at 844×340; 21, 10 and 9 px at both 812×325. All as NAVIGATION recorded on 2026-10-12 ([NAVIGATION.md:422-449](NAVIGATION.md)) |
-| 2026-10-13, review round 2: a scratch Playwright script on the same server (scratch deleted afterwards), seeded as `tools/shell-smoke.mjs` seeds (`pageFor`: fixed clock, `--safe-area-inset-*` overrides), Pixel 7 in installed Chrome and iPhone 15 in WebKit 26.6; opens the collection and reads `[data-viewport-overflow="true"]`, the shown items' heights and the pager's top (§12 item 18) | N1's fixture (all 29 WX-01 printings): the `cards` list flags at 412×790, 393×780, 360×780, 412×839 with 48/34 px and 393×852 with 59/34 px in both engines, and not at 412×800, 393×800 or 412×839. Chromium: frames of 360, 350, 350, 333 and 335 px against a 361 px tallest tile, which runs 8, 18, 18, 35 and 33 px past the frame, 0–27 px past the pager's top. A new journey (16 cards) flags at none of the eight sizes in either engine. Chromium only: one WX-01 printing flags none; two more `wukong` copies flag only the two inset sizes (tile 336 px); five more give the full fixture's figures |
+| 2026-10-13, review round 2: a scratch Playwright script on the same server (scratch deleted afterwards), seeded as `tools/shell-smoke.mjs` seeds (`pageFor`: fixed clock, `--safe-area-inset-*` overrides), Pixel 7 in installed Chrome and iPhone 15 in WebKit 26.6; opens the collection and reads `[data-viewport-overflow="true"]`, the shown items' heights and the pager's top (§12 item 18) | N1's fixture (all 29 WX-01 printings): the `cards` list flags at 412×790, 393×780, 360×780, 412×839 with 48/34 px and 393×852 with 59/34 px in both engines, and not at 412×800, 393×800 or 412×839. Chromium: list boxes (`getBoundingClientRect`) of 360, 350, 350, 333 and 335 px against a 361 px tallest tile, which runs 8, 18, 18, 35 and 33 px past the box, 0–27 px past the pager's top. As first recorded here the boxes were called frames, which does not add up: each box includes the list's 7 px top padding, and the controller pages by 353, 343, 343, 326 and 328 px (review round 3, row below). A new journey (16 cards) flags at none of the eight sizes in either engine. Chromium only: one WX-01 printing flags none; two more `wukong` copies flag only the two inset sizes (tile 336 px); five more give the full fixture's figures |
 | 2026-10-13, review round 2, on the corrected documentation tree: `node --test tests/*.test.mjs`; `npm run build` (`dist/` deleted afterwards); `npm run audit:content`; `git diff --check`; a scratch link and anchor check over RELEASE-NEXT, VALIDATION, HANDOVER, ROADMAP and the docs index; every `HANDOVER.md:N`, `VALIDATION.md:N`, `ROADMAP.md:N` and `RELEASE-NEXT.md:N` citation in the tracked Markdown mapped through `difflib` from `50c3cf6` | exit 0, **603/603**; 90 public files, manifest `e05db797…8746`; no findings; clean; all 487 local link targets and anchors found. This round's additions to HANDOVER and VALIDATION moved **19** citations in this plan, not 16 as first recorded here: the 16 written as `[HANDOVER.md:N]` or `[VALIDATION.md:N]` links were re-pointed and each cites the same text (checked range by range), but the mapping read only that link form and missed the three bare `` `:N` `` continuations after a HANDOVER link (§1's Q0 checkpoint and WX-01 ranges, G5's second range), which kept their old numbers until review round 3 re-pointed them (row below) |
 | 2026-10-13, review round 3: a scratch Python script (deleted afterwards) that finds every citation of HANDOVER, VALIDATION, ROADMAP, this plan and the docs index in the tracked Markdown in three forms, `[X.md:N](X.md)` links, `path:N` code spans and bare `` `:N` `` continuations whose nearest file reference earlier in the paragraph is one of those files; it pairs each with the same citation at `50c3cf6` (citing lines matched through `difflib`, with the line numbers masked) and compares the cited text. Then `diff <(sed -n 306,348p H50) <(sed -n 319,361p HH)` and the same for `1157,1254`/`1170,1267` and `1270,1272`/`1283,1285`, where `H50` is `git show 50c3cf6:docs/HANDOVER.md` and `HH` the file at `e1aba12` | at `e1aba12`: 21 citations (18 links, 3 bare continuations, all in this plan); the 16 moved links and 2 unchanged ones cite the same text as at `50c3cf6`, the 3 bare ones (`:306-348`, `:1157-1254`, `:1270-1272`) kept their numbers and cited other text; the three `diff`s are empty. After re-pointing them to `:319-361`, `:1170-1267` and `:1283-1285`: 19 moved, 2 unchanged, none cite other text |
+| 2026-10-13, review round 3: `python3 tools/serve.py --port 4205` from this worktree (code tree of `0281798`: `git diff --stat 0281798 HEAD` outside Markdown is empty), started after checkout and stopped afterwards; a scratch Playwright script (deleted afterwards) seeded as `tools/shell-smoke.mjs` seeds, with N1's fixture, Pixel 7 in installed Chrome and iPhone 15 in WebKit 26.6; it opens the collection and reads the `cards` list's `data-viewport-overflow`, its box height and padding, the shown items' heights with margins, and the tallest tile's bottom against the box and the pager's top (§1, §12 item 18) | both engines alike. Flags at 412×741, 412×789, 412×790, 412×791, 412×795, 412×797, 393×780, 393×797, 360×741, 360×780 and 360×797 (Chromium also 412×760 and 412×796), and at 412×839 with 48/34 px and 393×852 with 59/34 px; not at 412×740 or 360×740 (tile 175.6 px, the compact cards), 412×798, 393×798, 393×799, 360×798, 412×800, 393×800 or 412×839. The box is 310.6 px at 741 px tall and grows 1 px per px of height at all three widths (349.6 at 780, 359.6 at 790, 366.6 at 797, 367.6 at 798); padding 7 px top, 0 bottom; tile 360.6 px. Tile past the box / past the pager's top: 57 / 49 px at 741, 18 / 10 at 780, 9 / 1 at 789, 8 / 0 at 790, 7 / −1 at 791, 1 / −7 at 797; with the insets the box is 332.6 and 334.6 px and the tile 35 / 27 and 33 / 25. No page error and no request outside the server |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no
