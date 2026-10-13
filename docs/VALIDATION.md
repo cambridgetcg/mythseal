@@ -146,8 +146,11 @@ unmerged branch, in place in this entry and the
   or v4 file; all three tags are profile v3 (`git show
   <tag>:progression.mjs`), and v4 is only a local namespace `load()` migrates.
 - C3 said the Node test checks S10's v0.5.1 file byte for byte against `git
-  archive v0.5.1`; that was a one-time check in D2's third review, which only
-  a comment records (`tests/save-durability.test.mjs:90-94`).
+  archive v0.5.1`; that was a one-time check with a scratch script in D2's
+  third review, recorded in [that review's entry](#d2-third-review-fixes--2026-10-12)
+  (finding 4), in LOCAL-COMMANDS §19 and in a comment
+  (`tests/save-durability.test.mjs:90-94`). No test repeats it. (Corrected the
+  same day in review round 2: this said only a comment records it.)
 - The descriptor wording above: only `test:back`, `test:shell` and
   `test:coach` load the Pixel 7 and iPhone 15 descriptors.
 - This entry's first paragraph left out Wrangler's own update check.
@@ -166,6 +169,24 @@ clean; the scratch link and anchor check finds all 474 local link targets and
 anchors in the five changed documents. RELEASE-NEXT's §13 has the source
 checks behind each correction. No browser suite, server or network request
 was needed for this round.
+
+**Review round 2 (same day).** A second independent review verified six
+low-severity findings, all in documents:
+
+- **Correction to the [D2 third review fixes](#d2-third-review-fixes--2026-10-12)
+  entry (2026-10-12), finding 4,** which stays as written: "both 5,782 B" is a
+  character count. v0.5.1's export wrote `new Blob([JSON.stringify(loadProfile(), null, 2)])`
+  (`git show v0.5.1:app.mjs` line 459), and a Blob writes a string as UTF-8.
+  For a new journey at the test's clock the stored object and the download are
+  each **5,790 B** and 5,782 characters; the only non-ASCII text is the deck
+  name 山海初陣, 3 bytes a character. The byte-for-byte equality it records
+  holds: a scratch rerun on 2026-10-13 over `git archive v0.5.1 '*.mjs'` found
+  the test's `v051Download` string equal to v0.5.1's download. The same
+  mislabel is in the comment at `tests/save-durability.test.mjs:94` ("5,782 B"),
+  which this documentation pass does not edit. RELEASE-NEXT C3 now gives
+  5,790 B and says the check was a scratch script, recorded in that entry, in
+  LOCAL-COMMANDS §19 and in the comment; the round-1 bullet above is corrected
+  in place.
 
 ## D3 first-battle teaching · 2026-10-12
 

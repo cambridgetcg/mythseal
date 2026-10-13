@@ -800,12 +800,17 @@ local only: before C1, export the owner's journey from the live v0.5.1 footer
 profile. It would be the first check of a real player's v0.5.1 export file;
 `test:saves` S10 uses a synthetic one in v0.5.1's download key order
 (`v051Download`, `tools/save-durability-smoke.mjs:64-67`, `:595`). That order
-was checked once, by hand, in D2's third review on 2026-10-12: for a new
-journey it equalled v0.5.1's download from `git archive v0.5.1` byte for byte
-(5,782 B). Only a comment records that check (`tests/save-durability.test.mjs:90-94`;
-[LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
-The Node test reads no v0.5.1 code: it pins the last seven keys of that
-order (`tests/save-durability.test.mjs:198`), not the comparison.
+was checked once, with a scratch script over `git archive v0.5.1 '*.mjs'`, in
+D2's third review on 2026-10-12: for a new journey it equalled v0.5.1's
+download byte for byte, 5,790 B in UTF-8 (the test comment's "5,782 B" is the
+string's character count; the deck name 山海初陣 takes 3 bytes a character, §13).
+Three records hold that check:
+[VALIDATION](VALIDATION.md#d2-third-review-fixes--2026-10-12) (finding 4),
+[LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
+and the comment at `tests/save-durability.test.mjs:90-94`. No test repeats the
+comparison: the Node test reads no v0.5.1 code and pins only the last seven
+keys of that order (`tests/save-durability.test.mjs:198`). A scratch rerun on
+2026-10-13 found the two still equal (§13).
 *Rollback:* as in C1. Synthetic data is cleaned up by the checker.
 
 **C4 · OWNER · Watch for 24–72 h.** Watch the Cloudflare Worker metrics for
@@ -1593,6 +1598,8 @@ disables cloud upload for new clients, so the owner decides.
 | 2026-10-13, review round 1: `git show v0.5.1:hosting/public-assets.json`; `git grep -n 'min-width: *701px' 0281798 -- '*.css'`; NAVIGATION's landscape record read (§12 item 17) | v0.5.1 serves 19 files with no `viewport.mjs`, `scene-navigation.css`, `expansion.css` or WX-01 module; the short-landscape rules sit at `expansion.css:94`, `:105`, `:110` and `scene-navigation.css:153`, `:174`, all `(max-height:500px) and (min-width:701px)` |
 | 2026-10-13, review round 1: per-packet first-screen shares from the figures in the first-screen row above (§2, §9) | D1 19,113 / 6,923 / 5,841 B (raw / gzip / brotli), N1 6,350 / 2,277 / 1,969, D2 41,762 / 16,153 / 13,260, D3 39,670 / 14,674 / 12,200; total 106,895 / 40,027 / 33,270. Existing files: 2,920 + 6,350 + 11,316 + 14,485 − 824 (`nav-stack.mjs`, added in this range) = 34,247 B |
 | 2026-10-13, review round 1, on the corrected documentation tree: `node --test tests/*.test.mjs`; `npm run build` (`dist/` deleted afterwards); `npm run audit:content`; `git diff --check`; the scratch link and anchor check over the five changed documents; the `HANDOVER.md:N` and `VALIDATION.md:N` citations mapped through `difflib` from `09b08bd` | exit 0, **603/603**; 90 files, 74,496,049 B, manifest `e05db797…8746`; 150 entries (120 `local-playable`, 30 `preview`), no findings; clean; all 474 local link targets and anchors found; every such citation moved by this round's own additions to those two files and now points at the same lines |
+| 2026-10-13, review round 2: scratch Node script over `git archive v0.5.1 '*.mjs'` (scratch deleted afterwards): v0.5.1's `hydrateProfile` over a JSON round trip of `claimLogin(createProfile({ now }), now)`, as its `loadProfile` reads the stored key, then `JSON.stringify(…, null, 2)`, at the test's clock `2026-09-21T12:00:00.000Z` and at 2026-10-01 and 2026-10-16; then the test file's own `v051Download(v051Profile(claimLogin(fresh(), now)))` at `0281798` (C3) | the download is **5,790 B** (`Buffer.byteLength`) and 5,782 characters at all three dates; its only non-ASCII text is the deck name 山海初陣 (`git show v0.5.1:collection.mjs` line 181), 4 characters of 3 bytes each. The stored order is the same size. The test's string `===` v0.5.1's download: true. C3, the test comment (`:94`) and the D2 third-review record gave the character count as bytes |
+| 2026-10-13, review round 2: `grep -n 'archive v0.5.1'` over VALIDATION and LOCAL-COMMANDS (C3) | the D2 third-review entry ([VALIDATION](VALIDATION.md#d2-third-review-fixes--2026-10-12), finding 4: "Checked with a scratch script over `git archive v0.5.1 '*.mjs'`") and LOCAL-COMMANDS §19 ("checked against `git archive v0.5.1`") record the check besides the test comment. C3 had said it was done by hand and that only a comment records it |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no
