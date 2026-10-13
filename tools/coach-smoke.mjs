@@ -26,8 +26,13 @@
  * from ① shows ④, then round 2 opens on ②, also after a reload, and its commit completes
  * the coach); at 340–354 px every copy fits three lines inside the 44 px status row, which
  * never grows; and every coach check first waits for the table's entry animations to end,
- * so no box is measured mid-translate. Headless engines only: the owner's playtest with
- * first-time players is the real exit (docs/VALIDATION.md).
+ * so no box is measured mid-translate. Review round 3 added: a reload resumes the mark it
+ * interrupted (② or ③ in round 1, so a commit after them owes nothing, also at 12 pills);
+ * after 知道了 closed ④ with ② owed, a reload in the reveal shows no ④, Back holds the
+ * result and round 2 still opens on ②; the owed ② counts the three rounds left
+ * (十二丹撐三回合); the record keeps {"step":"pills","owed":"pills"} while that ② shows.
+ * Headless engines only: the owner's playtest with first-time players is the real exit
+ * (docs/VALIDATION.md).
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/coach-smoke.mjs
  */
 import assert from 'node:assert/strict';
@@ -305,7 +310,7 @@ try {
     await tap(page, `.player-hand [data-action="select"][data-id="${other}"]`);
     assert.equal(await page.locator(`.player-hand [data-id="${other}"]`).getAttribute('aria-pressed'), 'true', 'the tapped card is selected');
     await assertCoach(page, 'pills', 'after picking a card');
-    assert.match((await tableState(page)).hintText, /攻擊＝力×（1＋丹）/, 'mark ② says what pills do');
+    assert.match((await tableState(page)).hintText, /攻擊＝力×（1＋丹）。十二丹撐四回合/, 'mark ② says what pills do, over the four rounds');
     await assertReachable(page, '.move-panel [data-action="pill-plus"]', 'mark ② add pills');
     await tap(page, '.move-panel [data-action="pill-plus"]');
     await assertCoach(page, 'commit', 'after adding a pill');
@@ -330,7 +335,7 @@ try {
     assert.ok(await reveal.locator('[data-action="coach-done"]').isVisible(), '知道了 is offered');
     await assertReachable(page, '#overlay-root [data-action="next-round"]', 'mark ④ next round');
     await settleDepth(page, 3, 'the reveal and its coach mark');
-    assert.equal(await coachRecord(page), null, 'nothing is recorded before the last mark');
+    assert.deepEqual(await coachRecord(page), { step: 'reveal' }, 'before an ending only the mark reached is kept');
     await tap(page, '#overlay-root [data-action="next-round"]');
     await planning(page);
     assert.deepEqual(await coachRecord(page), { firstBattle: 'done' });
@@ -404,7 +409,7 @@ try {
     await tap(page, '.move-panel [data-action="commit"]');
     await assertRevealTip(page, 'round 1 committed from mark ①');
     await page.locator('#overlay-root [data-battle-coach="reveal"]').waitFor();
-    assert.deepEqual(await coachRecord(page), { owed: 'pills' }, 'a commit from ① owes ②');
+    assert.deepEqual(await coachRecord(page), { step: 'reveal', owed: 'pills' }, 'a commit from ① owes ②');
     await settleDepth(page, 3, 'the reveal and its coach mark');
     await teaching(page, 'Back on the reveal mark', async () => { await page.goBack(); await settleDepth(page, 2, 'Back closes the reveal mark'); });
     assert.equal(await page.locator('#overlay-root [data-battle-coach]').count(), 0, 'the reveal mark is gone');
@@ -432,7 +437,7 @@ try {
     const reveal = page.locator('#overlay-root .battle-reveal');
     await reveal.locator('[data-battle-coach="reveal"]').waitFor();
     assert.equal(JSON.parse(await stored(page, battleKey)).match.lastResult.player.pills, 0, 'round 1 went in at 0 pills');
-    assert.deepEqual(await coachRecord(page), { owed: 'pills' }, 'the commit owes ②');
+    assert.deepEqual(await coachRecord(page), { step: 'reveal', owed: 'pills' }, 'the commit owes ②');
     // A reload in the reveal keeps the debt.
     await page.reload(); await page.locator('.game-lobby').waitFor();
     await tap(page, '.game-lobby [data-action="resume"]');
@@ -443,17 +448,32 @@ try {
     // 知道了 closes ④ only; ② waits for round 2's table.
     await teaching(page, '知道了 with ② owed', () => tap(page, '#overlay-root [data-action="coach-done"]'));
     assert.equal(await reveal.locator('[data-battle-coach]').count(), 0, '④ is closed');
-    assert.deepEqual(await coachRecord(page), { owed: 'pills' }, '知道了 does not end the coach while ② is owed');
+    assert.deepEqual(await coachRecord(page), { step: 'pills', owed: 'pills' }, '知道了 does not end the coach while ② is owed');
     await settleDepth(page, 2, 'the reveal without its mark');
+    // Review round 3: a reload after 知道了 keeps ④ closed, and Back then holds the result.
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    await tap(page, '.game-lobby [data-action="resume"]');
+    await page.locator('#overlay-root .battle-reveal[data-reveal-state="complete"]').waitFor();
+    await viewportFrames(page);
+    assert.equal(await reveal.locator('[data-battle-coach]').count(), 0, '④ stays closed after a reload that follows 知道了');
+    assert.equal(await reveal.locator('[data-action="coach-done"]').count(), 0, 'no 知道了 again');
+    await settleDepth(page, 2, 'the reveal without its mark after a reload');
+    await page.goBack(); await settleDepth(page, 2, 'Back holds the result');
+    assert.equal(await reveal.count(), 1, 'the round result stays');
+    assert.deepEqual(await coachRecord(page), { step: 'pills', owed: 'pills' }, 'Back skipped nothing: ② is still owed');
     await tap(page, '#overlay-root [data-action="next-round"]');
     await planning(page);
     const second = await assertCoach(page, 'pills', 'round 2 opens on the owed ②');
-    assert.match(second.hintText, /攻擊＝力×（1＋丹）。十二丹撐四回合/, 'the owed ② says what pills do');
+    const roundTwo = JSON.parse(await stored(page, battleKey)).match;
+    assert.equal(roundTwo.round, 2); assert.equal(roundTwo.player.pills, 12, 'round 1 spent nothing');
+    assert.match(second.hintText, /攻擊＝力×（1＋丹）。十二丹撐三回合，莫一次押盡。$/, 'the owed ② says what pills do, over the three rounds left');
+    assert.deepEqual(await coachRecord(page), { step: 'pills', owed: 'pills' }, 'the record keeps the debt while ② shows');
     assert.match(await page.locator('#announcer').textContent(), /攻擊＝力×（1＋丹）/, 'the owed ② is announced with the round');
     await settleDepth(page, 2, 'round 2 and its coach mark');
     await assertReachable(page, '.move-panel [data-action="pill-plus"]', 'owed ② add pills');
     await teaching(page, 'a pill under the owed ②', () => tap(page, '.move-panel [data-action="pill-plus"]'));
     await assertCoach(page, 'pills', 'the owed ② stays while pills are set');
+    assert.deepEqual(await coachRecord(page), { step: 'pills', owed: 'pills' });
     // A reload on round 2 keeps it too.
     await page.reload(); await page.locator('.game-lobby').waitFor();
     await tap(page, '.game-lobby [data-action="resume"]');
@@ -467,7 +487,7 @@ try {
     await tap(page, '#overlay-root [data-action="next-round"]');
     await planning(page);
     await assertNoCoach(page, 'round 3 after the owed ②');
-    passed('a round 1 committed straight from ① shows ④ and owes ②: after a reload and 知道了, round 2 opens on ② (announced, kept while pills are set and across a reload), and its commit completes the coach');
+    passed('a round 1 committed straight from ① shows ④ and owes ②: after a reload and 知道了 (then another reload, with ④ kept closed and Back holding the result), round 2 opens on ② counting three rounds (announced, kept while pills are set and across a reload), and its commit completes the coach');
     await release(page);
   }
   {
@@ -482,10 +502,44 @@ try {
     await tap(page, '.move-panel [data-action="commit"]');
     await page.locator('#overlay-root [data-battle-coach="reveal"]').waitFor();
     assert.equal(await page.locator('#overlay-root [data-action="coach-done"]').getAttribute('aria-label'), '知道了，結束新手指引');
-    assert.equal(await coachRecord(page), null, 'nothing is owed after ②');
+    assert.deepEqual(await coachRecord(page), { step: 'reveal' }, 'nothing is owed after ②');
     await tap(page, '#overlay-root [data-action="coach-done"]');
     assert.deepEqual(await coachRecord(page), { firstBattle: 'done' }, '知道了 completes the coach when nothing is owed');
     passed('＋ on ① shows ② and the next pill ③; 知道了 then completes the coach');
+    await release(page);
+  }
+  {
+    // Review round 3: a reload in round-1 planning resumes ② or ③, so a commit after them owes nothing.
+    const page = await open('fresh');
+    await startFirstJourneyBattle(page);
+    await assertCoach(page, 'card', 'before a reload on ②');
+    const other = await page.locator('.player-hand [data-action="select"][aria-pressed="false"]:not([disabled])').first().getAttribute('data-id');
+    await tap(page, `.player-hand [data-action="select"][data-id="${other}"]`);
+    await assertCoach(page, 'pills', 'mark ② before a reload');
+    assert.deepEqual(await coachRecord(page), { step: 'pills' }, 'the record keeps the mark reached');
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    await tap(page, '.game-lobby [data-action="resume"]');
+    await planning(page);
+    await assertCoach(page, 'pills', 'a reload on ② resumes ②');
+    await tap(page, '.move-panel [data-action="pill-plus"]');
+    await assertCoach(page, 'commit', 'a pill after the reload');
+    await page.locator('#pill-slider').fill('12'); await viewportFrames(page);
+    assert.deepEqual(await coachRecord(page), { step: 'commit' });
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    await tap(page, '.game-lobby [data-action="resume"]');
+    await planning(page);
+    await assertCoach(page, 'commit', 'a reload on ③ resumes ③');
+    assert.equal(await page.locator('#pill-amount').textContent(), '12', 'the draft of 12 pills is restored');
+    await tap(page, '.move-panel [data-action="commit"]');
+    await page.locator('#overlay-root [data-battle-coach="reveal"]').waitFor();
+    assert.equal(JSON.parse(await stored(page, battleKey)).match.lastResult.player.pills, 12, 'round 1 went in at 12 pills');
+    assert.equal(await page.locator('#overlay-root [data-action="coach-done"]').getAttribute('aria-label'), '知道了，結束新手指引', '④ ends the coach: nothing is owed');
+    assert.deepEqual(await coachRecord(page), { step: 'reveal' });
+    await tap(page, '#overlay-root [data-action="next-round"]');
+    await planning(page);
+    assert.deepEqual(await coachRecord(page), { firstBattle: 'done' });
+    await assertNoCoach(page, 'round 2 after a reload on ③ and a 12-pill commit');
+    passed('a reload in round 1 resumes ② or ③ with the draft; a commit after them (12 pills) shows ④, owes nothing and 繼續 completes the coach');
     await release(page);
   }
 
@@ -578,13 +632,15 @@ try {
     const copies = await page.evaluate(async () => {
       const { coachCopy, COACH_STEPS } = await import('./battle-teaching.mjs');
       const hint = document.querySelector('#app .battle-coach'), text = hint.querySelector('.battle-coach-text'), original = text.textContent, result = [];
-      for (const step of COACH_STEPS.filter(step => step !== 'reveal')) for (const leader of ['player', 'opponent']) for (const commitLabel of ['封丹 · 落子', '落子 · 決勝']) {
-        text.textContent = coachCopy(step, { leader, commitLabel }).text;
+      // ② also as the owed ② on round 2 (三回合).
+      for (const step of COACH_STEPS.filter(step => step !== 'reveal')) for (const leader of ['player', 'opponent']) for (const commitLabel of ['封丹 · 落子', '落子 · 決勝']) for (const roundsLeft of step === 'pills' ? [4, 3] : [4]) {
+        text.textContent = coachCopy(step, { leader, commitLabel, roundsLeft }).text;
         result.push({ step, leader, commitLabel, text: text.textContent, lines: Math.round(hint.scrollHeight / parseFloat(getComputedStyle(hint).lineHeight)), clipped: hint.scrollHeight > hint.clientHeight + 1 });
       }
       text.textContent = original;
       return result;
     });
+    assert.equal(copies.length, 16, `${at}: every copy of marks ①–③ was measured, ② for both rounds`);
     for (const copy of copies) assert.ok(!copy.clipped && copy.lines <= 2, `${at}: the ${copy.step} copy (${copy.leader} leads, ${copy.commitLabel}) fits two lines, not ${copy.lines}: ${copy.text}`);
     const other = await page.locator('.player-hand [data-action="select"][aria-pressed="false"]:not([disabled])').first().getAttribute('data-id');
     await tap(page, `.player-hand [data-action="select"][data-id="${other}"]`);
@@ -607,13 +663,14 @@ try {
     const copies = await page.evaluate(async () => {
       const { coachCopy, COACH_STEPS } = await import('./battle-teaching.mjs');
       const hint = document.querySelector('#app .battle-coach'), text = hint.querySelector('.battle-coach-text'), status = document.querySelector('#app .battle-status'), original = text.textContent, result = [];
-      for (const step of COACH_STEPS.filter(step => step !== 'reveal')) for (const leader of ['player', 'opponent']) for (const commitLabel of ['封丹 · 落子', '落子 · 決勝']) {
-        text.textContent = coachCopy(step, { leader, commitLabel }).text;
+      for (const step of COACH_STEPS.filter(step => step !== 'reveal')) for (const leader of ['player', 'opponent']) for (const commitLabel of ['封丹 · 落子', '落子 · 決勝']) for (const roundsLeft of step === 'pills' ? [4, 3] : [4]) {
+        text.textContent = coachCopy(step, { leader, commitLabel, roundsLeft }).text;
         result.push({ step, leader, commitLabel, text: text.textContent, lines: Math.round(hint.scrollHeight / parseFloat(getComputedStyle(hint).lineHeight)), clipped: hint.scrollHeight > hint.clientHeight + 1, row: status.getBoundingClientRect().height });
       }
       text.textContent = original;
       return result;
     });
+    assert.equal(copies.length, 16, `${at}: every copy of marks ①–③ was measured, ② for both rounds`);
     for (const copy of copies) {
       assert.ok(!copy.clipped && copy.lines <= 3, `${at}: the ${copy.step} copy (${copy.leader} leads, ${copy.commitLabel}) shows whole, in ${copy.lines} lines: ${copy.text}`);
       assert.ok(copy.row <= row + 0.5, `${at}: the ${copy.step} copy keeps the status row's height (${copy.row} against ${row})`);
@@ -643,11 +700,11 @@ try {
     assert.equal(await page.evaluate(() => document.querySelector('#overlay-root .battle-reveal')?.dataset.revealState), 'animating', 'Back comes while the reveal still animates');
     await page.goBack(); await settleDepth(page, 2, 'Back during the animated reveal holds the result');
     await viewportFrames(page);
-    assert.equal(await coachRecord(page), null, 'Back during the animation skips no mark');
+    assert.deepEqual(await coachRecord(page), { step: 'reveal' }, 'Back during the animation skips no mark: the coach is still at ④');
     await page.locator('#overlay-root .battle-reveal[data-reveal-state="complete"]').waitFor({ state: 'attached' });
     await reveal.locator('[data-battle-coach="reveal"]').waitFor({ state: 'visible' });
     assert.ok(await reveal.locator('[data-action="coach-done"]').isVisible(), '知道了 shows with mark ④');
-    assert.equal(await coachRecord(page), null);
+    assert.deepEqual(await coachRecord(page), { step: 'reveal' });
     // The next Back closes the mark the player can now see, as 跳過; the result stays.
     await page.goBack();
     await page.waitForFunction(() => !document.querySelector('#overlay-root [data-battle-coach]'), null, { timeout: 4000 });
