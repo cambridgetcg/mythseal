@@ -134,6 +134,12 @@ during `npm run preview -- --dry-run`, outside the project's services.
   Re-measured on 2026-10-13; no phone tried. The owner decides whether it
   ships documented or is fixed first. It is a measured fault, not a phone
   check still to run.
+- **Firefox** (RELEASE-NEXT §12 item 1, added in the same day's review round
+  3): no suite of Q1, D1, N1, D2 or D3 has run in Firefox, desktop or
+  Android; each packet's record lists it as not run, and the planned CI
+  browser job installs Chromium and WebKit only. Q1's IndexedDB fence, D1's
+  history walks after a reload and D2's `persist()` request have no Firefox
+  run. The owner accepts that gap or asks for a Firefox check before GO.
 - **Review rounds that ended at the cap:** D2's and N1's review loops stopped
   at their round cap without a clean round (their PR bodies, as the
   orchestrating session reported; not re-read here). So D2's integration

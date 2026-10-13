@@ -114,13 +114,13 @@ added, 72,648 B; existing files +34,247 B); its 23 PNGs are unchanged. PR #13
   six campaign volumes (66 encounters) and the 火焰山三連戰 activity,
   same-character inheritance, character stacks and the ink codex, Mist Gate
   immersion, the battle resource/clash presentation, story maps, the map piece,
-  and the Q0 對局 table (PR #5) ([HANDOVER.md:20-25](HANDOVER.md), `:319-361`,
-  `:1170-1267`).
+  and the Q0 對局 table (PR #5) ([HANDOVER.md:20-25](HANDOVER.md), `:325-367`,
+  `:1176-1273`).
 - **Q1** (merged by PR #10): the card page's 修練升級 as a previewed local
   command whose effects and receipt land in one profile write, an optional
   device-local `commands` ledger inside the v5 profile that backups never
   contain, and an IndexedDB read-after-write fence for every writer under the
-  profile lock ([LOCAL-COMMANDS](LOCAL-COMMANDS.md); [HANDOVER.md:454-515](HANDOVER.md)).
+  profile lock ([LOCAL-COMMANDS](LOCAL-COMMANDS.md); [HANDOVER.md:460-521](HANDOVER.md)).
   `PROFILE_VERSION`, the snapshot format, the Worker's routes and validator
   verdicts, the SQL and the journey flags are unchanged
   ([LOCAL-COMMANDS §12](LOCAL-COMMANDS.md#12-backup-validation-impact)); the
@@ -228,7 +228,7 @@ equal `7712a7b`'s) and the plan's first, at `8afbabc`, are kept in brackets.
 | Account API | `{"authenticated":false,"user":null,"emailEnabled":true}`: no `journeyVersions` field, so the v1-only Worker (2026-10-11 probe) | `/api/v2` and `/api/v3` routes behind `JOURNEY_V2_ENABLED` / `JOURNEY_V3_ENABLED`; `journeyVersions` in every account reply. Q1, D1, N1, D2 and D3 change no route (`server/` is unchanged since `7712a7b`) | live probe; `server/account-api.mjs:8-16`, `:123-125`, `:173`; v0.5.1 routes: `git show v0.5.1:server/account-api.mjs` lines 7-12 |
 | Local save key | `shanhai.profile.v3` | `shanhai.profile.v5`; reads v4/v3/v2 sources and leaves them in place. Since Q1 a v5 profile may also hold a device-local `commands` ledger. Beside it, device-local and never in a profile, export or backup: `shanhai.saves.v1` (D2) and `shanhai.coach.v1` (D3); D1 writes only `history.state` | `git show v0.5.1:progression.mjs:16`; `progression.mjs:24`; `profile-store.mjs:10-14`, `:85-106`; ledger: `progression.mjs:250`; `save-status.mjs:10`; `battle-teaching.mjs:191`; `nav-stack.mjs:12` |
 | Cloud snapshot | v1: 512 KiB, 2,000 copies | v3: 4 MiB, 10,000 copies; v1 is still accepted. The ledger never enters a backup. D2's file import wraps the imported journey as a snapshot v3 before restoring it, as a cloud restore would | `cloud-save.mjs:9-13`, `:177-192`; `server/account-api.mjs:5-6`; `platform.mjs:103-106` |
-| Hosted migrations | `20260921210000`, `20260921210100` applied | plus `20260922210000` (v2) and `20260923000000` (v3), **not applied** | [HANDOVER.md:1496-1500](HANDOVER.md); [ACCOUNTS.md:12](ACCOUNTS.md) |
+| Hosted migrations | `20260921210000`, `20260921210100` applied | plus `20260922210000` (v2) and `20260923000000` (v3), **not applied** | [HANDOVER.md:1502-1506](HANDOVER.md); [ACCOUNTS.md:12](ACCOUNTS.md) |
 | Deploy helper | v0.5.1's tracked `tools/deploy.mjs` was 15 lines, with no identity, secret or `--keep-vars` checks | Hosted preflight plus `--keep-vars` (`tools/deploy.mjs:63-84`, `:93-97`). It has only stub-test evidence | [cmd] `git show v0.5.1:tools/deploy.mjs` |
 | Worker bundle | (unknown) | `Total Upload: 910.52 KiB / gzip: 189.56 KiB` at `0281798` [not measured at `b527dc3`; `906.25 KiB / gzip: 188.52 KiB` at `8afbabc`]. The Worker's 14-module import graph from `server/account-api.mjs` is unchanged from `7712a7b` to `0281798` ([cmd] scratch Node walk of static imports, then `git diff --stat 7712a7b 0281798` over those files: empty). PRs #6–#9 changed no runtime file (§1), so the +4.27 KiB / +1.04 KiB since `8afbabc` is Q1's, and D1, N1, D2 and D3 add nothing to it. The Worker imports `cloud-save.mjs` (`server/account-api.mjs:2`) and, through it, `progression.mjs` (`cloud-save.mjs:2`), which since Q1 imports `command-ledger.mjs` (`progression.mjs:11`), so the bundle now contains Q1 code. Q1 also changed `hydrateProfile` (`progression.mjs:250`), which the validator runs (`cloud-save.mjs:159`). Verdicts are unchanged: `validateProfile`'s exact-key check rejects a `commands` key first (`cloud-save.mjs:113`; `tests/cloud-save.test.mjs:405-411`; [LOCAL-COMMANDS §2](LOCAL-COMMANDS.md#2-files-in-the-pr)) | [cmd] `npm run preview -- --dry-run` exit 0 at `0281798` and at `8afbabc` |
 
@@ -279,14 +279,14 @@ path.** The v0.5.1 deployment used an ignored helper
 
 | # | Gate (source) | Status at `8afbabc`, unchanged at `b527dc3` and `0281798` unless noted | Plan step |
 | --- | --- | --- | --- |
-| G1 | Hosted v2/v3 migrations applied and verified before the flags are enabled ([HANDOVER.md:1218-1222](HANDOVER.md); migration headers `20260922210000…sql:1-2`, `20260923000000…sql:1-2`) | Not applied ([HANDOVER.md:1499-1500](HANDOVER.md)) | B3 |
-| G2 | Client and Worker roll out together; live v0.5.1 rejects the new fields ([HANDOVER.md:1282-1285](HANDOVER.md)) | Assets and Worker are **one apex Worker version** (`wrangler.jsonc:4`, `:10-16`), so they roll out atomically. The flags are **not declared** in `wrangler.jsonc:18-22` | A3, C1 |
-| G3 | Coherent hashed/versioned module graph ([HANDOVER.md:1222-1223](HANDOVER.md); [ROADMAP.md:267-268](../ROADMAP.md)) | Not implemented: the build copies files under their source names (`tools/build.mjs:44-47`) and one `Cache-Control: public, max-age=0, must-revalidate` covers everything (`hosting/_headers:7`) | A2 |
+| G1 | Hosted v2/v3 migrations applied and verified before the flags are enabled ([HANDOVER.md:1224-1228](HANDOVER.md); migration headers `20260922210000…sql:1-2`, `20260923000000…sql:1-2`) | Not applied ([HANDOVER.md:1505-1506](HANDOVER.md)) | B3 |
+| G2 | Client and Worker roll out together; live v0.5.1 rejects the new fields ([HANDOVER.md:1288-1291](HANDOVER.md)) | Assets and Worker are **one apex Worker version** (`wrangler.jsonc:4`, `:10-16`), so they roll out atomically. The flags are **not declared** in `wrangler.jsonc:18-22` | A3, C1 |
+| G3 | Coherent hashed/versioned module graph ([HANDOVER.md:1228-1229](HANDOVER.md); [ROADMAP.md:267-268](../ROADMAP.md)) | Not implemented: the build copies files under their source names (`tools/build.mjs:44-47`) and one `Cache-Control: public, max-age=0, must-revalidate` covers everything (`hosting/_headers:7`) | A2 |
 | G4 | Hosted proof that the publishable-key binding survives `--keep-vars` ([HOSTING.md:71-81](HOSTING.md)) | Stub tests only | C1 verify |
-| G5 | Hosted acceptance of old and new backups ([HANDOVER.md:1224](HANDOVER.md), `:1283-1285`) | `tools/live-account-check.mjs:83` exercises `/api/v1` only | A4, B4, C3 |
-| G6 | Transfer-size optimization before a hosted rollout ([HANDOVER.md:1616](HANDOVER.md)); first screen ≤ 1.5 MiB ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | First screen measured at **6.98 MiB** at `8afbabc`; **6.99 MiB** at `b527dc3` and **7.02 MiB** at `0281798`, both recomputed statically (Q1's three modules; then the seven files D1, D2 and D3 added and the files all four packets grew, N1's stylesheets among them) (§9) | A1 |
+| G5 | Hosted acceptance of old and new backups ([HANDOVER.md:1230](HANDOVER.md), `:1289-1291`) | `tools/live-account-check.mjs:83` exercises `/api/v1` only | A4, B4, C3 |
+| G6 | Transfer-size optimization before a hosted rollout ([HANDOVER.md:1622](HANDOVER.md)); first screen ≤ 1.5 MiB ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | First screen measured at **6.98 MiB** at `8afbabc`; **6.99 MiB** at `b527dc3` and **7.02 MiB** at `0281798`, both recomputed statically (Q1's three modules; then the seven files D1, D2 and D3 added and the files all four packets grew, N1's stylesheets among them) (§9) | A1 |
 | G7 | Exact-source CI before deploy ([HOSTING.md:42-43](HOSTING.md)) | CI exists; it has no browser job (`.github/workflows/ci.yml:16-73`). **Updated 2026-10-13.** The two WebKit failures A6 named are fixed by N1 (PR #12): at `0281798`, `test:expansion` and `test:map-piece` exit 0 in Chromium and WebKit, `test:map-piece` with no `test-results/webkit-runtime` folder (A6, §13). **Hosted CI is blocked:** GitHub Actions did not start PR #15's CI job; its check-run annotation reads "The job was not started because an Actions budget is preventing further use." (run 38350385399). Until the owner restores the Actions budget (a billing decision, **OWNER**) or accepts a local CI record instead, no exact-source CI run exists for `0281798` or can exist for the release commit. **Local CI record** (orchestrating session, 2026-10-13, at `11d86d9`, whose tree equals `0281798`'s): every step of `ci.yml` ran and passed (`npm test` 603/603; `tools/test-backup-sql.sh` on a throwaway loopback PostgreSQL **16.14**, TCP only, where CI uses `postgres:17`; Python unittest 9 OK; `npm run test:contracts`; `npm run build`, 90 public files; `npm run preview -- --dry-run` and `npm run deploy -- --dry-run`, both exit 0 with `WRANGLER_SEND_METRICS=false`; `node --check` on every module; `py_compile` of `serve.py`; `bash -n Play.command`), on Node **26.0.0** where CI uses 22, and with the existing `node_modules` instead of `npm ci` | A6, B1; §12 item 14 |
-| G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:355-361](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
+| G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:361-367](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
 | G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e 0281798` exits 0). `test:commands` last passed 13/13 groups per engine at `11d86d9`, the tree of `0281798` (orchestrating session, 2026-10-13, §13); before that at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)). The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
 | G10 | D1, N1, D2 and D3 release checks: `npm run test:back`, `test:shell`, `test:saves` and `test:coach` pass in Chromium and WebKit ([NAVIGATION · Back model](NAVIGATION.md#back-model--2026-10-12), "Checks", for `test:back`; [NAVIGATION · Checks](NAVIGATION.md#checks) for `test:shell`; [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12); [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12); the D2 merge notes in [HANDOVER](HANDOVER.md#d2-save-durability-checkpoint--2026-10-12-local-only)). `test:browser` runs none of the four | New at `0281798`. All four passed at `11d86d9` (orchestrating session, 2026-10-13, §13): `test:back` 21 checks in Chromium and 20 in WebKit, `test:shell` 26 per engine, `test:saves` 20 groups per engine, `test:coach` 16 checks per engine. No CI job runs them yet (G7) | A6, A8, B1 |
 | G11 | The packets' owner-pending exits: D3's human playtest with at least three first-time players and the owner's review of the coach copy ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12), Exit); D1's root Back without a confirm, the owner default as built ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)); the physical-phone items of D1, N1, D2 and D3: N1's in the [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only N1's rows, and D1's, D2's and D3's in their own records (listed in §12 item 1); the landscape fault below 701 px wide that N1 recorded and v0.6.0 would ship publicly for the first time (§1, §12 item 17); the vertical-fit fault on portrait phones that N1 also recorded and v0.6.0 would also ship publicly for the first time (§1, §12 item 18) | Open | A0 (items 15–18: kept or changed, shipped documented or fixed first), B0 (owner accepts or defers the rest; a B0 answer that needs code returns to Phase A); §12 items 1, 15, 16, 17 and 18 |
@@ -399,7 +399,7 @@ and `"JOURNEY_V2_ENABLED": "false"` to `wrangler.jsonc` `vars`.
 **Recommendation: keep v2 off, and declare it explicitly.** No public client
 ever wrote v2: the current client uploads only `SNAPSHOT_VERSION` 3 (`account-client.mjs:222`, `cloud-save.mjs:9`), and the
 v2 table does not exist on the hosted database until B3, after which it is
-empty (per [HANDOVER.md:1499-1500](HANDOVER.md); not re-queried). Enabling v2 would only add a
+empty (per [HANDOVER.md:1505-1506](HANDOVER.md); not re-queried). Enabling v2 would only add a
 fallback read per sign-in (`account-client.mjs:116-129`). The `[1,3]`
 combination is already covered by tests (`tests/account-api.test.mjs:344`,
 `tests/account-client.test.mjs:53`, `:73`).
@@ -618,7 +618,7 @@ them; G10) · the other §10 step 3 suites in both engines ·
 `bash tools/test-backup-sql.sh` (disposable loopback database only). Serve the
 browser suites from a server started after checkout: `tools/serve.py` reads
 the allowlist once at startup, so an older server returns 404 for modules added
-since it started, such as Q1's or D1–D3's ([HANDOVER.md:513-515](HANDOVER.md)).
+since it started, such as Q1's or D1–D3's ([HANDOVER.md:519-521](HANDOVER.md)).
 *Verify:* every command exits 0, WebKit `test:expansion` included: since N1 it
 passes in one run (A6; §12 item 13, resolved). If it ever fails again, note
 that the smoke stops at its first failed check: one `try` holds the size loop
@@ -875,9 +875,9 @@ CI link, or the accepted local CI record and the owner's written acceptance
 ## 6. Data safety
 
 - **No staging today.** `mythseal-dev` holds real accounts and backups
-  ([HANDOVER.md:1304](HANDOVER.md); [supabase/README.md:7](../supabase/README.md)).
+  ([HANDOVER.md:1310](HANDOVER.md); [supabase/README.md:7](../supabase/README.md)).
   `npm run preview` is **not** isolated: its config names the hosted project
-  (`hosting/wrangler.preview.jsonc:20`; [HANDOVER.md:1456-1458](HANDOVER.md)).
+  (`hosting/wrangler.preview.jsonc:20`; [HANDOVER.md:1462-1464](HANDOVER.md)).
   Docker is unavailable, so a local Supabase stack is not an option either
   ([CONNECTIONS.md:84](CONNECTIONS.md)).
 - **Migrations only add objects.** v2/v3 create new tables and RPCs and leave
@@ -1335,7 +1335,7 @@ plan quota ([BACKEND-STACK.md:50](BACKEND-STACK.md); **UNVERIFIED:** the
 current quota). On 2026-10-13 an Actions budget stopped PR #15's CI job from
 starting at all (G7), so a browser job adds to a budget the owner has to
 restore first. Linux WebKit is **not** Safari and none of this is
-physical-device evidence ([HANDOVER.md:355-359](HANDOVER.md)).
+physical-device evidence ([HANDOVER.md:361-365](HANDOVER.md)).
 
 ## 11. Go / no-go
 
@@ -1425,6 +1425,26 @@ disables cloud upload for new clients, so the owner decides.
    - D3: real Safari, and VoiceOver and TalkBack reading the coach marks
      ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12),
      "Open").
+
+   It also covers an engine never run. No suite of Q1, D1, N1, D2 or D3 ran
+   in Firefox, desktop or Android: each packet's record lists it as not run
+   (Q1's and D1's "Open" lists in
+   [HANDOVER](HANDOVER.md#q1-local-commands-checkpoint--2026-10-11-local-only)
+   and [HANDOVER](HANDOVER.md#d1-back-model-checkpoint--2026-10-12-local-only);
+   N1's and D3's "Not run" in
+   [VALIDATION](VALIDATION.md#n1-mobile-shell--2026-10-11) and
+   [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12); D2's
+   **UNVERIFIED** paragraph in
+   [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
+   No script in `tools/` names Firefox ([cmd] §13), and the planned CI job
+   installs Chromium and WebKit only (§10, step 1). So the mechanisms that
+   depend most on the browser have no Firefox run: Q1's IndexedDB fence, D1's
+   state-only history entries and its `history.go` walks after a reload, and
+   D2's `persist()` request after the first win or pack. Whether Firefox shows that request as a permission prompt, and what
+   an unanswered one does, is **UNVERIFIED** here; D2's record lists a real
+   unanswered Firefox prompt as not run
+   ([VALIDATION](VALIDATION.md#d2-review-fixes--2026-10-12)). The owner
+   accepts this gap, or asks for a Firefox check before GO.
 
    The same decision covers a residual review risk. D2's and N1's review
    loops ended at their round cap without a clean round (their PR bodies, as
