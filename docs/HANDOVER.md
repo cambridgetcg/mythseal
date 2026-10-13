@@ -3,11 +3,13 @@
 Start here when joining development. Updated **2026-09-29**, with the Q0, Q4
 and Q1 checkpoints and the LZ-01 special-art addenda (under
 [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
-**2026-10-11**, the N1 mobile-shell checkpoint (2026-10-11), and the D1 Back
-model and D2 save-durability checkpoints (**2026-10-12**). Q0 and Q4 merged into
-`main` in PRs #5 and #9, Q1 by PR #10, D1 by PR #11 and N1 by PR #12. D2, which
-has merged D1 and N1 from `main`, is merging by D2's PR. None of them is
-deployed. The last recorded
+**2026-10-11**, the N1 mobile-shell checkpoint (2026-10-11), the D1 Back
+model, D2 save-durability and D3 first-battle teaching checkpoints
+(**2026-10-12**), and the
+[v0.6.0 integration checkpoint](#v060-integration-checkpoint--2026-10-13-local-only)
+(**2026-10-13**). Q0 and Q4 merged into `main` in PRs #5 and #9, Q1 by PR #10,
+D1 by PR #11, N1 by PR #12, D2 by PR #14 and D3 by PR #15 (`main` `0281798`).
+None of them is deployed. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -35,13 +37,121 @@ and paid acquisition are retired objectives; dated NFT designs are historical re
 | Public game | [mythseal.com](https://mythseal.com); apex returned HTTP 200 and `/release.json` still reported v0.5.1 `ea48558` on **2026-09-24**. HTTP/`www` → HTTPS apex is recorded release evidence from 2026-09-21 |
 | Last recorded public source | Tag `v0.5.1`, commit `ea485586d14032bc145a993749a49d5c343ff5f8`, deployed **2026-09-21**; later source commits do not imply deployment |
 | Recorded public login | `/api/v1/account` returned HTTP 200 with `emailEnabled: true` at **2026-09-21 21:33:57 UTC** and again on **2026-09-24**; see [HOSTING.md](HOSTING.md) for the release receipt |
-| Public release boundary | That v0.5.1 snapshot has 19 allowlisted game assets plus generated metadata; the current source build has 83 (80 before Q1 added three runtime modules). Server source, docs, tests and credentials stay excluded |
+| Public release boundary | That v0.5.1 snapshot has 19 allowlisted game assets plus generated metadata; the current source build has 90 at `0281798` (80 before Q1 added three runtime modules, 83 after it; D1 added one, D2 four and D3 two). Server source, docs, tests and credentials stay excluded |
 | Owner workspace | Machine-specific: the 2026-09-24 checkpoint used `mythseal`; another existing checkout is named `shanhai-duel`. Resolve the actual checkout/branch before editing; neither directory name establishes current source or running-service state |
 
 A private repository still serves its approved JavaScript and artwork publicly.
 Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
+
+## v0.6.0 integration checkpoint · 2026-10-13 (local only)
+
+Documentation integration on the branch **`docs/v060-integration`**, from
+`origin/main` **`0281798`**. It changes documents only; nothing is pushed,
+merged or deployed by it, and no hosted service was called except one
+unauthenticated `GET https://mythseal.com/release.json`, which on 2026-10-13
+still reported v0.5.1 (`ea48558`). Wrangler also ran its own update check
+during `npm run preview -- --dry-run`, outside the project's services.
+
+- **`main` at `0281798`** holds Q1 (PR #10, merge `7712a7b`) and the four
+  packets the owner approved for the v0.6.0 scope on 2026-10-11, each landed
+  as a two-parent merge commit: D1 Back model (PR #11, `335d2b7`), N1 mobile
+  shell (PR #12, `e785b27`), D2 save durability (PR #14, `a7bda4b`) and D3
+  first-battle teaching (PR #15, `0281798`). `git merge-base --is-ancestor
+  7a7d03e 0281798` exits 0, so Q1's fence is in the candidate.
+- **Build:** `npm run build` at `0281798` gives **90 public files**,
+  74,496,049 B, manifest `e05db797…8746`. Across the five merges the count goes
+  83 → 84 → 84 → 88 → 90; the 23 PNGs are unchanged.
+- **Hosted CI is blocked.** GitHub Actions did not start PR #15's CI job: "The
+  job was not started because an Actions budget is preventing further use."
+  (run 38350385399). The orchestrating session then ran every step of
+  `.github/workflows/ci.yml` locally at `11d86d9`, whose tree equals
+  `0281798`'s, and all passed (`npm test` 603/603; the SQL harness on a
+  throwaway loopback PostgreSQL 16.14 where CI uses 17; Node 26.0.0 where CI
+  uses 22; no `npm ci`). Restoring the budget is a billing decision for the
+  owner; so is accepting a local CI record instead
+  ([RELEASE-NEXT](RELEASE-NEXT.md) G7, §12 item 14).
+- **Browser checks on this tree, all exit 0:** the orchestrating session ran
+  `test:coach`, `test:back`, `test:saves`, `test:shell`, `test:commands`,
+  `test:battle-table` and `test:viewport` in Chromium and WebKit and the 14
+  Chromium `test:browser` suites at `11d86d9`; this pass ran `test:expansion`,
+  `test:map-piece`, `test:wx01`, `test:inheritance`,
+  `test:collection-display`, `test:liaozhai` and `test:honglou` in both engines
+  at `0281798`. N1 fixed both WebKit failures RELEASE-NEXT A6 named, so its
+  §12 item 13 is resolved. Details:
+  [VALIDATION](VALIDATION.md#v060-integration--2026-10-13).
+- **PR #13** (`mobile/cloud-pipeline`, Capacitor and fastlane, another
+  contributor's) is open and not merged. As the orchestrating session reports
+  (not re-checked here), it conflicts with `main` (add/add in `platform.mjs`, a
+  union in `hosting/public-assets.json`), and in a native build it hides
+  旅程閣, which would hide D2's export and import there. Native apps are out of
+  the v0.6.0 scope; this pass did not read or touch the branch.
+- **Release plan:** [RELEASE-NEXT](RELEASE-NEXT.md) was revised on
+  2026-10-13: the candidate is `main` at or after `0281798` plus the release
+  PR; the four packets' suites are gate G10 and their owner exits G11; §6 covers D2's
+  file import, the device-local keys `shanhai.saves.v1` and `shanhai.coach.v1`
+  and a rollback to v0.5.1; A5 and owner decision 9 say what D2 covers (a
+  v0.5.1 export file) and what it does not (progress stranded in the v3 key).
+  This completes the D2 checkpoint's note that the plan still said no build
+  imports a save file.
+- **Still open:** the owner decisions in RELEASE-NEXT §12, among them the Q1
+  contract (item 12), A5 or a written acceptance (item 9), the Actions budget
+  (item 14), D1's root Back without a confirm (item 15), D3's exit (item 16),
+  the landscape fault below 701 px (item 17) and the vertical-fit fault on
+  portrait phones (item 18); D3's human playtest with at
+  least three first-time players and the review of its coach copy; physical
+  iPhone and Android checks for D1, N1, D2 and D3: N1's in the
+  [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only
+  N1's rows, and the others in each packet's own open list
+  ([D1](#d1-back-model-checkpoint--2026-10-12-local-only): gesture and
+  predictive back, the iOS edge swipe, bfcache on phones;
+  [D2](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12):
+  Safari's eviction, iOS home-screen storage, real `persist()` answers, the
+  iOS download sheet; [D3](#d3-first-battle-teaching-checkpoint--2026-10-12-local-only):
+  real Safari, VoiceOver and TalkBack), gathered in RELEASE-NEXT §12 item 1;
+  Linux WebKit in a CI browser job; and all of RELEASE-NEXT's Phases B and C
+  (hosted migrations, deploy, hosted checks).
+- **Landscape phones below 701 px wide** (RELEASE-NEXT §12 item 17): the
+  fault N1 recorded and left open
+  ([N1 round 3](#n1-review-round-3--2026-10-12);
+  [NAVIGATION · Mobile shell](NAVIGATION.md#mobile-shell), Limits) ships to
+  players for the first time in v0.6.0, because live v0.5.1
+  has none of the scene or WX-01 modules it is in. With 西行秘匣 selected,
+  開啟秘匣 is hidden, so a WX-01 pack cannot be bought there; 西行印 and 來日,
+  once opened, cover their own tab row until a reload; several buy and travel
+  buttons sit under the dock. The owner decides whether it ships documented
+  or is fixed first.
+- **Vertical fit on portrait phones** (RELEASE-NEXT §12 item 18, added in the
+  same day's review round 2): N1's other recorded limit
+  ([NAVIGATION · Mobile shell](NAVIGATION.md#mobile-shell), Limits; the M5.1
+  "Short screens" row) also reaches players first in v0.6.0, since live
+  v0.5.1 has no framed scene lists. In emulation, with N1's fixture, the
+  collection's 我的戰卡 list flags at 412×790, 393×780 and 360×780 and, with
+  top and bottom insets, at 412×839 and at 393×852 (an iPhone 15 home-screen
+  web app): a character tile holding several copies is taller than the list's
+  frame and runs under its pager. A new journey flags at none of those sizes.
+  Re-measured on 2026-10-13; no phone tried. The owner decides whether it
+  ships documented or is fixed first. It is a measured fault, not a phone
+  check still to run.
+- **Firefox** (RELEASE-NEXT §12 item 1, added in the same day's review round
+  3): no suite of Q1, D1, N1, D2 or D3 has run in Firefox, desktop or
+  Android; each packet's record lists it as not run, and the planned CI
+  browser job installs Chromium and WebKit only. Q1's IndexedDB fence, D1's
+  history walks after a reload and D2's `persist()` request have no Firefox
+  run. The owner accepts that gap or asks for a Firefox check before GO.
+- **Review rounds that ended at the cap:** D2's and N1's review loops stopped
+  at their round cap without a clean round (their PR bodies, as the
+  orchestrating session reported; not re-read here). So D2's integration
+  review round 2 (`restoreCloudJourney`, on the cloud-restore path) and N1's
+  round 3 (the 812×325 dock fix and the 16 px field floor) were not reviewed
+  again. RELEASE-NEXT §12 item 1 puts this before the owner, who can ask for
+  one more review before GO.
+- **Older status lines superseded:** the dated D1, N1, D2 and D3 checkpoints
+  below stay as written. The D2 checkpoint's "merging by D2's PR … not merged
+  to `main`" and the D3 checkpoint's "not merged, pushed or deployed" predate
+  PRs #14 and #15; this checkpoint supersedes them. All four packets are
+  merged into `main`, and none is deployed.
 
 ## N1 mobile shell checkpoint · 2026-10-11 (local only)
 

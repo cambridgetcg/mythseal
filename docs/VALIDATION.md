@@ -2,6 +2,296 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## v0.6.0 integration · 2026-10-13
+
+Branch `docs/v060-integration`, from `origin/main` **`0281798`** (PR #15's
+merge), for the documentation integration of D1, N1, D2 and D3 into the
+v0.6.0 plan ([RELEASE-NEXT](RELEASE-NEXT.md), revised 2026-10-13). The
+branch's commits change documents only. Nothing was pushed, merged or
+deployed. Beyond loopback, this pass itself sent one unauthenticated
+`GET https://mythseal.com/release.json` with a generic User-Agent, and
+Wrangler ran its own update check during `npm run preview -- --dry-run`
+(below), a request outside the project's services whose destination was not
+captured. Two sources
+of evidence are kept apart below: checks this pass ran, and checks the
+orchestrating session ran on `11d86d9` and handed over
+(`git rev-parse 11d86d9^{tree} 0281798^{tree}` prints `3c211f98…` twice, so
+the trees are identical).
+
+**Environment (this pass).** macOS 26.6.2 (Darwin 25.6.0), Node 26.0.0,
+Python 3.14.6, Playwright 1.63.0 with installed Google Chrome 155.0.8059.40
+and Playwright WebKit 26.6, all headless; synthetic saves only.
+
+**Merges.** `git log --first-parent --format='%h %p' origin/main` shows PR
+#10 (`7712a7b b40c4d2 3140613`), PR #11 (`335d2b7 7712a7b a14ebe7`), PR #12
+(`e785b27 335d2b7 f2b0e49`), PR #14 (`a7bda4b e785b27 3cb2561`) and PR #15
+(`0281798 a7bda4b 11d86d9`), each a two-parent merge. `git merge-base
+--is-ancestor 7a7d03e 0281798`: exit 0, so Q1's fence is in `main`.
+
+**Public build at each merge** (`npm run build`, each exit 0, in one detached
+scratch worktree, `dist/` deleted after each, the worktree removed
+afterwards):
+
+| Merge | Files | Bytes | PNG | Manifest |
+| --- | --- | --- | --- | --- |
+| `7712a7b` (Q1) | 83 | 74,389,154 | 23, 73,418,493 B | `10f594fc…4014` |
+| `335d2b7` (D1) | 84 | 74,408,267 | 23, 73,418,493 B | `2beb9777…bb80` |
+| `e785b27` (N1) | 84 | 74,414,617 | 23, 73,418,493 B | `939f26f8…f49c` |
+| `a7bda4b` (D2) | 88 | 74,456,379 | 23, 73,418,493 B | `5b403015…9c39` |
+| `0281798` (D3) | **90** | **74,496,049** | 23, 73,418,493 B | `e05db797…8746` |
+
+D1 adds `nav-stack.mjs`; N1 adds no file and changes `index.html`, nine
+stylesheets and `app.mjs` (+61 B); D2 adds `platform.mjs`, `save-status.mjs`,
+`save-ui.mjs` and `saves.css`; D3 adds `battle-teaching.mjs` and
+`battle-teaching.css`. From `7712a7b` to `0281798`: +106,895 B, seven files
+added (72,648 B), existing files +34,247 B.
+
+**First screen** (the method of RELEASE-NEXT §13: a scratch Node script over
+the static import graph from `bootstrap.mjs`, its `import('./app.mjs')`,
+`index.html`'s stylesheets and `mark.svg`, compressed with `node:zlib` gzip
+level 6 and brotli quality 11; exit 0). It reproduces `8afbabc` (57 files,
+929,264 / 267,540 / 228,341 B) and `b527dc3` (60 files, 970,661 / 282,691 /
+240,926 B) exactly. At `0281798`: **67 text files, 1,077,556 B raw, 322,718 B
+gzip, 274,196 B brotli**; with the two PNGs (7,085,957 B) **7,408,675 B
+(7.07 MiB) gzip and 7,360,153 B (7.02 MiB) brotli**, against the 1,572,864 B
+budget. No public file's diff from `7712a7b` adds an image reference (`url(`,
+`assets/`, `.png`, `.webp`, `.svg`: no match). No browser measured it.
+
+**Other measurements at `0281798`:**
+
+- `WRANGLER_SEND_METRICS=false npm run preview -- --dry-run`, no
+  `hosting/.dev.vars`: exit 0, `Total Upload: 910.52 KiB / gzip: 189.56 KiB`
+  (906.25 / 188.52 KiB at `8afbabc`). The Worker's 14-module static import
+  graph from `server/account-api.mjs` is unchanged from `7712a7b`. Wrangler's
+  banner reported a newer release, so it made its own version check.
+- From v0.5.1: 223 commits (202 non-merge); 83 of the 90 allowlisted runtime
+  files changed (71 added, 12 modified), +8,486/−390 lines.
+- `curl -A 'Mozilla/5.0'` of `https://mythseal.com/release.json`, about
+  05:23 UTC: HTTP 200, `clientVersion` `0.5.1`, `gitCommit` `ea485586…`, 19
+  files, 11,130,757 B, manifest `7c18fceb…4e88`. Live is still v0.5.1.
+- `grep -n "import('[./]" tools/*.mjs`: 24 lines, 25 in-page imports, 11
+  smokes (16 at `b527dc3`). Loopback guards: 22 of 26 smoke scripts.
+
+**Browser suites run by this pass** at `0281798`, against
+`python3 tools/serve.py --port 4205` from this worktree (started after
+checkout, stopped afterwards), `GAME_URL=http://127.0.0.1:4205`,
+`PLAYWRIGHT_BROWSERS_PATH` unset and no `test-results/webkit-runtime` folder,
+one suite at a time; `test-results/` deleted afterwards:
+
+| Command (Chromium, then WebKit) | Exit | Wall time | Result per engine |
+| --- | --- | --- | --- |
+| `npm run test:expansion` | 0 | 215 s | 16 PASS lines (899 and 892 layout checks). WebKit passes `360x740` and `360x640`: RELEASE-NEXT A6's 43.08 px tab is gone |
+| `npm run test:map-piece` | 0 | 57 s | 8 PASS lines. WebKit launched from Playwright's default cache: A6's launch failure is gone |
+| `npm run test:wx01` | 0 | 205 s | 17 PASS lines, 6 recovery checks and 10 box checks; empty error lists |
+| `npm run test:inheritance` | 0 | 54 s | 9 PASS lines |
+| `npm run test:collection-display` | 0 | 35 s | 10 PASS lines |
+| `npm run test:liaozhai` | 0 | 57 s | 14 PASS lines |
+| `npm run test:honglou` | 0 | 40 s | 14 PASS lines |
+
+**Checks the orchestrating session ran** on `11d86d9` (same tree), as handed
+over; this pass did not repeat them:
+
+- GitHub Actions did not start PR #15's CI job: "The job was not started
+  because an Actions budget is preventing further use." (run 38350385399).
+- Every step of `.github/workflows/ci.yml`, locally: `npm test` 603/603;
+  `tools/test-backup-sql.sh` on a throwaway loopback PostgreSQL 16.14, TCP only
+  (CI uses `postgres:17`); Python unittest 9 OK; `npm run test:contracts`;
+  `npm run build`, 90 public files; `npm run preview -- --dry-run` and
+  `npm run deploy -- --dry-run`, exit 0 with `WRANGLER_SEND_METRICS=false`;
+  `node --check` on all modules; `py_compile` of `serve.py`; `bash -n
+  Play.command`. Node 26.0.0 where CI uses 22; no `npm ci`.
+- Browser suites against `python3 tools/serve.py` on `127.0.0.1:4204`,
+  Chromium as installed Chrome and WebKit 26.6, all exit 0 (the scripts choose
+  the device: `test:back`, `test:shell` and `test:coach` emulate a Pixel 7 in
+  Chromium and an iPhone 15 in WebKit, and the others set their own
+  viewports): `test:coach` 16 checks per engine;
+  `test:back` 21 in Chromium and 20 in WebKit; `test:saves` 20 groups per
+  engine; `test:shell` 26 per engine; `test:commands` 13 groups per engine;
+  `test:battle-table` 40/40 per engine; `test:viewport` 23/23 per engine;
+  `test:browser` (Chromium, 14 suites) 91 PASS lines.
+- `npm run audit:content`: 150 entries, no findings.
+
+**Documentation.** RELEASE-NEXT is revised for D1, N1, D2 and D3 (its §13 lists every
+check above); the docs index, the roadmap's D1, N1, D2 and D3 status lines and
+a new [handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only)
+are brought up to the merges. The dated N1, D1, D2 and D3 entries below were
+written on their branches before PRs #12, #11, #14 and #15 merged them, and
+their "not merged" lines are left as written. A citation re-check mapped every
+`path:line` in RELEASE-NEXT from `7712a7b` through `git diff -U0` to
+`0281798` (233 citations; 44 drifted or touched by a change, now fixed). On
+the documentation tree, before committing:
+
+- `node --test tests/*.test.mjs`: exit 0, **603/603**.
+- `npm run build`: exit 0, 90 public files, manifest `e05db797…8746`.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `git diff --check`: clean; a scratch Markdown link and anchor check over the five changed documents finds all 459 local link targets and anchors.
+
+**Not run by this pass:** the SQL harness, `npm run deploy -- --dry-run`,
+`test:browser`, `test:commands`, `test:back`, `test:saves`, `test:shell`,
+`test:coach`, `test:battle-table` and `test:viewport` (all run by the
+orchestrating session, above), `test:atelier`, a browser first-screen
+measurement, `wrangler deploy --dry-run` on `wrangler.jsonc`, hosted CI (it
+cannot start), physical devices, real Safari, a rollback in a browser, and
+anything hosted beyond the one `GET`. PR #13 (`mobile/cloud-pipeline`) was
+not read.
+
+**Review round 1 (same day).** An independent review of the branch verified
+fifteen findings, two of them repeats of others and two rated medium, all in
+documents. The fixes are in RELEASE-NEXT and, because both are new on this
+unmerged branch, in place in this entry and the
+[handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only):
+
+- RELEASE-NEXT A5 and §6 said every public build before v0.6.0 exported a v3
+  or v4 file; all three tags are profile v3 (`git show
+  <tag>:progression.mjs`), and v4 is only a local namespace `load()` migrates.
+- C3 said the Node test checks S10's v0.5.1 file byte for byte against `git
+  archive v0.5.1`; that was a one-time check with a scratch script in D2's
+  third review, recorded in [that review's entry](#d2-third-review-fixes--2026-10-12)
+  (finding 4), in LOCAL-COMMANDS §19 and in a comment
+  (`tests/save-durability.test.mjs:90-94`). No test repeats it. (Corrected the
+  same day in review round 2: this said only a comment records it.)
+- The descriptor wording above: only `test:back`, `test:shell` and
+  `test:coach` load the Pixel 7 and iPhone 15 descriptors.
+- This entry's first paragraph left out Wrangler's own update check.
+- The plan's "D1–D3" totals included N1's 6,350 B; A6's Verify had no path
+  for an owner-accepted local CI record; §3 and C5 assumed hosted CI; G11 and
+  GO item 7 left out phone items whose lists are not in the M5.1 checklist;
+  the landscape fault below 701 px and D2's and N1's review cap were before
+  no owner decision. RELEASE-NEXT now has owner decision 17 for the fault,
+  and its §12 item 1 lists each packet's phone items and the review-cap risk.
+
+Checks on the corrected tree, before committing the record: `node --test
+tests/*.test.mjs` exit 0, **603/603**; `npm run build` exit 0, 90 public
+files, 74,496,049 B, manifest `e05db797…8746` (`dist/` deleted afterwards);
+`npm run audit:content` exit 0, 150 entries, no findings; `git diff --check`
+clean; the scratch link and anchor check finds all 474 local link targets and
+anchors in the five changed documents. RELEASE-NEXT's §13 has the source
+checks behind each correction. No browser suite, server or network request
+was needed for this round.
+
+**Review round 2 (same day).** A second independent review verified six
+low-severity findings, all in documents:
+
+- **Correction to the [D2 third review fixes](#d2-third-review-fixes--2026-10-12)
+  entry (2026-10-12), finding 4,** which stays as written: "both 5,782 B" is a
+  character count. v0.5.1's export wrote `new Blob([JSON.stringify(loadProfile(), null, 2)])`
+  (`git show v0.5.1:app.mjs` line 459), and a Blob writes a string as UTF-8.
+  For a new journey at the test's clock the stored object and the download are
+  each **5,790 B** and 5,782 characters; the only non-ASCII text is the deck
+  name 山海初陣, 3 bytes a character. The byte-for-byte equality it records
+  holds: a scratch rerun on 2026-10-13 over `git archive v0.5.1 '*.mjs'` found
+  the test's `v051Download` string equal to v0.5.1's download. The same
+  mislabel is in the comment at `tests/save-durability.test.mjs:94` ("5,782 B"),
+  which this documentation pass does not edit. RELEASE-NEXT C3 now gives
+  5,790 B and says the check was a scratch script, recorded in that entry, in
+  LOCAL-COMMANDS §19 and in the comment; the round-1 bullet above is corrected
+  in place.
+- RELEASE-NEXT A6's Verify, as round 1 left it, needed a green GitHub Actions
+  run or the owner's acceptance of a local record (§12 item 14), both owner
+  acts, inside Phase A, which runs without hosted access before B0 takes that
+  decision. A6's Verify is local again (the job defined, every §10 step 3
+  suite exiting 0 against the preview on the A6 commit); the hosted run, or
+  the accepted local record, stays in B1, which already required it.
+- A1's Verify, after round 1's insertion, read as if `test:back`,
+  `test:saves`, `test:shell` and `test:coach` ran inside `test:browser`; it
+  now says `test:browser` runs none of them (its `package.json` script chains
+  14 smokes without them).
+- G10 cited NAVIGATION's general Checks section for `test:back`, which names
+  no `test:back`; it now also cites the Back model's own "Checks" paragraph.
+- RELEASE-NEXT named only N1's landscape fault below 701 px, not its other
+  recorded limit, vertical fit, which v0.6.0 would also ship to players for
+  the first time. It is now owner decision 18, in G11, B0, A7 and GO item 7,
+  and §12 item 1 says the M5.1 "Short screens" row is a measured fault, not a
+  phone check; the [handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only)
+  and ROADMAP's N1 line say so too. Re-measured on the tree of `0281798`,
+  emulation only, with `python3 tools/serve.py --port 4205` (stopped
+  afterwards): `npm run test:shell` exit 0, 26 checks per engine, its NOTE
+  lines as [NAVIGATION](NAVIGATION.md#mobile-shell) records them; and a
+  scratch Playwright script seeded as the shell smoke seeds, in installed
+  Chrome (Pixel 7) and WebKit 26.6 (iPhone 15). With N1's fixture (all 29
+  WX-01 printings) the collection's `cards` list flags at 412×790, 393×780,
+  360×780, 412×839 with 48/34 px insets and 393×852 with 59/34 px in both
+  engines, not at 412×800, 393×800 or 412×839; in Chromium its 361 px tile
+  runs 8–35 px past the frame. A new 16-card journey flags at none of these
+  sizes in either engine.
+
+Checks on the corrected tree, before committing the record: `node --test
+tests/*.test.mjs` exit 0, **603/603**; `npm run build` exit 0, 90 public
+files, manifest `e05db797…8746` (`dist/` deleted afterwards); `npm run
+audit:content` exit 0, no findings; `git diff --check` clean; the scratch link
+and anchor check finds all 487 local link targets and anchors in
+RELEASE-NEXT, this file, HANDOVER, ROADMAP and the docs index. This round's
+additions here and in HANDOVER moved 16 of RELEASE-NEXT's `HANDOVER.md:N` and
+`VALIDATION.md:N` citations; each was re-pointed and checked to cite the same
+text. The scratch scripts and their output were deleted. Network: loopback
+only.
+
+**Review round 3 (same day).** A third independent review verified seven
+findings in documents, one of medium severity and six low (some were
+reported more than once):
+
+- **Correction to the round-2 note above,** which stays as written: its last
+  paragraph says that round moved 16 of RELEASE-NEXT's `HANDOVER.md:N` and
+  `VALIDATION.md:N` citations and re-pointed each. It moved 19 (medium). The
+  remap read only `[X.md:N](X.md)` links, so three bare `` `:N` ``
+  continuations after a HANDOVER link kept their numbers and cited other
+  text: §1's `:306-348` (the Q0 checkpoint) and `:1157-1254` (the WX-01
+  section), and G5's `:1270-1272` (hosted acceptance of old and new
+  backups), whose text had moved to `:319-361`, `:1170-1267` and
+  `:1283-1285` (each pair's `diff` against
+  `git show 50c3cf6:docs/HANDOVER.md` is empty). They are re-pointed, and
+  RELEASE-NEXT's header and its §13 round-2 row now say 19. The scratch
+  citation scan now reads links, `path:N` code spans and bare continuations,
+  and pairs each citation with the same one at `50c3cf6`.
+- **Correction to the round-2 note's vertical-fit figures.** "Its 361 px tile
+  runs 8–35 px past the frame" holds against the list's box, which includes
+  7 px of top padding; the controller pages by the box less its padding
+  (`viewport.mjs:101-102`): 353, 343, 343, 326 and 328 px at the five
+  flagged sizes. The band is also wider than N1's "roughly 741–790px", which
+  was its last flagging size. Re-measured on the code tree of `0281798`
+  with `python3 tools/serve.py --port 4205` (stopped afterwards) and a
+  scratch Playwright script seeded as the shell smoke seeds (N1's fixture;
+  Pixel 7 in installed Chrome, iPhone 15 in WebKit 26.6; deleted
+  afterwards), the `cards` list flags at 412×741, 360×741, 412×789–791,
+  412×795, 412×797, 393×797 and 360×797, and not at 412×740, 360×740 (the
+  compact cards), 412×798, 393×798, 393×799, 360×798, 412×800 or 393×800,
+  with the same figures in both engines. At 741 px the tile runs 49 px under
+  the pager's top; from 791 to 797 px it overruns the box by 7 to 1 px and
+  stays above the pager. RELEASE-NEXT §1 and §12 item 18 and ROADMAP's N1
+  line now say about 741–797 px. N1's own records (NAVIGATION's Limits and
+  the N1 column of the M5.1 checklist's "Short screens" row) are left as
+  written.
+- RELEASE-NEXT §13's closing "Not run for the 2026-10-13 revision" still
+  listed `test:shell`, which review round 2 ran (99 s); it now limits that to
+  the first pass, and §10's 2026-10-13 timings include the 99 s.
+- Owner decisions 15–18 can each mean new code but were taken at B0, after
+  A7 and A8, with no way back through Phase A. A0 now takes their
+  keep-or-change choices before any Phase A work; B0 keeps whether v0.6.0
+  waits for D3's playtest, and a B0 answer that needs code returns to Phase
+  A, redoing at least A7 and A8 on the new candidate before B1.
+- ROADMAP's Q1 status line still called the Q1 integration check the newest
+  entry in this file; it now calls it Q1's last.
+- No packet ran in Firefox, desktop or Android, and the plan did not say so.
+  RELEASE-NEXT §12 item 1 and the
+  [handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only)
+  now name the gap for the owner.
+
+Checks on the corrected tree, before committing the record: `node --test
+tests/*.test.mjs` exit 0, **603/603**; `npm run build` exit 0, 90 public
+files, manifest `e05db797…8746` (`dist/` deleted afterwards); `npm run
+audit:content` exit 0, 150 entries, no findings; `git diff --check` clean;
+the scratch link and anchor check finds all 494 local link targets and
+anchors in RELEASE-NEXT, this file, HANDOVER, ROADMAP and the docs index
+(the same script finds 487 at `e1aba12`, as round 2 recorded). This round's
+own additions here, in HANDOVER and in ROADMAP moved RELEASE-NEXT's
+citations of those files again: 17 HANDOVER ones by 6 lines, both
+VALIDATION ones by 65 lines and G3's ROADMAP one by 1. Each was re-pointed,
+and the three-form scan pairs all 21 of the plan's citations of these files
+with the same citation at `50c3cf6` and finds every one citing the same
+text. `grep -rli firefox tools/ package.json .github/` finds nothing. The
+scratch scripts and their output were deleted. Network: loopback only.
+
 ## D3 first-battle teaching · 2026-10-12
 
 Branch `d3/first-battle-teaching`, from `origin/main` `335d2b7`; packet D3,
