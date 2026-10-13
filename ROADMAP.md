@@ -517,7 +517,9 @@ during the animated reveal skipping mark ④, and untested 預計 and announced-
 wiring. Review round 2 (2026-10-13) made mark ② (what pills do) impossible to
 skip (a round 1 committed straight from ① now gets it on round 2's table),
 showed it whole on phones narrower than 360 px, and ended a WebKit flake in
-`test:coach`.
+`test:coach`. Review round 3 (2026-10-13) made a reload resume the coach
+mark it interrupted, so ② is neither owed again after it showed nor dropped by
+Back after a reload, and the owed ② counts the three rounds left.
 
 ### M5 · Mobile adaptation → iOS and Android closed beta
 

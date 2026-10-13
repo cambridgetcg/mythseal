@@ -417,6 +417,32 @@ deployed; no hosted check.
   `coachEvent('continue', …)`; the next-round branch's announcement appends an
   owed ②. Checks: [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12),
   "Review round 2 fixes".
+- **Review round 3 fixes (2026-10-13):** source commit **`b75b6b3`**
+  (`battle-teaching.mjs`, `app.mjs`, `tests/battle-teaching.test.mjs`) and
+  smoke commit **`751c40d`** (`tools/coach-smoke.mjs`). A reload now resumes
+  the coach mark it interrupted: ② or ③ in round 1 (a commit after them no
+  longer owes ② again, which could show ② over a disabled ＋), and, with ②
+  owed, the state after 知道了 closed ④ (④ no longer returns, and Back on
+  that reveal holds the result instead of dropping ②). A commit from ① owes ②
+  only at 0 pills without 怒擊. The owed ② on round 2 reads 十二丹撐三回合
+  (mark ② counts the pills and rounds left). **Saves:** `shanhai.coach.v1` is
+  still device-local only, but before an ending it now holds the coach state
+  of the first battle in progress: `{"step":"pills"|"commit"|"reveal"}`, or
+  with ② owed `{"step":"reveal","owed":"pills"}` and then
+  `{"step":"pills","owed":"pills"}` until round 2's commit; `{}` only when a
+  new first battle starts at ① over an abandoned one's state. Full list in the
+  [plan](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12).
+  **Correction:** the round-2 note above says the key "may now hold
+  `{"owed":"pills"}` (or `{}`)" without saying when; `{}` was written only when
+  a new first battle started at ① after an abandoned one owed ②, never when ②
+  showed. New `app.mjs` touch points for the D2 merge, all in the D3 block and
+  branches above: `setCoach` calls `coachMemory.keep`; a `coachText` helper
+  above `statusOptions()` (used there, in `paintCoach()` and in the
+  next-round branch's announcement); `startCoach` is one `setCoach(coachStart(…,
+  place))` call; `coachEvent` takes `move`, and `commitMove()` passes
+  `move:playerMove`. Checks:
+  [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12), "Review
+  round 3 fixes".
 
 ## Experience planning checkpoint · 2026-09-29
 

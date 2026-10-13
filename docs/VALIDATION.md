@@ -301,6 +301,104 @@ headless engines'; the WebKit runs of `test:browser`'s suites;
 `test:expansion`, `test:map-piece` and the literary preview smokes;
 `tools/battle-measure.mjs`; deploy dry runs, the SQL harness and CI.
 
+**Review round 3 fixes · 2026-10-13.** Review round 3 reported seven findings
+on `5144af9`, all low, and independent reproductions confirmed all seven
+(two only in part, as noted below). They are five defects: two pairs of
+findings describe the same one. They are fixed in source commit **`b75b6b3`**
+(`battle-teaching.mjs`, `app.mjs`, `tests/battle-teaching.test.mjs`) and smoke
+commit **`751c40d`** (`tools/coach-smoke.mjs`). The documentation commit after
+them changes no served, test or tool file. No allowlist change. Environment as
+above; `python3 tools/serve.py --port 4204` started fresh from the worktree
+for these runs.
+
+- **The coach record's description was wrong** (low, twice). The doc comment
+  on `createCoachMemory`, the plan and a unit-test message said
+  `shanhai.coach.v1` became `{}` once the owed ② showed. It stayed
+  `{"owed":"pills"}` until round 2's commit (the round-2 reload in
+  `test:coach` relied on that), and `{}` was written only when a new first
+  battle started at ① after an abandoned one had owed ②. The code was right;
+  the descriptions were not. The record's format changed with the fixes below.
+  The comment, the plan and the HANDOVER note now list every value and when it
+  is written. A new unit test drives the coach as `app.mjs` does and pins the
+  writes of the owed path: `{"step":"reveal","owed":"pills"}`,
+  `{"step":"pills","owed":"pills"}`, `{"firstBattle":"done"}`, and no `{}`
+  while ② shows. The reviewers rated the HANDOVER part weak (its "(or `{}`)"
+  was reachable, only undated); it is corrected in the HANDOVER round-3 note.
+  One finding also disputed a note in the round-2 writer's report, which is
+  not in the repository; that part was not checked here.
+- **The owed ② said 十二丹撐四回合 on round 2** (low), where 12 pills must last
+  three rounds. Mark ② now counts the player's pills and the rounds left, this
+  one included: round 1 still reads 十二丹撐四回合, and the owed ② reads
+  十二丹撐三回合. `test:coach` checks that exact sentence on round 2 with the
+  saved match at round 2 and 12 pills, and its copy-fit sweeps (360×640,
+  360×560, and 340–354 px wide) now measure the round-2 copy too (16 copies
+  each). With `app.mjs` passing no pills or rounds to the copy, `test:coach`
+  fails in Chromium at "the owed ② says what pills do, over the three rounds
+  left". With the fixed text back in `coachCopy`, the new unit test fails.
+- **A reload in round-1 planning sent the coach back to ①** (low). Only seen
+  or owed was stored, so a player who had reached ② or ③ was put on ① over
+  the restored draft. A commit then owed ② again, and round 2 could show ②
+  over a disabled ＋ at 剩 0 丹. The record now keeps the coach state of the
+  first battle in progress (`{"step":"pills"}`, `{"step":"commit"}`, …; full
+  list in the plan), and a resumed battle starts from it; a new first battle
+  still starts at ①. A commit from ① now owes ② only at 0 pills without 怒擊,
+  which covers a reload that lost the record. `test:coach` picks a card (②),
+  reloads (② again), adds a pill (③), slides to 12 pills, reloads (③, 12
+  pills restored) and commits: ④'s 知道了 reads 知道了，結束新手指引, the
+  record is `{"step":"reveal"}`, 繼續 records `done` and round 2 shows no
+  mark. With round-1 planning always starting at ①, `test:coach` fails in
+  Chromium at "a reload on ② resumes ②" and 1 of 17 unit tests fails. With
+  the 0-pill rule reverted, the same unit test fails (the browser path does
+  not reach that rule while the record works).
+- **After 知道了 with ② owed, a reload brought ④ back, and Back on it dropped
+  ②** (low, twice). 知道了 closed ④ but wrote nothing, so a reload in the
+  same reveal showed ④ and 知道了 again, and Back on that ④ recorded
+  `skipped`. The record now holds `{"step":"pills","owed":"pills"}` from
+  知道了 on, and a resumed reveal in that state shows no mark and still owes
+  ②. `test:coach` now reloads a second time after 知道了: no ④ and no 知道了,
+  history depth 2; Back holds the result with the record unchanged; 繼續 opens
+  round 2 on ②. With the resumed reveal always on ④, `test:coach` fails in
+  Chromium and in WebKit at "④ stays closed after a reload that follows
+  知道了", and the new unit test fails.
+- **The round-1 fix record miscounts its pairs** (low). **Correction:** the
+  round-1 fix record above says "They are five defects: two pairs of findings
+  describe the same one." Its own list gives eight findings in five defects,
+  so three pairs describe the same defect: the clamped sum, Fury hiding the
+  pills, and mark ② cut at 360 px.
+
+Each failure above came from reverting only that fix in the worktree before
+the commits; the file was then restored, and the suites below ran on the
+committed code.
+
+Checks at `751c40d`, all browser suites with `GAME_URL=http://127.0.0.1:4204`:
+
+- `node --test tests/*.test.mjs`: exit 0, **575/575** (four new tests in
+  `tests/battle-teaching.test.mjs`; its start and memory tests were rewritten
+  for the new record).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 86 public files, manifest `f46424c4…7bbf`.
+- `git diff --check 5144af9 751c40d`: exit 0.
+- `npm run test:coach`: exit 0, **13/13 checks in each engine** (Chrome
+  154.0.8037.98 with Pixel 7, then WebKit 26.6 with iPhone 15), with empty
+  error lists.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit
+  (247 s), with the coach mark on its Mist Gate fixture's table.
+- `npm run test:back`: exit 0, 16 checks in Chrome and 15 in WebKit.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines
+  (296 s); every printed error list was empty.
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack; a browser
+run with storage blocked (the 0-pill rule for a reload without the record is
+covered by the unit test only); fonts other than the headless engines'; the
+WebKit runs of `test:browser`'s suites; `test:commands`, `test:wx01`,
+`test:inheritance`, `test:collection-display`, `test:expansion`,
+`test:map-piece` and the literary preview smokes; `tools/battle-measure.mjs`;
+deploy dry runs, the SQL harness and CI.
+
 ## D1 Back model · 2026-10-12
 
 Branch `d1/back-model`, from `origin/main` `7712a7b`; packet D1, approved by the

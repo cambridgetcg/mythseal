@@ -446,20 +446,40 @@ and `app.mjs` wires them to the table.
 | Element | Behaviour |
 | --- | --- |
 | Planning hint | One visible line under the round and prompt in the status row: 選一張戰卡 → 定仙丹 → 封丹 · 落子 (落子 · 決勝 outside 霧隱渡口). The reveal-time table reads 查看本回合結果，再進下一回合. The line uses the 44 px the row already had for 對弈紀錄, so the Q0 one-table layout keeps its rows. |
-| Coach marks | Only on the first ever battle: a 霧隱渡口 expedition encounter while `stats.played` is 0 (no battle finished yet) and this device has no coach record, starting in round 1. ① pick a card → ② add pills (攻擊＝力×（1＋丹）; the twelve pills must last four rounds, so not all at once) → ③ commit → ④ read the reveal. ①–③ take the hint line's place (on a portrait phone, the whole row: two lines, or three for ② below about 355 px) and outline the control they teach with a dashed gold line; nothing covers a control. ④ sits in the round-1 reveal footer with 知道了 and outlines both 實際攻擊 figures. Using the taught control moves to the next mark, but ② is never skipped: on ①, a card, ＋, the slider or 怒擊 shows ②; on ②, ＋, the slider or 怒擊 shows ③; a commit shows ④. A commit straight from ① (a card is already chosen, at 0 pills) shows ④ and owes ②: 繼續 or 知道了 after ④ then opens round 2's table on ②, which stays while pills are set and leaves with that round's commit. (Until review round 2, 2026-10-13, using a later control first skipped ahead, so ＋ on ① went to ③ and a commit on ① went to ④, and ② never showed.) |
+| Coach marks | Only on the first ever battle: a 霧隱渡口 expedition encounter while `stats.played` is 0 (no battle finished yet) and this device has recorded no ending of the coach, starting in round 1. ① pick a card → ② add pills (攻擊＝力×（1＋丹）; the pills left must last the rounds left, so not all at once: 十二丹撐四回合 in round 1) → ③ commit → ④ read the reveal. ①–③ take the hint line's place (on a portrait phone, the whole row: two lines, or three for ② below about 355 px) and outline the control they teach with a dashed gold line; nothing covers a control. ④ sits in the round-1 reveal footer with 知道了 and outlines both 實際攻擊 figures. Using the taught control moves to the next mark, but ② is never skipped: on ①, a card, ＋, the slider or 怒擊 shows ②; on ②, ＋, the slider or 怒擊 shows ③; a commit shows ④. A commit straight from ① (a card is already chosen, at 0 pills and without 怒擊) shows ④ and owes ②: 繼續 or 知道了 after ④ then opens round 2's table on ②, which counts the three rounds left (十二丹撐三回合), stays while pills are set and leaves with that round's commit. A reload resumes the mark it interrupted: ② or ③ in round 1 (so a commit after them owes nothing), ④ on the round-1 reveal unless 知道了 already closed it, and the owed ② on round 2. (Until review round 2, 2026-10-13, using a later control first skipped ahead, so ＋ on ① went to ③ and a commit on ① went to ④, and ② never showed. Until review round 3, the same day, a reload in round-1 planning went back to ①, so a commit after ② or ③ owed ② again, even over a disabled ＋ at 0 pills left; a reload after 知道了 with ② owed brought ④ back; and the owed ② still read 十二丹撐四回合.) |
 | Ending | 跳過 on the table or Back end every mark at once. 繼續 · 下一回合 or 知道了 after ④ completes them, or, when ② is owed, hands over to it, and round 2's commit then completes them (知道了's accessible name says which). Either way the device-local key `shanhai.coach.v1` records `{"firstBattle":"skipped"}` or `"done"`, and no mark returns, also after a reload or in a restarted first battle. A first battle abandoned before any ending shows the marks again in the next one, because `stats.played` is still 0. A player whose first battle is a practice or arena match never sees them. |
-| Back | A coach mark is one dismissible layer in the [Back model](NAVIGATION.md#back-model--2026-10-12): under any dialog opened over the table, and above the held round result once the reveal has completed and shows ④. Back closes it as 跳過 does; the next Back opens keep/abandon or holds the result as before. While the reveal still animates, ④ is hidden, so it is no layer yet and Back holds the result as it does without the coach. |
+| Back | A coach mark is one dismissible layer in the [Back model](NAVIGATION.md#back-model--2026-10-12): under any dialog opened over the table, and above the held round result once the reveal has completed and shows ④. Back closes it as 跳過 does; the next Back opens keep/abandon or holds the result as before. While the reveal still animates, ④ is hidden, so it is no layer yet and Back holds the result as it does without the coach. Once 知道了 has closed ④ with ② owed, ④ stays closed, also after a reload, so Back on that reveal holds the result and ② stays owed. (Until review round 3, 2026-10-13, a reload brought that ④ back, and Back on it then ended the coach as 跳過, dropping ②.) |
 | Formula | The move panel's estimate cell shows the arithmetic behind its number, for example `力 6 ×（1＋3 丹）＝ 24`. See below. |
 | Reveal tip | Once each round's reveal completes, the footer states 對手剩 N 丹 · 你剩 M 丹 and one hint, in the place 直接看結果 leaves. See below. |
 | Match result | A new match result always opens on 勝負已定, so 悟 and its advice show after a loss even when the previous result was left on 旅途所得. Returning from a result card or settings opened over the same result keeps its page. |
 
 No teaching element writes the profile, the battle snapshot, an export or a
 backup. The only stored value is `shanhai.coach.v1`, beside
-`shanhai.experience.v1`. Before an ending it can hold `{"owed":"pills"}`
-between a round-1 commit from ① and round 2's commit, so a reload in the
-reveal or in round 2 keeps the owed ②; `{}` if ② shows after all. If storage
-throws, only the record is lost: the marks stay closed, and an owed ② is still
-kept, for the rest of that page's life.
+`shanhai.experience.v1`. After an ending it holds `{"firstBattle":"done"}` or
+`{"firstBattle":"skipped"}` and is never written again. Before an ending it
+holds the coach state of the first battle in progress, so a reload resumes the
+mark it interrupted:
+
+- no key while ① shows (nothing is written for ①);
+- `{"step":"pills"}` or `{"step":"commit"}` once ② or ③ shows in round 1;
+- `{"step":"reveal"}` on the round-1 reveal after a commit from ② or ③;
+- after a round 1 committed straight from ① (0 pills, no 怒擊),
+  `{"step":"reveal","owed":"pills"}` while ④ is due, then
+  `{"step":"pills","owed":"pills"}` from 知道了 or 繼續 on: on the rest of
+  the round-1 reveal (no mark) and through the owed ② on round 2's table,
+  until round 2's commit (or 跳過, or Back) replaces it with the ending;
+- `{}` in one case only: a new first battle starting at ① over the state an
+  abandoned first battle left.
+
+Each value is written only when it changes. (Until review round 3,
+2026-10-13, the key held only `{"owed":"pills"}`, and this paragraph said it
+became `{}` once ② showed after all. It never did: `{"owed":"pills"}` stayed
+until round 2's commit, and `{}` was written only when a new first battle
+started at ① after an abandoned one had owed ②.) If storage throws, only the
+record is lost: the marks stay closed, and the mark reached and an owed ② are
+still kept, for the rest of that page's life. A reload without the record
+starts round 1 at ① again; a commit from there owes ② only at 0 pills without
+怒擊, because any pill or 怒擊 tap on ① shows ②.
 
 **Formula rules.** The number is always the engine's own. When the opponent
 leads, its announced card is public, so the number is `resolveRound`'s player
@@ -510,7 +530,8 @@ separate from the automation.
   change, an owed ② with round 2's start; ① and ④ are page text with an
   sr-only step number, and the start of the battle still announces
   對局開始。選一張戰卡，再分配仙丹。
-- Every copy of marks ①–③ (both leaders, both commit labels) fits two lines at
+- Every copy of marks ①–③ (both leaders, both commit labels, and ② both as
+  十二丹撐四回合 and as the owed ②'s 十二丹撐三回合) fits two lines at
   360×640 and 360×560 with headless Chromium's and WebKit's fonts, measured by
   `npm run test:coach`. Review round 1 found mark ② at three lines in Chromium
   at 360 px (its last two characters hidden) and shortened it by one
