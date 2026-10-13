@@ -265,7 +265,10 @@ export function createViewportController({ document, window, announce = () => {}
     if (focus && !element.closest('[hidden]')) element.focus?.({ preventScroll: true });
     return !element.closest('[hidden]');
   }
-  return { refresh, selectModule, revealElement, destroy() {
+  /** Drop what a key remembers (its module, list pages and focus), so its next refresh
+   * opens as new. A context already on screen keeps its current layout. */
+  function forget(key) { states.delete(key); }
+  return { refresh, selectModule, revealElement, forget, destroy() {
     if (dead) return; dead = true;
     if (frame !== null) window.cancelAnimationFrame(frame); frame = null;
     for (const context of contexts.values()) cleanup(context); contexts.clear(); states.clear();

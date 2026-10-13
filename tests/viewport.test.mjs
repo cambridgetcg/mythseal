@@ -230,3 +230,21 @@ test('a single unpaged battle table gets no tab strip and no pager, and every ca
   assert.equal(table.querySelectorAll('[data-action]').filter(card => card.closest('[hidden]')).length, 0);
   env.controller.destroy();
 });
+
+test('D3 forget(key) lets the next refresh of that key open as new, and leaves other keys remembered', () => {
+  const env = environment();
+  const open = key => { const root = env.scene(); env.controller.refresh({ key, root }); return root; };
+  const shown = root => root.querySelectorAll('[data-viewport-module]').findIndex(module => !module.hidden);
+  for (const key of ['modal-match-result', 'modal-round-result']) {
+    const root = open(key);
+    env.controller.selectModule({ key, moduleId: 'module-1', focus: false });
+    assert.equal(shown(root), 1); root.remove();
+  }
+  // Remembered across a fresh dialog of the same key, as today's round reveal relies on.
+  let root = open('modal-match-result'); assert.equal(shown(root), 1, 'remembered before forget'); root.remove();
+  env.controller.forget('modal-match-result');
+  root = open('modal-match-result'); assert.equal(shown(root), 0, 'a forgotten key opens on its first module'); root.remove();
+  root = open('modal-round-result'); assert.equal(shown(root), 1, 'other keys keep their page'); root.remove();
+  env.controller.forget('never-opened');
+  env.controller.destroy();
+});

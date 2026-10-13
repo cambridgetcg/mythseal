@@ -2,6 +2,679 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## D3 first-battle teaching · 2026-10-12
+
+Branch `d3/first-battle-teaching`, from `origin/main` `335d2b7`; packet D3,
+approved by the owner on 2026-10-11 for the proposed v0.6.0 scope. Source
+commits `d240078`, `c1284ca`, `cc85bc3`, `d1b7f35`, `4fc692d` and `0029ef0`
+(coach copy only); the documentation commits after them change no served,
+test or tool file. Not merged, pushed or deployed; no hosted check, no network
+request beyond the loopback server. Design:
+[battle-table plan](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12).
+
+**Environment.** macOS 26.6.2 (Darwin 25.6.0), Node 26.0.0, Python 3.14.6,
+Playwright 1.63.0, installed Google Chrome 154.0.8037.98 for Chromium and
+Playwright WebKit 26.6, all headless. `python3 tools/serve.py --port 4204`
+from the worktree, started after both `battle-teaching.*` files entered the
+allowlist; `GAME_URL=http://127.0.0.1:4204` for every browser suite. Synthetic
+saves only.
+
+**Problem, as briefed.** The packet's 2026-10-11 measurements (an iPhone 15
+WebKit playtest losing 8, 6 and 10 HP in round 1; the 400- and 300-game engine
+simulations) are quoted in the plan. They were not re-run here.
+
+**Checks at `0029ef0`:**
+
+- `node --test tests/*.test.mjs`: exit 0, **569/569**, 16 of them new:
+  11 in `tests/battle-teaching.test.mjs`, 2 in `tests/battle-table-view.test.mjs`,
+  N23–N24 in `tests/nav-stack.test.mjs` and 1 in `tests/viewport.test.mjs`.
+  `tests/engine.test.mjs` and `engine.mjs` are unchanged from `335d2b7`. The
+  formula equals `resolveRound`'s player attack, damage and cost for every
+  open announced card × draft × three hidden bids over 60 seeded matches and
+  rounds 1–3 (more than 5,000 drafts); without an announced card it equals
+  `previewMove`'s, is exact exactly when every possible reply agrees (both
+  kinds over 100 cases each) and is otherwise labelled 預計. Every visible form
+  is parsed and evaluates to the engine's number, including a clamped attack
+  of 1. Two different hidden AI bids give the same formula. The tip equals
+  match state after more than 200 seeded rounds, and a recording proxy shows
+  it reads only `phase`, `next.round`, `rounds` and both sides' `pills`.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, **86 public files** (84 plus `battle-teaching.mjs`
+  and `battle-teaching.css`), manifest `5a0d2843…be891`.
+- `git diff --check 335d2b7 HEAD`: exit 0.
+- `npm run test:coach` (new; `tools/coach-smoke.mjs`, Chrome with the Pixel 7
+  descriptor, then WebKit with the iPhone 15 descriptor): exit 0, **7/7 checks
+  in each engine**, 18 s for both. On a fresh journey's first 霧隱渡口 battle the
+  marks came in order ① → ② → ③ → ④; a hit test at the centre of each taught
+  control (every hand card, ＋, Commit, then 繼續 in the reveal) reached it,
+  and a tap on it advanced the mark. The hint box was taller than 1 px,
+  inside the status row and the viewport, with no clipped sentence, and 跳過
+  was a 44 px target clear of 對弈紀錄. The estimate equalled the engine's
+  attack at mark ①, after two pills and in a later battle, and 預計 appeared
+  exactly when the number was not exact. After the round-1 reveal the tip's
+  `data-opponent-pills` and text equalled the saved match state. 繼續 recorded
+  `done`; 跳過 recorded `skipped` and wrote only `shanhai.coach.v1`, with the
+  profile and battle snapshot bytes unchanged; so did Back on the table's mark
+  (the next Back opened keep/abandon) and Back on the reveal's mark (the tip
+  stayed and the next Back held the result). History depth was 2 with a mark
+  on the table and 3 over the reveal, and one less once the mark closed. No mark returned after
+  completion or 跳過, after a reload in round 1, or in a restarted first battle
+  (abandoned, so `stats.played` stayed 0). A 霧隱渡口 battle after one played
+  battle, and a first practice match, showed no mark but the hint, the formula
+  and (after round 1) the tip. A result left on 旅途所得, then a lost match:
+  the loss opened on 勝負已定 with 悟 and its advice visible, and its own
+  旅途所得 tab existed. With `viewport.forget` removed from `matchEndModal`, that
+  check failed (Chromium) and the other six passed; restored, it passes.
+- `npm run test:battle-table`: exit 0, **40/40 in Chrome and 40/40 in WebKit**
+  (256 s). Its Mist Gate fixture is a first battle, so it now runs with the
+  coach mark on the table at the six contract sizes; the 32-size sweep still
+  finds every decision input hit-testable, no row overlap and the attack
+  estimate's label whole on one line beside one-, two- and three-digit
+  numbers.
+- `npm run test:back`: exit 0, 16 checks in Chrome (including the bfcache
+  checks) and 15 in WebKit.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:browser` (Chrome, the 14 suites chained with `&&`): exit 0,
+  91 `PASS` lines; every error list printed empty.
+
+`test:coach`, `test:battle-table`, `test:back`, `test:viewport` and
+`test:browser` also passed (same counts) at `4fc692d`, before `0029ef0`
+changed the wording of mark ②.
+
+**Scratch evidence (not committed).** Before writing the smoke, a scratch
+script measured the hint and the formula at 390×844, 360×640, 360×540,
+844×390, 568×320, 768×1024 and 1440×900, with and without the coach: the hint
+was 14 px tall on one line, or 28 px for a coach mark on a portrait phone, and
+the formula's text box stayed inside its cell (the cell is 111 px wide at
+568×320, where the compact forms are used).
+
+**Not run or not shown:** the owner's playtest with at least three first-time
+players, which is the real exit and is pending; physical iPhone and Android
+phones, real Safari, Firefox, VoiceOver and TalkBack; the WebKit runs of
+`test:browser`'s suites (only `test:coach`, `test:battle-table`, `test:back`
+and `test:viewport` ran in WebKit); `test:commands`, `test:wx01`,
+`test:inheritance`, `test:collection-display`, `test:expansion`,
+`test:map-piece` and the literary preview smokes; `tools/battle-measure.mjs`
+(input latency and first paint were not re-measured); deploy dry runs, the
+SQL harness and CI.
+
+**Review round 1 fixes · 2026-10-13.** Review round 1 reported eight findings
+on `98df03b`, and independent reproductions confirmed all of them. They are
+five defects: two pairs of findings describe the same one. They are fixed in
+source commit **`9104ef0`** (`battle-teaching.mjs`, `app.mjs`,
+`tests/battle-teaching.test.mjs`, and comments in `battle-teaching.css` and
+`nav-stack.mjs`) and smoke commit **`f421044`** (`tools/coach-smoke.mjs`). The
+documentation commit after them changes no served, test or tool file. No
+allowlist change. Environment as above; `python3 tools/serve.py --port 4204`
+started fresh from the worktree for these runs.
+
+- **A clamped attack showed a false sum** (reported as medium and as low).
+  When the terms add up to less than 1 (for example an announced 月蝕 −6 at 0
+  pills), the engine counts 1, but every visible form ended `＝ 1` or showed
+  the bare terms beside 1: `（力 6 − 1）×（1＋0 丹）− 6 ＝ 1` is really −1, and
+  `6×1−6` is 0. The reviewers' simulations (the default deck against legacy or
+  default decks, drafts at 0 pills) found it in about 4–7 % of opponent-led
+  rounds, and never in the coached round 1. Every form now states the true sum
+  and the minimum:
+  `（力 6 − 1）×（1＋0 丹）− 6 ＝ −1 → 最低 1`, `(力6−1)×(1+0丹)−6＝−1→最低1`, …
+  `5×1−6→最低1`. **Correction:** the entry above says "Every visible form is
+  parsed and evaluates to the engine's number, including a clamped attack of
+  1". That was not true: the test compared `Math.max(1, value)`, and its fixture
+  pinned the false text. The test now requires each form's sum to equal the
+  attack, or to be under 1 with the minimum shown. The announced-card sweep
+  must now include clamped drafts, and both reviewers' fixtures are pinned. With
+  the old `formulaVariants`, 2 of the 11 tests in that file fail.
+- **With Fury on, the cost line hid the pills left** (low and medium). The
+  `怒擊 傷 N · ` prefix pushed `剩 M 丹` behind the ellipsis of `#cost-note` on
+  every phone size measured, in both engines. Under 600 px tall, where the
+  player's caption yields, the pills left were then shown nowhere as a number
+  (only as pill capsules). The cost
+  line is the pre-D3 `共消耗 N 丹 · 剩 M 丹` again, and the Fury toggle's note
+  states the damage while Fury is on (`另付 3 丹 · 傷害 7`, or `預計傷 7`); off,
+  it still states the rule. `test:coach` now turns Fury on with 0 (or 1) and 9
+  pills on the device and at 360×640 and 360×560. It checks that the cost line
+  reads exactly the cost and the pills left with `scrollWidth ≤ clientWidth`,
+  and that the Fury note names the engine's damage inside its button, clear of
+  the switch. With the old cost text, `test:coach` fails in Chromium at the
+  first of these checks (Pixel 7, 412×839).
+- **Coach mark ② was cut at 360 px in Chromium** (medium twice; one verifier:
+  low). `0029ef0` made it 33 characters. At 360 px the hint is 193 px wide,
+  Chromium needed three lines, and the two-line clamp hid 盡。. WebKit fit it,
+  by about 1 px. The copy is now 按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹撐四回合，莫一次押盡。
+  (32 characters). `test:coach` now measures every copy of marks ①–③ (both
+  leaders, both commit labels) in the real hint at 360×640 and 360×560, and
+  walks ①–③ there. With the old copy it fails in Chromium ("the pills copy …
+  fits two lines, not 3"). The unit test's character count is now only a
+  budget (at most 32). **Correction:** the entry above found the coach sentence
+  unclipped only on the two device sizes (412 and 393 px wide). From
+  `0029ef0` on, the claim in the plan and in code comments that the copy fits
+  two lines at 360 px was false in Chromium, and `test:battle-table`'s 40/40
+  did not check clipping.
+- **Back during the animated round-1 reveal skipped mark ④ unseen** (low).
+  Mark ④ counted as a Back layer as soon as the result opened, while the footer
+  still hid it, so Back recorded 跳過 and ④ never showed. It now counts only
+  once the reveal has completed, and the completed reveal queues the history
+  sync, which pushes its entry on the commit's user turn. With full motion and
+  normal pace, `test:coach` presses Back while `data-reveal-state` is
+  `animating`. The history depth stays 2, nothing is recorded, ④ and 知道了
+  then show, and the next Back closes ④ as 跳過 while the result stays. In a
+  second run without that Back, the depth goes from 2 to 3 when ④ shows. With
+  the old `dialogCoach`, `test:coach` fails ("no coach layer while mark ④ is
+  hidden: … depth 2 (now 3)").
+- **預計 and the announced-card formula were untested in the browser**
+  (medium; one verifier: low). Every formula check had run on an exact,
+  player-led draft. `test:coach` now selects 青霄 in round 1 of the first
+  battle, with 霜璃 still in the opponent's hand. It requires the visible line
+  to start with 預計 and `data-attack-exact` to be `false`. In the opponent-led
+  round 2 it checks every open draft against `resolveRound` with the stored AI
+  move, as exact and with 已計對手亮牌. With the `<b>預計</b>` prefix removed
+  from `app.mjs`, `test:coach` fails at 青霄. With `announcedCardId: null` in
+  the formula call, it fails in round 2. **Correction:** the entry above says
+  "預計 appeared exactly when the number was not exact". The assertion held
+  only trivially: no number in that run was 預計.
+
+Each failure above came from reverting only that fix (for the last item,
+removing only that wiring) in the worktree, before the commits; the file was
+then restored, and the suites below ran on the committed code.
+
+Checks at `f421044`, all browser suites with `GAME_URL=http://127.0.0.1:4204`:
+
+- `node --test tests/*.test.mjs`: exit 0, **569/569**. No test was added; the
+  formula, cost, Fury-note and copy tests in `tests/battle-teaching.test.mjs`
+  were tightened as above.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 86 public files, manifest `d73d6946…f571`.
+- `git diff --check 98df03b f421044`: exit 0.
+- `npm run test:coach`: exit 0, **9/9 checks in each engine** (Chrome
+  154.0.8037.98 with Pixel 7, then WebKit 26.6 with iPhone 15), 36 s for both.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit
+  (286 s). At its six contract sizes it turns Fury on for every open card at 3
+  pills, and its Fury-switch check (the note inside its button, clear of the
+  switch) passed with the new note.
+- `npm run test:back`: exit 0, 16 checks in Chrome and 15 in WebKit.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines; every
+  printed error list was empty.
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack; layouts
+narrower than 360 px (the 340 px minimum) and fonts other than the headless
+engines'; the WebKit runs of `test:browser`'s suites; `test:commands`,
+`test:wx01`, `test:inheritance`, `test:collection-display`, `test:expansion`,
+`test:map-piece` and the literary preview smokes; `tools/battle-measure.mjs`;
+deploy dry runs, the SQL harness and CI.
+
+**Review round 2 fixes · 2026-10-13.** Review round 2 reported five findings
+on `4dba880`, and independent reproductions confirmed all five. They are three
+defects: two pairs of findings describe the same one. They are fixed in source
+commit **`94456a6`** (`battle-teaching.mjs`, `battle-teaching.css`, `app.mjs`,
+`battle-ui.mjs`, `tests/battle-teaching.test.mjs`,
+`tests/battle-table-view.test.mjs`) and smoke commit **`bd91390`**
+(`tools/coach-smoke.mjs`). The documentation commit after them changes no
+served, test or tool file. No allowlist change. Environment as above;
+`python3 tools/serve.py --port 4204` started fresh from the worktree for these
+runs.
+
+- **Coach mark ② could be skipped for good** (low, twice). It is the only mark
+  that says what pills do (攻擊＝力×（1＋丹）, 十二丹撐四回合). ＋, the slider or
+  怒擊 on ① went straight to ③. A commit on ① went straight to ④: a card is
+  already chosen and the pills start at 0, so the commit button is live under
+  ①. 繼續 then recorded `done`, and ② never showed. Now ① moves only to ②,
+  whichever of the card, ＋, the slider or 怒擊 is used. A commit straight
+  from ① shows ④ and owes ②, recorded as `{"owed":"pills"}` under
+  `shanhai.coach.v1`. 繼續 or 知道了 (its accessible name then reads
+  知道了，下一回合再說仙丹) opens round 2's table on ②. That ② is announced
+  with the round's start, stays while pills are set and across a reload, and
+  round 2's commit records `done`. One reviewer's note on weight: the 0 of 300
+  games is for a player who never adds pills; 0 in round 1 and then an even
+  spread won 82 %. So what this path lost was the ② sentence, not a winnable
+  game. New unit tests cover the transitions, the owed start and the memory.
+  `test:coach` now commits from ①, reloads in the reveal, taps 知道了, finds ②
+  on round 2's table, adds a pill, reloads, commits, finds `done` and no mark in
+  round 3; it also checks ＋ on ① and the slider on ① (at the narrow sizes
+  below). With only the transition rule reverted (① to ③ on pills or 怒擊, ① to
+  ④ on a commit, nothing owed), the new unit test fails (1 of 13 in
+  `tests/battle-teaching.test.mjs`) and `test:coach` fails in Chromium at "a
+  commit from ① owes ②". **Correction:** the finding says it was first raised
+  in round 1, which the round-1 fix record above does not list. The plan
+  described the skip-ahead as intended, and the smoke encoded it ("commit
+  straight away" expected ④ after ①; ＋ on ① expected ③).
+- **Coach mark ② was cut on phones 340–354 px wide** (medium and low; one
+  verifier rated the medium one low). The two-line clamp hid 盡。 below about 355 px in Chromium (for
+  example Playwright's Pixel 4 at 353×745) and below 349 px in WebKit, down to
+  the supported 340 px minimum. The clamp is now three lines on portrait
+  phones: three 14 px lines (42 px) fit the status row's 44 px, so the row
+  stays 45 px with its 1 px rule. At 340×640 mark ②'s hint is now 42 px tall
+  with 42 px of text in both engines, ending 莫一次押盡。. `test:coach` measures every copy of
+  marks ①–③ (both leaders, both commit labels) at 340×640, 348×760, 353×745
+  and 354×640: whole, at most three lines, and the row's height unchanged. At
+  360×640 and 360×560 it still requires two lines. With the clamp back at two
+  lines, `test:coach` fails in Chromium and in WebKit at "340x640: the pills
+  copy (player leads, 封丹 · 落子) shows whole, in 3 lines". **Correction:** the
+  open item "narrower layouts … not measured" above is now measured.
+- **`test:coach` failed in WebKit about half the time** (medium). Its
+  full-motion section measured 跳過 during the table's 3 px entry translate,
+  where WebKit gives the 44 px button a height of 43.999996 px. Every coach
+  check now first waits until no finite animation runs (the coach outline's
+  infinite glow is ignored); the 44 px check keeps no tolerance. With that wait
+  made a no-op, 4 of 8 WebKit runs failed with "full motion: 跳過 is a 44 px
+  target"; with it, 10 of 10 WebKit runs passed in the worktree before the
+  commits. **Correction:** the round-1 record above gives `test:coach` as
+  "exit 0, 9/9 checks in each engine" without saying that its WebKit run was
+  flaky. At `4dba880` (the smoke is unchanged since `f421044`) the reviewers
+  saw 4 of 8, 3 of 17 and 3 of 9 WebKit runs fail.
+
+Each failure above came from reverting only that fix in the worktree before
+the commits; the file was then restored, and the suites below ran on the
+committed code.
+
+Checks at `bd91390`, all browser suites with `GAME_URL=http://127.0.0.1:4204`:
+
+- `node --test tests/*.test.mjs`: exit 0, **571/571** (two new tests in
+  `tests/battle-teaching.test.mjs`; its start and order tests and the reveal-tip
+  test in `tests/battle-table-view.test.mjs` were extended).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 86 public files, manifest `8568ce1d…3bf5`.
+- `git diff --check 4dba880 bd91390`: exit 0.
+- `npm run test:coach`: exit 0, **12/12 checks in each engine** (Chrome
+  154.0.8037.98 with Pixel 7, then WebKit 26.6 with iPhone 15), with empty
+  error lists.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit
+  (246 s). Its Mist Gate fixture runs with a coach mark on the table at the
+  six contract sizes.
+- `npm run test:back`: exit 0, 16 checks in Chrome and 15 in WebKit.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines; every
+  printed error list was empty.
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack (the owed ②'s
+announcement was checked only as `#announcer` text); fonts other than the
+headless engines'; the WebKit runs of `test:browser`'s suites;
+`test:commands`, `test:wx01`, `test:inheritance`, `test:collection-display`,
+`test:expansion`, `test:map-piece` and the literary preview smokes;
+`tools/battle-measure.mjs`; deploy dry runs, the SQL harness and CI.
+
+**Review round 3 fixes · 2026-10-13.** Review round 3 reported seven findings
+on `5144af9`, all low, and independent reproductions confirmed all seven
+(two only in part, as noted below). They are five defects: two pairs of
+findings describe the same one. They are fixed in source commit **`b75b6b3`**
+(`battle-teaching.mjs`, `app.mjs`, `tests/battle-teaching.test.mjs`) and smoke
+commit **`751c40d`** (`tools/coach-smoke.mjs`). The documentation commit after
+them changes no served, test or tool file. No allowlist change. Environment as
+above; `python3 tools/serve.py --port 4204` started fresh from the worktree
+for these runs.
+
+- **The coach record's description was wrong** (low, twice). The doc comment
+  on `createCoachMemory`, the plan and a unit-test message said
+  `shanhai.coach.v1` became `{}` once the owed ② showed. It stayed
+  `{"owed":"pills"}` until round 2's commit (the round-2 reload in
+  `test:coach` relied on that), and `{}` was written only when a new first
+  battle started at ① after an abandoned one had owed ②. The code was right;
+  the descriptions were not. The record's format changed with the fixes below.
+  The comment, the plan and the HANDOVER note now list every value and when it
+  is written. A new unit test drives the coach as `app.mjs` does and pins the
+  writes of the owed path: `{"step":"reveal","owed":"pills"}`,
+  `{"step":"pills","owed":"pills"}`, `{"firstBattle":"done"}`, and no `{}`
+  while ② shows. The reviewers rated the HANDOVER part weak (its "(or `{}`)"
+  was reachable, only undated); it is corrected in the HANDOVER round-3 note.
+  One finding also disputed a note in the round-2 writer's report, which is
+  not in the repository; that part was not checked here.
+- **The owed ② said 十二丹撐四回合 on round 2** (low), where 12 pills must last
+  three rounds. Mark ② now counts the player's pills and the rounds left, this
+  one included: round 1 still reads 十二丹撐四回合, and the owed ② reads
+  十二丹撐三回合. `test:coach` checks that exact sentence on round 2 with the
+  saved match at round 2 and 12 pills, and its copy-fit sweeps (360×640,
+  360×560, and 340–354 px wide) now measure the round-2 copy too (16 copies
+  each). With `app.mjs` passing no pills or rounds to the copy, `test:coach`
+  fails in Chromium at "the owed ② says what pills do, over the three rounds
+  left". With the fixed text back in `coachCopy`, the new unit test fails.
+- **A reload in round-1 planning sent the coach back to ①** (low). Only seen
+  or owed was stored, so a player who had reached ② or ③ was put on ① over
+  the restored draft. A commit then owed ② again, and round 2 could show ②
+  over a disabled ＋ at 剩 0 丹. The record now keeps the coach state of the
+  first battle in progress (`{"step":"pills"}`, `{"step":"commit"}`, …; full
+  list in the plan), and a resumed battle starts from it; a new first battle
+  still starts at ①. A commit from ① now owes ② only at 0 pills without 怒擊,
+  which covers a reload that lost the record. `test:coach` picks a card (②),
+  reloads (② again), adds a pill (③), slides to 12 pills, reloads (③, 12
+  pills restored) and commits: ④'s 知道了 reads 知道了，結束新手指引, the
+  record is `{"step":"reveal"}`, 繼續 records `done` and round 2 shows no
+  mark. With round-1 planning always starting at ①, `test:coach` fails in
+  Chromium at "a reload on ② resumes ②" and 1 of 17 unit tests fails. With
+  the 0-pill rule reverted, the same unit test fails (the browser path does
+  not reach that rule while the record works).
+- **After 知道了 with ② owed, a reload brought ④ back, and Back on it dropped
+  ②** (low, twice). 知道了 closed ④ but wrote nothing, so a reload in the
+  same reveal showed ④ and 知道了 again, and Back on that ④ recorded
+  `skipped`. The record now holds `{"step":"pills","owed":"pills"}` from
+  知道了 on, and a resumed reveal in that state shows no mark and still owes
+  ②. `test:coach` now reloads a second time after 知道了: no ④ and no 知道了,
+  history depth 2; Back holds the result with the record unchanged; 繼續 opens
+  round 2 on ②. With the resumed reveal always on ④, `test:coach` fails in
+  Chromium and in WebKit at "④ stays closed after a reload that follows
+  知道了", and the new unit test fails.
+- **The round-1 fix record miscounts its pairs** (low). **Correction:** the
+  round-1 fix record above says "They are five defects: two pairs of findings
+  describe the same one." Its own list gives eight findings in five defects,
+  so three pairs describe the same defect: the clamped sum, Fury hiding the
+  pills, and mark ② cut at 360 px.
+
+Each failure above came from reverting only that fix in the worktree before
+the commits; the file was then restored, and the suites below ran on the
+committed code.
+
+Checks at `751c40d`, all browser suites with `GAME_URL=http://127.0.0.1:4204`:
+
+- `node --test tests/*.test.mjs`: exit 0, **575/575** (four new tests in
+  `tests/battle-teaching.test.mjs`; its start and memory tests were rewritten
+  for the new record).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 86 public files, manifest `f46424c4…7bbf`.
+- `git diff --check 5144af9 751c40d`: exit 0.
+- `npm run test:coach`: exit 0, **13/13 checks in each engine** (Chrome
+  154.0.8037.98 with Pixel 7, then WebKit 26.6 with iPhone 15), with empty
+  error lists.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit
+  (247 s), with the coach mark on its Mist Gate fixture's table.
+- `npm run test:back`: exit 0, 16 checks in Chrome and 15 in WebKit.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines
+  (296 s); every printed error list was empty.
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack; a browser
+run with storage blocked (the 0-pill rule for a reload without the record is
+covered by the unit test only); fonts other than the headless engines'; the
+WebKit runs of `test:browser`'s suites; `test:commands`, `test:wx01`,
+`test:inheritance`, `test:collection-display`, `test:expansion`,
+`test:map-piece` and the literary preview smokes; `tools/battle-measure.mjs`;
+deploy dry runs, the SQL harness and CI.
+
+**Review round 4 fixes · 2026-10-13.** Review round 4 reported seven findings
+on `adb0dd4` (the merge of `origin/main` `a7bda4b`, D2 save durability with
+N1, into this branch): two medium and five low. Independent reproductions
+confirmed all seven, one only in part (below). They are six defects: two
+findings describe the same branch-ref problem. The code fixes are in source
+commit **`2e599a1`** (`app.mjs`, `battle-teaching.mjs`, `battle-teaching.css`,
+`tests/battle-teaching.test.mjs`) and smoke commit **`d36aa7a`**
+(`tools/coach-smoke.mjs`). The documentation commit after them changes no
+served, test or tool file. No allowlist change. `engine.mjs` and the AI are
+unchanged. Environment as above, except installed Google Chrome is now
+155.0.8059.40, and `python3 tools/serve.py --port 4471` was started fresh from
+the worktree for these runs (`GAME_URL=http://127.0.0.1:4471`).
+
+- **One slider drag on ① went past ② to ③ before the finger lifted**
+  (medium). The slider's `input` listener moved the coach on every value it
+  passed: ① to ② on the first, ② to ③ on the next. Reproduced at `adb0dd4`
+  with `page.mouse` (a press, then 20 moves 30 ms apart over a quarter of the
+  slider):
+  Chromium (Pixel 7) showed ② at 253 ms and ③ at 532 ms, still on ③ while
+  the button was held, record `{"step":"commit"}`. WebKit (iPhone 15) showed
+  ② at 172 ms and ③ at 379 ms. Four `keydown`s of a held ArrowRight on the
+  focused slider went ① → ② → ③ within 22 ms in both engines. The smoke had
+  used only `locator.fill()`, which fires one `input` event. Now one slider
+  gesture moves the coach by one mark at most. A gesture runs from
+  `pointerdown` (or a `keydown` that is not a repeat) on the slider to
+  `pointerup`, `pointercancel`, `keyup` or `focusout`. An `input` with no
+  press or key before it (assistive technology, `fill()`) counts as a gesture
+  of its own. A drag on ① now leaves ② on screen while held and after
+  release, and the next gesture, ＋ or 怒擊 shows ③. Separate presses are
+  separate actions, as two taps of ＋ are. `test:coach` drags with
+  `page.mouse`, checks that the drag fired at least two `input` events, and
+  checks ② while held, after release and in the record. It then drags again
+  (③), holds ArrowRight on a new first battle's ① (three `keydown`s, the
+  later two with `repeat`: ② and 3 pills), presses it once more (③), and
+  commits: 知道了 reads 知道了，結束新手指引 and the record is
+  `{"step":"reveal"}`. With only the input listener's old
+  `coachEvent('pills')` restored, `test:coach` fails in Chromium and in WebKit
+  at "a drag on ① shows ② while the finger is still down, not ③". Scratch
+  evidence (not committed): a CDP touch drag in Chromium (`touchStart`, 20
+  `touchMove`s, `touchEnd`; `pointerdown` and `pointerup` reached the slider)
+  fired 5 `input` events and stayed on ②.
+- **No branch held review rounds 1–3 or the merge** (medium; also reported
+  as low). Every commit from `9104ef0` to `adb0dd4` had been made on a
+  detached HEAD checked out at `98df03b`, so `d3/first-battle-teaching` still
+  named the pre-review checkpoint and no ref contained the review fixes or the
+  merge. The branch ref was moved forward to `adb0dd4` (a fast-forward:
+  `98df03b` is its ancestor; no commit was rewritten) and checked out, and
+  the round-4 commits are on it. Nothing was pushed. **Correction:** the
+  records above that place rounds 1–3 on the branch `d3/first-battle-teaching`
+  were true of the commits' history only once the ref was moved, on
+  2026-10-13, before the round-4 commits.
+- **Below 340 px the cost line hid 剩 N 丹** (low; confirmed in part: the
+  reviewers found the defect that belongs to D3 narrower than reported). N1
+  removed the page's `min-width:340px`, and the merge brought that onto the D3
+  table, so phones from 302 px lay the table out at their own width. The cost
+  line was one form ending in an ellipsis. At `adb0dd4`, `共消耗 1 丹 · 剩 11 丹`
+  needed 96 px in Chromium (95 in WebKit), and its cell was 77 px at 302×640,
+  86 px at 320×568, 91 px at 330×640 and 95 px at 339×640. So 剩 N 丹 was cut
+  at all four sizes in Chromium and at the first three in WebKit, with or
+  without Fury. At 320×568 the player's caption is screen-reader only, so the
+  pills left showed only as capsules, while mark ② asks the player to budget
+  that number. The reviewers measured the same cut on `main` `a7bda4b`
+  without D3. The cost line
+  now has five forms, widest first, each ending with the pills left:
+  `共消耗 4 丹 · 剩 8 丹`, `消耗 4 丹 · 剩 8 丹`, `耗 4 丹 · 剩 8 丹`,
+  `耗 4 · 剩 8 丹`, `剩 8 丹` (`costVariants`). `fitAttackFormula` shows the
+  widest that fits, as it does for the formula. Measured after the fix: the
+  302 px cell shows `耗 N 丹 · 剩 M 丹`, the 320 and 330 px cells
+  `消耗 N 丹 · 剩 M 丹` (Chromium uses `耗 12 丹 · 剩 0 丹` at 320 px), and
+  360 px the whole line, in both engines. The new narrow-phone check found a
+  second cut at 302×640: with Fury on, the Fury note (`另付 3 丹 · 預計傷 5`)
+  pushed its switch 5 px (Chromium) or 3 px (WebKit) past the button's right
+  edge, and with Fury off 1 px in Chromium. It was inside at 320×568. Below
+  340 px in portrait the note now takes the button's full width under 怒擊
+  and its switch, as in landscape. At 302×640 the switch is at 112–139 px
+  inside the button's 19–148 px in both engines. `test:coach`'s narrow loop
+  now also runs at 302×640 and 320×568. At every narrow size it turns Fury on
+  with 1 and 9 pills and requires the widest cost form that fits (no wider
+  one fits), 剩 N 丹 whole, and the Fury note and switch inside the button.
+  The 360 px sizes and the device still require the whole line. A new unit
+  test pins the five forms. With the cost-line fit removed, `test:coach` fails
+  in both engines at "Fury on with one pill (302x640): the cost line shows
+  剩 8 丹 whole with Fury on (95 > 77 …" (93 > 77 in WebKit). With the Fury
+  rule removed, it fails in both at "Fury on with one pill (302x640): the
+  Fury note stays inside its button, clear of the switch". Every copy of
+  marks ①–③ (16 each) showed whole in at most three lines with the status row
+  unchanged at 302×640 and 320×568, in both engines. **Correction:** since
+  `adb0dd4` the "340 px minimum" in the round-2 record above, in the HANDOVER
+  round-2 note and in the code comments was no longer the floor. N1 supports
+  phones from 302 px. The code comments and the plan now say so. The plan's
+  open item that the cost line could end in an ellipsis beside a three-digit
+  estimate at 360 px is covered by the same fit, but no browser check here
+  used a three-digit estimate.
+- **The owed ②'s announcement was checked only for its formula** (low). The
+  round-3 fix announces the owed ② with `coachText` (十二丹撐三回合), but
+  `test:coach` matched only 攻擊＝力×（1＋丹）, which the old 四回合 text also
+  contains. It now requires the announcement to end with the exact sentence
+  `。按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹撐三回合，莫一次押盡。`. With the
+  announcement back on `coachCopy(coach.step)`, `test:coach` fails in
+  Chromium and in WebKit at "the owed ② is announced with the round, counting
+  the three rounds left". **Correction:** the round-3 record says that
+  `test:coach` fails without the pills and rounds passed from `app.mjs`; that
+  held for the visible hint only, not for this announcement.
+- **Nothing tested a new first battle over an abandoned one's kept mark**
+  (low). Only the `fresh` guard in `startCoach` stops a new first battle from
+  starting on the ② or ③ an abandoned one kept, and only that path writes
+  `{}`. `test:coach` now abandons a first battle on ③ (record
+  `{"step":"commit"}`, `stats.played` still 0), starts the next and requires
+  ① with the record `{}`. With the guard removed, `test:coach` fails in both
+  engines at "a new first battle after one abandoned on ③: the table is on
+  coach mark card", and the unit tests still pass (603/603).
+- **The HANDOVER checkpoint was not updated for the merge** (low). Its
+  allowlist bullet gave 86 public files, its opening said the later commits
+  changed documentation only, and no D3 record said that the branch contains
+  `a7bda4b`. The HANDOVER now has a post-merge note. **Correction:** the
+  "86 public files" in every record above was true before the merge. Since
+  `adb0dd4` the build has 90 (84, plus D3's two, plus D2's four).
+
+Each failure above came from reverting only that fix (for the announcement,
+restoring only the old call) in the worktree after the source and smoke
+commits; the file was then restored with `git checkout`, and the suites
+below ran on the committed code. These are also the first checks recorded
+on a commit that contains the D2 merge.
+
+Checks at `d36aa7a`, all browser suites with `GAME_URL=http://127.0.0.1:4471`:
+
+- `node --test tests/*.test.mjs`: exit 0, **603/603** (602 at `adb0dd4`; one
+  new test in `tests/battle-teaching.test.mjs` for the cost line's forms).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, **90 public files**, manifest `c5a27262…0847`.
+- `git diff --check adb0dd4 d36aa7a`: exit 0.
+- `npm run test:coach`: exit 0, **14/14 checks in each engine** (Chrome
+  155.0.8059.40 with Pixel 7, then WebKit 26.6 with iPhone 15), 59 s for
+  both, with empty error lists.
+- `npm run test:back`: exit 0, 21 checks in Chrome and 20 in WebKit.
+- `npm run test:saves`: exit 0, 20 groups in Chrome and 20 in WebKit.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit
+  (its sizes are 360 px wide or more, so the narrow Fury rule does not apply
+  there; the cost-line fit does).
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack (no real
+finger drag or VoiceOver adjustment of the slider); phones narrower than
+302 px (the reviewers found that mark ② needs a fourth line in Chromium at
+280×653, outside N1's tested widths, which the three-line clamp would cut);
+a three-digit estimate at any width; fonts other than the headless engines';
+`test:viewport`, `test:browser` and its WebKit runs; `test:commands`,
+`test:wx01`, `test:inheritance`, `test:collection-display`,
+`test:expansion`, `test:map-piece` and the literary preview smokes;
+`tools/battle-measure.mjs`; deploy dry runs, the SQL harness and CI.
+
+**Review round 5 fixes · 2026-10-13.** Review round 5 reviewed only the
+round-4 delta (`adb0dd4`..`039634a`) and reported two independently verified
+findings on `039634a`: one medium and one low. Both were reproduced here on
+`039634a` before the fix. The code fixes are in source commits **`57dd7a5`**
+(the slider gesture) and **`4e91136`** (the cost line), both `app.mjs` only,
+and smoke commit **`954e365`** (`tools/coach-smoke.mjs`). The documentation
+commit after them changes no served, test or tool file. No allowlist change.
+`engine.mjs` and the AI are unchanged. Environment as in round 4 (Chrome
+155.0.8059.40 with Pixel 7, WebKit 26.6 with iPhone 15), with
+`python3 tools/serve.py --port 4472` started fresh from the worktree for these
+runs (`GAME_URL=http://127.0.0.1:4472`) and stopped afterwards.
+
+- **The cost line still cut 剩 N 丹 by a fraction of a pixel** (medium).
+  `fitAttackFormula` kept the first cost form for which
+  `scrollWidth <= clientWidth + 0.5`. Both values are whole pixels, so a text
+  up to about 0.7 px wider than its cell passed, and the CSS ellipsis then
+  drew `…` over the end of 剩 N 丹. Reproduced at `039634a` (a Range over the
+  text against the cell, both in px; `scrollWidth`/`clientWidth` equal in
+  every case): Chromium at 320×568 with one pill, `消耗 1 丹 · 剩 11 丹`, 86.05
+  in 85.86 (at this size the player's caption is screen-reader only); at
+  340×640 with one pill, `共消耗 1 丹 · 剩 11 丹`, 96.27 in 95.86; in landscape
+  at 734×343 with twelve pills, `消耗 12 丹 · 剩 0 丹`, 89.09 in 88.63, and at
+  812×325, `共消耗 12 丹 · 剩 0 丹`, 99.31 in 98.63; WebKit at 334×740 with
+  Fury and one pill, `共消耗 4 丹 · 剩 8 丹`, 93.37 in 92.86. A form now fits
+  only when `scrollWidth` is within `clientWidth` and a Range over its text is
+  no wider than the line's content box (`costFits`). After the fix the same
+  states show `耗 1 丹 · 剩 11 丹` and `消耗 1 丹 · 剩 11 丹` (Chromium, 320 and
+  340 px), `耗 12 丹 · 剩 0 丹` and `消耗 12 丹 · 剩 0 丹` (Chromium landscape)
+  and `消耗 4 丹 · 剩 8 丹` (WebKit, 334 px), each inside its cell. Scratch
+  evidence (not committed): one page per engine resized through every width
+  from 302 to 430 px at 640 px high, nine states each (0, 1, 5, 9 and 12 pills
+  without Fury; 0, 1, 4 and 9 with it), 1161 states per engine. With only the
+  old whole-pixel test restored, 13 states were cut in Chromium and 16 in
+  WebKit; with the fix, none in either. `test:coach`'s cost check used the
+  same whole-pixel measure, and its sizes missed the failing widths. Its
+  `assertCostLine` (which `assertFuryLines` now calls) measures the shown
+  form, and every wider form, with the Range against the content box, and
+  `test:coach` now also checks the cost line without Fury at every portrait
+  size, adds 334×740 to the narrow loop, and checks twelve pills in the
+  734×343 and 812×325 landscapes. With only the fit's old test restored,
+  `test:coach` fails in Chromium at "one pill without Fury (320x568): the
+  cost line shows 剩 11 丹 whole (text 86.046875 px in 85.859375 px, scroll
+  86 in 86 …" and in WebKit at "Fury on with one pill (334x740): the cost
+  line shows 剩 8 丹 whole (text 93.37… px in 92.859375 px, scroll 93 in 93 …".
+  A scratch copy of the smoke without the portrait loop (deleted) fails in
+  Chromium at "twelve pills in landscape (734x343)". **Correction:** the
+  round-4 record above, the HANDOVER round-4 note, the plan and the ROADMAP
+  say that the cost line always shows 剩 N 丹 whole (from 302 px). Until this
+  fix that held only to the whole pixel: at some widths, in portrait and in
+  landscape, the chosen form was up to about 0.7 px too wide and its last
+  character was cut.
+- **Other input during a slider drag let it pass ② on to ③** (low). Any
+  `pointerup` or `pointercancel` in the document, and any `keyup` or
+  `focusout` from the slider, ended the slider's gesture, and any non-repeat
+  `keydown` on it (Shift included) started a fresh one. Reproduced at
+  `039634a` in both engines: a `page.mouse` press at 3% of the slider, moved
+  to 20% in four steps (② while held), then one of three inputs while still
+  held. A `page.touchscreen.tap()` at the centre of the status row: the next
+  move showed ③ in Chromium, and in WebKit the tap itself did (WebKit's tap
+  also sends emulated mouse events to the held slider, which set one value
+  and end its drag). Shift on the focused slider (Chromium focuses it on
+  mousedown; WebKit does not, so the probe called `focus()`): the next move
+  showed ③ in both. ArrowRight on it: ③ at once in both. Each ended with the record
+  `{"step":"commit"}`. A gesture now holds the pointers pressed on the slider
+  (by `pointerId`) and the keys held on it that change its value (arrow keys,
+  PageUp/PageDown, Home/End, by `code`). Another such pointer or key joins the
+  open gesture, so a key pressed during a drag never opens a new one, and the
+  gesture ends only when the last of them is released: that pointer's
+  `pointerup`, `pointercancel` or `lostpointercapture`, that key's `keyup`, or
+  focus leaving the slider for its keys. A pointer pressed again while still
+  held (its release was missed) starts a new gesture. Other pointers and keys
+  leave it running. An `input` with no press or key before it still counts as
+  a gesture of its own. After the fix all three cases stay on ② while held
+  and after release, with the record `{"step":"pills"}`. `test:coach` now
+  holds a `page.mouse` drag at ②, presses Shift and then ArrowRight on the
+  focused slider and taps the status row with the touchscreen, and requires ②
+  after each (and, after each key, at least one further `input` from the
+  drag; WebKit's tap ends the slider's own drag, so that is required after
+  the tap in Chromium only), ② and `{"step":"pills"}` after release, and ③ on
+  the next ArrowLeft press, which shows that the gesture ended. With only the
+  gesture fix reverted, `test:coach` fails in Chromium and in WebKit at "after
+  Shift on the slider: the held drag stays on ②, not ③ (2 input events)". A
+  scratch copy of the smoke without the key presses (deleted) fails in
+  Chromium at "after a tap elsewhere: the held drag stays on ②, not ③" and in
+  WebKit at "a tap elsewhere during the drag leaves ② (1 input events)".
+  **Correction:** the round-4 record above says that a gesture runs from
+  `pointerdown` or a non-repeat `keydown` to `pointerup`, `pointercancel`,
+  `keyup` or `focusout`; those events came from any pointer, and from any key
+  on the slider, so one gesture could move the coach two marks.
+
+The two main failures above came from reverting only that fix's commit in
+the worktree after the smoke commit (`git apply -R` of its diff); `app.mjs`
+was then restored with `git checkout`, and the suites below ran on the
+committed code. The two scratch-copy failures ran before the commits, with
+the same code reverted by hand, against a smoke draft that differed from
+`954e365` only by one redundant assertion.
+
+Checks at `954e365`, all browser suites with `GAME_URL=http://127.0.0.1:4472`:
+
+- `node --test tests/*.test.mjs`: exit 0, **603/603** (no new unit test: both
+  fixes are in `app.mjs`'s DOM code, which the unit tests do not load).
+- `npm run build`: exit 0, **90 public files**, manifest `e05db797…8746`.
+- `git diff --check 039634a 954e365`: exit 0.
+- `npm run test:coach`: exit 0, **16/16 checks in each engine** (Chrome
+  155.0.8059.40 with Pixel 7, then WebKit 26.6 with iPhone 15), 64 s for both,
+  with empty error lists.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit,
+  245 s for both.
+- `npm run test:shell`: exit 0, 26 checks in Chrome and 26 in WebKit, 99 s
+  for both (its `NOTE` lines are informational, as before).
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack (no real
+two-finger drag: the second pointer here is Playwright's touchscreen beside a
+held mouse); a key held while the move panel is re-rendered (focus leaving
+the old slider releases its keys, so the next value can still move one mark,
+as before); the attack formula's own fit, which still compares whole pixels
+(that line has no ellipsis, so a fraction of a pixel spills into the cell's
+padding; not measured here); phones narrower than 302 px, a three-digit
+estimate and fonts other than the headless engines'; `test:back`,
+`test:saves`, `test:viewport`, `test:browser` and the other suites listed
+under round 4.
+
 ## D1 Back model · 2026-10-12
 
 Branch `d1/back-model`, from `origin/main` `7712a7b`; packet D1, approved by the

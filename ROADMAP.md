@@ -498,6 +498,38 @@ real PvP/ranked stays on the M2/M3 authority track.
 
 **Acceptance:** a new player completes a battle → travel/daily → backpack/upgrade loop without assistance, can explain a reveal and identify the exact copies that gained XP; repeated play remains brisk. Selected immersion packets preserve outcomes through mute, reduced motion, skip and interruption; assets and rules have reproducible versioned manifests; selected phone performance/accessibility targets are measured. PvP is complete only when two real clients finish/reconnect without exposing hidden moves, and duplicate settlements cannot change ranking or rewards twice.
 
+**First battle teaching (D3) · status 2026-10-12:** implemented on branch
+`d3/first-battle-teaching` (from `main` `335d2b7`); not merged or deployed, and
+in the proposed v0.6.0 scope. The battle table now shows a visible planning
+hint, four skippable coach marks on the first ever battle (pick a card → pills →
+commit → read the reveal; 跳過 or Back ends them, recorded only under the
+device-local `shanhai.coach.v1`), the formula behind the attack estimate from
+the engine's own numbers (預計 when a hidden reply could change it), and a tip
+after each reveal with both sides' remaining pills. A new match result opens on
+its outcome page, so 悟 and its advice show after a loss. No engine, AI or
+profile change. [Design](docs/BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12)
+and [checks](docs/VALIDATION.md#d3-first-battle-teaching--2026-10-12). The
+exit is an owner playtest with at least three first-time players, which is
+pending; capping the AI's round-1 spend stays an owner fallback after it.
+Review round 1 (2026-10-13) fixed five defects: a false sum in a clamped
+formula, the Fury cost line hiding the pills left, mark ② cut at 360 px, Back
+during the animated reveal skipping mark ④, and untested 預計 and announced-card
+wiring. Review round 2 (2026-10-13) made mark ② (what pills do) impossible to
+skip (a round 1 committed straight from ① now gets it on round 2's table),
+showed it whole on phones narrower than 360 px, and ended a WebKit flake in
+`test:coach`. Review round 3 (2026-10-13) made a reload resume the coach
+mark it interrupted, so ② is neither owed again after it showed nor dropped by
+Back after a reload, and the owed ② counts the three rounds left. The branch
+now contains `main` `a7bda4b` (D2 save durability, with N1) through merge
+`adb0dd4`. Review round 4 (2026-10-13) kept one slider drag on ① from passing
+② on to ③, kept 剩 N 丹 and the Fury switch whole on the 302–339 px phones that
+N1 opened, and moved the branch name onto the review commits and the merge,
+which had been made on a detached HEAD. Review round 5 (2026-10-13) bound a
+slider drag to its own pointer and keys, so another finger, a tap elsewhere or
+a key during the drag no longer lets it pass ② on to ③, and fitted the cost
+line in fractional pixels, so the ellipsis no longer cuts 剩 N 丹 by a
+fraction of a pixel at some widths.
+
 ### M5 · Mobile adaptation → iOS and Android closed beta
 
 **Dependencies:** the approved [M4 game shell](docs/NAVIGATION.md) is the starting point. Touch and

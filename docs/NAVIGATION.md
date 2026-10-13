@@ -66,6 +66,19 @@ Back never settles, pays, claims or writes a save. The five return variables
 stay where they were: they also carry focus and scroll restoration, and the
 stack reads them rather than duplicating them.
 
+**First-battle coach marks (D3 · 2026-10-12, branch `d3/first-battle-teaching`).**
+A [first-battle coach mark](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12)
+is one more dismissible layer (`coach` in the view object). On the battle table
+it sits under any dialog opened over the table, so a card page closes first;
+over the round-1 reveal it sits above the held result once the reveal has
+completed and shows the mark (while the reveal animates the mark is hidden, so
+Back holds the result). Back on it returns
+`BACK.DISMISS_COACH`, which `app.mjs` applies as 跳過 (`endCoach('skipped')`).
+That writes only the device-local `shanhai.coach.v1`, never the profile. The
+next Back opens keep/abandon or holds the result, as in the table above. 跳過
+in the UI walks back over the coach entry like any other close. Tests: N23 and
+N24 in `tests/nav-stack.test.mjs`, and `npm run test:coach`.
+
 **History entries.** Entries are state-only (`history.state["mythseal.nav"]`
 holds a version, a per-load session id, a position, the layer signature and
 the tab-history index of the tab's first game entry).

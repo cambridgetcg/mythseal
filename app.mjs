@@ -1,4 +1,4 @@
-import { CARDS, LEGACY_CARDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, previewMove, resolveRound, hasFactionBonus, getBattleCard } from './engine.mjs';
+import { CARDS, LEGACY_CARDS, FACTIONS, RULES, defaultDeckIds, getCard, validateDeck, createMatch, chooseAIMove, resolveRound, hasFactionBonus, getBattleCard } from './engine.mjs';
 
 import { PROFILE_KEY, NODES, RARITIES, CARD_RARITIES, PACK_PRICE, PACK_SETS, refreshDaily, claimLogin, claimTask, claimWeeklyTask, buyPack, buyCard, sellInstance, buybackInstance, getInstanceSale, trainCard, beginBattle, finishBattle, abandonBattle, claimArenaChest, isNodeUnlocked } from './progression.mjs';
 import { activityMarkup, activitySupplyMarkup, expansionRewardsMarkup } from './expansion-ui.mjs';
@@ -14,7 +14,7 @@ import { worldMarkup, dailyMarkup, marketMarkup, arenaMarkup, rewardText } from 
 import { gameHeaderMarkup, gameDockMarkup, lobbyMarkup } from './navigation-ui.mjs';
 import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResonanceMarkup, mistGateResultMarkup, mistGateRevealMarkup } from './mist-gate-ui.mjs';
 import { createExperienceController } from './experience.mjs';
-import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConfrontationMarkup, battleLineupMarkup, revealPairMarkup } from './battle-ui.mjs';
+import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConfrontationMarkup, battleLineupMarkup, revealPairMarkup, battleStatusMarkup, battleHintMarkup, battleCoachMarkup, COACH_SKIP_MARKUP, revealTipMarkup } from './battle-ui.mjs';
 import { createRoundPresentation, paintRoundResources, permittedAnnouncement, createPlanningView, createRevealView } from './battle-presentation.mjs';
 import { createAccountController } from './account-client.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
@@ -36,6 +36,7 @@ import { prepareScene, preparePack } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
+import { attackFormula, costVariants, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -330,15 +331,49 @@ function updateResourcePreview() {
   element.setAttribute('aria-label',`你剩餘 ${match.player.hp} 生命，${total} 仙丹。預備消耗 ${cost} 丹，留存 ${total-cost} 丹。`);
 }
 
-const costNote=preview=>`共消耗 ${preview.cost} 丹 · 剩 ${match.player.pills-preview.cost} 丹`;
+const commitLabel=()=>isMistGate()?'封丹 · 落子':'落子 · 決勝';
+/** D3: the live formula for the draft, from the engine's own numbers (battle-teaching.mjs).
+ * A leading opponent's announced card is public, so its effects count; otherwise 預計. */
+let attackVariants=[],costForms=[];
+const draftFormula=()=>attackFormula(match,{cardId:selected,pills,fury},{announcedCardId:permittedAnnouncement(match,aiMove,{revealPending})});
+function attackPreviewMarkup(formula=draftFormula()) {
+  const note=formula.known?'· 已計對手亮牌':formula.exact?'· 對手出牌亦不變':'· 未計對手影響';
+  attackVariants=formula.variants;costForms=costVariants(formula,match.player.pills);
+  const label=formula.text?`${formula.exact?'':'<b>預計</b> '}<span class="attack-formula-text">${safe(formula.text)}</span>`:`${formula.exact?'己方攻擊':'己方預估攻擊'}`;
+  return `<div class="attack-preview" data-attack-exact="${formula.exact}"><span class="attack-preview-copy"><span class="attack-formula" id="attack-formula" aria-hidden="true">${label} <i>${note}</i></span><small id="cost-note">${safe(costForms[0])}</small></span><strong id="attack-value">${formula.attack}</strong><span class="sr-only" id="attack-sentence">${safe(formula.sentence)}</span></div>`;
+}
+const costRange=document.createRange();
+/** The cost line's text fits its content box, in fractional pixels: scrollWidth and
+ * clientWidth round to whole ones, so a text up to about 0.7 px too wide passed, and the
+ * ellipsis then drew over 剩 N 丹 (review round 5). */
+function costFits(cost) {
+  if(cost.scrollWidth>cost.clientWidth)return false;
+  costRange.selectNodeContents(cost);
+  const style=getComputedStyle(cost),inner=cost.getBoundingClientRect().width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight)-parseFloat(style.borderLeftWidth)-parseFloat(style.borderRightWidth);
+  return costRange.getBoundingClientRect().width<=inner;
+}
+/** Show the widest form of the formula, and of the cost line, that fits its cell on one line
+ * (the formula's note goes first; every cost form keeps 剩 N 丹, down to N1's 302 px phones). */
+function fitAttackFormula() {
+  const cost=app.querySelector('.move-panel #cost-note');
+  if(cost&&costForms.length&&cost.getClientRects().length)for(const form of costForms){if(cost.textContent!==form)cost.textContent=form;if(costFits(cost))break;}
+  const line=app.querySelector('.move-panel #attack-formula'),text=line?.querySelector('.attack-formula-text');
+  if(!text||!attackVariants.length||!line.getClientRects().length)return;
+  const fits=()=>line.scrollWidth<=line.clientWidth+0.5;
+  line.classList.remove('is-compact');
+  if(text.textContent!==attackVariants[0])text.textContent=attackVariants[0];
+  if(fits())return;
+  line.classList.add('is-compact');
+  for(const variant of attackVariants){if(text.textContent!==variant)text.textContent=variant;if(fits())return;}
+}
+window.addEventListener('resize',fitAttackFormula);document.fonts?.addEventListener?.('loadingdone',fitAttackFormula);
 function movePanel() {
-  const preview = previewMove(match, 'player', { cardId:selected, pills, fury });
-  const maxPills = match.player.pills - (fury ? RULES.furyCost : 0);
+  const maxPills = match.player.pills - (fury ? RULES.furyCost : 0), formula = draftFormula();
   return `<aside class="move-panel" aria-label="出牌設定">
     <div class="pill-control"><button data-action="pill-minus" aria-label="減少一枚仙丹" ${pills===0?'disabled':''}>−</button><div class="pill-number"><span id="pill-amount">${pills}</span><small>暗置仙丹</small></div><input class="pill-slider" id="pill-slider" aria-label="投入仙丹" type="range" min="0" max="${maxPills}" step="1" value="${pills}"><button data-action="pill-plus" aria-label="增加一枚仙丹" ${pills===maxPills?'disabled':''}>+</button></div>
-    <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<3?'disabled':''}><span>怒擊 <small>另付 3 丹 · 傷害 +2</small></span><span class="toggle-track"></span></button>
-    <div class="attack-preview"><span class="attack-preview-copy"><span>己方預估攻擊 <i>· 未計對手影響</i></span><small id="cost-note">${costNote(preview)}</small></span><strong id="attack-value">${preview.attack}</strong></div>
-    <button class="primary" data-action="commit" ${busy?'disabled':''}>${isMistGate()?'封丹 · 落子':'落子 · 決勝'} <span aria-hidden="true">↗</span></button></aside>`;
+    <button class="fury-toggle" data-action="fury" aria-pressed="${fury}" ${match.player.pills<RULES.furyCost?'disabled':''}><span>怒擊 <small>${safe(furyNote(formula))}</small></span><span class="toggle-track"></span></button>
+    ${attackPreviewMarkup(formula)}
+    <button class="primary" data-action="commit" ${busy?'disabled':''}>${commitLabel()} <span aria-hidden="true">↗</span></button></aside>`;
 }
 
 const battleArt=(id,side)=>cardPresentation(id,{printId:side==='player'?encounter?.cardPrints?.[id]:undefined});
@@ -348,9 +383,99 @@ function battleTableOptions(view,actionsHtml) {
   const mist=isMistGate();
   const resonance=mist?mistGateResonanceMarkup({factions:Object.entries(FACTIONS).filter(([id])=>match.player.hand.some(cardId=>getCard(cardId).faction===id&&hasFactionBonus(match,'player',cardId))).map(([,value])=>value)}):'';
   return {draft:{selected,pills,fury},actionsHtml,art:battleArt,resonance,className:battleEntering?' battle-turn-enter':'',
-    eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader}):'',
-    playerNote:match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入'};
+    playerNote:match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入',...statusOptions(view)};
 }
+// D3 teaching (docs/BATTLE-LAYOUT-PLAN.md, "First battle teaching"). The hint line is always
+// visible; on the first battle a coach mark takes its place. Only the coach's record (its ending,
+// or the mark reached and whether ② is owed) is stored, under its own device-local key: never
+// the profile, a battle snapshot or a backup.
+const coachMemory=createCoachMemory({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
+// {step,owed} from battle-teaching.mjs, or null. ② is owed to round 2 when round 1 was
+// committed from ①; the memory keeps the state, so a reload resumes the mark it interrupted.
+let coach=null;
+const setCoach=next=>{coach=next;if(next)coachMemory.keep(next);};
+const tableCoach=()=>['card','pills','commit'].includes(coach?.step)&&screen==='battle'&&match?.status==='playing'&&!revealPending;
+// Mark ④ is a Back layer only once the reveal has completed and shows it (the footer hides
+// it while the reveal animates); until then Back holds the result, as without the coach.
+const dialogCoach=()=>coach?.step==='reveal'&&modalKind==='round-result'&&overlay.querySelector('.modal.battle-reveal')?.dataset.revealState==='complete';
+// A mark's copy for the table as it stands: ② budgets the pills left over the rounds left.
+const coachText=(step,leader=match.initiative)=>coachCopy(step,{leader,commitLabel:commitLabel(),pills:match.player.pills,roundsLeft:RULES.rounds-match.round+1});
+function statusOptions(view) {
+  const mist=isMistGate(),copy=view.phase==='planning'&&tableCoach()?coachText(coach.step,view.leader):null;
+  return {eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader}):'',
+    hint:copy?battleCoachMarkup(copy):battleHintMarkup(planningHint(view,{commitLabel:commitLabel()})),coach:copy?.step||null,coachControls:copy?COACH_SKIP_MARKUP:''};
+}
+/** A new first battle starts at its first mark; a resumed one at the mark this device kept for it. */
+function startCoach({fresh=false}={}) {
+  setCoach(coachStart({seen:coachMemory.seen(),encounter,played:profile.stats.played,match,revealPending,place:fresh?null:coachMemory.place()}));
+}
+function paintCoach(announcement='') {
+  const table=screen==='battle'&&match?.status==='playing'&&!revealPending?app.querySelector('.battle-table[data-battle-phase="planning"]'):null;
+  if(table){
+    const view=planningView(),options=statusOptions(view);
+    patchMarkup(table.querySelector('.battle-status'),battleStatusMarkup(view,options));
+    if(options.coach)table.dataset.coachStep=options.coach;else delete table.dataset.coachStep;
+  }
+  const controls=overlay.querySelector('.battle-reveal .battle-reveal-controls');
+  if(controls&&modalKind==='round-result'){
+    const focused=controls.querySelector('[data-action="coach-done"]')===document.activeElement;
+    controls.querySelectorAll('[data-reveal-tip],[data-action="coach-done"]').forEach(node=>node.remove());
+    controls.insertAdjacentHTML('afterbegin',revealTeachingMarkup());
+    if(focused)overlay.querySelector('[data-action="next-round"]')?.focus({preventScroll:true});
+  }
+  const copy=tableCoach()||dialogCoach()?coachText(coach.step):null;
+  if(announcement||copy)announce(`${announcement}${copy?copy.text:''}`);
+  nav.queue();
+}
+/** Moves the coach on for a taught action; true when the mark changed. */
+function coachEvent(event,announcement='',{paint=true,move=null}={}) {
+  if(!coach)return false;
+  const next=advanceCoach(coach,event,{nextRound:match?.status==='playing',move});
+  if(next===coach)return false;
+  if(next.step==='done'){coachMemory.finish('done');coach=null;}else setCoach(next);
+  if(paint)paintCoach(announcement);
+  return true;
+}
+// One gesture on the pill slider (a press and drag, or a held arrow key) fires an input
+// event for every value it passes but is one action, so it moves the coach by one mark at
+// most: the drag that shows ② leaves ② on screen when the finger lifts, and the next
+// gesture, ＋ or 怒擊 moves on to ③. A gesture is bound to what drives it: each pointer
+// pressed on the slider (by pointerId) and each key held on it that changes its value (by
+// code). A pointer or such key pressed on the slider during a gesture joins it, and the
+// gesture ends only when the last of them is released (that pointer's pointerup,
+// pointercancel or lostpointercapture; that key's keyup; focus leaving the slider releases
+// its keys). Any other pointer or key leaves it running (review round 5: a second finger's
+// lift, or Shift, ended a drag's gesture, so its next value moved ② on to ③). An input with
+// no press or key before it (assistive technology) is a gesture of its own.
+let sliderGesture=null;
+const SLIDER_KEYS=new Set(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown','Home','End']);
+const onSlider=event=>event.target?.id==='pill-slider';
+const holdSlider=source=>{if(sliderGesture)sliderGesture.held.add(source);else sliderGesture={held:new Set([source]),moved:false};};
+const releaseSlider=released=>{
+  if(!sliderGesture)return;
+  for(const source of sliderGesture.held)if(released(source))sliderGesture.held.delete(source);
+  if(!sliderGesture.held.size)sliderGesture=null;
+};
+document.addEventListener('pointerdown',event=>{
+  if(!onSlider(event))return;
+  // The same pointer pressed again: its release was missed, so its gesture is over.
+  const source=`pointer:${event.pointerId}`;if(sliderGesture?.held.has(source))sliderGesture=null;
+  holdSlider(source);
+},true);
+document.addEventListener('keydown',event=>{if(onSlider(event)&&SLIDER_KEYS.has(event.key))holdSlider(`key:${event.code}`);},true);
+for(const type of ['pointerup','pointercancel','lostpointercapture'])document.addEventListener(type,event=>releaseSlider(source=>source===`pointer:${event.pointerId}`),true);
+document.addEventListener('keyup',event=>releaseSlider(source=>source===`key:${event.code}`),true);
+document.addEventListener('focusout',event=>{if(onSlider(event))releaseSlider(source=>source.startsWith('key:'));},true);
+const sliderCoachEvent=()=>{if(!sliderGesture?.moved&&coachEvent('pills')&&sliderGesture)sliderGesture.moved=true;};
+function endCoach(outcome) {
+  if(!coach)return;
+  const skipFocused=document.activeElement?.dataset?.action==='coach-skip';
+  coachMemory.finish(outcome);coach=null;
+  paintCoach(outcome==='skipped'?'已跳過新手指引。':'新手指引完成。');
+  // 跳過 leaves with the mark: keep a keyboard player on the table's selected card.
+  if(skipFocused)(app.querySelector('.player-hand [aria-pressed="true"]')||app.querySelector('[data-action="commit"]'))?.focus({preventScroll:true});
+}
+const revealTeachingMarkup=()=>revealTipMarkup(revealTip(createRevealView(match)),{coach:coach?.step==='reveal'?coachCopy('reveal'):null,owed:Boolean(coach?.owed&&match.status==='playing')});
 function battleMarkup() {
   const view=planningView();
   return battleTableMarkup(view,battleTableOptions(view,movePanel()));
@@ -413,7 +538,7 @@ function render() {
   const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}${saveToolsMarkup(saves.status())}${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
   app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?((profile.wx01.receipt||profile.expansion.fireMountain.run)?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
-  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});
+  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});fitAttackFormula();
   const currentMap=app.querySelector('.world-map[data-world]');
   if(currentMap){
     currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
@@ -488,7 +613,7 @@ function dismissModal() {
   if(['result-card','experience-settings'].includes(modalKind)&&origin?.kind){
     experienceReturn=null;
     if(origin.kind==='round-result')resultModal();
-    else if(origin.kind==='match-result')matchEndModal();
+    else if(origin.kind==='match-result')matchEndModal({returning:true});
     else if(origin.kind==='preparation'&&preparation)prepareEncounter(preparation.kind,preparation.nodeId,preparation.route);
     else return closeModal();
     if(modalKind===origin.kind)requestAnimationFrame(()=>{
@@ -602,7 +727,7 @@ async function launchActivity({route, supply, expectedRunId, expectedStage}={}) 
 }
 function enterStartedBattle(result) {
   encounter=result.encounter;match=result.nextMatch;recorded=false;lastReward=null;
-  closeModal();preparation=null;preparationReturn=null;screen='battle';prepareRound();battleEntering=true;render();window.scrollTo({top:0,behavior:'instant'});announce('對局開始。選一張戰卡，再分配仙丹。');playTone('select');
+  closeModal();preparation=null;preparationReturn=null;screen='battle';prepareRound();startCoach({fresh:true});battleEntering=true;render();window.scrollTo({top:0,behavior:'instant'});announce('對局開始。選一張戰卡，再分配仙丹。');playTone('select');
 }
 function preparationContent() {
   const kind=preparation.kind,node=NODES.find(n=>n.id===preparation.nodeId),deck=getActiveDeck(profile);
@@ -906,7 +1031,7 @@ async function resumeBattle(){
     closeModal();screen='battle';lastRoundPresentation=null;battleEntering=false;
     if(match.status==='finished'){await recordFinishedMatch();render();return matchEndModal();}
     if(!revealPending&&(!match.player.hand.includes(selected)||match.player.used.includes(selected)))selected=match.player.hand.find(id=>!match.player.used.includes(id));
-    ensureLeadingCommitment();
+    ensureLeadingCommitment();startCoach();
     render();if(revealPending)resultModal();announce('已返回未完對局。');
   }catch(error){pendingModal();toast(error.message);}
 }
@@ -936,7 +1061,7 @@ function viewKey(){return screen==='bag'?`bag-${bagView.tab}${bagView.tab==='car
 let settling=false;
 function navView() {
   const open=overlay.firstElementChild,chained=open&&['result-card','experience-settings'].includes(modalKind)&&['round-result','match-result','preparation'].includes(experienceReturn?.kind);
-  return {screen,accountReturn,battle:screen!=='battle'?null:settling?'settling':match?.status||null,
+  return {screen,accountReturn,battle:screen!=='battle'?null:settling?'settling':match?.status||null,coach:tableCoach()?'table':dialogCoach()?'dialog':null,
     bagGroup:bagView.tab==='cards'&&Boolean(bagView.expandedCardId),preparationDeck:preparationReturn&&preparation?{screen:preparationReturn.screen}:null,
     modal:open?{kind:modalKind,dismissible:open.dataset.dismissible==='true'}:null,
     modalReturn:chained?{kind:experienceReturn.kind,dismissible:experienceReturn.kind==='preparation'}:null};
@@ -949,6 +1074,7 @@ function navBack() {
   else if(decision.action===BACK.ACCOUNT_BACK)navigate(accountReturn);
   else if(decision.action===BACK.BATTLE_MENU)requestNavigation('home');
   else if(decision.action===BACK.HOME)navigate('home');
+  else if(decision.action===BACK.DISMISS_COACH)endCoach('skipped');
   // BACK.HOLD: a result (or a commit being saved) stays on screen; the guard entry is re-armed.
   return decision;
 }
@@ -964,7 +1090,7 @@ function switchCardsTab(tab) {
 }
 function updateMovePanel() {
   const panel=app.querySelector('.move-panel');
-  if(panel){const focus=captureFocus(panel);panel.outerHTML=movePanel();restoreFocus(app.querySelector('.move-panel'),focus);}
+  if(panel){const focus=captureFocus(panel);panel.outerHTML=movePanel();fitAttackFormula();restoreFocus(app.querySelector('.move-panel'),focus);}
   updateResourcePreview();
 }
 async function commitMove() {
@@ -978,7 +1104,7 @@ async function commitMove() {
     else if(ensureLeadingCommitment()){busy=false;render();return toast('對手剛亮出本輪戰卡，請確認後再落子。');}
     const before={player:{hp:match.player.hp,pills:match.player.pills},opponent:{hp:match.opponent.hp,pills:match.opponent.pills}};
     // resolveRound advances round/initiative; the old move must not outlive it.
-    match=resolveRound(match,playerMove,aiMove);aiMove=null;revealPending=true;
+    match=resolveRound(match,playerMove,aiMove);aiMove=null;revealPending=true;coachEvent('commit','',{paint:false,move:playerMove});
     lastRoundPresentation=createRoundPresentation(before,match);
     persistBattle();playTone('commit');
     // The inert table behind the reveal switches to the lastResult view at once.
@@ -1012,13 +1138,17 @@ function resultModal({animate=false}={}) {
     <div class="battle-resource-results" aria-label="本回合生命與仙丹">${['player','opponent'].map(side=>battleResourcesMarkup({side,hp:match[side].hp,pills:match[side].pills,compact:true,label:side==='player'?'你':'對手'})).join('')}</div>
     <div class="resolution">${tie}${won?'對手':'你'}受到 <strong>${r.damage}</strong> 點傷害。<br>當前生命：你 <strong>${match.player.hp}</strong> · 對手 <strong>${match.opponent.hp}</strong>　｜　剩餘仙丹：你 ${match.player.pills} · 對手 ${match.opponent.pills}</div>
     <div class="result-effects"><div><h4>你的技能與共鳴</h4>${effectList('player')}</div><div><h4>對手的技能與共鳴</h4>${effectList('opponent')}</div></div>
-    <div class="battle-reveal-footer"><div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div><div class="mist-reveal-controls battle-reveal-controls"><button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div></div>`,`result-modal battle-reveal${mist?' mist-reveal':''}`,false,'round-result',dialog=>experience.reveal(dialog,{animate:Boolean(animate&&presentation?.canAnimate),battle:true,onPhase:(phase,element)=>{
+    <div class="battle-reveal-footer"><div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div><div class="mist-reveal-controls battle-reveal-controls">${revealTeachingMarkup()}<button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div></div>`,`result-modal battle-reveal${mist?' mist-reveal':''}`,false,'round-result',dialog=>experience.reveal(dialog,{animate:Boolean(animate&&presentation?.canAnimate),battle:true,onPhase:(phase,element)=>{
     paintRoundResources(element,presentation,phase);
+    if(phase==='complete'&&coach?.step==='reveal')nav.queue();
     if(phase==='recovery'&&presentation&&['player','opponent'].some(side=>presentation[side].hpRecovered>0||presentation[side].pillsRecovered>0))playTone('recovery');
   }}));
   announce(`第 ${r.round} 回合，${won?'你':'對手'}獲勝，造成 ${r.damage} 點傷害。`);
 }
-function matchEndModal({celebrate=false}={}) {
+function matchEndModal({celebrate=false,returning=false}={}) {
+  // D3: a new result opens on 勝負已定 (the outcome and its advice), even after a loss and
+  // whichever page the last result was left on; a return from a card or settings keeps its page.
+  if(!returning)viewport.forget('modal-match-result');
   const win=match.winner==='player', draw=match.winner==='draw';
   const next=nextEncounterIntent();
   const activity=encounter?.kind==='activity', run=profile.expansion.fireMountain.run;
@@ -1290,20 +1420,24 @@ document.addEventListener('click', event=>{
   if(action==='sound'){experience.setPreferences({sound:!sound});experience.unlockAudio().then(()=>playTone('select'));return;}
   if(action==='select'){
     if(busy||revealPending||match.status!=='playing'||!match.player.hand.includes(id)||match.player.used.includes(id))return;selected=id;playTone('select');
-    updateBattleDraft();announce(`已選擇 ${getCard(id).name}。`);return;
+    updateBattleDraft();announce(`已選擇 ${getCard(id).name}。`);coachEvent('select',`已選擇 ${getCard(id).name}。`);return;
   }
   if(action==='pill-minus'||action==='pill-plus'){
-    const max=match.player.pills-(fury?3:0);pills=Math.max(0,Math.min(max,pills+(action==='pill-plus'?1:-1)));updateMovePanel();playTone('pill');return;
+    const max=match.player.pills-(fury?3:0);pills=Math.max(0,Math.min(max,pills+(action==='pill-plus'?1:-1)));updateMovePanel();playTone('pill');coachEvent('pills');return;
   }
-  if(action==='fury'){fury=!fury;pills=Math.min(pills,match.player.pills-(fury?3:0));updateMovePanel();playTone('select');return;}
+  if(action==='fury'){fury=!fury;pills=Math.min(pills,match.player.pills-(fury?3:0));updateMovePanel();playTone('select');coachEvent('fury');return;}
+  if(action==='coach-skip')return endCoach('skipped');
+  // 知道了 reads ④ as 繼續 does: it completes the coach, or hands over to an owed ②.
+  if(action==='coach-done')return coachEvent('continue',coach?.owed&&match.status==='playing'?'下一回合，再說仙丹。':'新手指引完成。');
   if(action==='commit')return commitMove();
   if(action==='next-round'){
+    coachEvent('continue','',{paint:false});
     if(match.status==='finished')return matchEndModal({celebrate:true});closeModal();prepareRound();battleEntering=true;render();
     // The reveal table and its action are gone: keep keyboard and screen-reader
     // players on the new table's Commit rather than dropping them to <body>.
     if(!app.contains(document.activeElement))app.querySelector('.battle-table [data-action="commit"]')?.focus({preventScroll:true});
     const announced=permittedAnnouncement(match,aiMove,{revealPending});
-    announce(`第 ${match.round} 回合開始。${announced?`對手亮出「${getCard(announced).name}」。`:'你持先手。'}`);return;
+    announce(`第 ${match.round} 回合開始。${announced?`對手亮出「${getCard(announced).name}」。`:'你持先手。'}${tableCoach()?coachText(coach.step).text:''}`);return;
   }
   if(action==='history'){if(screen==='battle')button.focus({preventScroll:true});modal(`<div class="eyebrow">THE STORY SO FAR</div><h2>對弈紀錄</h2>${match.history.length?historyMarkup():'<p>勝負未定，故事才剛開始。</p>'}`);return;}
   if(action==='filter'){filter=id;render();return;}
@@ -1355,11 +1489,9 @@ document.addEventListener('input',event=>{
 
   if(event.target.id!=='pill-slider')return;
   pills=Number(event.target.value);const max=match.player.pills-(fury?3:0);
-  const preview=previewMove(match,'player',{cardId:selected,pills,fury});
-  app.querySelector('#pill-amount').textContent=pills;app.querySelector('#attack-value').textContent=preview.attack;
-  app.querySelector('#cost-note').textContent=costNote(preview);
+  app.querySelector('#pill-amount').textContent=pills;patchMarkup(app.querySelector('.move-panel .attack-preview'),attackPreviewMarkup());fitAttackFormula();
   app.querySelector('[data-action="pill-minus"]').disabled=pills===0;app.querySelector('[data-action="pill-plus"]').disabled=pills===max;
-  updateResourcePreview();
+  updateResourcePreview();sliderCoachEvent();
   experience.unlockAudio().then(()=>playTone('pill'));
 });
 document.addEventListener('submit',event=>{

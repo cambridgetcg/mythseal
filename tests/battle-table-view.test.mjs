@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMatch, resolveRound, chooseAIMove, getBattleCard, hasFactionBonus, RULES } from '../engine.mjs';
 import { TABLE_LABELS, permittedAnnouncement, createPlanningView, createRevealView } from '../battle-presentation.mjs';
-import { battleTableMarkup, battleLineupMarkup, battleConfrontationMarkup, revealPairMarkup } from '../battle-ui.mjs';
+import { battleTableMarkup, battleLineupMarkup, battleConfrontationMarkup, revealPairMarkup, battleHintMarkup, battleCoachMarkup, COACH_SKIP_MARKUP, revealTipMarkup } from '../battle-ui.mjs';
+import { planningHint, coachCopy, revealTip } from '../battle-teaching.mjs';
 import { cardPresentation } from '../card-presentation.mjs';
 
 const move = (cardId, pills = 0, fury = false) => ({ cardId, pills, fury });
@@ -226,4 +227,33 @@ test('reveal markup and the dialog pair are labelled by the resolved round', () 
   const played = tags(section(html, 'enemy-hand')).find(tag => attribute(tag, 'data-id') === 'chiling');
   assert.match(attribute(played, 'class'), /\bis-played\b/); assert.match(attribute(played, 'aria-label'), /本輪出戰（第 1 回合）/);
   assert.equal(RULES.rounds, view.rounds);
+});
+
+test('D3 the status row carries a visible hint line, or a coach mark with 跳過 and the taught step on the table', () => {
+  const match = fixture({ initiative: 'player' }), view = createPlanningView(match);
+  const plain = battleTableMarkup(view, { draft: { selected: 'qingxiao' }, hint: battleHintMarkup(planningHint(view, { commitLabel: '封丹 · 落子' })) });
+  assert.match(plain, /<header class="battle-status[^"]*">[\s\S]*<p class="battle-hint" data-battle-hint>選一張戰卡 → 定仙丹 → 封丹 · 落子<\/p>[\s\S]*data-action="history"/);
+  assert.doesNotMatch(plain, /data-coach-step|coach-skip|sr-only">選一張/);
+  const copy = coachCopy('pills', { leader: view.leader });
+  const coached = battleTableMarkup(view, { draft: { selected: 'qingxiao' }, hint: battleCoachMarkup(copy), coach: copy.step, coachControls: COACH_SKIP_MARKUP });
+  assert.match(coached, /<main class="arena battle-table" data-battle-phase="planning" data-leader="player" data-coach-step="pills">/);
+  assert.match(coached, /data-battle-coach="pills"><b class="battle-coach-mark" aria-hidden="true">②<\/b><span class="sr-only">新手指引 2 \/ 4：<\/span>/);
+  assert.ok(coached.indexOf('data-action="coach-skip"') < coached.indexOf('data-action="history"'), '跳過 sits before 對弈紀錄');
+  assert.equal(battleHintMarkup('<b>&'), '<p class="battle-hint" data-battle-hint>&lt;b&gt;&amp;</p>');
+});
+
+test('D3 the reveal tip carries the public remaining pills and, on the first battle, the last mark and 知道了', () => {
+  const match = fixture({ initiative: 'player' });
+  const after = resolveRound(match, move('qingxiao', 2), move('chiling', 5, true));
+  const tip = revealTip(createRevealView(after));
+  const plain = revealTipMarkup(tip);
+  assert.match(plain, new RegExp(`data-opponent-pills="${after.opponent.pills}"`));
+  assert.match(plain, new RegExp(`<span class="battle-reveal-tip-text">對手剩 ${after.opponent.pills} 丹 · 你剩 ${after.player.pills} 丹 · `));
+  assert.doesNotMatch(plain, /coach-done|data-battle-coach/);
+  const coached = revealTipMarkup(tip, { coach: coachCopy('reveal') });
+  assert.match(coached, /data-battle-coach="reveal"/);
+  assert.match(coached, /<button type="button" class="text-button battle-coach-done" data-action="coach-done"/);
+  assert.match(coached, /aria-label="知道了，結束新手指引"/);
+  // Review round 2: with ② owed to round 2, 知道了 does not end the coach, and says so.
+  assert.match(revealTipMarkup(tip, { coach: coachCopy('reveal'), owed: true }), /aria-label="知道了，下一回合再說仙丹"/);
 });

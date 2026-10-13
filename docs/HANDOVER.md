@@ -650,6 +650,195 @@ worktrees; D1 also edits `app.mjs`.
   WebKit) and `test:saves` S13 (20 groups). Checks:
   [VALIDATION](VALIDATION.md#d2-integration-review-round-2-fixes--2026-10-13).
 
+## D3 first-battle teaching checkpoint · 2026-10-12 (local only)
+
+Roadmap packet D3 (approved by the owner on 2026-10-11 for the proposed v0.6.0
+scope) is implemented on the branch **`d3/first-battle-teaching`**, started
+from `origin/main` `335d2b7` (D1 merged). Source commits: **`d240078`**
+(`battle-teaching.mjs`, its tests, allowlist), **`c1284ca`** (the coach layer
+in `nav-stack.mjs` and its tests), **`cc85bc3`** (`viewport.forget` and the
+match result's outcome page), **`d1b7f35`** (the battle-table integration:
+`app.mjs`, `battle-ui.mjs`, `battle-teaching.css`, `index.html`),
+**`4fc692d`** (`tools/coach-smoke.mjs`, `npm run test:coach`) and `0029ef0`
+(the wording of coach mark ②); the commits after them change documentation
+only. **Status:** not merged, pushed or
+deployed; no hosted check.
+
+- **Changed:** a fresh player lost round 1 of each early encounter because the
+  only instruction was sr-only. The battle table now shows a visible planning
+  hint; on the first ever battle (the first 霧隱渡口 encounter while
+  `stats.played` is 0) four skippable coach marks teach card → pills → commit →
+  reveal; the move panel shows the formula behind its number from the engine
+  (預計 when a hidden reply could change it); each reveal ends with both sides'
+  remaining pills and a hint such as 對手丹藥將盡; and a new match result opens
+  on 勝負已定. The design and rules are in the
+  [battle-table plan](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12);
+  the coach's Back layer is in
+  [NAVIGATION](NAVIGATION.md#back-model--2026-10-12).
+- **Saves:** the only new stored value is the device-local
+  `shanhai.coach.v1` (`{"firstBattle":"done"|"skipped"}`), beside
+  `shanhai.experience.v1`. No teaching element writes the profile, the battle
+  snapshot, an export or a backup. `engine.mjs`, `chooseAIMove`, rewards,
+  `PROFILE_VERSION`, the snapshot format, the Worker, SQL and journey flags are
+  unchanged.
+- **Allowlist:** `battle-teaching.mjs` and `battle-teaching.css` are in
+  `hosting/public-assets.json` (86 public files). Restart a `tools/serve.py`
+  started before this branch.
+- **`app.mjs` touch points for the D2 merge** (all on the battle surface): the
+  engine import no longer names `previewMove`; the `battle-ui.mjs` import
+  names five more exports; a `battle-teaching.mjs` import after the
+  `nav-stack.mjs` one; `costNote` became `commitLabel`, `attackPreviewMarkup`
+  and `fitAttackFormula` (with resize and font-load listeners) above
+  `movePanel()`; `battleTableOptions()` takes its status fields from a new
+  block after it (`coachMemory` … `revealTeachingMarkup`); `fitAttackFormula()`
+  after `viewport.refresh` in `render()`; `matchEndModal({returning:true})` in
+  `dismissModal()`; `startCoach` in `enterStartedBattle()` and
+  `resumeBattle()`; the `coach` field in `navView()` and its row in
+  `navBack()`; `fitAttackFormula()` in `updateMovePanel()`; one
+  `coachEvent` call in `commitMove()`; the tip in `resultModal()`'s reveal
+  controls; `matchEndModal`'s `returning` option; the select, pill, Fury,
+  coach-skip, coach-done and next-round click branches; the pill slider's
+  input branch.
+- **Checked:** see [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12)
+  for each command, exit and environment.
+- **Open:** the real exit is the owner's playtest with **at least three
+  first-time players** on a phone (round-1 HP lost, whether they add pills,
+  whether they can explain a reveal); it is pending, and automation does not
+  replace it. Capping the AI's round-1 spend stays an owner fallback after
+  that playtest. Also open: physical iOS/Android devices, real Safari,
+  VoiceOver/TalkBack, and the owner's review of the copy.
+- **Review round 1 fixes (2026-10-13):** source commit **`9104ef0`**
+  (`battle-teaching.mjs`, `app.mjs`, `tests/battle-teaching.test.mjs`, and
+  comments in `battle-teaching.css` and `nav-stack.mjs`) and smoke commit
+  **`f421044`** (`tools/coach-smoke.mjs`). A clamped attack's formula now states
+  the true sum and the minimum (`… − 6 ＝ −1 → 最低 1`) instead of a false
+  `＝ 1`. With Fury on, the cost line is the pre-D3 `共消耗 N 丹 · 剩 M 丹` again,
+  so the ellipsis never hides the pills left; the damage is on the Fury toggle's
+  note. Coach mark ② is one character shorter and fits two lines at 360 px in
+  Chromium. Mark ④ becomes a Back layer only once the reveal completes, so Back
+  during the animation holds the result instead of skipping ④ unseen.
+  `test:coach` now covers 預計, the announced-card formula, 360 px copy fit, the
+  Fury lines and Back during an animated reveal. New `app.mjs` touch points for
+  the D2 merge: `furyNote` in the `battle-teaching.mjs` import; `draftFormula`
+  above `attackPreviewMarkup`, which now takes the formula; the Fury toggle's
+  note and one formula in `movePanel()`; `dialogCoach` reads the reveal's state;
+  one `nav.queue()` line in `resultModal()`'s `onPhase`. Checks:
+  [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12), "Review
+  round 1 fixes".
+- **Review round 2 fixes (2026-10-13):** source commit **`94456a6`**
+  (`battle-teaching.mjs`, `battle-teaching.css`, `app.mjs`, `battle-ui.mjs`,
+  `tests/battle-teaching.test.mjs`, `tests/battle-table-view.test.mjs`) and
+  smoke commit **`bd91390`** (`tools/coach-smoke.mjs`). Coach mark ②, the only
+  one that says what pills do, is never skipped: ＋, the slider or 怒擊 on ①
+  shows ②, and a round 1 committed straight from ① shows ④ and then opens
+  round 2's table on ②, which stays until that round's commit completes the
+  coach. Before an ending `shanhai.coach.v1` may now hold `{"owed":"pills"}`
+  (or `{}`), so a reload keeps the owed ②; it is still device-local only. The
+  coach hint clamps at three lines on portrait phones, so ② shows whole down to
+  the 340 px minimum inside the row's 44 px. `test:coach` waits for the table's
+  entry animations before measuring, which ends a WebKit flake. New `app.mjs`
+  touch points for the D2 merge, all in the D3 block and branches above:
+  `coachStep` became `coach` (`{step,owed}`) with a `setCoach` helper;
+  `startCoach` passes `owed`; `coachEvent` passes `nextRound`;
+  `revealTeachingMarkup` passes `owed`; the coach-done click branch calls
+  `coachEvent('continue', …)`; the next-round branch's announcement appends an
+  owed ②. Checks: [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12),
+  "Review round 2 fixes".
+- **Review round 3 fixes (2026-10-13):** source commit **`b75b6b3`**
+  (`battle-teaching.mjs`, `app.mjs`, `tests/battle-teaching.test.mjs`) and
+  smoke commit **`751c40d`** (`tools/coach-smoke.mjs`). A reload now resumes
+  the coach mark it interrupted: ② or ③ in round 1 (a commit after them no
+  longer owes ② again, which could show ② over a disabled ＋), and, with ②
+  owed, the state after 知道了 closed ④ (④ no longer returns, and Back on
+  that reveal holds the result instead of dropping ②). A commit from ① owes ②
+  only at 0 pills without 怒擊. The owed ② on round 2 reads 十二丹撐三回合
+  (mark ② counts the pills and rounds left). **Saves:** `shanhai.coach.v1` is
+  still device-local only, but before an ending it now holds the coach state
+  of the first battle in progress: `{"step":"pills"|"commit"|"reveal"}`, or
+  with ② owed `{"step":"reveal","owed":"pills"}` and then
+  `{"step":"pills","owed":"pills"}` until round 2's commit; `{}` only when a
+  new first battle starts at ① over an abandoned one's state. Full list in the
+  [plan](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12).
+  **Correction:** the round-2 note above says the key "may now hold
+  `{"owed":"pills"}` (or `{}`)" without saying when; `{}` was written only when
+  a new first battle started at ① after an abandoned one owed ②, never when ②
+  showed. New `app.mjs` touch points for the D2 merge, all in the D3 block and
+  branches above: `setCoach` calls `coachMemory.keep`; a `coachText` helper
+  above `statusOptions()` (used there, in `paintCoach()` and in the
+  next-round branch's announcement); `startCoach` is one `setCoach(coachStart(…,
+  place))` call; `coachEvent` takes `move`, and `commitMove()` passes
+  `move:playerMove`. Checks:
+  [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12), "Review
+  round 3 fixes".
+- **After the D2 merge (2026-10-13):** merge commit **`adb0dd4`** brought
+  `origin/main` `a7bda4b` (D2 save durability, which includes N1) into this
+  branch. Only `hosting/public-assets.json`, `index.html` and this file
+  conflicted, and their union was kept; `app.mjs` merged without a conflict,
+  and its D3 changes are the same, line for line, as before the merge. The
+  "`app.mjs` touch points for the D2 merge" in the bullets above are applied;
+  they now only describe where D3 sits in `app.mjs`. **Corrections:** the
+  opening of this checkpoint says that the commits after the listed source
+  commits "change documentation only", and the allowlist bullet gives 86
+  public files. Both held only before review round 1: each round's bullet
+  names its source commits, `adb0dd4` brings D2's code into `app.mjs`, and
+  the build now has **90 public files** (84, plus D3's two, plus D2's four).
+  Rounds 1–3 and the merge were committed on a detached HEAD checked out at
+  `98df03b`, so the branch name still pointed at that pre-review checkpoint.
+  On 2026-10-13 the ref was moved forward to `adb0dd4` (a fast-forward; no
+  commit rewritten) and checked out. Round 4 is committed on the branch.
+  Nothing is pushed. The first checks recorded on a commit that contains the
+  merge are the round-4 checks in VALIDATION.
+- **Review round 4 fixes (2026-10-13):** source commit **`2e599a1`**
+  (`app.mjs`, `battle-teaching.mjs`, `battle-teaching.css`,
+  `tests/battle-teaching.test.mjs`) and smoke commit **`d36aa7a`**
+  (`tools/coach-smoke.mjs`). One slider gesture (a press and drag, or a held
+  arrow key) now moves the coach by one mark at most, so a drag on ① leaves
+  ② on screen instead of going on to ③ before the finger lifts. Below 340 px,
+  which phones reach since N1 removed the page's minimum (N1 supports 302 px),
+  the cost line shows the widest of five forms that fits, each ending 剩 N 丹
+  (`耗 4 丹 · 剩 8 丹` at 302 px), and the Fury note takes the button's full
+  width under 怒擊 and its switch, so the switch no longer runs past the
+  button. `test:coach` now drags with `page.mouse`, holds an arrow key, checks
+  the owed ②'s exact announcement, abandons a first battle on ③ and starts
+  the next at ① (record `{}`), and measures the coach copy, the cost line and
+  the Fury note at 302×640 and 320×568. **Saves:** unchanged.
+  `shanhai.coach.v1` is written as before. **Correction:** the round-2 note
+  above says mark ② shows whole "down to the 340 px minimum". Since the merge
+  that is not the floor; `test:coach` now measures it whole at 302 and 320 px
+  too. In `app.mjs`: `costVariants` replaces `costText` in the
+  `battle-teaching.mjs` import; `costForms` sits beside `attackVariants`;
+  `fitAttackFormula` fits the cost line first; `coachEvent` returns whether
+  the mark changed; the `sliderGesture` listeners and `sliderCoachEvent`
+  follow it; the pill slider's input branch calls `sliderCoachEvent()`.
+  Checks: [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12),
+  "Review round 4 fixes".
+- **Review round 5 fixes (2026-10-13):** source commits **`57dd7a5`** and
+  **`4e91136`** (`app.mjs` only) and smoke commit **`954e365`**
+  (`tools/coach-smoke.mjs`). A slider gesture is now bound to what drives it:
+  the pointers pressed on the slider (by `pointerId`) and the keys held on it
+  that change its value (by `code`). Another finger's lift, a tap that moves
+  focus away, or a key such as Shift during a drag no longer ends the drag's
+  gesture, so the drag stays on ② until it is released; a value key pressed
+  during a drag joins its gesture. The cost line's fit is measured in
+  fractional pixels (a Range over the text against the line's content box,
+  plus `scrollWidth` within `clientWidth`), so the ellipsis no longer cuts
+  剩 N 丹 by a fraction of a pixel (it did at 320×568 and 340×640 with one
+  pill and in the 734×343 and 812×325 landscapes at twelve in Chromium, and at
+  334×740 with Fury in WebKit). `test:coach` interrupts a held drag with
+  Shift, ArrowRight and a touchscreen tap, measures the cost line in
+  fractional pixels with Fury off and on, and adds 334×740 and the two
+  landscapes. **Saves:** unchanged. **Correction:** the round-4 note above
+  says that the cost line shows the widest form that fits, each ending
+  剩 N 丹; until this fix "fits" was measured in whole pixels, so at some
+  widths 剩 N 丹 was still cut. In `app.mjs`: `costRange` and `costFits` sit
+  above `fitAttackFormula`, whose cost loop calls `costFits`; `SLIDER_KEYS`,
+  `holdSlider`, `releaseSlider` and document listeners for pointerdown,
+  keydown, pointerup, pointercancel, lostpointercapture, keyup and focusout
+  replace the gesture listeners above `sliderCoachEvent`, which is
+  unchanged. Checks:
+  [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12), "Review
+  round 5 fixes".
+
 ## Experience planning checkpoint · 2026-09-29
 
 The fetched default branch now contains PR #1 at merge commit `22092fc`; start
@@ -1189,6 +1378,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Literary preview content / isolation | `node --test tests/liaozhai-content.test.mjs tests/honglou-content.test.mjs`; both suites above with explicit `GAME_URL` on the Python server |
 | Battle table / battle UI (Q0, PR #5) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
 | Back model / history entries (D1) | `node --test tests/nav-stack.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:back` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor); `tools/navigation-smoke.mjs` for in-app close and return paths |
+| First-battle teaching (D3) | `node --test tests/battle-teaching.test.mjs tests/battle-table-view.test.mjs tests/nav-stack.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:coach` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor), with `npm run test:battle-table` and `npm run test:back` for the table and Back around it |
 | Mobile shell / safe areas / touch (N1) | `node --test tests/mobile-shell.test.mjs`; `GAME_URL=… npm run test:shell` (Chromium as a Pixel 7, then WebKit as an iPhone 15); `npm run test:viewport` and `npm run test:expansion` for scene layout. Desktop changes need a before/after screenshot comparison; emulation is not a physical-phone check |
 | Local commands / profile fence (Q1, PR #10) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
 | Save durability: export, file import, save status, persistence (D2) | `node --test tests/save-durability.test.mjs tests/profile-store.test.mjs tests/profile-fence.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:saves` (Chromium, then WebKit); `tools/account-smoke.mjs` for cloud and local recovery restore, which share `store.restore` |

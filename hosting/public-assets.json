@@ -48,6 +48,8 @@
   "save-status.mjs",
   "save-ui.mjs",
   "saves.css",
+  "battle-teaching.mjs",
+  "battle-teaching.css",
   "wx01-cards.mjs",
   "wx01-pack.mjs",
   "wx01-state.mjs",
