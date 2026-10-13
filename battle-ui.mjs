@@ -127,12 +127,13 @@ export function revealPairMarkup(view) {
 /**
  * The tip after a round's reveal (D3), in the reveal footer beside 聲息與節奏: it
  * takes the place of 直接看結果 once the reveal completes, so the footer keeps its
- * height. On the first battle's round 1 the last coach mark sits above it.
+ * height. On the first battle's round 1 the last coach mark sits above it; `owed`
+ * (mark ② still to show on round 2's table) changes only what 知道了 says it does.
  */
-export function revealTipMarkup(tip, { coach = null } = {}) {
+export function revealTipMarkup(tip, { coach = null, owed = false } = {}) {
   const line = coach ? `<span class="battle-reveal-coach" data-battle-coach="${safe(coach.step)}"><b class="battle-coach-mark" aria-hidden="true">${safe(coach.mark)}</b><span class="sr-only">新手指引 ${bounded(coach.index + 1, 9)} / ${bounded(coach.total, 9)}：</span> ${safe(coach.text)}</span>` : '';
   return `<p class="battle-reveal-tip" data-reveal-tip data-tip-kind="${safe(tip.kind)}" data-opponent-pills="${bounded(tip.opponentPills)}">${line}<span class="battle-reveal-tip-text">${safe(tip.text)}</span></p>`
-    + (coach ? '<button type="button" class="text-button battle-coach-done" data-action="coach-done" aria-label="知道了，結束新手指引">知道了</button>' : '');
+    + (coach ? `<button type="button" class="text-button battle-coach-done" data-action="coach-done" aria-label="${owed ? '知道了，下一回合再說仙丹' : '知道了，結束新手指引'}">知道了</button>` : '');
 }
 
 export function battleResourcesMarkup({ side = 'player', hp, pills, plannedPills = 0, fury = false, preview = false, compact = false, label } = {}) {

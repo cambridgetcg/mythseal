@@ -9,13 +9,15 @@
 .battle-coach-mark{margin-right:1px;font-weight:600;color:var(--gold)}
 .battle-table .battle-coach-skip,.battle-reveal .battle-coach-done{flex:0 0 auto;min-width:44px;min-height:44px;padding:0 6px;border:1px solid #e9c97f66;border-radius:3px;font-size:11px;letter-spacing:1px;color:#f0dfae;white-space:nowrap}
 .battle-table .battle-coach-skip:focus-visible,.battle-reveal .battle-coach-done:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-/* Phones in portrait: the coach mark takes both lines of the status row (the round
-   line yields; its words carry the prompt), so the full sentence shows. Each mark's
-   copy must fit two lines at 360 px (npm run test:coach measures every copy there in
-   Chromium and WebKit); the clamp only keeps the row's height on another font. */
+/* Phones in portrait: the coach mark takes the whole status row (the round line
+   yields; its words carry the prompt), so the full sentence shows. Each mark's copy
+   fits two lines at 360 px; narrower phones, down to the 340 px minimum, need a third
+   for mark ②, and three 14 px lines (42 px) still fit the row's 44 px, so the row
+   never grows. npm run test:coach measures every copy at 360 and 340–354 px in
+   Chromium and WebKit; the clamp only keeps the row's height on another font. */
 @media(max-width:600px) and (orientation:portrait){
  .battle-table[data-coach-step] .battle-status-line{display:none}
- .battle-table .battle-coach{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:10.5px;line-height:14px;white-space:normal;overflow:hidden}
+ .battle-table .battle-coach{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;font-size:10.5px;line-height:14px;white-space:normal;overflow:hidden}
 }
 .battle-table[data-coach-step="card"] .player-hand,
 .battle-table[data-coach-step="pills"] .move-panel .pill-control,

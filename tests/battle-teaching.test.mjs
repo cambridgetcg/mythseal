@@ -5,7 +5,7 @@ import { createRevealView, permittedAnnouncement } from '../battle-presentation.
 import { PROFILE_KEY } from '../progression.mjs';
 import {
   attackFormula, formulaVariants, costText, furyNote, planningHint, revealTip,
-  coachStart, advanceCoach, coachCopy, createCoachMemory, COACH_KEY, COACH_STEPS,
+  coachStart, advanceCoach, coachCopy, createCoachMemory, COACH_KEY, COACH_STEPS, COACH_DONE,
 } from '../battle-teaching.mjs';
 
 // Seeded, so a failure names a reproducible match.
@@ -255,10 +255,11 @@ test('D3 planning hint names the three steps with the table\'s own commit label'
   assert.throws(() => planningHint(null), RangeError);
 });
 
-test('D3 coach marks start only on the first ever battle at 霧隱渡口, in its first round', () => {
+test('D3 coach marks start only on the first ever battle at 霧隱渡口, in its first round (or round 2 for an owed ②)', () => {
   const match = createMatch({ rng: () => 0.23, mode: 'expedition' });
   const first = { kind: 'expedition', nodeId: 'mist-gate' };
-  assert.equal(coachStart({ encounter: first, played: 0, match }), 'card');
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match }), { step: 'card', owed: false });
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match, owed: true }), { step: 'card', owed: false }, 'a new round 1 starts clean; its own commit decides what is owed');
   assert.equal(coachStart({ encounter: first, played: 0, match, seen: 'skipped' }), null);
   assert.equal(coachStart({ encounter: first, played: 0, match, seen: 'done' }), null);
   assert.equal(coachStart({ encounter: first, played: 1, match }), null, 'a finished battle means this is not the first');
@@ -266,21 +267,44 @@ test('D3 coach marks start only on the first ever battle at 霧隱渡口, in its
   assert.equal(coachStart({ encounter: { kind: 'practice', nodeId: null }, played: 0, match }), null);
   assert.equal(coachStart({ encounter: first, played: 0, match: null }), null);
   const after = resolveRound(match, { cardId: match.player.hand[0], pills: 0, fury: false }, { cardId: match.opponent.hand[0], pills: 0, fury: false });
-  assert.equal(coachStart({ encounter: first, played: 0, match: after, revealPending: true }), 'reveal', 'a reload in the round-1 reveal resumes its last mark');
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: true }), { step: 'reveal', owed: false }, 'a reload in the round-1 reveal resumes its last mark');
   assert.equal(coachStart({ encounter: first, played: 0, match: after, revealPending: false }), null, 'round 2 is past the coach');
+  // Review round 2: a round 1 committed from ① owes ②, also across a reload.
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: true, owed: true }), { step: 'reveal', owed: true });
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: false, owed: true }), { step: 'pills', owed: true }, 'round 2 opens on the owed ②');
+  assert.equal(coachStart({ encounter: first, played: 0, match: after, revealPending: false, owed: true, seen: 'skipped' }), null);
+  const later = resolveRound(after, { cardId: after.player.hand[1], pills: 0, fury: false }, { cardId: after.opponent.hand[1], pills: 0, fury: false });
+  assert.equal(coachStart({ encounter: first, played: 0, match: later, revealPending: false, owed: true }), null, 'only round 2 can repay ②');
 });
+
+/** The marks a sequence of taught actions shows, from ①: the coach's own walk, one state at a time. */
+function walk(events, { lastRound = false } = {}) {
+  let coach = coachStart({ encounter: { kind: 'expedition', nodeId: 'mist-gate' }, played: 0, match: createMatch({ rng: () => 0.23, mode: 'expedition' }) });
+  const shown = [coach.step];
+  for (const event of events) {
+    const next = advanceCoach(coach, event, { nextRound: !lastRound });
+    if (next === coach) continue;
+    coach = next;
+    if (coach.step !== 'done') shown.push(coach.step);
+  }
+  return { shown, end: coach };
+}
 
 test('D3 coach marks advance in order card → pills → commit → reveal → done, never back', () => {
   assert.deepEqual(COACH_STEPS, ['card', 'pills', 'commit', 'reveal']);
-  assert.equal(advanceCoach('card', 'select'), 'pills');
-  assert.equal(advanceCoach('card', 'pills'), 'commit', 'adding pills first skips ahead');
-  assert.equal(advanceCoach('pills', 'pills'), 'commit');
-  assert.equal(advanceCoach('pills', 'fury'), 'commit');
-  assert.equal(advanceCoach('commit', 'select'), 'commit', 'a later card change does not go back');
-  assert.equal(advanceCoach('card', 'commit'), 'reveal');
-  assert.equal(advanceCoach('reveal', 'continue'), 'done');
-  assert.equal(advanceCoach('commit', 'continue'), 'commit');
+  const at = (step, owed = false) => Object.freeze({ step, owed });
+  assert.deepEqual(advanceCoach(at('card'), 'select'), at('pills'));
+  assert.deepEqual(advanceCoach(at('pills'), 'pills'), at('commit'));
+  assert.deepEqual(advanceCoach(at('pills'), 'fury'), at('commit'));
+  assert.deepEqual(advanceCoach(at('pills'), 'commit'), at('reveal'));
+  const third = at('commit');
+  assert.equal(advanceCoach(third, 'select'), third, 'a later card change does not go back');
+  assert.equal(advanceCoach(third, 'continue'), third);
+  assert.deepEqual(advanceCoach(third, 'commit'), at('reveal'));
+  assert.equal(advanceCoach(at('reveal'), 'continue'), COACH_DONE);
+  assert.equal(COACH_DONE.step, 'done');
   assert.equal(advanceCoach(null, 'select'), null);
+  assert.deepEqual(walk(['select', 'pills', 'pills', 'commit', 'continue']), { shown: ['card', 'pills', 'commit', 'reveal'], end: COACH_DONE });
   for (const [index, step] of COACH_STEPS.entries()) {
     const copy = coachCopy(step, { leader: 'opponent', commitLabel: '封丹 · 落子' });
     assert.equal(copy.index, index); assert.equal(copy.total, 4); assert.equal(copy.mark, '①②③④'[index]);
@@ -291,6 +315,59 @@ test('D3 coach marks advance in order card → pills → commit → reveal → d
   assert.match(coachCopy('pills').text, /攻擊＝力×（1＋丹）/);
   assert.notEqual(coachCopy('card', { leader: 'player' }).text, coachCopy('card', { leader: 'opponent' }).text);
   assert.throws(() => coachCopy('elsewhere'), RangeError);
+});
+
+test('D3 review round 2: mark ② (what pills do) is never skipped, whichever control the player uses on ①', () => {
+  const at = (step, owed = false) => Object.freeze({ step, owed });
+  // Pills, the slider or Fury on ① show ②, not ③.
+  assert.deepEqual(advanceCoach(at('card'), 'pills'), at('pills'));
+  assert.deepEqual(advanceCoach(at('card'), 'fury'), at('pills'));
+  assert.deepEqual(walk(['pills', 'pills', 'commit', 'continue']).shown, ['card', 'pills', 'commit', 'reveal']);
+  assert.deepEqual(walk(['fury', 'commit', 'continue']).shown, ['card', 'pills', 'reveal']);
+  // A commit straight from ① (a card is already chosen, at 0 pills) shows ④ and owes ②.
+  assert.deepEqual(advanceCoach(at('card'), 'commit'), at('reveal', true));
+  // 繼續 or 知道了 after ④ then opens round 2 on ②, which stays while pills are set ...
+  const owed = advanceCoach(at('reveal', true), 'continue');
+  assert.deepEqual(owed, at('pills', true));
+  for (const event of ['select', 'pills', 'fury', 'continue']) assert.equal(advanceCoach(owed, event), owed, `${event} keeps the owed ② on round 2's table`);
+  // ... and round 2's commit completes the coach.
+  assert.equal(advanceCoach(owed, 'commit'), COACH_DONE);
+  const straight = walk(['commit', 'continue', 'pills', 'pills', 'commit']);
+  assert.deepEqual(straight.shown, ['card', 'reveal', 'pills'], 'the commit-first player still sees ②, on round 2');
+  assert.equal(straight.end, COACH_DONE);
+  // Every walk shows ② once, unless the match ends with round 1.
+  for (const events of [['commit', 'continue', 'commit'], ['pills', 'commit', 'continue'], ['select', 'commit', 'continue'], ['fury', 'fury', 'commit', 'continue']]) {
+    const { shown, end } = walk(events);
+    assert.equal(shown.filter(step => step === 'pills').length, 1, `${events.join(' → ')} shows ② once (${shown.join(', ')})`);
+    assert.equal(end, COACH_DONE);
+  }
+  assert.equal(advanceCoach(at('reveal', true), 'continue', { nextRound: false }), COACH_DONE, 'no round 2: the coach completes');
+});
+
+test('D3 coach memory keeps an owed ② across a reload, writes only on a change, and an ending replaces it', () => {
+  const values = new Map(), writes = [];
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => { writes.push(key); values.set(key, value); } };
+  const memory = createCoachMemory(storage);
+  assert.equal(memory.owed(), false);
+  memory.owe(false);
+  assert.deepEqual(writes, [], 'nothing owed, nothing written');
+  memory.owe(true); memory.owe(true);
+  assert.deepEqual(writes, [COACH_KEY]);
+  assert.deepEqual(JSON.parse(values.get(COACH_KEY)), { owed: 'pills' });
+  assert.equal(createCoachMemory(storage).owed(), true, 'a reload reads the debt');
+  assert.equal(createCoachMemory(storage).seen(), null, 'an owed ② is not a seen coach');
+  memory.owe(false);
+  assert.deepEqual(JSON.parse(values.get(COACH_KEY)), {}, '② shown after all clears the debt');
+  assert.equal(createCoachMemory(storage).owed(), false);
+  memory.owe(true); memory.finish('done');
+  assert.deepEqual(JSON.parse(values.get(COACH_KEY)), { firstBattle: 'done' });
+  assert.equal(memory.owed(), false);
+  memory.owe(true);
+  assert.deepEqual(JSON.parse(values.get(COACH_KEY)), { firstBattle: 'done' }, 'nothing is owed after an ending');
+  assert.ok(writes.every(key => key === COACH_KEY));
+  const broken = createCoachMemory({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
+  broken.owe(true);
+  assert.equal(broken.owed(), true, 'without storage the page still remembers for its own life');
 });
 
 test('D3 coach memory writes only its own device-local key, once, and survives a storage that throws', () => {

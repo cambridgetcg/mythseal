@@ -182,31 +182,58 @@ const COACH_OUTCOMES = new Set(['done', 'skipped']);
 const FIRST_NODE = 'mist-gate';
 
 /**
- * Which coach mark the first battle starts on, or null. Only the player's first
- * ever battle (no battle finished yet) at the first 霧隱渡口 encounter, and only its
- * first round: planning starts at 'card'; a round-1 reveal (after a reload) at 'reveal'.
+ * The coach's state: the mark on show and whether mark ② is owed. ② is the only mark
+ * that says what pills do, so it is never skipped: a round 1 committed straight from ①
+ * owes it. With step 'reveal', `owed` means ② waits for round 2's table; with step
+ * 'pills', that this ② is the owed one, shown on round 2's table.
  */
-export function coachStart({ seen = null, encounter = null, played = 0, match = null, revealPending = false } = {}) {
+const coachState = (step, owed = false) => Object.freeze({ step, owed });
+/** The state advanceCoach returns once the coach is complete. */
+export const COACH_DONE = coachState('done');
+
+/**
+ * Which coach state the first battle starts in, or null. Only the player's first
+ * ever battle (no battle finished yet) at the first 霧隱渡口 encounter: round-1
+ * planning starts at ①; a round-1 reveal (after a reload) at ④, still owing ② if
+ * `owed`; round-2 planning at the owed ②, and only when it is owed.
+ */
+export function coachStart({ seen = null, encounter = null, played = 0, match = null, revealPending = false, owed = false } = {}) {
   if (seen || encounter?.kind !== 'expedition' || encounter.nodeId !== FIRST_NODE || played !== 0 || !match) return null;
   const rounds = match.history?.length ?? 0;
-  if (!revealPending && match.status === 'playing' && rounds === 0) return 'card';
-  if (revealPending && rounds === 1) return 'reveal';
+  if (!revealPending && match.status === 'playing' && rounds === 0) return coachState('card');
+  if (revealPending && rounds === 1) return coachState('reveal', Boolean(owed));
+  if (!revealPending && match.status === 'playing' && rounds === 1 && owed) return coachState('pills', true);
   return null;
 }
 
-const COACH_AFTER = Object.freeze({ select: 'pills', pills: 'commit', fury: 'commit', commit: 'reveal' });
-/** A taught action moves the coach forward, never back; 'continue' after the reveal completes it. */
-export function advanceCoach(step, event) {
-  if (!COACH_STEPS.includes(step)) return step ?? null;
-  if (event === 'continue') return step === 'reveal' ? 'done' : step;
-  const target = COACH_AFTER[event];
-  return target && COACH_STEPS.indexOf(target) > COACH_STEPS.indexOf(step) ? target : step;
+/**
+ * A taught action moves the coach forward, never back, and never past ② before ② has
+ * shown. From ①, a card, pills or Fury tap shows ②; from ②, a pills or Fury tap shows
+ * ③; a commit shows ④. A commit from ① (a card is already chosen) shows ④ and owes ②.
+ * 'continue' (繼續 or 知道了 after ④) then hands over to ② on round 2's table when
+ * `nextRound`, and that ② stays while pills are set, until round 2's commit completes
+ * the coach. Otherwise 'continue' after ④ completes it. Unchanged input returns the
+ * same state object.
+ */
+export function advanceCoach(coach, event, { nextRound = true } = {}) {
+  if (!coach || !COACH_STEPS.includes(coach.step)) return coach ?? null;
+  const { step, owed } = coach;
+  if (step === 'card') {
+    if (event === 'commit') return coachState('reveal', true);
+    return ['select', 'pills', 'fury'].includes(event) ? coachState('pills') : coach;
+  }
+  if (step === 'pills' && owed) return event === 'commit' ? COACH_DONE : coach;
+  if (step === 'pills') return event === 'commit' ? coachState('reveal') : ['pills', 'fury'].includes(event) ? coachState('commit') : coach;
+  if (step === 'commit') return event === 'commit' ? coachState('reveal') : coach;
+  if (event !== 'continue') return coach;
+  return owed && nextRound ? coachState('pills', true) : COACH_DONE;
 }
 
 const MARKS = ['①', '②', '③', '④'];
-/** The coach mark's words, in the table's voice. Each must fit the two lines its hint
- * has on a 360 px portrait phone; npm run test:coach measures the rendered copy there
- * in Chromium and WebKit (a character count is no proof of fit). */
+/** The coach mark's words, in the table's voice. Each must fit two lines of its hint on
+ * a 360 px portrait phone, and three (all the 44 px status row holds) down to the
+ * 340 px minimum; npm run test:coach measures the rendered copy there in Chromium and
+ * WebKit (a character count is no proof of fit). */
 export function coachCopy(step, { leader = 'player', commitLabel = '落子 · 決勝' } = {}) {
   const index = COACH_STEPS.indexOf(step);
   if (index < 0) throw new RangeError('Unknown coach step.');
@@ -219,22 +246,38 @@ export function coachCopy(step, { leader = 'player', commitLabel = '落子 · �
   return Object.freeze({ step, index, total: COACH_STEPS.length, mark: MARKS[index], text });
 }
 
-/** Seen record for the first-battle coach on this device. A storage that throws
- * (private mode, blocked site data) only costs the record: the coach still stays
- * closed for the rest of the page's life. */
+/** Seen record for the first-battle coach on this device: {"firstBattle":"done"|"skipped"}.
+ * Until then it may hold {"owed":"pills"} while round 1 was committed from ① and ② is
+ * still to show, so a reload before round 2 keeps that debt; {} once ② shows after all.
+ * A storage that throws (private mode, blocked site data) only costs the record: the
+ * page still remembers for its own life. */
 export function createCoachMemory(storage) {
-  let local = null;
-  const stored = () => {
+  let local = null, localOwed = null;
+  const record = () => {
     try {
       const value = JSON.parse(storage?.getItem(COACH_KEY) ?? 'null');
-      return COACH_OUTCOMES.has(value?.firstBattle) ? value.firstBattle : null;
+      return value && typeof value === 'object' ? value : null;
     } catch { return null; }
   };
+  const stored = () => {
+    const value = record()?.firstBattle;
+    return COACH_OUTCOMES.has(value) ? value : null;
+  };
+  const seen = () => local || stored();
+  const owed = () => !seen() && (localOwed ?? record()?.owed === 'pills');
   return {
-    seen: () => local || stored(),
+    seen,
+    owed,
+    /** Records whether ② is owed; writes only when that changes, never after an ending. */
+    owe(flag) {
+      const value = Boolean(flag);
+      if (seen() || value === owed()) return;
+      localOwed = value;
+      try { storage?.setItem(COACH_KEY, JSON.stringify(value ? { owed: 'pills' } : {})); } catch {}
+    },
     finish(outcome) {
       if (!COACH_OUTCOMES.has(outcome)) throw new RangeError('A coach ends as done or skipped.');
-      if (local || stored()) return;
+      if (seen()) return;
       local = outcome;
       try { storage?.setItem(COACH_KEY, JSON.stringify({ firstBattle: outcome })); } catch {}
     },

@@ -253,4 +253,7 @@ test('D3 the reveal tip carries the public remaining pills and, on the first bat
   const coached = revealTipMarkup(tip, { coach: coachCopy('reveal') });
   assert.match(coached, /data-battle-coach="reveal"/);
   assert.match(coached, /<button type="button" class="text-button battle-coach-done" data-action="coach-done"/);
+  assert.match(coached, /aria-label="知道了，結束新手指引"/);
+  // Review round 2: with ② owed to round 2, 知道了 does not end the coach, and says so.
+  assert.match(revealTipMarkup(tip, { coach: coachCopy('reveal'), owed: true }), /aria-label="知道了，下一回合再說仙丹"/);
 });

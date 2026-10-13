@@ -257,23 +257,26 @@ function battleTableOptions(view,actionsHtml) {
     playerNote:match.mode==='expedition'?'遊歷修練加成已生效':'基礎能力對弈 · 修練加成不計入',...statusOptions(view)};
 }
 // D3 teaching (docs/BATTLE-LAYOUT-PLAN.md, "First battle teaching"). The hint line is always
-// visible; on the first battle a coach mark takes its place. Only the coach's seen record is
-// stored, under its own device-local key: never the profile, a battle snapshot or a backup.
+// visible; on the first battle a coach mark takes its place. Only the coach's record (seen, or
+// ② owed) is stored, under its own device-local key: never the profile, a battle snapshot or a backup.
 const coachMemory=createCoachMemory({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
-let coachStep=null;
-const tableCoach=()=>['card','pills','commit'].includes(coachStep)&&screen==='battle'&&match?.status==='playing'&&!revealPending;
+// {step,owed} from battle-teaching.mjs, or null. ② is owed to round 2 when round 1 was
+// committed from ①; the memory keeps that debt across a reload.
+let coach=null;
+const setCoach=next=>{coach=next;if(next)coachMemory.owe(next.owed);};
+const tableCoach=()=>['card','pills','commit'].includes(coach?.step)&&screen==='battle'&&match?.status==='playing'&&!revealPending;
 // Mark ④ is a Back layer only once the reveal has completed and shows it (the footer hides
 // it while the reveal animates); until then Back holds the result, as without the coach.
-const dialogCoach=()=>coachStep==='reveal'&&modalKind==='round-result'&&overlay.querySelector('.modal.battle-reveal')?.dataset.revealState==='complete';
+const dialogCoach=()=>coach?.step==='reveal'&&modalKind==='round-result'&&overlay.querySelector('.modal.battle-reveal')?.dataset.revealState==='complete';
 function statusOptions(view) {
-  const mist=isMistGate(),copy=view.phase==='planning'&&tableCoach()?coachCopy(coachStep,{leader:view.leader,commitLabel:commitLabel()}):null;
+  const mist=isMistGate(),copy=view.phase==='planning'&&tableCoach()?coachCopy(coach.step,{leader:view.leader,commitLabel:commitLabel()}):null;
   return {eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader}):'',
     hint:copy?battleCoachMarkup(copy):battleHintMarkup(planningHint(view,{commitLabel:commitLabel()})),coach:copy?.step||null,coachControls:copy?COACH_SKIP_MARKUP:''};
 }
 /** A new first battle starts at its first mark; a resumed one keeps the step it reached. */
 function startCoach({fresh=false}={}) {
-  const start=coachStart({seen:coachMemory.seen(),encounter,played:profile.stats.played,match,revealPending});
-  coachStep=!start?null:fresh||start==='reveal'||!coachStep?start:coachStep;
+  const start=coachStart({seen:coachMemory.seen(),encounter,played:profile.stats.played,match,revealPending,owed:coachMemory.owed()});
+  setCoach(!start?null:fresh||start.step==='reveal'||!coach?start:coach);
 }
 function paintCoach(announcement='') {
   const table=screen==='battle'&&match?.status==='playing'&&!revealPending?app.querySelector('.battle-table[data-battle-phase="planning"]'):null;
@@ -289,26 +292,26 @@ function paintCoach(announcement='') {
     controls.insertAdjacentHTML('afterbegin',revealTeachingMarkup());
     if(focused)overlay.querySelector('[data-action="next-round"]')?.focus({preventScroll:true});
   }
-  const copy=tableCoach()||dialogCoach()?coachCopy(coachStep,{leader:match.initiative,commitLabel:commitLabel()}):null;
+  const copy=tableCoach()||dialogCoach()?coachCopy(coach.step,{leader:match.initiative,commitLabel:commitLabel()}):null;
   if(announcement||copy)announce(`${announcement}${copy?copy.text:''}`);
   nav.queue();
 }
 function coachEvent(event,announcement='',{paint=true}={}) {
-  if(!coachStep)return;
-  const next=advanceCoach(coachStep,event);
-  if(next===coachStep)return;
-  if(next==='done'){coachMemory.finish('done');coachStep=null;}else coachStep=next;
+  if(!coach)return;
+  const next=advanceCoach(coach,event,{nextRound:match?.status==='playing'});
+  if(next===coach)return;
+  if(next.step==='done'){coachMemory.finish('done');coach=null;}else setCoach(next);
   if(paint)paintCoach(announcement);
 }
 function endCoach(outcome) {
-  if(!coachStep)return;
+  if(!coach)return;
   const skipFocused=document.activeElement?.dataset?.action==='coach-skip';
-  coachMemory.finish(outcome);coachStep=null;
+  coachMemory.finish(outcome);coach=null;
   paintCoach(outcome==='skipped'?'已跳過新手指引。':'新手指引完成。');
   // 跳過 leaves with the mark: keep a keyboard player on the table's selected card.
   if(skipFocused)(app.querySelector('.player-hand [aria-pressed="true"]')||app.querySelector('[data-action="commit"]'))?.focus({preventScroll:true});
 }
-const revealTeachingMarkup=()=>revealTipMarkup(revealTip(createRevealView(match)),{coach:coachStep==='reveal'?coachCopy('reveal'):null});
+const revealTeachingMarkup=()=>revealTipMarkup(revealTip(createRevealView(match)),{coach:coach?.step==='reveal'?coachCopy('reveal'):null,owed:Boolean(coach?.owed&&match.status==='playing')});
 function battleMarkup() {
   const view=planningView();
   return battleTableMarkup(view,battleTableOptions(view,movePanel()));
@@ -971,7 +974,7 @@ function resultModal({animate=false}={}) {
     <div class="result-effects"><div><h4>你的技能與共鳴</h4>${effectList('player')}</div><div><h4>對手的技能與共鳴</h4>${effectList('opponent')}</div></div>
     <div class="battle-reveal-footer"><div class="modal-actions"><button class="primary" data-action="next-round">${match.status==='finished'?'查看對局結果':'繼續 · 下一回合'} <span>→</span></button></div><div class="mist-reveal-controls battle-reveal-controls">${revealTeachingMarkup()}<button class="text-button" data-action="skip-reveal">直接看結果</button><button class="text-button" data-action="experience-settings">聲息與節奏</button></div></div>`,`result-modal battle-reveal${mist?' mist-reveal':''}`,false,'round-result',dialog=>experience.reveal(dialog,{animate:Boolean(animate&&presentation?.canAnimate),battle:true,onPhase:(phase,element)=>{
     paintRoundResources(element,presentation,phase);
-    if(phase==='complete'&&coachStep==='reveal')nav.queue();
+    if(phase==='complete'&&coach?.step==='reveal')nav.queue();
     if(phase==='recovery'&&presentation&&['player','opponent'].some(side=>presentation[side].hpRecovered>0||presentation[side].pillsRecovered>0))playTone('recovery');
   }}));
   announce(`第 ${r.round} 回合，${won?'你':'對手'}獲勝，造成 ${r.damage} 點傷害。`);
@@ -1236,7 +1239,8 @@ document.addEventListener('click', event=>{
   }
   if(action==='fury'){fury=!fury;pills=Math.min(pills,match.player.pills-(fury?3:0));updateMovePanel();playTone('select');coachEvent('fury');return;}
   if(action==='coach-skip')return endCoach('skipped');
-  if(action==='coach-done')return endCoach('done');
+  // 知道了 reads ④ as 繼續 does: it completes the coach, or hands over to an owed ②.
+  if(action==='coach-done')return coachEvent('continue',coach?.owed&&match.status==='playing'?'下一回合，再說仙丹。':'新手指引完成。');
   if(action==='commit')return commitMove();
   if(action==='next-round'){
     coachEvent('continue','',{paint:false});
@@ -1245,7 +1249,7 @@ document.addEventListener('click', event=>{
     // players on the new table's Commit rather than dropping them to <body>.
     if(!app.contains(document.activeElement))app.querySelector('.battle-table [data-action="commit"]')?.focus({preventScroll:true});
     const announced=permittedAnnouncement(match,aiMove,{revealPending});
-    announce(`第 ${match.round} 回合開始。${announced?`對手亮出「${getCard(announced).name}」。`:'你持先手。'}`);return;
+    announce(`第 ${match.round} 回合開始。${announced?`對手亮出「${getCard(announced).name}」。`:'你持先手。'}${tableCoach()?coachCopy(coach.step).text:''}`);return;
   }
   if(action==='history'){if(screen==='battle')button.focus({preventScroll:true});modal(`<div class="eyebrow">THE STORY SO FAR</div><h2>對弈紀錄</h2>${match.history.length?historyMarkup():'<p>勝負未定，故事才剛開始。</p>'}`);return;}
   if(action==='filter'){filter=id;render();return;}
