@@ -5,7 +5,8 @@ import { installViewportNavigation, viewportFrames } from './viewport-browser-he
  * the strips on 340 px and 302 px phones; refused downloads never count as a backup; a cloud backup ends
  * a prompt; a WX receipt's strip comes first; a v0.5.1 (v3) export restores; the import
  * confirmation on short phone pages; a deleted cloud backup; an import's success closes only
- * its own dialog. Synthetic saves, loopback assets only, no download written to disk. */
+ * its own dialog; a cloud restore left while it reads the cloud redraws the screen it lands
+ * on. Synthetic saves, loopback assets only, no download written to disk. */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -719,6 +720,65 @@ try {
     assert.deepEqual((await read(page, RECOVERY_KEY)).snapshot, createSnapshot(JSON.parse(before)), 'the replaced journey is the recovery copy');
     passed('S12 an import waiting for the profile lock is held; when it lands it closes only its own dialog, so a dialog opened over it meanwhile stays open');
     contexts.delete(page.context()); await page.context().close();
+  }
+
+  {
+    // S13 (D2 integration review round 2): 恢復雲端旅程 is not held, so the player can leave
+    // 旅程閣 by ← 返回旅途 or the dock while it reads the cloud (fixture API, kept until then).
+    // Wherever it lands, the screen is redrawn from the restored journey. A preparation opened
+    // meanwhile closes, as the restore cleared its draft; a quests dialog stays, as a restore
+    // closes only its own dialog. Before, the screen kept the replaced journey, and 洞府 the
+    // restore offer the restore had closed, under the success toast.
+    const backup = travelled();
+    for (const [leave, open, label] of [
+      ['account-back', 'continue-journey', '← 返回旅途, then 遊歷 with a preparation open'],
+      ['home', 'quests', 'the dock\'s 洞府, then quests open'],
+    ]) {
+      let answer; const held = new Promise(resolve => { answer = resolve; });
+      const calls = [];
+      const api = async (route, request, url) => {
+        const reply = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
+        calls.push(`${request.method()} ${url.pathname}`);
+        if (url.pathname === '/api/v1/account' && request.method() === 'GET') return reply({ authenticated: true, user: { id: 'save-smoke-fixture', email: '' }, emailEnabled: true, journeyVersions: [1, 3] });
+        if (url.pathname === '/api/v3/journey' && request.method() === 'GET') {
+          if (calls.filter(call => call === 'GET /api/v3/journey').length > 1) await held; // the restore's own read
+          return reply({ backup: { revision: 1, updatedAt: now, snapshot: createSnapshot(backup) }, revision: 1 });
+        }
+        errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
+      };
+      const page = await pageIn(await contextFor({ api, width: 390 }));
+      await notice(page).waitFor();
+      const started = await read(page), before = await raw(page);
+      const coins = () => page.locator('.game-header [title="金幣"] b').textContent().then(text => Number(text.replace(/\D/g, '')));
+      assert.equal(await coins(), started.coins); assert.notEqual(backup.coins, started.coins);
+      await notice(page).locator('[data-action="restore-offer-cloud"]').click();
+      await page.locator('.account-confirmation').waitFor();
+      const from = await toastCount(page);
+      await action(page, 'account-restore').click();
+      await page.locator('.account-shell[aria-busy="true"]').waitFor();
+      await page.locator(leave === 'home' ? '.game-dock [data-action="home"]' : '#app [data-action="account-back"]').click();
+      await page.locator('.game-lobby').waitFor();
+      await page.locator(`.game-lobby [data-action="${open}"]`).click();
+      await page.locator(open === 'quests' ? '.modal.quest-scroll' : '.modal.encounter-prep').waitFor();
+      assert.equal(await raw(page), before, `${label}: nothing written while the restore reads the cloud`);
+      answer();
+      await waitToast(page, '已恢復雲端旅程', from);
+      assert.equal(fingerprintProfile(await read(page)), fingerprintProfile(backup), `${label}: the cloud journey was restored`);
+      assert.equal(await coins(), backup.coins, `${label}: the screen on show has the restored journey's coins`);
+      assert.equal(await page.locator('.game-shell').getAttribute('class').then(name => name.match(/\bscreen-(\w+)/)[1]), open === 'quests' ? 'home' : 'world');
+      if (open === 'quests') {
+        assert(await page.locator('.modal.quest-scroll').isVisible(), `${label}: the dialog opened meanwhile stays open`);
+        assert.equal(await notice(page).count(), 0, `${label}: 洞府 under it no longer offers the restore`);
+      } else {
+        await page.locator('#overlay-root .modal').waitFor({ state: 'detached' });
+        assert.equal(await page.locator('#overlay-root .modal').count(), 0, `${label}: the preparation of the replaced journey closed`);
+      }
+      assert.equal(await offerState(page), 'closed');
+      assert.equal((await page.evaluate(() => window.saveSmokeToasts)).slice(from).length, 1, `${label}: the success toast alone`);
+      assert.deepEqual(calls, ['GET /api/v1/account', 'GET /api/v3/journey', 'GET /api/v3/journey']);
+      contexts.delete(page.context()); await page.context().close();
+    }
+    passed('S13 a cloud restore left by ← 返回旅途 or the dock while it reads the cloud redraws the screen it lands on (fixture API): 遊歷 with its preparation closed, or 洞府 without the offer under a quests dialog that stays');
   }
 
   assert.deepEqual(errors, []);

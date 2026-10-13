@@ -725,3 +725,24 @@ test('D2 with D1 integration review: 復原上次本機旅程 is held while writ
   assert.equal((confirming.match(/closeModal\(\)/g) || []).length, 1, 'no unconditional close');
   assert.match(confirming, /\.catch\(error=>\{draft\.restoring=false;holdRestore\('recovery-restore',false\);toast\(error\.message\);\}\)/, 'a refusal releases it, for a retry');
 });
+
+test('D2 with D1 integration review round 2: 恢復雲端旅程 redraws the screen it lands on, off 旅程閣 too', async () => {
+  // Round 2: the restore offer's 雲端旅程 leads to 旅程閣's 確認恢復旅程, which is not held: Back,
+  // ← 返回旅途 or the dock leave 旅程閣 while account.restore() reads the cloud. It then landed
+  // with no render (onChange redraws only 旅程閣), so 洞府 kept the replaced journey's coins and
+  // the restore offer the restore had closed, under the success toast.
+  const source = await readFile(new URL('../app.mjs', import.meta.url), 'utf8');
+  const controller = source.slice(source.indexOf('const account = createAccountController({'), source.indexOf('const accountChannel'));
+  assert.match(controller, /^  restoreLocalProfile: restoreCloudJourney,$/m, 'the account controller restores through the redrawing wrapper');
+  assert.match(controller, /if \(screen === 'account'\) render\(\);/, 'on 旅程閣, onChange redraws it as before');
+  const wrapper = source.slice(source.indexOf('function restoreCloudJourney('), source.indexOf('function recoveryMarkup('));
+  assert.match(wrapper, /^function restoreCloudJourney\(snapshot, expectedFingerprint, options\) \{\n  return restoreLocalProfile\(snapshot, expectedFingerprint, options\)\.then\(next=>\{\n    if\(screen!=='account'\)\{if\(modalKind==='preparation'\)closeModal\(\);render\(\);\}\n    return next;\n  \}\);\n\}/,
+    'off 旅程閣 the landing redraws the screen; only a preparation, whose draft the restore cleared, is closed');
+  // The shared restore itself still neither renders nor closes a dialog: each caller does.
+  const restore = source.slice(source.indexOf('async function restoreLocalProfile('), source.indexOf('function restoreCloudJourney('));
+  assert.match(restore, /saves\.closeRestoreOffer\(\);/);
+  assert.match(restore, /preparation=null;preparationReturn=null;/, 'the restore clears the preparation draft');
+  assert.doesNotMatch(restore, /render\(\)|closeModal\(\)/);
+  // Not held: Back on 旅程閣 during that restore returns where 旅程閣 was opened from.
+  assert.equal(backDecision({ screen: 'account', accountReturn: 'home', modal: null }).action, BACK.ACCOUNT_BACK);
+});

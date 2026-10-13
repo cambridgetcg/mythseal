@@ -86,7 +86,7 @@ let preparation=null, preparationReturn=null, accountReturn='home', modalKind=nu
 const screenScroll=new Map();
 const account = createAccountController({
   getLocalProfile: loadProfile,
-  restoreLocalProfile,
+  restoreLocalProfile: restoreCloudJourney,
   onChange: () => {
     if (screen === 'account') render();
     else {
@@ -156,6 +156,19 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
     preparation=null;preparationReturn=null;screenScroll.clear();worldSelections.clear();worldScrollPositions.clear();worldPieces.clear();questTab='daily';
     trainingId=getActiveDeck(profile)?.instanceIds[0]||null;
     bagView={tab:'cards',layout:'groups',expandedCardId:null,printId:'all',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''};bagGroupReturn=null;
+    return next;
+  });
+}
+// 恢復雲端旅程 (account.restore) lands wherever the player is by then. It is not held as the
+// import and 復原上次本機旅程 dialogs are: Back, ← 返回旅途 and the dock all leave 旅程閣 while
+// it reads the cloud, and leaving does not stop it. onChange redraws only 旅程閣, so off it the
+// screen on show is redrawn here from the restored journey, as those two restores redraw
+// theirs (洞府 then shows the restored coins, without the restore offer this closed). A dialog
+// opened meanwhile stays, since a restore closes only its own, except a preparation: its
+// draft is gone with the replaced journey (D2 integration review round 2, 2026-10-13).
+function restoreCloudJourney(snapshot, expectedFingerprint, options) {
+  return restoreLocalProfile(snapshot, expectedFingerprint, options).then(next=>{
+    if(screen!=='account'){if(modalKind==='preparation')closeModal();render();}
     return next;
   });
 }

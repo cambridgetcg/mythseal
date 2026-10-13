@@ -29,7 +29,9 @@
  * Escape) hold its dialog, and the import then lands exactly once; a backup prompt shown
  * after a win is a lobby strip, not a layer, so Back at 洞府 still leaves in one step; and
  * 復原上次本機旅程, which shares that lock, holds the same way while written, then closes
- * only its own dialog, so 匯入旅程備份 afterwards keeps the file picked in it.
+ * only its own dialog, so 匯入旅程備份 afterwards keeps the file picked in it. 恢復雲端旅程,
+ * reached from the offer's 雲端旅程 (fixture API), is not held: Back leaves 旅程閣 while it
+ * reads the cloud, and when it lands 洞府 shows the restored journey, without the offer.
  * Headless engines only: physical Android Back gestures and iOS edge swipes are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/back-smoke.mjs
  */
@@ -105,7 +107,8 @@ const browser = await engines[browserName].launch({ headless: true, ...(browserN
 /** hosting/_headers: production lets the bfcache keep the game; the loopback server sends no-store. */
 const PRODUCTION_CACHE = 'public, max-age=0, must-revalidate';
 /** from: the browser; cache: a Cache-Control to serve instead of no-store; via: a page the tab opens before the game. */
-async function open(name, { from = browser, cache = null, via = null } = {}) {
+/** api: a fixture handler for this origin's /api/ requests (by default, a guest). */
+async function open(name, { from = browser, cache = null, via = null, api = null } = {}) {
   const fixture = FIXTURES[name];
   const context = await from.newContext({ ...device, reducedMotion: 'reduce' });
   contexts.add(context);
@@ -134,6 +137,7 @@ async function open(name, { from = browser, cache = null, via = null } = {}) {
   }, { fixture, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now });
   await context.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
+    if (api && url.origin === base.origin && url.pathname.startsWith('/api/')) return api(route, request, url);
     if (url.origin === base.origin && url.pathname === '/api/v1/account' && request.method() === 'GET') {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false, user: null, emailEnabled: true }) });
     }
@@ -718,6 +722,54 @@ try {
     assert.equal(await profileWrites(page), writes + 1, 'nothing applied again after the held Backs');
     await leaveFromRoot(page, 'after a recovery restore held through Back');
     passed(`${deviceName}: D2 while 復原上次本機旅程 waits for the profile lock, Back (twice), Escape${point ? ' and the backdrop' : ''} hold its dialog; it restores once and closes only itself, and 匯入旅程備份 then opens with the picked file compared`);
+    await release(page);
+  }
+
+  {
+    // D2 with D1 (e), integration review round 2: 恢復雲端旅程 is not held (Back, ← 返回旅途 and
+    // the dock all leave 旅程閣 while it reads the cloud). Reached from the restore offer's
+    // 雲端旅程, Back returns to 洞府 with the restore's read still out (the fixture API keeps it
+    // until then); when it lands, 洞府 is redrawn from the restored journey: its coins, and no
+    // restore offer, which the restore closed. Before, 洞府 kept the replaced journey and the
+    // closed offer under the success toast until something else rendered.
+    const backup = journey(), snapshot = createSnapshot(backup), calls = [];
+    let answer; const read = new Promise(resolve => { answer = resolve; });
+    const api = async (route, request, url) => {
+      const reply = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
+      calls.push(`${request.method()} ${url.pathname}`);
+      if (url.pathname === '/api/v1/account' && request.method() === 'GET') return reply({ authenticated: true, user: { id: 'back-smoke-fixture', email: '' }, emailEnabled: true, journeyVersions: [1, 3] });
+      if (url.pathname === '/api/v3/journey' && request.method() === 'GET') {
+        // 旅程閣's lookup answers at once; the second read is the restore's own.
+        if (calls.filter(call => call === 'GET /api/v3/journey').length > 1) await read;
+        return reply({ backup: { revision: 1, updatedAt: now, snapshot }, revision: 1 });
+      }
+      errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
+    };
+    const page = await open('fresh', { api }), offer = page.locator('[data-save-notice="restore-offer"]');
+    await offer.waitFor(); await settle(page, 'home');
+    const started = JSON.parse(await profileRaw(page)), writes = await profileWrites(page);
+    const coins = () => page.locator('.game-header [title="金幣"] b').textContent().then(text => Number(text.replace(/\D/g, '')));
+    assert.equal(await coins(), started.coins); assert.notEqual(backup.coins, started.coins);
+    await click(page, '[data-save-notice="restore-offer"] [data-action="restore-offer-cloud"]'); await settle(page, 'account', 1);
+    await page.locator('.account-confirmation').waitFor();
+    await click(page, '#app [data-action="account-restore"]');
+    await page.locator('.account-shell[aria-busy="true"]').waitFor();
+    await back(page, 'home', 0);
+    await offer.waitFor();
+    assert.equal(await profileWrites(page), writes, 'nothing written while the restore reads the cloud');
+    answer();
+    // The landing redraws 洞府 before it toasts, so both are there at once.
+    await page.waitForFunction(() => document.querySelector('.toast')?.textContent.startsWith('已恢復雲端旅程'));
+    assert.equal(await coins(), backup.coins, '洞府 shows the restored journey\'s coins');
+    assert.equal(await offer.count(), 0, 'the offer the restore closed is gone from 洞府');
+    assert.equal((await savesRecord(page))?.restoreOffer, 'closed');
+    assert.equal(await describe(page), 'home'); assert.equal(await entryDepth(page), 0);
+    assert.equal(await profileWrites(page), writes + 1, 'one profile write: the cloud restore, once');
+    assert.equal(fingerprintProfile(JSON.parse(await profileRaw(page))), fingerprintProfile(backup), 'the cloud journey was restored');
+    assert.deepEqual(JSON.parse(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY)).snapshot, createSnapshot(started), 'the replaced journey is the recovery copy');
+    assert.deepEqual(calls, ['GET /api/v1/account', 'GET /api/v3/journey', 'GET /api/v3/journey']);
+    await leaveFromRoot(page, 'after a cloud restore that landed on 洞府');
+    passed(`${deviceName}: D2 恢復雲端旅程 from the offer's 雲端旅程: Back leaves 旅程閣 while it reads the cloud; when it lands 洞府 shows the restored journey (◈ ${backup.coins}) without the offer, after one write, and Back at 洞府 leaves`);
     await release(page);
   }
 
