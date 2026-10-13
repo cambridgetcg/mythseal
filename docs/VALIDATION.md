@@ -136,6 +136,37 @@ cannot start), physical devices, real Safari, a rollback in a browser, and
 anything hosted beyond the one `GET`. PR #13 (`mobile/cloud-pipeline`) was
 not read.
 
+**Review round 1 (same day).** An independent review of the branch verified
+fifteen findings, two of them repeats of others and two rated medium, all in
+documents. The fixes are in RELEASE-NEXT and, because both are new on this
+unmerged branch, in place in this entry and the
+[handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only):
+
+- RELEASE-NEXT A5 and §6 said every public build before v0.6.0 exported a v3
+  or v4 file; all three tags are profile v3 (`git show
+  <tag>:progression.mjs`), and v4 is only a local namespace `load()` migrates.
+- C3 said the Node test checks S10's v0.5.1 file byte for byte against `git
+  archive v0.5.1`; that was a one-time check in D2's third review, which only
+  a comment records (`tests/save-durability.test.mjs:90-94`).
+- The descriptor wording above: only `test:back`, `test:shell` and
+  `test:coach` load the Pixel 7 and iPhone 15 descriptors.
+- This entry's first paragraph left out Wrangler's own update check.
+- The plan's "D1–D3" totals included N1's 6,350 B; A6's Verify had no path
+  for an owner-accepted local CI record; §3 and C5 assumed hosted CI; G11 and
+  GO item 7 left out phone items whose lists are not in the M5.1 checklist;
+  the landscape fault below 701 px and D2's and N1's review cap were before
+  no owner decision. RELEASE-NEXT now has owner decision 17 for the fault,
+  and its §12 item 1 lists each packet's phone items and the review-cap risk.
+
+Checks on the corrected tree, before committing the record: `node --test
+tests/*.test.mjs` exit 0, **603/603**; `npm run build` exit 0, 90 public
+files, 74,496,049 B, manifest `e05db797…8746` (`dist/` deleted afterwards);
+`npm run audit:content` exit 0, 150 entries, no findings; `git diff --check`
+clean; the scratch link and anchor check finds all 474 local link targets and
+anchors in the five changed documents. RELEASE-NEXT's §13 has the source
+checks behind each correction. No browser suite, server or network request
+was needed for this round.
+
 ## D3 first-battle teaching · 2026-10-12
 
 Branch `d3/first-battle-teaching`, from `origin/main` `335d2b7`; packet D3,
