@@ -10,7 +10,12 @@ documents, one JSON snapshot and the archived `history/` folder. On
 merge (`daf18ed`). On `q1/local-commands`, after `main` `b40c4d2` was merged in
 (`b527dc3`), the index gained rows for the release plan and the Q1 contract (42
 other Markdown documents) and its Q0, Q1 and Q4 qualifiers were brought up to
-the merges of PRs #5 and #9 and to PR #10, which merges that branch.
+the merges of PRs #5 and #9 and to PR #10, which merges that branch. On
+2026-10-13, on `docs/v060-integration` from `main` `0281798`, the rows for the
+release plan, the validation log, the handover, the roadmap, navigation, the
+battle table, the local-commands contract, the mobile plan, accounts and
+hosting were brought up to D1, N1, D2 and D3 (PRs #11, #12, #14 and #15); the
+document count is unchanged.
 
 ## Status vocabulary
 
@@ -40,6 +45,7 @@ contract.
 | What should I work on next? | [Next tasks for separate agents](../ROADMAP.md#next-tasks-suitable-for-separate-agents) and the [experience quality track](../ROADMAP.md#experience-quality-track) |
 | What is deployed? | [HOSTING.md](HOSTING.md) release receipts |
 | What would the next release involve? | [RELEASE-NEXT.md](RELEASE-NEXT.md), the proposed v0.6.0 plan |
+| What did D1, N1, D2 and D3 change? | Back: [NAVIGATION · Back model](NAVIGATION.md#back-model--2026-10-12) (D1). Phone shell: [NAVIGATION · Mobile shell](NAVIGATION.md#mobile-shell) and the [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist) (N1). Saves: [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12) (D2). First battle: [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12) (D3). Their merge and release state: the [v0.6.0 integration checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only) |
 | Which checks actually ran, and on what? | [VALIDATION.md](VALIDATION.md) |
 | Which save and backup formats does `main` use? | [Guarded saves](HANDOVER.md#playable-local-wx-01-and-guarded-saves) and the [save and settlement contract](CAMPAIGN-AND-EVENTS.md#save-and-settlement-contract) |
 | Who owns which source file? | [Code ownership map](HANDOVER.md#code-ownership-map) |
@@ -51,13 +57,16 @@ contract.
 | [Project overview](../README.md) | Play, run locally, feature summary, browser checks and the project map | `mixed` · its save notes describe profile v3/v4; `main` uses v5 |
 | [Working instructions](../AGENTS.md) | Repository conventions, authority limits and what every agent must preserve | `current` |
 | [Contributing](../CONTRIBUTING.md) | Setup, module boundaries, proportionate checks and what stays out of Git | `current` |
-| [Agent handover](HANDOVER.md) | Architecture, infrastructure and access map, fresh checkout, checks, release and the handoff template | `current`, with dated checkpoints; its Q0, Q4 and Q1 checkpoints were written on their branches, and their status lines now record the merges (PRs #5 and #9, and PR #10 for Q1) |
-| [Roadmap](../ROADMAP.md) | Shipped baseline, Q0–Q6 experience track, M1–M7 phases and bounded tasks with acceptance criteria | `mixed`; its Q0, Q1 and Q4 statuses record the merges (PRs #5 and #9, and PR #10 for Q1); Q1's contract awaits owner review, and Q4's exit is not met (registry and audit done) |
+| [Agent handover](HANDOVER.md) | Architecture, infrastructure and access map, fresh checkout, checks, release and the handoff template | `current`, with dated checkpoints; its Q0, Q4 and Q1 checkpoints were written on their branches, and their status lines now record the merges (PRs #5 and #9, and PR #10 for Q1). Its N1, D1, D2 and D3 checkpoints were written on their branches too; the [v0.6.0 integration checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only) (2026-10-13) records all four merged (PRs #11, #12, #14, #15) and supersedes the D2 and D3 checkpoints' "not merged" lines |
+| [Roadmap](../ROADMAP.md) | Shipped baseline, Q0–Q6 experience track, M1–M7 phases and bounded tasks with acceptance criteria | `mixed`; its Q0, Q1 and Q4 statuses record the merges (PRs #5 and #9, and PR #10 for Q1); Q1's contract awaits owner review, and Q4's exit is not met (registry and audit done). Its D1, N1, D2 and D3 status lines record PRs #11, #12, #14 and #15 (local only, not deployed); D3's exit, an owner playtest, is pending |
 | [Pull request template](../.github/pull_request_template.md) | The problem, validation and save/ownership/platform impact each PR states | `current` |
 
-**Q0, Q4 and Q1 have merged.** The battle table merged into `main` in PR #5
-(`bca9ab4`), the content registry in PR #9 (`b40c4d2`), and the local-commands
-work by PR #10; no deployment of any of them is recorded. The status lines in
+**Q0, Q4 and Q1 have merged, and so have D1, N1, D2 and D3.** The battle
+table merged into `main` in PR #5 (`bca9ab4`), the content registry in PR #9
+(`b40c4d2`), and the local-commands work by PR #10 (`7712a7b`); then the Back
+model in PR #11 (`335d2b7`), the mobile shell in PR #12 (`e785b27`), save
+durability in PR #14 (`a7bda4b`) and first-battle teaching in PR #15
+(`0281798`). No deployment of any of them is recorded. The status lines in
 the handover, the roadmap, the battle-table plan, the experience modules and
 the local-commands contract say so. The validation log's dated Q0, Q4 and Q1
 entries were written before those merges and are left as written; its
@@ -84,8 +93,8 @@ this index.
 
 | Document | What it covers | Status |
 | --- | --- | --- |
-| [Game lobby and navigation](NAVIGATION.md) | Five destinations, return paths, the encounter loop, viewport scenes and checks | `current` · main only |
-| [Battle table visibility](BATTLE-LAYOUT-PLAN.md) | Q0's single battle table: the 2026-09-23 plan and the 2026-10-10/11 implementation record | `current` · main only; merged in PR #5 (`bca9ab4`) |
+| [Game lobby and navigation](NAVIGATION.md) | Five destinations, return paths, the encounter loop, viewport scenes and checks; the [Back model](NAVIGATION.md#back-model--2026-10-12) (D1: Back closes one layer, state-only history entries), the [mobile shell](NAVIGATION.md#mobile-shell) (N1: safe areas, no focus zoom, narrow widths, landscape dock) and the lobby's [save notices](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2) (D2) | `current` · main only; D1 merged in PR #11 (`335d2b7`), N1 in PR #12 (`e785b27`), D2 in PR #14 (`a7bda4b`) |
+| [Battle table visibility](BATTLE-LAYOUT-PLAN.md) | Q0's single battle table: the 2026-09-23 plan and the 2026-10-10/11 implementation record; D3's [first-battle teaching](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12) (planning hint, four coach marks, attack formula, reveal tip) | `current` · main only; Q0 merged in PR #5 (`bca9ab4`), D3 in PR #15 (`0281798`); D3's exit, an owner playtest with three first-time players, is pending |
 | [Immersion and game feel](IMMERSION.md) | Creative direction; Mist Gate and the life, pill and clash presentation; further ideas to playtest | `mixed` · 2026-09-22 |
 | [Map-piece prototype](MAP-PIECE-PROTOTYPE.md) | 青玉行旅棋 map movement, comfort boundaries and the studio handoff; placeholder art | `current` · main only; 2026-09-23 |
 
@@ -105,16 +114,16 @@ this index.
 | --- | --- | --- |
 | [Experience lessons](EXPERIENCE-LESSONS.md) | Lessons from the RXSG restoration, turned into player-facing decisions | `proposal · 2026-09-29` |
 | [Experience modules](EXPERIENCE-MODULES.md) | Proposed Q0–Q6 module contracts, existing seams and infrastructure | `proposal · 2026-09-29`; Q0 since implemented and merged (PR #5; see the battle table above); Q1 implemented for one command, with [LOCAL-COMMANDS](LOCAL-COMMANDS.md) as its contract (merged by PR #10); Q4's content registry and audit implemented as tooling only (`tools/content-registry.mjs`, `npm run audit:content`, never served; merged in PR #9), with its [registry states](EXPERIENCE-MODULES.md#q4-registry-states) |
-| [Local commands · Q1 contract](LOCAL-COMMANDS.md) | One previewed command with a receipt (the card page's 修練升級), the device-local `commands` ledger in the v5 profile, the IndexedDB fence for every writer under the profile lock, and the release rules: ship Q1 in or before the first public v5 release and never serve a pre-fence v5 build after it | `proposal · 2026-10-11` · main only; implemented for one command (its [§18](LOCAL-COMMANDS.md#18-implementation-record-2026-10-11)) and merged by PR #10; owner review of the contract requested before Q2/Q3 consumers |
+| [Local commands · Q1 contract](LOCAL-COMMANDS.md) | One previewed command with a receipt (the card page's 修練升級), the device-local `commands` ledger in the v5 profile, the IndexedDB fence for every writer under the profile lock, and the release rules: ship Q1 in or before the first public v5 release and never serve a pre-fence v5 build after it. Its [§19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12) owns D2's file import (v5 and v0.5.1 exports, through the strict fenced restore) and save safety (`persist()`, `shanhai.saves.v1`, backup prompts, the restore offer) | `proposal · 2026-10-11` · main only; implemented for one command (its [§18](LOCAL-COMMANDS.md#18-implementation-record-2026-10-11)) and merged by PR #10; §19 merged by PR #14 (`a7bda4b`); owner review of the contract requested before Q2/Q3 consumers |
 
 ## Accounts, operations and evidence
 
 | Document | What it covers | Status |
 | --- | --- | --- |
-| [Accounts and private backups](ACCOUNTS.md) | 旅程閣 sign-in, backup contents, the session and storage boundary, and email setup | `current` · live in v0.5.1 (snapshot v1); `main`'s snapshot v2/v3 need hosted migrations that the [handover](HANDOVER.md#playable-local-wx-01-and-guarded-saves) records as not applied. Since Q1 (PR #10), `main`'s cloud and local recovery restore also need usable IndexedDB, and refuse on a full disk or while the fence says `writing`, where ACCOUNTS names only Web Locks; [LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact) and [§15](LOCAL-COMMANDS.md#15-owner-decisions) own that rule |
-| [Hosting, releases and rollback](HOSTING.md) | Public boundary, build and deploy procedure, rollback and exact deployment receipts | `current` procedure, with dated receipts; its "19 runtime files" is the v0.5.1 count (`main`'s allowlist has 83 since Q1, 80 before) |
-| [Next release plan · v0.6.0](RELEASE-NEXT.md) | The proposed v0.6.0: scope (including Q1), release gates, ordered checklist, data safety, staging options, rollback, payload budget and owner decisions | `proposal · 2026-10-11`, revised for Q1 the same day; nothing in it is deployed, migrated or provisioned |
-| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0, Q4 and Q1 entries record checks on their branches before PRs #5 and #9 and PR #10 merged them, as its LZ-01 special-printings entry does before PR #8 (`daf18ed`), and its newest entry records the Q1 integration with `main` `b40c4d2` |
+| [Accounts and private backups](ACCOUNTS.md) | 旅程閣 sign-in, backup contents, the session and storage boundary, and email setup | `current` · live in v0.5.1 (snapshot v1); `main`'s snapshot v2/v3 need hosted migrations that the [handover](HANDOVER.md#playable-local-wx-01-and-guarded-saves) records as not applied. Since Q1 (PR #10), `main`'s cloud and local recovery restore also need usable IndexedDB, and refuse on a full disk or while the fence says `writing`, where ACCOUNTS names only Web Locks; [LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact) and [§15](LOCAL-COMMANDS.md#15-owner-decisions) own that rule. Its D2 note (main only, merged in PR #14) adds 匯入旅程備份 and the 上次備份 status line, with [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12) as their owner; the note's own "merging by D2's PR" predates that merge |
+| [Hosting, releases and rollback](HOSTING.md) | Public boundary, build and deploy procedure, rollback and exact deployment receipts | `current` procedure, with dated receipts; its "19 runtime files" is the v0.5.1 count (`main`'s allowlist has 90 at `0281798`: 80 before Q1, 83 after it, then D1, D2 and D3 add seven files) |
+| [Next release plan · v0.6.0](RELEASE-NEXT.md) | The proposed v0.6.0: scope (Q1, then D1, N1, D2 and D3), release gates, ordered checklist, data safety, staging options, rollback, payload budget and owner decisions | `proposal · 2026-10-11`, revised for Q1 the same day and for D1–D3 on 2026-10-13 (candidate: `main` at or after `0281798`, plus the release PR; hosted CI blocked by an Actions budget); nothing in it is deployed, migrated or provisioned |
+| [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0, Q4 and Q1 entries record checks on their branches before PRs #5 and #9 and PR #10 merged them, as its LZ-01 special-printings entry does before PR #8 (`daf18ed`), and its N1, D1, D2 and D3 entries before PRs #12, #11, #14 and #15. Its newest entry, the [v0.6.0 integration](VALIDATION.md#v060-integration--2026-10-13) (2026-10-13), records the builds, first-screen and browser checks at `main` `0281798` |
 | [Developer connections](CONNECTIONS.md) | Service identities, verified access, credential locations and remaining setup | `record · 2026-09-21`, rechecked 2026-09-22 |
 | [Fresh-clone toolkit check](TOOLKIT.md) | One fresh clone's setup, access rechecks and local test receipts | `record · 2026-09-21`, updated 2026-09-22 |
 | [Account API contract](../server/README.md) | Worker routes, cookies, bindings and the database access boundary | `current` |
@@ -127,7 +136,7 @@ this index.
 | --- | --- | --- |
 | [Technical plan](TECHNICAL-PLAN.md) | Selected architecture, the proposed authoritative design and the implementation order | `mixed` · decision record 2026-09-21 |
 | [Backend stack and data boundaries](BACKEND-STACK.md) | The implemented account slice, plus the proposed authoritative economy, schema and cost model | `mixed` · sources checked 2026-09-21 |
-| [iOS and Android release plan](MOBILE-RELEASE.md) | Native packaging route, store-policy notes and phases; native release is now optional | `proposal · 2026-09-22`; policy research 2026-09-21; its "confirmed roadmap goals" line predates the optional framing in [AGENTS.md](../AGENTS.md) and the [roadmap](../ROADMAP.md) |
+| [iOS and Android release plan](MOBILE-RELEASE.md) | Native packaging route, store-policy notes and phases; native release is now optional. Its 2026-10-12 sections hold N1's [M5.1 phone checklist](MOBILE-RELEASE.md#m51-phone-checklist) (emulation results, physical phones open), D1's [native Back wiring](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12) and D2's [browser-save durability](MOBILE-RELEASE.md#browser-save-durability-d2--2026-10-12) seam | `proposal · 2026-09-22`; policy research 2026-09-21; its "confirmed roadmap goals" line predates the optional framing in [AGENTS.md](../AGENTS.md) and the [roadmap](../ROADMAP.md). N1, D1 and D2 are merged (PRs #12, #11, #14), not deployed; no native project exists, and open PR #13's native pipeline is not merged |
 | [Content release pipeline](CONTENT-RELEASE-PIPELINE.md) | Art versions, animation budget and compatible release manifests (中文) | `proposal · 2026-09-21` |
 
 ## Retired collectible research
