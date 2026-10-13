@@ -429,13 +429,33 @@ function coachEvent(event,announcement='',{paint=true,move=null}={}) {
 // One gesture on the pill slider (a press and drag, or a held arrow key) fires an input
 // event for every value it passes but is one action, so it moves the coach by one mark at
 // most: the drag that shows ② leaves ② on screen when the finger lifts, and the next
-// gesture, ＋ or 怒擊 moves on to ③. An input with no press or key before it (assistive
-// technology) is a gesture of its own.
+// gesture, ＋ or 怒擊 moves on to ③. A gesture is bound to what drives it: each pointer
+// pressed on the slider (by pointerId) and each key held on it that changes its value (by
+// code). A pointer or such key pressed on the slider during a gesture joins it, and the
+// gesture ends only when the last of them is released (that pointer's pointerup,
+// pointercancel or lostpointercapture; that key's keyup; focus leaving the slider releases
+// its keys). Any other pointer or key leaves it running (review round 5: a second finger's
+// lift, or Shift, ended a drag's gesture, so its next value moved ② on to ③). An input with
+// no press or key before it (assistive technology) is a gesture of its own.
 let sliderGesture=null;
+const SLIDER_KEYS=new Set(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown','Home','End']);
 const onSlider=event=>event.target?.id==='pill-slider';
-document.addEventListener('pointerdown',event=>{if(onSlider(event))sliderGesture={moved:false};},true);
-document.addEventListener('keydown',event=>{if(onSlider(event)&&!event.repeat)sliderGesture={moved:false};},true);
-for(const type of ['pointerup','pointercancel','keyup','focusout'])document.addEventListener(type,event=>{if(type.startsWith('pointer')||onSlider(event))sliderGesture=null;},true);
+const holdSlider=source=>{if(sliderGesture)sliderGesture.held.add(source);else sliderGesture={held:new Set([source]),moved:false};};
+const releaseSlider=released=>{
+  if(!sliderGesture)return;
+  for(const source of sliderGesture.held)if(released(source))sliderGesture.held.delete(source);
+  if(!sliderGesture.held.size)sliderGesture=null;
+};
+document.addEventListener('pointerdown',event=>{
+  if(!onSlider(event))return;
+  // The same pointer pressed again: its release was missed, so its gesture is over.
+  const source=`pointer:${event.pointerId}`;if(sliderGesture?.held.has(source))sliderGesture=null;
+  holdSlider(source);
+},true);
+document.addEventListener('keydown',event=>{if(onSlider(event)&&SLIDER_KEYS.has(event.key))holdSlider(`key:${event.code}`);},true);
+for(const type of ['pointerup','pointercancel','lostpointercapture'])document.addEventListener(type,event=>releaseSlider(source=>source===`pointer:${event.pointerId}`),true);
+document.addEventListener('keyup',event=>releaseSlider(source=>source===`key:${event.code}`),true);
+document.addEventListener('focusout',event=>{if(onSlider(event))releaseSlider(source=>source.startsWith('key:'));},true);
 const sliderCoachEvent=()=>{if(!sliderGesture?.moved&&coachEvent('pills')&&sliderGesture)sliderGesture.moved=true;};
 function endCoach(outcome) {
   if(!coach)return;
