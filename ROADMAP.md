@@ -498,9 +498,10 @@ real PvP/ranked stays on the M2/M3 authority track.
 
 **Acceptance:** a new player completes a battle → travel/daily → backpack/upgrade loop without assistance, can explain a reveal and identify the exact copies that gained XP; repeated play remains brisk. Selected immersion packets preserve outcomes through mute, reduced motion, skip and interruption; assets and rules have reproducible versioned manifests; selected phone performance/accessibility targets are measured. PvP is complete only when two real clients finish/reconnect without exposing hidden moves, and duplicate settlements cannot change ranking or rewards twice.
 
-**First battle teaching (D3) · status 2026-10-12:** implemented on branch
-`d3/first-battle-teaching` (from `main` `335d2b7`); not merged or deployed, and
-in the proposed v0.6.0 scope. The battle table now shows a visible planning
+**First battle teaching (D3) · status 2026-10-13:** implemented on branch
+`d3/first-battle-teaching` (from `main` `335d2b7`) and merged into `main` in
+PR #15 (merge `0281798`); local only, not deployed, and in the proposed v0.6.0
+scope. The battle table now shows a visible planning
 hint, four skippable coach marks on the first ever battle (pick a card → pills →
 commit → read the reveal; 跳過 or Back ends them, recorded only under the
 device-local `shanhai.coach.v1`), the formula behind the attack estimate from
@@ -550,12 +551,13 @@ M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
 **N1 mobile shell (2026-10-11, branch `n1/mobile-shell`, merged to `main` in
-PR #12 (`e785b27`), not deployed; owner-approved for v0.6.0 scope):** safe-area insets under
+PR #12 (`e785b27`); local only, not deployed; owner-approved for v0.6.0 scope):** safe-area insets under
 `viewport-fit=cover` as overridable custom properties, 16px text entry on touch
 screens (no iOS focus zoom), no horizontal overflow from 302 to 734px wide, the
 arena's 來日 clear of the dock in landscape 701px and wider, named volume
 sliders, and the two WebKit failures RELEASE-NEXT A6 named (the 43.08px rewards
-tab and the map-piece launch). Checked in Chromium and WebKit emulation (`npm run
+tab and the map-piece launch; both suites pass in WebKit at `0281798`,
+2026-10-13). Checked in Chromium and WebKit emulation (`npm run
 test:shell`, [NAVIGATION](docs/NAVIGATION.md#mobile-shell)); the physical-phone
 items are open in the [M5.1 checklist](docs/MOBILE-RELEASE.md#m51-phone-checklist).
 Review round 1 (2026-10-12) fixed what the first pass missed: the
@@ -578,7 +580,7 @@ fault that predates N1: opened, the market's 西行印 and 整盒, the arena's �
 
 **Back model (D1) · status 2026-10-12:** implemented on branch `d1/back-model`
 (from `main` `7712a7b`), with the fixes from three review rounds, and merged to
-`main` in PR #11 (`335d2b7`); not deployed, and in the proposed v0.6.0 scope. Browser and system Back now close one layer at a time (dialog, sub-view,
+`main` in PR #11 (`335d2b7`); local only, not deployed, and in the proposed v0.6.0 scope. Browser and system Back now close one layer at a time (dialog, sub-view,
 destination → 洞府), hold on a battle result, open keep/abandon in a battle in
 progress and leave only from 洞府, with state-only history entries and no URL
 change. The [decision table](docs/NAVIGATION.md#back-model--2026-10-12) is in
@@ -588,10 +590,10 @@ gesture and predictive back, the iOS edge swipe and the Capacitor back-button
 wiring remain M5.1/M5.2 work
 ([mobile plan](docs/MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
 
-**D2 · saves never vanish silently, status 2026-10-12:** approved for the
+**D2 · saves never vanish silently, status 2026-10-13:** approved for the
 v0.6.0 scope and implemented on the branch `d2/save-durability` (from `main`
-`7712a7b`), which merged D1 (`335d2b7`) and then N1 (`e785b27`) from `main` and is
-merging by D2's PR; not merged to `main` or deployed. A journey export can now be imported through
+`7712a7b`), which merged D1 (`335d2b7`) and then N1 (`e785b27`) from `main`, and
+merged into `main` in PR #14 (merge `a7bda4b`); local only, not deployed. A journey export can now be imported through
 the strict restore, 旅程閣 shows the last backup's date and the browser's answer to
 a persistent-storage request (once per device; an installed web app asks at each
 launch until granted), players not known to be signed in get one backup prompt per
@@ -657,7 +659,11 @@ These are bounded starting points, not instructions to start every phase at once
 
 For the experience work, Q0 and Q4's registry and audit are merged (PRs #5 and
 #9), and Q1 by PR #10; their [status lines](#experience-quality-track) say what
-is left. Next come physical-device and owner review of Q0, owner review of the
+is left. The v0.6.0 packets D1, N1, D2 and D3 are merged too (PRs #11, #12, #14
+and #15; `main` `0281798`), none deployed; the
+[release plan](docs/RELEASE-NEXT.md) lists what v0.6.0 still needs, including
+D3's owner playtest and the hosted CI that an Actions budget blocks. Next come
+physical-device and owner review of Q0, owner review of the
 Q1 contract and its §15 decisions, Q4's open exit items, and then Q2/Q3 on the
 reviewed Q1 contract. Portable operations and one authoritative
 battle contract remain the online track; local quality work need not wait for
