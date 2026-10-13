@@ -120,7 +120,7 @@ the documentation tree, before committing:
 - `npm run build`: exit 0, 90 public files, manifest `e05db797…8746`.
 - `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
   `preview`), no findings.
-- `git diff --check`: clean.
+- `git diff --check`: clean; a scratch Markdown link and anchor check over the five changed documents finds all 459 local link targets and anchors.
 
 **Not run by this pass:** the SQL harness, `npm run deploy -- --dry-run`,
 `test:browser`, `test:commands`, `test:back`, `test:saves`, `test:shell`,

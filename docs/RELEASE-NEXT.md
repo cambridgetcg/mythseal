@@ -1496,6 +1496,7 @@ disables cloud upload for new clients, so the owner decides.
 | 2026-10-13, orchestrating session: every step of `.github/workflows/ci.yml`, locally at `11d86d9` (tree of `0281798`) (G7) | `npm test` 603/603; `tools/test-backup-sql.sh` passed on a throwaway loopback PostgreSQL 16.14, TCP only (CI: `postgres:17`); Python unittest 9 OK; `npm run test:contracts` passed; `npm run build` 90 public files; `npm run preview -- --dry-run` and `npm run deploy -- --dry-run` exit 0 (`WRANGLER_SEND_METRICS=false`); `node --check` on all modules; `py_compile` of `serve.py`; `bash -n Play.command`. Node 26.0.0 (CI: 22); no `npm ci` |
 | 2026-10-13, orchestrating session: browser suites at `11d86d9` against `python3 tools/serve.py` on `127.0.0.1:4204`; Chromium as installed Chrome with the Pixel 7 descriptor, WebKit 26.6 with the iPhone 15 descriptor (G9, G10) | all exit 0: `test:coach` 16 checks per engine; `test:back` 21 in Chromium, 20 in WebKit; `test:saves` 20 groups per engine; `test:shell` 26 per engine; `test:commands` 13 groups per engine; `test:battle-table` 40/40 per engine; `test:viewport` 23/23 per engine; `test:browser` (Chromium, 14 suites) 91 PASS lines |
 | 2026-10-13, orchestrating session: `npm run audit:content` | 150 entries, no findings |
+| 2026-10-13, on this revision's documentation tree (before and after committing): `node --test tests/*.test.mjs`; `npm run build`; `npm run audit:content`; `git diff --check`; a scratch Markdown link and anchor check over the five changed documents | exit 0, **603/603**; 90 files, manifest `e05db797…8746`; 150 entries (120 `local-playable`, 30 `preview`), no findings; clean; all 459 local link targets and anchors found |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no
@@ -1518,12 +1519,12 @@ size is not re-measured), the SQL harness, CI, and anything hosted. It made no
 network calls.
 
 **Not run for the 2026-10-13 revision** (by this revision itself): the SQL
-harness, `npm run deploy -- --dry-run`, `npm test` before its own documentation
-commits, `test:browser`, `test:commands`, `test:back`, `test:saves`,
-`test:shell`, `test:coach`, `test:battle-table` and `test:viewport` (the
-orchestrating session ran all of these at `11d86d9`, the same tree, and they
-are attributed to it above); `test:atelier`; a browser first-screen
-measurement (the image set at `0281798` is inferred from the source, §9);
+harness, `npm run deploy -- --dry-run`, `test:browser`, `test:commands`,
+`test:back`, `test:saves`, `test:shell`, `test:coach`, `test:battle-table` and
+`test:viewport` (the orchestrating session ran all of these at `11d86d9`, the
+same tree, and they are attributed to it above); `test:atelier`; a browser
+first-screen measurement (the image set at `0281798` is inferred from the
+source, §9);
 `npx --no-install wrangler deploy --config wrangler.jsonc --dry-run` (A3);
 hosted CI, which cannot start (G7); any physical device or real Safari; a
 rollback to v0.5.1 in a browser (§6's rollback analysis is read from source);
