@@ -175,7 +175,8 @@ new renderer to make local play clearer.
   [VALIDATION](docs/VALIDATION.md#q1-local-commands--2026-10-11), ending with
   the third pre-merge review's fixes, with a test in `38fa64f`; the
   [integration check](docs/VALIDATION.md#q1-integration-with-main--2026-10-11)
-  at `b527dc3` is the newest entry there. **Owner
+  at `b527dc3` is Q1's last entry there; later entries record N1, D1–D3 and
+  the v0.6.0 integration. **Owner
   review of the contract is requested before any Q2/Q3 consumer is written;**
   its §15 decisions (restore rule, browsers without Web Locks, release
   ordering, retention, copies awaiting WX review) remain open. The proposed
