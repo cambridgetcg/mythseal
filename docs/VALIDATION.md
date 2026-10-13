@@ -187,6 +187,18 @@ low-severity findings, all in documents:
   5,790 B and says the check was a scratch script, recorded in that entry, in
   LOCAL-COMMANDS §19 and in the comment; the round-1 bullet above is corrected
   in place.
+- RELEASE-NEXT A6's Verify, as round 1 left it, needed a green GitHub Actions
+  run or the owner's acceptance of a local record (§12 item 14), both owner
+  acts, inside Phase A, which runs without hosted access before B0 takes that
+  decision. A6's Verify is local again (the job defined, every §10 step 3
+  suite exiting 0 against the preview on the A6 commit); the hosted run, or
+  the accepted local record, stays in B1, which already required it.
+- A1's Verify, after round 1's insertion, read as if `test:back`,
+  `test:saves`, `test:shell` and `test:coach` ran inside `test:browser`; it
+  now says `test:browser` runs none of them (its `package.json` script chains
+  14 smokes without them).
+- G10 cited NAVIGATION's general Checks section for `test:back`, which names
+  no `test:back`; it now also cites the Back model's own "Checks" paragraph.
 
 ## D3 first-battle teaching · 2026-10-12
 

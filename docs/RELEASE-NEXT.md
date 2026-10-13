@@ -278,7 +278,7 @@ path.** The v0.5.1 deployment used an ignored helper
 | G7 | Exact-source CI before deploy ([HOSTING.md:42-43](HOSTING.md)) | CI exists; it has no browser job (`.github/workflows/ci.yml:16-73`). **Updated 2026-10-13.** The two WebKit failures A6 named are fixed by N1 (PR #12): at `0281798`, `test:expansion` and `test:map-piece` exit 0 in Chromium and WebKit, `test:map-piece` with no `test-results/webkit-runtime` folder (A6, §13). **Hosted CI is blocked:** GitHub Actions did not start PR #15's CI job; its check-run annotation reads "The job was not started because an Actions budget is preventing further use." (run 38350385399). Until the owner restores the Actions budget (a billing decision, **OWNER**) or accepts a local CI record instead, no exact-source CI run exists for `0281798` or can exist for the release commit. **Local CI record** (orchestrating session, 2026-10-13, at `11d86d9`, whose tree equals `0281798`'s): every step of `ci.yml` ran and passed (`npm test` 603/603; `tools/test-backup-sql.sh` on a throwaway loopback PostgreSQL **16.14**, TCP only, where CI uses `postgres:17`; Python unittest 9 OK; `npm run test:contracts`; `npm run build`, 90 public files; `npm run preview -- --dry-run` and `npm run deploy -- --dry-run`, both exit 0 with `WRANGLER_SEND_METRICS=false`; `node --check` on every module; `py_compile` of `serve.py`; `bash -n Play.command`), on Node **26.0.0** where CI uses 22, and with the existing `node_modules` instead of `npm ci` | A6, B1; §12 item 14 |
 | G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:342-348](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
 | G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e 0281798` exits 0). `test:commands` last passed 13/13 groups per engine at `11d86d9`, the tree of `0281798` (orchestrating session, 2026-10-13, §13); before that at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)). The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
-| G10 | D1, N1, D2 and D3 release checks: `npm run test:back`, `test:shell`, `test:saves` and `test:coach` pass in Chromium and WebKit ([NAVIGATION](NAVIGATION.md#checks); [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12); [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12); the D2 merge notes in [HANDOVER](HANDOVER.md#d2-save-durability-checkpoint--2026-10-12-local-only)). `test:browser` runs none of the four | New at `0281798`. All four passed at `11d86d9` (orchestrating session, 2026-10-13, §13): `test:back` 21 checks in Chromium and 20 in WebKit, `test:shell` 26 per engine, `test:saves` 20 groups per engine, `test:coach` 16 checks per engine. No CI job runs them yet (G7) | A6, A8, B1 |
+| G10 | D1, N1, D2 and D3 release checks: `npm run test:back`, `test:shell`, `test:saves` and `test:coach` pass in Chromium and WebKit ([NAVIGATION · Back model](NAVIGATION.md#back-model--2026-10-12), "Checks", for `test:back`; [NAVIGATION · Checks](NAVIGATION.md#checks) for `test:shell`; [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12); [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12); the D2 merge notes in [HANDOVER](HANDOVER.md#d2-save-durability-checkpoint--2026-10-12-local-only)). `test:browser` runs none of the four | New at `0281798`. All four passed at `11d86d9` (orchestrating session, 2026-10-13, §13): `test:back` 21 checks in Chromium and 20 in WebKit, `test:shell` 26 per engine, `test:saves` 20 groups per engine, `test:coach` 16 checks per engine. No CI job runs them yet (G7) | A6, A8, B1 |
 | G11 | The packets' owner-pending exits: D3's human playtest with at least three first-time players and the owner's review of the coach copy ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12), Exit); D1's root Back without a confirm, the owner default as built ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)); the physical-phone items of D1, N1, D2 and D3: N1's in the [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only N1's rows, and D1's, D2's and D3's in their own records (listed in §12 item 1); the landscape fault below 701 px wide that N1 recorded and v0.6.0 would ship publicly for the first time (§1, §12 item 17) | Open | B0 (owner accepts or defers); §12 items 1, 15, 16 and 17 |
 
 ## 5. Ordered checklist
@@ -302,9 +302,10 @@ drop out of the public allowlist. v0.5.1 tabs still open after the deploy will
 then get 404s for the PNGs (§6).
 *Verify:* `npm test`, `npm run build`, the first-screen budget check (A6), and
 the §10 step 3 browser suites in both engines where they run both
-(`test:browser` runs Chromium only; `test:back`, `test:saves`, `test:shell` and
-`test:coach` among them; since N1 every one of them, WebKit `test:expansion`
-and `test:map-piece` included, exits 0 on the commit before A1, §13). The owner reviews the art at 390 px and on desktop.
+(`test:back`, `test:saves`, `test:shell` and `test:coach` among them;
+`test:browser`, which runs none of those four, runs Chromium only; since N1
+every one of these suites, WebKit `test:expansion` and `test:map-piece`
+included, exits 0 on the commit before A1, §13). The owner reviews the art at 390 px and on desktop.
 *Rollback:* `git revert`. Nothing hosted is involved.
 
 **A2 · Versioned module graph (gate G3).** Recommended design: the build
@@ -563,12 +564,14 @@ fixed on `main` by N1 (PR #12, `e785b27`). Measured on 2026-10-13 at
 
 What remains of A6 is the browser job (§10) and the payload budget check
 (§10 step 4).
-*Verify:* every §10 step 3 suite exits 0 against the preview, in both engines
-where it runs both (`test:browser` in Chromium), and the job is green on
-GitHub Actions, which needs the Actions budget back (G7). If the owner instead
-accepts a local CI record in writing (B1, §12 item 14), the same suites' local
-exits against the preview are recorded for that exact commit, with how the
-environment differs from the job's (B1).
+*Verify:* on the A6 commit, every §10 step 3 suite exits 0 against the
+preview, in both engines where it runs both (`test:browser` in Chromium), and
+`.github/workflows/ci.yml` defines the browser job with those suites and the
+§10 step 4 budget check. That is local work, so Phase A does not wait on an
+owner act. The job's first hosted run belongs to B1, on the release commit:
+GitHub Actions starts no job until the owner restores the Actions budget
+(G7), and a local CI record stands in for it only under the owner's written
+acceptance (B1, §12 item 14).
 *Rollback:* `git revert`.
 
 **A7 · Version and docs.** Bump to 0.6.0 (§3). Correct stale counts: HOSTING
@@ -1600,6 +1603,7 @@ disables cloud upload for new clients, so the owner decides.
 | 2026-10-13, review round 1, on the corrected documentation tree: `node --test tests/*.test.mjs`; `npm run build` (`dist/` deleted afterwards); `npm run audit:content`; `git diff --check`; the scratch link and anchor check over the five changed documents; the `HANDOVER.md:N` and `VALIDATION.md:N` citations mapped through `difflib` from `09b08bd` | exit 0, **603/603**; 90 files, 74,496,049 B, manifest `e05db797…8746`; 150 entries (120 `local-playable`, 30 `preview`), no findings; clean; all 474 local link targets and anchors found; every such citation moved by this round's own additions to those two files and now points at the same lines |
 | 2026-10-13, review round 2: scratch Node script over `git archive v0.5.1 '*.mjs'` (scratch deleted afterwards): v0.5.1's `hydrateProfile` over a JSON round trip of `claimLogin(createProfile({ now }), now)`, as its `loadProfile` reads the stored key, then `JSON.stringify(…, null, 2)`, at the test's clock `2026-09-21T12:00:00.000Z` and at 2026-10-01 and 2026-10-16; then the test file's own `v051Download(v051Profile(claimLogin(fresh(), now)))` at `0281798` (C3) | the download is **5,790 B** (`Buffer.byteLength`) and 5,782 characters at all three dates; its only non-ASCII text is the deck name 山海初陣 (`git show v0.5.1:collection.mjs` line 181), 4 characters of 3 bytes each. The stored order is the same size. The test's string `===` v0.5.1's download: true. C3, the test comment (`:94`) and the D2 third-review record gave the character count as bytes |
 | 2026-10-13, review round 2: `grep -n 'archive v0.5.1'` over VALIDATION and LOCAL-COMMANDS (C3) | the D2 third-review entry ([VALIDATION](VALIDATION.md#d2-third-review-fixes--2026-10-12), finding 4: "Checked with a scratch script over `git archive v0.5.1 '*.mjs'`") and LOCAL-COMMANDS §19 ("checked against `git archive v0.5.1`") record the check besides the test comment. C3 had said it was done by hand and that only a comment records it |
+| 2026-10-13, review round 2: `package.json`'s `test:browser` split on `&&`; `git log -S'job is green on' -- docs/RELEASE-NEXT.md`; `git show 0281798:docs/RELEASE-NEXT.md` (A6); `grep -n '^## Checks\|^\*\*Checks\.\*\*' docs/NAVIGATION.md` (A1, A6, G10) | 14 smokes, none of `back-smoke`, `save-durability-smoke`, `shell-smoke` or `coach-smoke`; only `e84e44a` added A6's hosted-run requirement, and at `0281798` A6's Verify was local; `## Checks` (`:612`) names no `test:back`, which the Back model's **Checks.** paragraph (`:161`) does |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no
