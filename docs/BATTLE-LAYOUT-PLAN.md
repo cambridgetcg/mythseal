@@ -446,7 +446,7 @@ and `app.mjs` wires them to the table.
 | Element | Behaviour |
 | --- | --- |
 | Planning hint | One visible line under the round and prompt in the status row: 選一張戰卡 → 定仙丹 → 封丹 · 落子 (落子 · 決勝 outside 霧隱渡口). The reveal-time table reads 查看本回合結果，再進下一回合. The line uses the 44 px the row already had for 對弈紀錄, so the Q0 one-table layout keeps its rows. |
-| Coach marks | Only on the first ever battle: a 霧隱渡口 expedition encounter while `stats.played` is 0 (no battle finished yet) and this device has recorded no ending of the coach, starting in round 1. ① pick a card → ② add pills (攻擊＝力×（1＋丹）; the pills left must last the rounds left, so not all at once: 十二丹撐四回合 in round 1) → ③ commit → ④ read the reveal. ①–③ take the hint line's place (on a portrait phone, the whole row: two lines, or three for ② below about 355 px) and outline the control they teach with a dashed gold line; nothing covers a control. ④ sits in the round-1 reveal footer with 知道了 and outlines both 實際攻擊 figures. Using the taught control moves to the next mark, but ② is never skipped: on ①, a card, ＋, the slider or 怒擊 shows ②; on ②, ＋, the slider or 怒擊 shows ③; a commit shows ④. A commit straight from ① (a card is already chosen, at 0 pills and without 怒擊) shows ④ and owes ②: 繼續 or 知道了 after ④ then opens round 2's table on ②, which counts the three rounds left (十二丹撐三回合), stays while pills are set and leaves with that round's commit. A reload resumes the mark it interrupted: ② or ③ in round 1 (so a commit after them owes nothing), ④ on the round-1 reveal unless 知道了 already closed it, and the owed ② on round 2. (Until review round 2, 2026-10-13, using a later control first skipped ahead, so ＋ on ① went to ③ and a commit on ① went to ④, and ② never showed. Until review round 3, the same day, a reload in round-1 planning went back to ①, so a commit after ② or ③ owed ② again, even over a disabled ＋ at 0 pills left; a reload after 知道了 with ② owed brought ④ back; and the owed ② still read 十二丹撐四回合.) |
+| Coach marks | Only on the first ever battle: a 霧隱渡口 expedition encounter while `stats.played` is 0 (no battle finished yet) and this device has recorded no ending of the coach, starting in round 1. ① pick a card → ② add pills (攻擊＝力×（1＋丹）; the pills left must last the rounds left, so not all at once: 十二丹撐四回合 in round 1) → ③ commit → ④ read the reveal. ①–③ take the hint line's place (on a portrait phone, the whole row: two lines, or three for ② below about 355 px) and outline the control they teach with a dashed gold line; nothing covers a control. ④ sits in the round-1 reveal footer with 知道了 and outlines both 實際攻擊 figures. Using the taught control moves to the next mark, but ② is never skipped: on ①, a card, ＋, the slider or 怒擊 shows ②; on ②, ＋, the slider or 怒擊 shows ③; a commit shows ④. One slider gesture (a press and drag, or a held arrow key, which fire an input for every value) moves the coach by one mark at most, so a drag on ① leaves ② on screen and the next gesture shows ③. A commit straight from ① (a card is already chosen, at 0 pills and without 怒擊) shows ④ and owes ②: 繼續 or 知道了 after ④ then opens round 2's table on ②, which counts the three rounds left (十二丹撐三回合), stays while pills are set and leaves with that round's commit. A reload resumes the mark it interrupted: ② or ③ in round 1 (so a commit after them owes nothing), ④ on the round-1 reveal unless 知道了 already closed it, and the owed ② on round 2. (Until review round 2, 2026-10-13, using a later control first skipped ahead, so ＋ on ① went to ③ and a commit on ① went to ④, and ② never showed. Until review round 3, the same day, a reload in round-1 planning went back to ①, so a commit after ② or ③ owed ② again, even over a disabled ＋ at 0 pills left; a reload after 知道了 with ② owed brought ④ back; and the owed ② still read 十二丹撐四回合. Until review round 4, the same day, one slider drag across two or more values on ① went on to ③ before the finger lifted, so ② showed for well under a second.) |
 | Ending | 跳過 on the table or Back end every mark at once. 繼續 · 下一回合 or 知道了 after ④ completes them, or, when ② is owed, hands over to it, and round 2's commit then completes them (知道了's accessible name says which). Either way the device-local key `shanhai.coach.v1` records `{"firstBattle":"skipped"}` or `"done"`, and no mark returns, also after a reload or in a restarted first battle. A first battle abandoned before any ending shows the marks again in the next one, because `stats.played` is still 0. A player whose first battle is a practice or arena match never sees them. |
 | Back | A coach mark is one dismissible layer in the [Back model](NAVIGATION.md#back-model--2026-10-12): under any dialog opened over the table, and above the held round result once the reveal has completed and shows ④. Back closes it as 跳過 does; the next Back opens keep/abandon or holds the result as before. While the reveal still animates, ④ is hidden, so it is no layer yet and Back holds the result as it does without the coach. Once 知道了 has closed ④ with ② owed, ④ stays closed, also after a reload, so Back on that reveal holds the result and ② stays owed. (Until review round 3, 2026-10-13, a reload brought that ④ back, and Back on it then ended the coach as 跳過, dropping ②.) |
 | Formula | The move panel's estimate cell shows the arithmetic behind its number, for example `力 6 ×（1＋3 丹）＝ 24`. See below. |
@@ -500,12 +500,20 @@ announced 減攻 such as 月蝕 −6 at 0 pills), the engine counts 1. Every for
 states the true sum and that minimum: `（力 6 − 1）×（1＋0 丹）− 6 ＝ −1 → 最低 1`,
 `(力6−1)×(1+0丹)−6＝−1→最低1`, … `5×1−6→最低1`. (Until review round 1 they
 read `… − 6 ＝ 1` and `5×1−6` beside 1, sums that were really −1.) Fury does
-not change attack. The cost line always reads `共消耗 6 丹 · 剩 6 丹`; it may end
-in an ellipsis on a narrow cell, so it holds nothing else. With Fury on, the
+not change attack. The cost line reads `共消耗 6 丹 · 剩 6 丹` where its cell is
+wide enough. On a narrower cell `app.mjs` shows the widest shorter form that
+fits: `消耗 6 丹 · 剩 6 丹`, `耗 6 丹 · 剩 6 丹`, `耗 6 · 剩 6 丹`, then `剩 6 丹`
+alone, so the pills left always show whole (`costVariants`). It holds nothing
+else. (Until review round 4, 2026-10-13, it had one form that ended in an
+ellipsis. That hid 剩 N 丹 on phones from 302 to 339 px wide once the D2 merge
+brought N1's removal of the page's 340 px minimum.) With Fury on, the
 Fury toggle's note states the damage a win deals in place of its rule:
 `另付 3 丹 · 傷害 7` (`預計傷 7` when a hidden reply could reduce the damage).
 Review round 1 moved it there from the front of the cost line, where it pushed
-剩 N 丹 behind the ellipsis on phones. The cost and damage come from `RULES`
+剩 N 丹 behind the ellipsis on phones. Below 340 px in portrait the note takes
+the button's full width under 怒擊 and its switch, as in landscape, so the
+switch stays inside the button (until review round 4, at 302 px it ran up to
+5 px past the button with Fury on). The cost and damage come from `RULES`
 (3 pills, +2 damage).
 
 **Tip rules.** The tip reads only the public reveal view: both sides' pills
@@ -536,15 +544,19 @@ separate from the automation.
   `npm run test:coach`. Review round 1 found mark ② at three lines in Chromium
   at 360 px (its last two characters hidden) and shortened it by one
   character. Review round 2 measured narrower phones: below about 355 px
-  (Chromium) and 349 px (WebKit), down to the 340 px minimum, mark ② needs a
+  (Chromium) and 349 px (WebKit), down to N1's 302 px phones (review round 2
+  named the page's 340 px minimum, which the D2 merge removed), mark ② needs a
   third line, which the two-line clamp hid (盡。). The clamp is now three lines:
   three 14 px lines (42 px) fit the status row's 44 px, so the row never grows.
   `test:coach` measures every copy whole, in at most three lines and with the
-  row's height unchanged, at 340×640, 348×760, 353×745 (Playwright's Pixel 4)
-  and 354×640. Other fonts are not measured; a copy needing a fourth line would
-  still be cut.
-- The cost line can still end in an ellipsis beside a three-digit estimate in
-  a 360 px cell, as it could before D3.
+  row's height unchanged, at 302×640 and 320×568 (since review round 4),
+  340×640, 348×760, 353×745 (Playwright's Pixel 4) and 354×640. Other fonts
+  are not measured, nor are phones narrower than 302 px: the round-4 reviewers
+  found that ② needs a fourth line in Chromium at 280×653, which the clamp
+  would cut.
+- The cost line could end in an ellipsis beside a three-digit estimate in a
+  360 px cell before review round 4. The fit to a shorter form covers that
+  case too, but no browser check has used a three-digit estimate.
 - The compact formula forms drop the spacing, and the folded form shows the
   effective power (`力8`) rather than `力7＋1`.
 - Measured input latency and first-paint cost were not re-measured; the formula

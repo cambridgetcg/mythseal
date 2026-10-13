@@ -519,7 +519,12 @@ skip (a round 1 committed straight from ① now gets it on round 2's table),
 showed it whole on phones narrower than 360 px, and ended a WebKit flake in
 `test:coach`. Review round 3 (2026-10-13) made a reload resume the coach
 mark it interrupted, so ② is neither owed again after it showed nor dropped by
-Back after a reload, and the owed ② counts the three rounds left.
+Back after a reload, and the owed ② counts the three rounds left. The branch
+now contains `main` `a7bda4b` (D2 save durability, with N1) through merge
+`adb0dd4`. Review round 4 (2026-10-13) kept one slider drag on ① from passing
+② on to ③, kept 剩 N 丹 and the Fury switch whole on the 302–339 px phones that
+N1 opened, and moved the branch name onto the review commits and the merge,
+which had been made on a detached HEAD.
 
 ### M5 · Mobile adaptation → iOS and Android closed beta
 

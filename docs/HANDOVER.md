@@ -770,6 +770,48 @@ deployed; no hosted check.
   `move:playerMove`. Checks:
   [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12), "Review
   round 3 fixes".
+- **After the D2 merge (2026-10-13):** merge commit **`adb0dd4`** brought
+  `origin/main` `a7bda4b` (D2 save durability, which includes N1) into this
+  branch. Only `hosting/public-assets.json`, `index.html` and this file
+  conflicted, and their union was kept; `app.mjs` merged without a conflict,
+  and its D3 changes are the same, line for line, as before the merge. The
+  "`app.mjs` touch points for the D2 merge" in the bullets above are applied;
+  they now only describe where D3 sits in `app.mjs`. **Corrections:** the
+  opening of this checkpoint says that the commits after the listed source
+  commits "change documentation only", and the allowlist bullet gives 86
+  public files. Both held only before review round 1: each round's bullet
+  names its source commits, `adb0dd4` brings D2's code into `app.mjs`, and
+  the build now has **90 public files** (84, plus D3's two, plus D2's four).
+  Rounds 1–3 and the merge were committed on a detached HEAD checked out at
+  `98df03b`, so the branch name still pointed at that pre-review checkpoint.
+  On 2026-10-13 the ref was moved forward to `adb0dd4` (a fast-forward; no
+  commit rewritten) and checked out. Round 4 is committed on the branch.
+  Nothing is pushed. The first checks recorded on a commit that contains the
+  merge are the round-4 checks in VALIDATION.
+- **Review round 4 fixes (2026-10-13):** source commit **`2e599a1`**
+  (`app.mjs`, `battle-teaching.mjs`, `battle-teaching.css`,
+  `tests/battle-teaching.test.mjs`) and smoke commit **`d36aa7a`**
+  (`tools/coach-smoke.mjs`). One slider gesture (a press and drag, or a held
+  arrow key) now moves the coach by one mark at most, so a drag on ① leaves
+  ② on screen instead of going on to ③ before the finger lifts. Below 340 px,
+  which phones reach since N1 removed the page's minimum (N1 supports 302 px),
+  the cost line shows the widest of five forms that fits, each ending 剩 N 丹
+  (`耗 4 丹 · 剩 8 丹` at 302 px), and the Fury note takes the button's full
+  width under 怒擊 and its switch, so the switch no longer runs past the
+  button. `test:coach` now drags with `page.mouse`, holds an arrow key, checks
+  the owed ②'s exact announcement, abandons a first battle on ③ and starts
+  the next at ① (record `{}`), and measures the coach copy, the cost line and
+  the Fury note at 302×640 and 320×568. **Saves:** unchanged.
+  `shanhai.coach.v1` is written as before. **Correction:** the round-2 note
+  above says mark ② shows whole "down to the 340 px minimum". Since the merge
+  that is not the floor; `test:coach` now measures it whole at 302 and 320 px
+  too. In `app.mjs`: `costVariants` replaces `costText` in the
+  `battle-teaching.mjs` import; `costForms` sits beside `attackVariants`;
+  `fitAttackFormula` fits the cost line first; `coachEvent` returns whether
+  the mark changed; the `sliderGesture` listeners and `sliderCoachEvent`
+  follow it; the pill slider's input branch calls `sliderCoachEvent()`.
+  Checks: [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12),
+  "Review round 4 fixes".
 
 ## Experience planning checkpoint · 2026-09-29
 
