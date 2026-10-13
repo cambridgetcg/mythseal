@@ -35,7 +35,12 @@ ran on. **[cmd]** is a command run for this plan on 2026-10-11 or 2026-10-13
 network calls made were unauthenticated
 `GET https://mythseal.com/release.json` and `GET https://mythseal.com/api/v1/account`;
 the Q1 revision made none, and the 2026-10-13 revision made one
-`GET https://mythseal.com/release.json` with a generic User-Agent.
+`GET https://mythseal.com/release.json` with a generic User-Agent. Besides
+that, Wrangler ran its own update check during that revision's
+`npm run preview -- --dry-run` (its banner named a newer release, 4.149.0,
+§13): a request outside the project's services, whose destination was not
+captured. Whether the first revision's dry run at `8afbabc` made one too was
+not recorded.
 
 Step markers: **AGENT** = repo change any agent can make and check locally, with
 no hosted access. **CI** = GitHub Actions on the exact commit. **OWNER** =
@@ -445,9 +450,12 @@ back, as a file, and builds most of the recovery path A5(a) needs, but it does
 not detect or read a stranded key; case (b) is unchanged.
 
 *What D2 covers.* 匯入旅程備份 (in the 旅程閣 tools) and the new-journey restore
-offer's 備份檔 import a file that 匯出旅程備份 wrote: a v5 export, or a v3 or v4
-one, which every public build before v0.6.0 wrote (v0.4.1, v0.5.0 and v0.5.1:
-`platform.mjs:58-61`). `checkJourneyText` (`platform.mjs:77-107`) migrates a
+offer's 備份檔 import a file that 匯出旅程備份 wrote: a v5 export, or a v3 one,
+which every public build before v0.6.0 wrote (v0.4.1, v0.5.0 and v0.5.1); a v4
+file is accepted too, though no public build wrote one: v4 is the local
+namespace `load()` also migrates (`platform.mjs:58-61`; [cmd] `git show
+<tag>:progression.mjs` prints `PROFILE_VERSION = 3` for all three tags).
+`checkJourneyText` (`platform.mjs:77-107`) migrates a
 legacy file exactly as `load()` migrates the same journey under its own legacy
 key on this device (`platform.mjs:67-70`: a profile store over an in-memory
 storage holding only the file), then checks it with every v5 rule and wraps it
@@ -773,10 +781,14 @@ cross-device restore, open since v0.5.1
 local only: before C1, export the owner's journey from the live v0.5.1 footer
 (匯出旅程備份); after C1, import that file with 匯入旅程備份 in another fresh
 profile. It would be the first check of a real player's v0.5.1 export file;
-`test:saves` S10 uses a synthetic one in v0.5.1's download key order, which the
-Node test checks byte for byte against a new journey's download from `git
-archive v0.5.1`
-([LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
+`test:saves` S10 uses a synthetic one in v0.5.1's download key order
+(`v051Download`, `tools/save-durability-smoke.mjs:64-67`, `:595`). That order
+was checked once, by hand, in D2's third review on 2026-10-12: for a new
+journey it equalled v0.5.1's download from `git archive v0.5.1` byte for byte
+(5,782 B). Only a comment records that check (`tests/save-durability.test.mjs:90-94`;
+[LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
+The Node test reads no v0.5.1 code: it pins the last seven keys of that
+order (`tests/save-durability.test.mjs:198`), not the comparison.
 *Rollback:* as in C1. Synthetic data is cleaned up by the checker.
 
 **C4 · OWNER · Watch for 24–72 h.** Watch the Cloudflare Worker metrics for
@@ -854,8 +866,9 @@ link, check receipts, what was not verified), and update the
   `335d2b7`, `e785b27`, `a7bda4b` and `0281798` included.
 - **D2's file import writes only through the strict restore.** Since PR #14,
   匯入旅程備份 (旅程閣 tools) and the new-journey offer's 備份檔 read a
-  匯出旅程備份 file: a v5 export, or a v3 or v4 one from v0.4.1–v0.5.1, which is
-  migrated as `load()` migrates a legacy key (A5). Before anything is written it
+  匯出旅程備份 file: a v5 export, or a v3 one from v0.4.1–v0.5.1 (or a v4 one,
+  which no public build wrote); a legacy file is migrated as `load()`
+  migrates a legacy key (A5). Before anything is written it
   is refused when it is over 4 MiB (from its size, before reading:
   `platform.mjs:13`, `:112`), unparsable, not an export (a cloud envelope or
   the startup-recovery file: `:83`), older than v3 or newer than v5, exported
@@ -1066,11 +1079,12 @@ lines 1-31), all 19 stylesheets (`index.html:15-33`), `index.html`,
 
 **Recomputed at `b527dc3` for Q1.** Q1's three modules are static imports of
 `app.mjs` (`app.mjs:23-25`), so the first screen now loads **62 files**: all
-39 JS modules (`app.mjs:1-34`), the same 19 stylesheets, `index.html`,
-`mark.svg` and the same two PNGs. The text figures were recomputed without a
-browser ([cmd] scratch Node script, exit 0: `index.html`, its stylesheets,
-`mark.svg` and every module reachable from `bootstrap.mjs`, each compressed
-with `node:zlib` gzip level 6 and brotli quality 11). Run at `8afbabc`, the
+39 JS modules (`app.mjs:1-34` at `b527dc3`; `1-39` at `0281798`, below), the
+same 19 stylesheets, `index.html`, `mark.svg` and the same two PNGs. The text
+figures were recomputed without a browser ([cmd] scratch Node script, exit 0:
+`index.html`, its stylesheets, `mark.svg` and every module reachable from
+`bootstrap.mjs`, each compressed with `node:zlib` gzip level 6 and brotli
+quality 11). Run at `8afbabc`, the
 same script gives exactly the 57 text files and byte counts of the browser
 measurement. No browser measured `b527dc3`.
 
@@ -1482,7 +1496,7 @@ disables cloud upload for new clients, so the owner decides.
 | 2026-10-13: the Worker's static import graph from `server/account-api.mjs` (scratch Node script), then `git diff --stat 7712a7b 0281798` over its 14 files (§2) | empty: D1–D3 change nothing the Worker bundles |
 | 2026-10-13: `git rev-list --count [--no-merges] v0.5.1..0281798`; `git diff --name-status/--numstat v0.5.1 0281798` over the allowlist at `0281798`, and over `server/account-api.mjs`, the migrations, `tools/deploy.mjs` and `ci.yml` (§2) | 223 commits (202 non-merge); 83 of 90 runtime files changed (71 added, 12 modified), +8,486/−390; the outside files unchanged since `8afbabc`. The same script reproduces `b527dc3`'s 127/115, 76 (64/12) and +6,947/−371 |
 | 2026-10-13: `curl -A 'Mozilla/5.0'` of `https://mythseal.com/release.json`, no other header (§2) | HTTP 200, exit 0, at about 05:23 UTC: `clientVersion` `0.5.1`, `gitCommit` `ea485586…`, 19 files, 11,130,757 B, manifest `7c18fceb…4e88`. Live is still v0.5.1 |
-| 2026-10-13: `python3 tools/serve.py --port 4205` from this worktree at `0281798`, started after checkout and stopped afterwards; `GAME_URL=http://127.0.0.1:4205`; `PLAYWRIGHT_BROWSERS_PATH` unset and no `test-results/webkit-runtime` folder; installed Chrome 155.0.8059.40, Playwright 1.63.0 with WebKit 26.6, Node 26.0.0, macOS 26.6.2; one suite at a time | the six rows below; `test-results/` deleted afterwards |
+| 2026-10-13: `python3 tools/serve.py --port 4205` from this worktree at `0281798`, started after checkout and stopped afterwards; `GAME_URL=http://127.0.0.1:4205`; `PLAYWRIGHT_BROWSERS_PATH` unset and no `test-results/webkit-runtime` folder; installed Chrome 155.0.8059.40, Playwright 1.63.0 with WebKit 26.6, Node 26.0.0, macOS 26.6.2; one suite at a time | the five rows below (seven suites); `test-results/` deleted afterwards |
 | 2026-10-13: `npm run test:expansion` (Chromium, then `BROWSER=webkit`) (A6) | exit 0, 215 s; 16 PASS lines per engine (899 and 892 layout checks); WebKit passes `360x740` and `360x640`, so A6's first failure is gone (§12 item 13) |
 | 2026-10-13: `npm run test:map-piece` (A6) | exit 0, 57 s; 8 PASS lines per engine; WebKit launched from Playwright's default cache, so A6's second failure is gone |
 | 2026-10-13: `npm run test:wx01` | exit 0, 205 s; per engine 17 PASS lines (`wx01-presentation-smoke`), 6 checks (`profile-recovery-smoke`) and 10 (`wx01-box-smoke`), with empty `browserErrors` and `errors` |
@@ -1494,7 +1508,7 @@ disables cloud upload for new clients, so the owner decides.
 | 2026-10-13: `git grep` of tag `v0.5.1` for `shanhai.saves`, `shanhai.coach`, `mythseal.nav`, `popstate`, `pushState`, `replaceState`, `history.`, `storage.persist`, `localStorage.key(`, `localStorage.length` and `navigator.` (§6) | only `match.history` (the battle log) and `navigator.locks`: v0.5.1 touches none of D1–D3's state |
 | 2026-10-13, orchestrating session: hosted CI for PR #15 (G7) | not started; check-run annotation "The job was not started because an Actions budget is preventing further use." (run 38350385399) |
 | 2026-10-13, orchestrating session: every step of `.github/workflows/ci.yml`, locally at `11d86d9` (tree of `0281798`) (G7) | `npm test` 603/603; `tools/test-backup-sql.sh` passed on a throwaway loopback PostgreSQL 16.14, TCP only (CI: `postgres:17`); Python unittest 9 OK; `npm run test:contracts` passed; `npm run build` 90 public files; `npm run preview -- --dry-run` and `npm run deploy -- --dry-run` exit 0 (`WRANGLER_SEND_METRICS=false`); `node --check` on all modules; `py_compile` of `serve.py`; `bash -n Play.command`. Node 26.0.0 (CI: 22); no `npm ci` |
-| 2026-10-13, orchestrating session: browser suites at `11d86d9` against `python3 tools/serve.py` on `127.0.0.1:4204`; Chromium as installed Chrome with the Pixel 7 descriptor, WebKit 26.6 with the iPhone 15 descriptor (G9, G10) | all exit 0: `test:coach` 16 checks per engine; `test:back` 21 in Chromium, 20 in WebKit; `test:saves` 20 groups per engine; `test:shell` 26 per engine; `test:commands` 13 groups per engine; `test:battle-table` 40/40 per engine; `test:viewport` 23/23 per engine; `test:browser` (Chromium, 14 suites) 91 PASS lines |
+| 2026-10-13, orchestrating session: browser suites at `11d86d9` against `python3 tools/serve.py` on `127.0.0.1:4204`; Chromium as installed Chrome and WebKit 26.6. The scripts choose the device: `test:back`, `test:shell` and `test:coach` emulate a Pixel 7 in Chromium and an iPhone 15 in WebKit (`tools/back-smoke.mjs:59-60`, `tools/shell-smoke.mjs:26`, `tools/coach-smoke.mjs:67-68`); the others set their own viewports (for example `tools/save-durability-smoke.mjs:80`, `tools/command-smoke.mjs:49`) (G9, G10) | all exit 0: `test:coach` 16 checks per engine; `test:back` 21 in Chromium, 20 in WebKit; `test:saves` 20 groups per engine; `test:shell` 26 per engine; `test:commands` 13 groups per engine; `test:battle-table` 40/40 per engine; `test:viewport` 23/23 per engine; `test:browser` (Chromium, 14 suites) 91 PASS lines |
 | 2026-10-13, orchestrating session: `npm run audit:content` | 150 entries, no findings |
 | 2026-10-13, on this revision's documentation tree (before and after committing): `node --test tests/*.test.mjs`; `npm run build`; `npm run audit:content`; `git diff --check`; a scratch Markdown link and anchor check over the five changed documents | exit 0, **603/603**; 90 files, manifest `e05db797…8746`; 150 entries (120 `local-playable`, 30 `preview`), no findings; clean; all 459 local link targets and anchors found |
 

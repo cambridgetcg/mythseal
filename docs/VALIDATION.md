@@ -8,8 +8,11 @@ Branch `docs/v060-integration`, from `origin/main` **`0281798`** (PR #15's
 merge), for the documentation integration of D1, N1, D2 and D3 into the
 v0.6.0 plan ([RELEASE-NEXT](RELEASE-NEXT.md), revised 2026-10-13). The
 branch's commits change documents only. Nothing was pushed, merged or
-deployed. The only network request beyond loopback was one unauthenticated
-`GET https://mythseal.com/release.json` with a generic User-Agent. Two sources
+deployed. Beyond loopback, this pass itself sent one unauthenticated
+`GET https://mythseal.com/release.json` with a generic User-Agent, and
+Wrangler ran its own update check during `npm run preview -- --dry-run`
+(below), a request outside the project's services whose destination was not
+captured. Two sources
 of evidence are kept apart below: checks this pass ran, and checks the
 orchestrating session ran on `11d86d9` and handed over
 (`git rev-parse 11d86d9^{tree} 0281798^{tree}` prints `3c211f98…` twice, so
@@ -98,8 +101,10 @@ over; this pass did not repeat them:
   `node --check` on all modules; `py_compile` of `serve.py`; `bash -n
   Play.command`. Node 26.0.0 where CI uses 22; no `npm ci`.
 - Browser suites against `python3 tools/serve.py` on `127.0.0.1:4204`,
-  Chromium as installed Chrome with the Pixel 7 descriptor, WebKit 26.6 with
-  the iPhone 15 descriptor, all exit 0: `test:coach` 16 checks per engine;
+  Chromium as installed Chrome and WebKit 26.6, all exit 0 (the scripts choose
+  the device: `test:back`, `test:shell` and `test:coach` emulate a Pixel 7 in
+  Chromium and an iPhone 15 in WebKit, and the others set their own
+  viewports): `test:coach` 16 checks per engine;
   `test:back` 21 in Chromium and 20 in WebKit; `test:saves` 20 groups per
   engine; `test:shell` 26 per engine; `test:commands` 13 groups per engine;
   `test:battle-table` 40/40 per engine; `test:viewport` 23/23 per engine;

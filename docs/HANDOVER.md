@@ -51,7 +51,8 @@ Documentation integration on the branch **`docs/v060-integration`**, from
 `origin/main` **`0281798`**. It changes documents only; nothing is pushed,
 merged or deployed by it, and no hosted service was called except one
 unauthenticated `GET https://mythseal.com/release.json`, which on 2026-10-13
-still reported v0.5.1 (`ea48558`).
+still reported v0.5.1 (`ea48558`). Wrangler also ran its own update check
+during `npm run preview -- --dry-run`, outside the project's services.
 
 - **`main` at `0281798`** holds Q1 (PR #10, merge `7712a7b`) and the four
   packets the owner approved for the v0.6.0 scope on 2026-10-11, each landed
