@@ -97,8 +97,9 @@ during `npm run preview -- --dry-run`, outside the project's services.
   imports a save file.
 - **Still open:** the owner decisions in RELEASE-NEXT §12, among them the Q1
   contract (item 12), A5 or a written acceptance (item 9), the Actions budget
-  (item 14), D1's root Back without a confirm (item 15), D3's exit (item 16)
-  and the landscape fault below 701 px (item 17); D3's human playtest with at
+  (item 14), D1's root Back without a confirm (item 15), D3's exit (item 16),
+  the landscape fault below 701 px (item 17) and the vertical-fit fault on
+  portrait phones (item 18); D3's human playtest with at
   least three first-time players and the review of its coach copy; physical
   iPhone and Android checks for D1, N1, D2 and D3: N1's in the
   [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only
@@ -121,6 +122,18 @@ during `npm run preview -- --dry-run`, outside the project's services.
   once opened, cover their own tab row until a reload; several buy and travel
   buttons sit under the dock. The owner decides whether it ships documented
   or is fixed first.
+- **Vertical fit on portrait phones** (RELEASE-NEXT §12 item 18, added in the
+  same day's review round 2): N1's other recorded limit
+  ([NAVIGATION · Mobile shell](NAVIGATION.md#mobile-shell), Limits; the M5.1
+  "Short screens" row) also reaches players first in v0.6.0, since live
+  v0.5.1 has no framed scene lists. In emulation, with N1's fixture, the
+  collection's 我的戰卡 list flags at 412×790, 393×780 and 360×780 and, with
+  top and bottom insets, at 412×839 and at 393×852 (an iPhone 15 home-screen
+  web app): a character tile holding several copies is taller than the list's
+  frame and runs under its pager. A new journey flags at none of those sizes.
+  Re-measured on 2026-10-13; no phone tried. The owner decides whether it
+  ships documented or is fixed first. It is a measured fault, not a phone
+  check still to run.
 - **Review rounds that ended at the cap:** D2's and N1's review loops stopped
   at their round cap without a clean round (their PR bodies, as the
   orchestrating session reported; not re-read here). So D2's integration

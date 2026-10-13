@@ -199,6 +199,22 @@ low-severity findings, all in documents:
   14 smokes without them).
 - G10 cited NAVIGATION's general Checks section for `test:back`, which names
   no `test:back`; it now also cites the Back model's own "Checks" paragraph.
+- RELEASE-NEXT named only N1's landscape fault below 701 px, not its other
+  recorded limit, vertical fit, which v0.6.0 would also ship to players for
+  the first time. It is now owner decision 18, in G11, B0, A7 and GO item 7,
+  and §12 item 1 says the M5.1 "Short screens" row is a measured fault, not a
+  phone check; the [handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only)
+  and ROADMAP's N1 line say so too. Re-measured on the tree of `0281798`,
+  emulation only, with `python3 tools/serve.py --port 4205` (stopped
+  afterwards): `npm run test:shell` exit 0, 26 checks per engine, its NOTE
+  lines as [NAVIGATION](NAVIGATION.md#mobile-shell) records them; and a
+  scratch Playwright script seeded as the shell smoke seeds, in installed
+  Chrome (Pixel 7) and WebKit 26.6 (iPhone 15). With N1's fixture (all 29
+  WX-01 printings) the collection's `cards` list flags at 412×790, 393×780,
+  360×780, 412×839 with 48/34 px insets and 393×852 with 59/34 px in both
+  engines, not at 412×800, 393×800 or 412×839; in Chromium its 361 px tile
+  runs 8–35 px past the frame. A new 16-card journey flags at none of these
+  sizes in either engine.
 
 ## D3 first-battle teaching · 2026-10-12
 

@@ -576,7 +576,11 @@ both are fixed and checked by `test:shell`. Landscape phones below 701px wide
 (iPhone SE/8 at 667×375, Android at 640×360, the first SE at 568×320) keep a
 fault that predates N1: opened, the market's 西行印 and 整盒, the arena's 問道,
 切磋 and 來日 and the world's chapter module cover their own tab row, and
-西行秘匣's buy button is hidden (NAVIGATION, Limits).
+西行秘匣's buy button is hidden (NAVIGATION, Limits). Vertical fit is also
+open: on portrait phones 741–790px tall, and on taller ones with top and
+bottom insets, the collection's tile for a character with several copies runs
+under its list's pager (NAVIGATION, Limits; re-measured 2026-10-13). Both are
+owner decisions for v0.6.0 (RELEASE-NEXT §12 items 17 and 18).
 
 **Back model (D1) · status 2026-10-12:** implemented on branch `d1/back-model`
 (from `main` `7712a7b`), with the fixes from three review rounds, and merged to

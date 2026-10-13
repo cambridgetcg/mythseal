@@ -148,7 +148,13 @@ added, 72,648 B; existing files +34,247 B); its 23 PNGs are unchanged. PR #13
   西行印 or 來日, once opened, cover their own tab row until a reload
   ([NAVIGATION.md:450-515](NAVIGATION.md)). It was already at `7712a7b`, but
   those modules are new since v0.5.1, so v0.6.0 would ship it to players for
-  the first time (§12 item 17).
+  the first time (§12 item 17). N1 also left vertical fit open, measured in
+  emulation: on portrait phones 741–790 px tall, and on taller ones with top
+  and bottom insets (an iPhone 15 home-screen web app among them), the 我的戰卡
+  tile of a character with several copies is taller than its list's frame and
+  runs under the list's pager; shorter screens flag more pages
+  ([NAVIGATION.md:422-449](NAVIGATION.md)). The framed lists are new since
+  v0.5.1 too (§12 item 18).
 - **D2 · save durability** (PR #14, `a7bda4b`): 匯入旅程備份 in the 旅程閣
   tools, and 「有舊旅程？由備份還原」 on a journey this device has just started
   because no journey key existed, import a 匯出旅程備份 file, either a v5 export
@@ -279,7 +285,7 @@ path.** The v0.5.1 deployment used an ignored helper
 | G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:342-348](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
 | G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e 0281798` exits 0). `test:commands` last passed 13/13 groups per engine at `11d86d9`, the tree of `0281798` (orchestrating session, 2026-10-13, §13); before that at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)). The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
 | G10 | D1, N1, D2 and D3 release checks: `npm run test:back`, `test:shell`, `test:saves` and `test:coach` pass in Chromium and WebKit ([NAVIGATION · Back model](NAVIGATION.md#back-model--2026-10-12), "Checks", for `test:back`; [NAVIGATION · Checks](NAVIGATION.md#checks) for `test:shell`; [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12); [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12); the D2 merge notes in [HANDOVER](HANDOVER.md#d2-save-durability-checkpoint--2026-10-12-local-only)). `test:browser` runs none of the four | New at `0281798`. All four passed at `11d86d9` (orchestrating session, 2026-10-13, §13): `test:back` 21 checks in Chromium and 20 in WebKit, `test:shell` 26 per engine, `test:saves` 20 groups per engine, `test:coach` 16 checks per engine. No CI job runs them yet (G7) | A6, A8, B1 |
-| G11 | The packets' owner-pending exits: D3's human playtest with at least three first-time players and the owner's review of the coach copy ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12), Exit); D1's root Back without a confirm, the owner default as built ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)); the physical-phone items of D1, N1, D2 and D3: N1's in the [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only N1's rows, and D1's, D2's and D3's in their own records (listed in §12 item 1); the landscape fault below 701 px wide that N1 recorded and v0.6.0 would ship publicly for the first time (§1, §12 item 17) | Open | B0 (owner accepts or defers); §12 items 1, 15, 16 and 17 |
+| G11 | The packets' owner-pending exits: D3's human playtest with at least three first-time players and the owner's review of the coach copy ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12), Exit); D1's root Back without a confirm, the owner default as built ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)); the physical-phone items of D1, N1, D2 and D3: N1's in the [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only N1's rows, and D1's, D2's and D3's in their own records (listed in §12 item 1); the landscape fault below 701 px wide that N1 recorded and v0.6.0 would ship publicly for the first time (§1, §12 item 17); the vertical-fit fault on portrait phones that N1 also recorded and v0.6.0 would also ship publicly for the first time (§1, §12 item 18) | Open | B0 (owner accepts or defers); §12 items 1, 15, 16, 17 and 18 |
 
 ## 5. Ordered checklist
 
@@ -578,7 +584,9 @@ acceptance (B1, §12 item 14).
 still says "19 runtime files" (`docs/HOSTING.md:13`). Draft release notes. They
 must tell players to reload every open tab after the release (§6), and can say
 that a 匯出旅程備份 file from v0.5.1 imports in 旅程閣 (D2). If the owner ships
-the landscape fault below 701 px (§12 item 17), they name it as a known issue.
+the landscape fault below 701 px (§12 item 17) or the vertical-fit fault on
+portrait phones (§12 item 18), the notes name each one shipped as a known
+issue.
 
 **A8 · Local release-candidate checks**, on `main` at or after `0281798` plus
 the release PR, never on `8afbabc` or another pre-fence commit (§1).
@@ -618,8 +626,9 @@ of the §6 open-tab and hidden-backup cases, the Q1 contract with its
 forward-only rule (G9, §12 item 12), how exact-source CI happens while the
 Actions budget blocks it (G7, §12 item 14), the packets' physical-phone items
 and the review rounds D2 and N1 ended at their cap (item 1), D1's root Back
-(item 15), D3's playtest exit (G11, item 16) and the landscape fault below
-701 px (item 17). Staging was decided in A0. The WebKit
+(item 15), D3's playtest exit (G11, item 16), the landscape fault below
+701 px (item 17) and the vertical-fit fault on portrait phones (item 18).
+Staging was decided in A0. The WebKit
 expansion tab (item 13) needs no decision any more: N1 fixed it.
 
 **B1 · CI then OWNER · Exact source.** Open the release PR. CI must pass on the
@@ -1335,8 +1344,9 @@ physical-device evidence ([HANDOVER.md:342-346](HANDOVER.md)).
    and has decided the packets' owner-pending exits (G11): D3's playtest held
    or deferred and its coach copy reviewed, D1's root Back confirmed or
    changed, the physical-phone items of D1, N1, D2 and D3 accepted on
-   emulation evidence or checked, and the landscape fault below 701 px shipped
-   as documented or fixed (§12 items 1, 15, 16 and 17). The owner has also
+   emulation evidence or checked, and the landscape fault below 701 px and the
+   vertical-fit fault on portrait phones each shipped as documented or fixed
+   (§12 items 1, 15, 16, 17 and 18). The owner has also
    seen that D2's and N1's last review fixes were not reviewed again (§12
    item 1).
 8. Either the A5 guards ship, or the owner has accepted the open-tab and
@@ -1376,7 +1386,10 @@ disables cloud upload for new clients, so the owner decides.
    physical-phone items D1, N1, D2 and D3 leave open (G11): ship on
    emulation evidence, or check phones first. N1's are the
    [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only
-   N1's rows. The other packets' are in their own records:
+   N1's rows. Two entries there are faults already measured in emulation, not
+   items waiting for a phone: the "Open, below 701px wide" part of the
+   "Landscape dock and header" row (item 17), and the "Short screens" row, the
+   vertical-fit fault (item 18). The other packets' are in their own records:
    - D1: Android gesture navigation with predictive back, the iOS Safari edge
      swipe, whether a real Back button skips an entry, and bfcache restores on
      phones ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12), "Checks";
@@ -1528,6 +1541,47 @@ disables cloud upload for new clients, so the owner decides.
     these sizes was not checked. Decide: ship with the fault documented (the
     A7 release notes then name it), or fix it first, which is new work:
     vertical fit below 701 px was outside N1.
+18. **Vertical fit on portrait phones** (G11; added 2026-10-13, review round
+    2). N1 recorded this limit as well and did not fix it
+    ([NAVIGATION.md:422-449](NAVIGATION.md), Limits; the M5.1
+    [checklist](MOBILE-RELEASE.md#m51-phone-checklist)'s "Short screens" row,
+    "Not fixed by N1"). A framed list pages by its tallest item
+    (`viewport.mjs:15-21`), and, as NAVIGATION records, the list's compact
+    cards are keyed to the viewport height (`max-height: 740px`), not to the
+    height left after the insets. So a character's tile that holds several
+    copies can be taller than the list's frame: the viewport controller flags
+    the list (`data-viewport-overflow`) and the tile runs under the list's
+    pager.
+    Re-measured on 2026-10-13 on the tree of `0281798`, in emulation only
+    ([cmd] §13):
+    - With N1's fixture (every WX-01 printing in the save, so six copies of
+      `wukong`), the 我的戰卡 list flags at 412×790, 393×780 and 360×780 in
+      Chromium and WebKit, and on taller phones with top and bottom insets:
+      412×839 with 48/34 px and 393×852 with 59/34 px, an iPhone 15
+      home-screen web app (where D2 asks for persistent storage at every
+      launch, [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
+      It does not flag at 412×800, 393×800, or 412×839 without insets. In
+      Chromium the tallest tile, 361 px, runs 8–35 px past the frame, up to
+      27 px of it under the top of the pager.
+    - A new journey (16 cards, one copy each) flags at none of those sizes, in
+      either engine. With two more copies of one character the tile is 336 px
+      and flags only with the insets (Chromium only). Which collections in
+      between flag was not mapped.
+    - Shorter screens flag more pages, and in landscape with insets a flagged
+      list's items reach 3–21 px under the dock. On 2026-10-13
+      `npm run test:shell` printed NOTE lines that match NAVIGATION's
+      2026-10-12 record (320×568: the collection's cards and decks and the
+      arena; 302×640: the 三套牌組 tab; 844×390 and the Safari landscapes with
+      insets).
+
+    The framed lists are new since
+    v0.5.1: its 19 public files include no `viewport.mjs`, `viewport.css` or
+    `scene-*` file ([cmd] `git show v0.5.1:hosting/public-assets.json`), so
+    v0.6.0 would ship this to players for the first time. How v0.5.1's own
+    collection page lays out at these sizes was not checked, and no phone has
+    been tried. This is not a phone check waiting to happen (item 1): the fault
+    is measured. Decide: ship with it documented (the A7 release notes then
+    name it), or fix it first, which is new work outside N1.
 
 ## 13. Checks run for this plan
 
@@ -1604,6 +1658,8 @@ disables cloud upload for new clients, so the owner decides.
 | 2026-10-13, review round 2: scratch Node script over `git archive v0.5.1 '*.mjs'` (scratch deleted afterwards): v0.5.1's `hydrateProfile` over a JSON round trip of `claimLogin(createProfile({ now }), now)`, as its `loadProfile` reads the stored key, then `JSON.stringify(…, null, 2)`, at the test's clock `2026-09-21T12:00:00.000Z` and at 2026-10-01 and 2026-10-16; then the test file's own `v051Download(v051Profile(claimLogin(fresh(), now)))` at `0281798` (C3) | the download is **5,790 B** (`Buffer.byteLength`) and 5,782 characters at all three dates; its only non-ASCII text is the deck name 山海初陣 (`git show v0.5.1:collection.mjs` line 181), 4 characters of 3 bytes each. The stored order is the same size. The test's string `===` v0.5.1's download: true. C3, the test comment (`:94`) and the D2 third-review record gave the character count as bytes |
 | 2026-10-13, review round 2: `grep -n 'archive v0.5.1'` over VALIDATION and LOCAL-COMMANDS (C3) | the D2 third-review entry ([VALIDATION](VALIDATION.md#d2-third-review-fixes--2026-10-12), finding 4: "Checked with a scratch script over `git archive v0.5.1 '*.mjs'`") and LOCAL-COMMANDS §19 ("checked against `git archive v0.5.1`") record the check besides the test comment. C3 had said it was done by hand and that only a comment records it |
 | 2026-10-13, review round 2: `package.json`'s `test:browser` split on `&&`; `git log -S'job is green on' -- docs/RELEASE-NEXT.md`; `git show 0281798:docs/RELEASE-NEXT.md` (A6); `grep -n '^## Checks\|^\*\*Checks\.\*\*' docs/NAVIGATION.md` (A1, A6, G10) | 14 smokes, none of `back-smoke`, `save-durability-smoke`, `shell-smoke` or `coach-smoke`; only `e84e44a` added A6's hosted-run requirement, and at `0281798` A6's Verify was local; `## Checks` (`:612`) names no `test:back`, which the Back model's **Checks.** paragraph (`:161`) does |
+| 2026-10-13, review round 2: `python3 tools/serve.py --port 4205` from this worktree (code tree of `0281798`), started after checkout and stopped afterwards; `GAME_URL=http://127.0.0.1:4205 npm run test:shell` (§12 item 18) | exit 0, 99 s, 26 checks per engine. Vertical-overflow NOTE lines in both engines: 302×640 decks; 320×568 cards, decks and the arena; the device size with 48/44/34/44 px insets (Pixel 7: cards; iPhone 15: cards, decks and the arena); 844×390 with those insets: the three collection tabs, the market, 旅程閣 and the arena. Under-dock NOTE lines: 17, 6 and 5 px at 844×390 with insets; 3 px at 852×343; 6 px at 844×340; 21, 10 and 9 px at both 812×325. All as NAVIGATION recorded on 2026-10-12 ([NAVIGATION.md:422-449](NAVIGATION.md)) |
+| 2026-10-13, review round 2: a scratch Playwright script on the same server (scratch deleted afterwards), seeded as `tools/shell-smoke.mjs` seeds (`pageFor`: fixed clock, `--safe-area-inset-*` overrides), Pixel 7 in installed Chrome and iPhone 15 in WebKit 26.6; opens the collection and reads `[data-viewport-overflow="true"]`, the shown items' heights and the pager's top (§12 item 18) | N1's fixture (all 29 WX-01 printings): the `cards` list flags at 412×790, 393×780, 360×780, 412×839 with 48/34 px and 393×852 with 59/34 px in both engines, and not at 412×800, 393×800 or 412×839. Chromium: frames of 360, 350, 350, 333 and 335 px against a 361 px tallest tile, which runs 8, 18, 18, 35 and 33 px past the frame, 0–27 px past the pager's top. A new journey (16 cards) flags at none of the eight sizes in either engine. Chromium only: one WX-01 printing flags none; two more `wukong` copies flag only the two inset sizes (tile 336 px); five more give the full fixture's figures |
 
 **Not run here:** `npm run deploy -- --dry-run` (excluded by this task's
 rules; CI runs it, `ci.yml:62`), the SQL harness (no
