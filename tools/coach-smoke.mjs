@@ -21,8 +21,13 @@
  * 360×560 where the player's caption yields) every mark's copy fits its two lines and,
  * with Fury on, the cost line shows 剩 N 丹 whole while the Fury note states the damage
  * inside its button (also on the device); with full motion, Back while the round-1 reveal
- * animates holds the result and skips nothing, and mark ④ then shows. Headless engines
- * only: the owner's playtest with first-time players is the real exit (docs/VALIDATION.md).
+ * animates holds the result and skips nothing, and mark ④ then shows. Review round 2
+ * added: ② is never skipped (＋ or the slider on ① shows ②; a round 1 committed straight
+ * from ① shows ④, then round 2 opens on ②, also after a reload, and its commit completes
+ * the coach); at 340–354 px every copy fits three lines inside the 44 px status row, which
+ * never grows; and every coach check first waits for the table's entry animations to end,
+ * so no box is measured mid-translate. Headless engines only: the owner's playtest with
+ * first-time players is the real exit (docs/VALIDATION.md).
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/coach-smoke.mjs
  */
 import assert from 'node:assert/strict';
@@ -139,8 +144,11 @@ async function abandonToLobby(page) {
   await page.locator('.game-lobby').waitFor();
 }
 
-/** The table's teaching state, read from the DOM alone. */
-const tableState = page => page.evaluate(() => {
+/** Waits until no finite animation runs (the table's 3 px entry translate leaves sub-pixel
+ * boxes mid-flight); the coach outline's glow is infinite, so it never counts. */
+const settled = page => page.waitForFunction(() => document.getAnimations().every(animation => animation.playState !== 'running' || animation.effect?.getComputedTiming().endTime === Infinity), null, { timeout: 4000 });
+/** The table's teaching state, read from the DOM alone, once the entry animations are over. */
+const tableState = async page => { await settled(page); return page.evaluate(() => {
   const table = document.querySelector('#app .battle-table'), hint = table?.querySelector('[data-battle-hint]');
   const box = node => { if (!node) return null; const rect = node.getBoundingClientRect(); return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height }; };
   const style = hint ? getComputedStyle(hint) : null;
@@ -152,7 +160,7 @@ const tableState = page => page.evaluate(() => {
     skip: box(table?.querySelector('[data-action="coach-skip"]')), history: box(table?.querySelector('[data-action="history"]')),
     viewport: { width: innerWidth, height: innerHeight }, overflow: document.documentElement.scrollWidth > innerWidth + 1,
   };
-});
+}); };
 function assertHintVisible(state, label) {
   assert.ok(state.hintVisible, `${label}: the hint line is displayed and visible`);
   assert.ok(state.hint.height > 1 && state.hint.width > 1, `${label}: the hint has a visible box (${JSON.stringify(state.hint)})`);
@@ -396,6 +404,7 @@ try {
     await tap(page, '.move-panel [data-action="commit"]');
     await assertRevealTip(page, 'round 1 committed from mark ①');
     await page.locator('#overlay-root [data-battle-coach="reveal"]').waitFor();
+    assert.deepEqual(await coachRecord(page), { owed: 'pills' }, 'a commit from ① owes ②');
     await settleDepth(page, 3, 'the reveal and its coach mark');
     await teaching(page, 'Back on the reveal mark', async () => { await page.goBack(); await settleDepth(page, 2, 'Back closes the reveal mark'); });
     assert.equal(await page.locator('#overlay-root [data-battle-coach]').count(), 0, 'the reveal mark is gone');
@@ -408,6 +417,75 @@ try {
     await planning(page);
     await assertNoCoach(page, 'round 2 after Back on the reveal');
     passed('Back over the round reveal closes its coach mark as one layer, the tip stays and the result then holds');
+    await release(page);
+  }
+
+  // ── 3b. Review round 2: ② is never skipped. A round 1 committed straight from ① owes it ──
+  {
+    const page = await open('fresh');
+    await startFirstJourneyBattle(page);
+    await assertCoach(page, 'card', 'commit from ①');
+    assert.equal(await page.locator('.player-hand [aria-pressed="true"]').count(), 1, 'a card is already chosen under ①');
+    assert.equal(await page.locator('#pill-amount').textContent(), '0');
+    await tap(page, '.move-panel [data-action="commit"]');
+    await assertRevealTip(page, 'round 1 committed from ① at 0 pills');
+    const reveal = page.locator('#overlay-root .battle-reveal');
+    await reveal.locator('[data-battle-coach="reveal"]').waitFor();
+    assert.equal(JSON.parse(await stored(page, battleKey)).match.lastResult.player.pills, 0, 'round 1 went in at 0 pills');
+    assert.deepEqual(await coachRecord(page), { owed: 'pills' }, 'the commit owes ②');
+    // A reload in the reveal keeps the debt.
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    await tap(page, '.game-lobby [data-action="resume"]');
+    await page.locator('#overlay-root .battle-reveal[data-reveal-state="complete"]').waitFor();
+    await reveal.locator('[data-battle-coach="reveal"]').waitFor();
+    assert.equal(await reveal.locator('[data-action="coach-done"]').getAttribute('aria-label'), '知道了，下一回合再說仙丹', '知道了 says the coach goes on');
+    await settleDepth(page, 3, 'the reveal and its coach mark after a reload');
+    // 知道了 closes ④ only; ② waits for round 2's table.
+    await teaching(page, '知道了 with ② owed', () => tap(page, '#overlay-root [data-action="coach-done"]'));
+    assert.equal(await reveal.locator('[data-battle-coach]').count(), 0, '④ is closed');
+    assert.deepEqual(await coachRecord(page), { owed: 'pills' }, '知道了 does not end the coach while ② is owed');
+    await settleDepth(page, 2, 'the reveal without its mark');
+    await tap(page, '#overlay-root [data-action="next-round"]');
+    await planning(page);
+    const second = await assertCoach(page, 'pills', 'round 2 opens on the owed ②');
+    assert.match(second.hintText, /攻擊＝力×（1＋丹）。十二丹撐四回合/, 'the owed ② says what pills do');
+    assert.match(await page.locator('#announcer').textContent(), /攻擊＝力×（1＋丹）/, 'the owed ② is announced with the round');
+    await settleDepth(page, 2, 'round 2 and its coach mark');
+    await assertReachable(page, '.move-panel [data-action="pill-plus"]', 'owed ② add pills');
+    await teaching(page, 'a pill under the owed ②', () => tap(page, '.move-panel [data-action="pill-plus"]'));
+    await assertCoach(page, 'pills', 'the owed ② stays while pills are set');
+    // A reload on round 2 keeps it too.
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    await tap(page, '.game-lobby [data-action="resume"]');
+    await planning(page);
+    await assertCoach(page, 'pills', 'round 2 resumed after a reload');
+    await tap(page, '.move-panel [data-action="pill-plus"]');
+    await tap(page, '.move-panel [data-action="commit"]');
+    await assertRevealTip(page, 'round 2 after the owed ②');
+    assert.equal(await page.locator('#overlay-root [data-battle-coach]').count(), 0, 'no ④ again in round 2');
+    assert.deepEqual(await coachRecord(page), { firstBattle: 'done' }, 'round 2\'s commit completes the coach');
+    await tap(page, '#overlay-root [data-action="next-round"]');
+    await planning(page);
+    await assertNoCoach(page, 'round 3 after the owed ②');
+    passed('a round 1 committed straight from ① shows ④ and owes ②: after a reload and 知道了, round 2 opens on ② (announced, kept while pills are set and across a reload), and its commit completes the coach');
+    await release(page);
+  }
+  {
+    // ＋ on ① shows ②, never ③ (the slider: section 6).
+    const page = await open('fresh');
+    await startFirstJourneyBattle(page);
+    await assertCoach(page, 'card', 'before ＋ on ①');
+    await tap(page, '.move-panel [data-action="pill-plus"]');
+    assert.match((await assertCoach(page, 'pills', '＋ on ①')).hintText, /攻擊＝力×（1＋丹）/);
+    await tap(page, '.move-panel [data-action="pill-plus"]');
+    await assertCoach(page, 'commit', 'a second pill');
+    await tap(page, '.move-panel [data-action="commit"]');
+    await page.locator('#overlay-root [data-battle-coach="reveal"]').waitFor();
+    assert.equal(await page.locator('#overlay-root [data-action="coach-done"]').getAttribute('aria-label'), '知道了，結束新手指引');
+    assert.equal(await coachRecord(page), null, 'nothing is owed after ②');
+    await tap(page, '#overlay-root [data-action="coach-done"]');
+    assert.deepEqual(await coachRecord(page), { firstBattle: 'done' }, '知道了 completes the coach when nothing is owed');
+    passed('＋ on ① shows ② and the next pill ③; 知道了 then completes the coach');
     await release(page);
   }
 
@@ -489,7 +567,9 @@ try {
   }
   // ── 6. A 360 px phone: every mark's copy fits its two lines; Fury keeps 剩 N 丹 whole ──
   // 360×640 is a battle-table contract size; at 360×560 the player's caption yields and the
-  // cost line alone carries the pills left.
+  // cost line alone carries the pills left. Review round 2: narrower phones down to the
+  // 340 px minimum (353×745 is Playwright's Pixel 4) give mark ② a third line, inside the
+  // 44 px status row.
   for (const size of [{ width: 360, height: 640 }, { width: 360, height: 560 }]) {
     const at = `${size.width}x${size.height}`, page = await open('fresh', { size });
     await startFirstJourneyBattle(page);
@@ -505,7 +585,7 @@ try {
       text.textContent = original;
       return result;
     });
-    for (const copy of copies) assert.equal(copy.clipped, false, `${at}: the ${copy.step} copy (${copy.leader} leads, ${copy.commitLabel}) fits two lines, not ${copy.lines}: ${copy.text}`);
+    for (const copy of copies) assert.ok(!copy.clipped && copy.lines <= 2, `${at}: the ${copy.step} copy (${copy.leader} leads, ${copy.commitLabel}) fits two lines, not ${copy.lines}: ${copy.text}`);
     const other = await page.locator('.player-hand [data-action="select"][aria-pressed="false"]:not([disabled])').first().getAttribute('data-id');
     await tap(page, `.player-hand [data-action="select"][data-id="${other}"]`);
     await assertCoach(page, 'pills', `${at} mark ②`);
@@ -518,6 +598,34 @@ try {
     await release(page);
   }
   passed('at 360×640 and 360×560 every copy of marks ①–③ fits its two lines; with Fury on the cost line shows 剩 N 丹 whole and the Fury note states the damage inside its button');
+  for (const size of [{ width: 340, height: 640 }, { width: 348, height: 760 }, { width: 353, height: 745 }, { width: 354, height: 640 }]) {
+    const at = `${size.width}x${size.height}`, page = await open('fresh', { size });
+    await startFirstJourneyBattle(page);
+    // The row is 44 px (對弈紀錄's height) plus its 1 px rule; ①'s two lines leave it so.
+    const first = await assertCoach(page, 'card', `${at} mark ①`), row = first.status.height;
+    assert.ok(row <= 45.5, `${at}: the status row is 44 px and its rule (${row})`);
+    const copies = await page.evaluate(async () => {
+      const { coachCopy, COACH_STEPS } = await import('./battle-teaching.mjs');
+      const hint = document.querySelector('#app .battle-coach'), text = hint.querySelector('.battle-coach-text'), status = document.querySelector('#app .battle-status'), original = text.textContent, result = [];
+      for (const step of COACH_STEPS.filter(step => step !== 'reveal')) for (const leader of ['player', 'opponent']) for (const commitLabel of ['封丹 · 落子', '落子 · 決勝']) {
+        text.textContent = coachCopy(step, { leader, commitLabel }).text;
+        result.push({ step, leader, commitLabel, text: text.textContent, lines: Math.round(hint.scrollHeight / parseFloat(getComputedStyle(hint).lineHeight)), clipped: hint.scrollHeight > hint.clientHeight + 1, row: status.getBoundingClientRect().height });
+      }
+      text.textContent = original;
+      return result;
+    });
+    for (const copy of copies) {
+      assert.ok(!copy.clipped && copy.lines <= 3, `${at}: the ${copy.step} copy (${copy.leader} leads, ${copy.commitLabel}) shows whole, in ${copy.lines} lines: ${copy.text}`);
+      assert.ok(copy.row <= row + 0.5, `${at}: the ${copy.step} copy keeps the status row's height (${copy.row} against ${row})`);
+    }
+    // The slider on ① shows ②, measured on screen.
+    await page.locator('#pill-slider').fill('1'); await viewportFrames(page);
+    const pills = await assertCoach(page, 'pills', `${at} the slider on ①`);
+    assert.match(pills.hintText, /莫一次押盡。$/, `${at}: mark ② ends whole`);
+    assert.ok(pills.status.height <= row + 0.5, `${at}: mark ② keeps the status row's height (${pills.status.height} against ${row})`);
+    await release(page);
+  }
+  passed('at 340×640, 348×760, 353×745 (Pixel 4) and 354×640 every copy of marks ①–③ shows whole in at most three lines and the status row keeps its height; the slider on ① shows ②');
 
   // ── 7. Full motion: Back while the round-1 reveal animates holds the result ─────────
   {
@@ -525,7 +633,7 @@ try {
     await startFirstJourneyBattle(page);
     await assertCoach(page, 'card', 'full motion');
     await tap(page, '.move-panel [data-action="pill-plus"]');
-    await assertCoach(page, 'commit', 'full motion, a pill added');
+    await assertCoach(page, 'pills', 'full motion, a pill added');
     await settleDepth(page, 2, 'the battle and its coach mark');
     await tap(page, '.move-panel [data-action="commit"]');
     const reveal = page.locator('#overlay-root .battle-reveal');
