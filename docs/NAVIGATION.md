@@ -36,8 +36,8 @@ The [Back model](#back-model--2026-10-12) added browser and system Back on
 
 ## Back model · 2026-10-12
 
-Roadmap packet D1, on branch `d1/back-model` from `main` `7712a7b`; not merged
-or deployed. Before it, browser Back (Android system back, iOS edge swipe, a
+Roadmap packet D1, on branch `d1/back-model` from `main` `7712a7b`; merged into
+`main` in PR #11 (`335d2b7`), not deployed. Before it, browser Back (Android system back, iOS edge swipe, a
 desktop Back button) left the game from every screen, because the runtime
 created no history entries. Back now closes one layer at a time and leaves only
 from the 洞府 root.
@@ -254,7 +254,8 @@ engines, including rapid reversals and keyboard focus across modules.
 ### Mobile shell
 
 Roadmap packet N1, implemented locally on 2026-10-11 on the branch
-`n1/mobile-shell` (from `main` `7712a7b`); not merged or deployed. The evidence
+`n1/mobile-shell` (from `main` `7712a7b`); merged into `main` in PR #12
+(`e785b27`), not deployed. The evidence
 is browser emulation ([VALIDATION](VALIDATION.md#n1-mobile-shell--2026-10-11));
 physical phones remain [M5.1 items](MOBILE-RELEASE.md#m51-phone-checklist).
 
@@ -503,6 +504,97 @@ Limits:
   the wallet figures (coins and dust). They were before N1 too: at 844×390 with
   no insets the tabs spanned x 427–633 and the wallet 432–636 (with 50,000
   coins). They no longer cover any control.
+
+## Save notices on the lobby · 2026-10-12 (D2)
+
+Branch `d2/save-durability`, merging by D2's PR; not deployed. One compact strip
+above the lobby, in the place the WX-receipt and activity resume strip uses (that
+strip wins when both apply), never a dialog and never in a battle:
+
+- **有舊旅程？由備份還原** on a journey this device has just started because no
+  journey key existed: **備份檔** opens the file import (a v0.5.1 export too, since
+  the second D2 review), and **雲端旅程** opens 旅程閣, which looks the account up
+  and opens the cloud restore confirmation for a signed-in player with a backup,
+  and otherwise its 雲端旅程 tab (the sign-in for a guest). 雲端旅程 is left out
+  only for a guest 旅程閣 has found cannot sign in now. It closes when dismissed,
+  after a restore or when a battle finishes.
+- **首勝已記 · 留份備份？** (勝局已記 when the journey already had wins) and
+  **新卡入藏 · 留份備份？** after the first win and the first pack opening this
+  device records, for a player who has not made a cloud backup since:
+  **匯出備份** and **旅程閣**, which opens 旅程閣 on its 雲端旅程 tab (a guest's sign-in,
+  or 備份此裝置 brought onto its page for a signed-in player). A player is skipped only when 旅程閣 has already found them signed in
+  during this page; the lobby makes no account request. Each appears at most once
+  ever and stays for that page until dismissed or a cloud backup is made. An
+  export from the strip leaves it up: the page cannot tell whether the browser
+  saved the file.
+- The strip keeps one row inside its 48 px; at 380 px or narrower the buttons drop
+  their arrows. Below 340 px, which phones reach since N1 removed the body's 340 px
+  minimum, the label takes a second line inside the same 48 px instead of being
+  cut (added when `main` with N1 was merged into the branch).
+
+Changed after the first D2 review (2026-10-12): 雲端旅程 on the first lobby, the
+勝局已記 copy, the 340 px strip, and the corrected rule on who is not prompted.
+Changed after the second D2 review (2026-10-12): 雲端旅程 without a cloud backup to
+confirm opened 旅程閣 on its 此裝置 tab, so a guest saw the new journey and not the
+sign-in this section promised; it now selects the 雲端旅程 tab. An export no longer
+ends or skips a prompt.
+Changed after the third D2 review (2026-10-12): a prompt's 旅程閣 used the header's
+action and opened the 此裝置 tab, which has no backup, sign-in or export; it now
+opens 雲端旅程 as the offer does. The import confirmation pages as two items (the
+file and its notes, then the comparison), so its last note is no longer drawn under
+the dialog's pager on a phone, and 上次備份 reads 雲端備份已刪除 after a confirmed
+刪除雲端備份.
+
+The 旅程閣 tools add **匯入旅程備份** and a status line (上次備份 for a cloud
+backup, 上次匯出 for the last export download started, 長期保存) beside
+**匯出旅程備份**. Rules and checks:
+[LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12);
+`npm run test:saves` covers the strip at 390 px, 340 px and 302 px, and the import
+confirmation from 340×640 to 844×390, in Chromium and WebKit.
+
+**With the Back model (D1, merged into the branch on 2026-10-12).** The strips are
+not layers: like the WX-receipt and activity resume strip, they add no history
+entry, so Back on 洞府 with a strip showing still leaves in one step. The restore
+offer stays open for the next visit; a prompt was consumed when it was shown and
+does not return. What they open follows the
+[decision table](#back-model--2026-10-12): 雲端旅程 and a prompt's 旅程閣 open
+旅程閣, which Back closes back to 洞府. The file import is one dismissible
+dialog layer (`import-review`), from the restore offer or from 旅程閣:
+
+- It opens on the tap that opens the file picker, with 選擇旅程備份檔 and 取消, and
+  its entry is pushed on that tap. A person usually stays in the picker longer
+  than the tap's user activation lasts (about 5 s), and Chromium's picker consumes
+  it, so an entry pushed when the file arrived would be refused and Back would
+  leave the game instead of closing the dialog. The chosen file replaces the
+  dialog's contents with the confirmation: the same layer, on the same entry.
+  Where the browser reports a cancelled picker (`cancel`), the dialog closes;
+  elsewhere it stays, with the picker again and 取消. A file that arrives after
+  the dialog was closed opens nothing.
+- Back, ×, Escape and the backdrop close it and write nothing. A refused file
+  closes it through `closeModal()`, which walks back over its entry, then
+  toasts the reason.
+- While a confirmed import is being written (it may wait for the profile lock
+  behind another tab) the dialog is not dismissible: × is hidden, its buttons
+  are disabled, Escape and the backdrop do nothing and Back holds (the guard
+  entry is re-armed, as for a result). Closing it could not stop the restore,
+  only hide its outcome. A refusal releases it as it was; success closes it
+  through `closeModal()`.
+- 復原上次本機旅程 in 旅程閣 (`recovery-restore`) waits for the same profile
+  lock and, since the integration review (2026-10-13), holds the same way while
+  its restore is written. Each restore's success closes only its own dialog.
+  Before, Back closed the recovery dialog with its restore still queued, and
+  when it landed it closed whatever was open, such as the import dialog opened
+  meanwhile from 匯入旅程備份, so the file picked in it opened nothing.
+- 恢復雲端旅程 (旅程閣's cloud restore, which the restore offer's 雲端旅程 leads to)
+  is not held: Back, ← 返回旅途 and the dock leave 旅程閣 while it reads the cloud.
+  Since integration review round 2 (2026-10-13), wherever it lands the screen on
+  show is redrawn from the restored journey: 洞府 shows its coins, without the
+  restore offer the restore closed. A dialog opened meanwhile stays, except a
+  preparation, whose draft the restore cleared. Before, the screen kept the
+  replaced journey under the success toast until something else rendered.
+
+`npm run test:back` checks these in Chrome (Pixel 7) and WebKit (iPhone 15)
+([VALIDATION](VALIDATION.md#d2-integration-with-main--2026-10-12)).
 
 ## Checks
 

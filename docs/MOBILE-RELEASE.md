@@ -57,9 +57,9 @@ devices/OS versions, territories and monetization remain open decisions.
 In the browser, Back now follows the decision table in
 [NAVIGATION](NAVIGATION.md#back-model--2026-10-12): a dialog or sub-view closes,
 a destination returns to 洞府, a battle in progress opens keep/abandon, a result
-holds, and 洞府 hands Back to the system. This is packet D1 on branch
-`d1/back-model`; it is not merged or deployed, and was checked only in headless
-Chrome and WebKit with phone descriptors.
+holds, and 洞府 hands Back to the system. This is packet D1 (branch
+`d1/back-model`), merged into `main` in PR #11 and not deployed; it was checked
+only in headless Chrome and WebKit with phone descriptors.
 
 A Capacitor build (M5.2) should call the same decision rather than a second
 table. The proposed wiring, not yet built or tested: an `@capacitor/app`
@@ -84,6 +84,39 @@ The browser smoke uses Playwright's `page.goBack()`. It does not cover Android
 gesture navigation (including predictive back), the iOS Safari edge swipe or
 bfcache restores on phones (it runs them only in headless Chrome); those are
 M5.1 items not yet verified (see the table below).
+
+## Browser save durability (D2) · 2026-10-12
+
+Research, not measured here: WebKit deletes all script-writable storage of a
+site after seven days of Safari use without interaction with that site
+(webkit.org/blog/10218; MDN, 2026-01-05), and iOS 26 home-screen web apps keep
+storage separate from Safari. A browser or home-screen player can therefore
+lose a journey that lives only in `localStorage`.
+
+Packet D2 (branch `d2/save-durability`, merging by D2's PR; not deployed) adds
+`platform.mjs`, the seam the M5.2 native adapter extends: `requestPersistence()`
+makes one feature-detected `navigator.storage.persist()` request and
+`checkPersistence()` reads `persisted()`, which never prompts; `exportJourney()`
+and `importJourney(file)` move the journey export out and back in through the
+strict restore. `save-status.mjs` decides when to ask: once per device, at the
+first win or first pack opening this device records, and, in an installed web
+app, at every launch until the browser agrees (corrected after the first D2
+review; this note said "once"). 旅程閣 shows the last cloud backup's date, when
+the last export download started (a browser page cannot confirm the file was
+saved; corrected after the second D2 review) and the browser's answer; a new
+journey offers a restore, from a v0.5.1 export too. A native share sheet that
+reports a completed save could record a confirmed backup instead. A native build can replace
+those three functions (durable native storage, a share sheet, a file picker)
+without changing the journey format. With D1 merged into the branch, the import
+dialog is one Back layer: it opens on the tap that opens the picker, Back closes
+it as × does, and Back holds while a confirmed import is written, so
+`requestBack()` follows the same rows; a native picker that replaces the file
+input should keep that dialog open while it is up
+([NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2)).
+[LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
+has the rules and checks. **UNVERIFIED:** eviction and `persist()` answers on a
+real iPhone, in Safari or in a home-screen app; physical-device storage checks
+remain part of M5.1–M5.2.
 
 ## Packaging route
 

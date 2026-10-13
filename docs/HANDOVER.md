@@ -3,8 +3,11 @@
 Start here when joining development. Updated **2026-09-29**, with the Q0, Q4
 and Q1 checkpoints and the LZ-01 special-art addenda (under
 [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
-**2026-10-11**; on the `n1/mobile-shell` branch, also the N1 checkpoint. Q0 and Q4 merged into `main` in PRs #5 and #9, and Q1 by
-PR #10; none of them is deployed. The last recorded
+**2026-10-11**, the N1 mobile-shell checkpoint (2026-10-11), and the D1 Back
+model and D2 save-durability checkpoints (**2026-10-12**). Q0 and Q4 merged into
+`main` in PRs #5 and #9, Q1 by PR #10, D1 by PR #11 and N1 by PR #12. D2, which
+has merged D1 and N1 from `main`, is merging by D2's PR. None of them is
+deployed. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -46,8 +49,8 @@ Roadmap packet N1 (mobile shell polish), which the owner approved on 2026-10-11
 for the v0.6.0 release scope, is implemented on the branch
 **`n1/mobile-shell`**, started from `origin/main` `7712a7b`. Source commits:
 `623273d`, `42d1285`, `79fc4a4`, `9185563`, `f8c2134` and `484854b`; the
-documentation commit after them changes no served file. **Status:** not merged,
-pushed or deployed; no hosted check. It was built alongside D1 (Back model) and
+documentation commit after them changes no served file. **Status:** merged into
+`main` in PR #12 (`e785b27`); not deployed; no hosted check. It was built alongside D1 (Back model) and
 D2 (save durability) in sibling worktrees from the same base; both edit
 `app.mjs` logic, and N1's only `app.mjs` change is two `aria-label` attributes
 in `experienceSettingsModal`.
@@ -416,7 +419,8 @@ tests, allowlist), **`97543e8`** (the `app.mjs` hooks), **`37ca36c`**
 (`tools/back-smoke.mjs`, `npm run test:back`), `c86e529` (code comments only),
 **`cf14ee7`** (gives up an own history walk that never lands after 3 s) and
 `e2e1474` (smoke messages only); the commits after them change documentation
-only. **Status:** not merged, pushed or deployed; no hosted check.
+only. **Status:** merged to `main` in PR #11 (merge commit `335d2b7`); not
+deployed; no hosted check. D2's branch has since merged it (below).
 Two other packets were built at the same time from `7712a7b`: D2 (save
 durability) and N1 (mobile shell CSS). D2 also edits `app.mjs`, and this
 packet's `app.mjs` changes are one import, three one-line `nav.queue()` calls
@@ -491,6 +495,160 @@ input, popstate and pageshow listeners after the `pagehide` listener, and
   also runs real bfcache restores in Chrome; WebKit's page cache and phones
   remain open. Checks: [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12),
   "Review round 3 fixes".
+
+## D2 save-durability checkpoint · 2026-10-12 (local only)
+
+Packet **D2 · saves never vanish silently**, approved by the owner on
+2026-10-11 for the v0.6.0 scope, is implemented on the branch
+**`d2/save-durability`** from `origin/main` `7712a7b`, after three review rounds
+(fixes `a290151` and `4ba6e31`, then `22c9f90`, then `a6467b5`, all
+2026-10-12). **Status:** merging by D2's PR, after `main` `335d2b7` (D1, PR #11)
+and then `e785b27` (N1, PR #12) were merged into the branch; not merged to
+`main` or deployed; no hosted service was called. Built alongside D1 (Back model) and N1 (mobile shell CSS) in sibling
+worktrees; D1 also edits `app.mjs`.
+
+- **Changed:** 匯入旅程備份 in the 旅程閣 tools imports the journey export
+  (only that format, including a v0.5.1 (profile v3) export since the second
+  review, migrated as `load()` migrates a legacy key; oversize, unparsable,
+  older than v3 or future, unfinished, inconsistent and invalid files are
+  refused before anything is written) and applies it through
+  `restoreLocalProfile`, the strict fenced restore that cloud
+  restore and local recovery use: recovery copy first, the replaced command
+  lineage retired, one profile write, nothing on refusal. Those checks now live
+  in `profile-store.mjs` `store.restore`. The 旅程閣 tools show the date of this
+  device's last cloud backup (上次備份), when its last export download started
+  (上次匯出; a page cannot confirm the file was saved, so an export is never a
+  backup and never ends or skips a prompt) and the browser's answer to
+  `navigator.storage.persist()`. It is asked once per device, at the first win or
+  first pack opening this device records (an existing journey's next one), and in
+  an installed web app at every launch until granted; never on an ordinary load.
+  A request whose page closed before the answer is settled at the next start from
+  `persisted()` (granted or 未有回覆). After a confirmed 刪除雲端備份 the status reads
+  上次備份：(date) · 雲端備份已刪除. A player not known to be signed in gets one
+  low-key lobby strip after each of those milestones, at most once ever; its
+  旅程閣 opens the 雲端旅程 tab. The lobby knows a player is signed in only after
+  旅程閣 looked the account up in that page. A journey this device has just started, because no journey key
+  existed, shows 有舊旅程？由備份還原 until dismissed, restored or its first battle,
+  with 備份檔 and 雲端旅程 (into 旅程閣: its cloud restore, or else its 雲端旅程
+  tab).
+  New allowlisted files: `platform.mjs` (the seam M5.2's native adapter extends),
+  `save-status.mjs` (device-local record `shanhai.saves.v1`), `save-ui.mjs`,
+  `saves.css`. `PROFILE_VERSION`, the snapshot format, the Worker, the SQL and
+  the journey flags are unchanged.
+- **Checked** (headless, against this worktree's server on port 4202; each
+  round lists only what ran on that round's tree):
+  - First build: the Node suite, `npm run audit:content`, `npm run build`,
+    `npm run test:saves` in Chromium and WebKit, `npm run test:commands` in
+    both, and the 14 Chromium `npm run test:browser` suites
+    ([VALIDATION](VALIDATION.md#d2-save-durability--2026-10-12)).
+  - Round 1 fixes: the same list, plus `test:viewport` and `test:wx01` in both
+    engines ([VALIDATION](VALIDATION.md#d2-review-fixes--2026-10-12)).
+  - Round 2 fixes: the Node suite, `audit:content`, `build`, `git diff --check`,
+    `test:saves` in both engines, and `test:browser` on the tree before the
+    commit ([VALIDATION](VALIDATION.md#d2-second-review-fixes--2026-10-12)).
+    **Not** `test:commands`, `test:viewport` or `test:wx01`. (Corrected after
+    the third review: this bullet said the whole first list ran again after the
+    second round.)
+  - Round 3 fixes: the Node suite, `audit:content`, `build`, `git diff --check`,
+    `test:saves` in both engines (18 groups) and `test:commands` in both, on
+    `a6467b5`, and `test:browser` on the same tree before the commit
+    ([VALIDATION](VALIDATION.md#d2-third-review-fixes--2026-10-12)). Not
+    `test:viewport` or `test:wx01`.
+- **Review round 1 (2026-10-12):** twelve findings, several overlapping, all low
+  after verification (one was first rated medium).
+  Fixed: 雲端旅程 on the first lobby after an eviction; the strip at 340 px; 勝局已記
+  instead of 首勝 for a journey with earlier wins, and a close label that no
+  longer says "later"; a `requested` persistence record stuck "waiting"; the
+  import confirmation now names the recovery copy it replaces; a test now pins
+  the offer closing on a restore. Documented instead of changed: a quote from
+  before an import into a journey without a ledger commits once on an identical
+  copy (§15 decision 1), and a signed-in player who has not opened 旅程閣 in the
+  page is prompted like a guest (the lobby makes no account request).
+- **Review round 2 (2026-10-12):** five findings, two of them the same defect.
+  Fixed: an export was recorded as the last backup when its link was clicked,
+  so a cancelled or blocked download read 上次備份 · 匯出檔案, ended the strip it
+  was pressed from and could skip a due prompt (low); the offer's 雲端旅程 opened
+  旅程閣 on 此裝置 for anyone without a cloud backup to confirm, hiding the sign-in
+  (medium); every v0.4.1–v0.5.1 export was refused although the strict legacy
+  path migrates it (medium; one verifier rated it low); and three documented
+  rules (an export counts only when it would import, a cloud backup ends the
+  prompt, a WX receipt's strip comes first) had no test (low). Each fix has a Node case
+  and a smoke group that failed with the fix reverted.
+- **Review round 3 (2026-10-12):** five findings. Fixed: the import confirmation
+  was one block taller than a phone's dialog page, so with a v0.5.1 file and a
+  recovery copy kept, the warning on how to keep that copy was drawn under the
+  pager from 340×640 to 390×664 (medium); it is now two page items (the file and
+  its notes, then the comparison), on one page from 340×640 and paged at 844×390.
+  A backup prompt's 旅程閣 opened the header's default 此裝置 tab (low); it now opens
+  雲端旅程, with 備份此裝置 brought onto its page. 上次備份 kept reading 雲端備份 after a
+  confirmed 刪除雲端備份 (low); it now reads 雲端備份已刪除 and no longer skips a
+  prompt. Corrected: the v0.5.1 fixture was byte-identical to v0.5.1's stored
+  profile, not to its download (low; the test now also builds the download's key
+  order), and this checkpoint claimed `test:commands` ran after round 2 (low). The
+  three behavioural fixes each have a Node case and a smoke group (S10b, S7, S11)
+  that failed with the fix reverted.
+- **UNVERIFIED:** real iPhone seven-day eviction, iOS home-screen storage
+  isolation, real `persist()` answers (the smoke uses a spy), and iOS Safari's
+  download sheet with the export (a refused download was checked only with
+  Playwright's `acceptDownloads: false`). Not run: the account smoke in WebKit
+  (it is Chromium-only), devices, deploy dry runs, CI; after round 2,
+  `test:commands`, `test:viewport` and `test:wx01`; after round 3, `test:viewport`
+  and `test:wx01` (see the round-3 VALIDATION note). The import confirmation's
+  layout was checked in Playwright's engines at the sizes S10b lists, not on a
+  phone, and not with enlarged text.
+- **Open:** LOCAL-COMMANDS §15 decision 1 still applies to the import, so the
+  packet's exit item "a command ID issued before the import is expired or
+  refused" holds only for a journey with a command ledger: without one, a quote on a copy the file holds unchanged
+  commits once, at its quoted price.
+  [LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
+  own the rules. Importing a v0.5.1 export, which this list left to the owner's
+  stranded-v3 decision before the second review, now works; that decision (A5)
+  is about reading the v3 key, not files. `docs/RELEASE-NEXT.md` still says no
+  build imports a save file (§6) and points support at an open v0.5.1 tab's
+  footer export (C4); the orchestrator updates it after merge.
+- **Merge notes:** `app.mjs` changes are localised: imports, the `saves` record
+  next to `profileStore`, `restoreLocalProfile`'s lock body, one block after
+  `recoveryMarkup` (`lobbySaveNotice`, `reviewImport` and the import helpers),
+  `homeMarkup`, the 旅程閣 page's tools in `render`, one line each in
+  `recordFinishedMatch`, `showPackReceipt` and the legacy `buy-pack` modal, the
+  click handler's export/import/notice actions, `restore-offer-cloud` (which
+  selects the 雲端旅程 module since the second review) and `backup-prompt-cloud`
+  (the prompts' 旅程閣, since the third), `account-upload` and `account-delete`
+  (with `backupMade` and `backupDeleted` after `lobbySaveNotice`), and the
+  startup `saves.launch`. Add `npm run test:saves` beside `test:commands` in
+  the release checks, and the new files to `docs/README.md`.
+- **Merged with D1 (2026-10-12):** `origin/main` `335d2b7` (D1, PR #11) merged
+  into this branch with `--no-ff`. `app.mjs` keeps both: D1's `settling` flag
+  wraps `recordFinishedMatch()`'s save, with `saves.battleFinished` inside it
+  after the save succeeds, and the startup runs `saves.launch` then
+  `nav.start()` before the first render. The allowlist has `nav-stack.mjs`
+  followed by D2's four files.
+- **Integrated with D1 and N1 (2026-10-12):** `077b394` gives the file import
+  one Back layer. Its dialog opens on the tap that opens the picker, so the entry
+  is pushed with that tap's activation, and the file replaces its contents with
+  the confirmation; refusals and success close it through `closeModal()`; while
+  a confirmed import is written it is not dismissible and Back holds. The lobby
+  strips are not layers. `tools/back-smoke.mjs` has three D2 groups (19 checks
+  in Chrome, 18 in WebKit). Then `origin/main` `e785b27` (N1, PR #12) was merged
+  (`37bb0ce`; only the three documents conflicted), and `272f3c2` lets the
+  strip's label take a second line below 340 px, which phones reach since N1
+  removed the body's 340 px minimum. Rules:
+  [NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2); checks:
+  [VALIDATION](VALIDATION.md#d2-integration-with-main--2026-10-12).
+- **Integration review round 1 (2026-10-13):** 復原上次本機旅程 now holds its
+  dialog while its restore is written, as the import does (`holdRestore`), and
+  each restore's success closes only its own dialog, so a recovery landing no
+  longer closes an import dialog and its picked file. `test:back` has a fourth
+  D2 group (20 checks in Chrome, 19 in WebKit), `test:saves` S12 (19 groups) and
+  `test:commands` B11 now checks the held dialog. Checks:
+  [VALIDATION](VALIDATION.md#d2-integration-review-round-1-fixes--2026-10-13).
+- **Integration review round 2 (2026-10-13):** a cloud restore (恢復雲端旅程,
+  which the offer's 雲端旅程 leads to) is not held, so the player can leave
+  旅程閣 while it reads the cloud; it now redraws the screen it lands on
+  (`restoreCloudJourney`), so 洞府 no longer keeps the replaced journey and the
+  closed offer. `test:back` has a fifth D2 group (21 checks in Chrome, 20 in
+  WebKit) and `test:saves` S13 (20 groups). Checks:
+  [VALIDATION](VALIDATION.md#d2-integration-review-round-2-fixes--2026-10-13).
 
 ## Experience planning checkpoint · 2026-09-29
 
@@ -1033,6 +1191,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Back model / history entries (D1) | `node --test tests/nav-stack.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:back` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor); `tools/navigation-smoke.mjs` for in-app close and return paths |
 | Mobile shell / safe areas / touch (N1) | `node --test tests/mobile-shell.test.mjs`; `GAME_URL=… npm run test:shell` (Chromium as a Pixel 7, then WebKit as an iPhone 15); `npm run test:viewport` and `npm run test:expansion` for scene layout. Desktop changes need a before/after screenshot comparison; emulation is not a physical-phone check |
 | Local commands / profile fence (Q1, PR #10) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
+| Save durability: export, file import, save status, persistence (D2) | `node --test tests/save-durability.test.mjs tests/profile-store.test.mjs tests/profile-fence.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:saves` (Chromium, then WebKit); `tools/account-smoke.mjs` for cloud and local recovery restore, which share `store.restore` |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |
@@ -1116,6 +1275,12 @@ reason to replay or reverse the existing migrations casually.
   reach that tab; before then an upgrade can decide on older bytes and
   overwrite it, as before the fence. Never serve a pre-fence v5 build on an
   origin that has served Q1.
+- Since D2 (branch `d2/save-durability`), cloud restore, local recovery and the
+  file import share one strict restore (`restoreLocalProfile` →
+  `store.restore`); a new restore path must use it rather than write the
+  profile itself. The device-local `shanhai.saves.v1` record (backup time,
+  persistence answer, prompts, restore offer) is never journey data: keep it out
+  of the profile, exports, backups and the recovery-originals export.
 - Keep private-backup writes revision-checked. **`PT409` is intentional**;
   replacing it with SQLSTATE `40001` caused PostgREST transaction retries.
   Ownership comes from `auth.uid()`; the account header only guards stale tabs.

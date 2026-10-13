@@ -48,6 +48,30 @@ Clearing site data removes local progress and recovery copies. Origins are
 separate: `mythseal.com`, localhost and different local ports do not share saves.
 The footer's **匯出旅程備份** remains available for independent local exports.
 
+**Local source after v0.5.1 (D2, 2026-10-12; merging by D2's PR, not deployed).** The
+旅程閣 tools add **匯入旅程備份**, which restores a 匯出旅程備份 file through the
+same strict restore as **恢復雲端旅程** (recovery copy first, nothing written on
+refusal), and a status line with the date of this device's last successful
+**備份此裝置** (上次備份) and, separately, of the last export download it started
+(上次匯出), recorded on this device only. A page cannot tell whether the browser
+saved an exported file, so since the second D2 review an export is never shown or
+counted as a backup. The import also takes a v0.5.1 (profile v3) export, migrated
+as this device would migrate that journey under its old key. The unfinished-battle
+refusal of every restore now reads 請先完成或放棄未完對局，再恢復旅程；本機旅程未有更改。
+On a journey this device has just started, the lobby offers 有舊旅程？由備份還原 with
+雲端旅程, which opens 旅程閣; 旅程閣 looks the account up as usual and, for a
+signed-in player with a cloud backup, opens this restore confirmation, and
+otherwise its 雲端旅程 tab (the sign-in for a guest; changed after the first D2
+review: 雲端旅程 used to need 旅程閣 to know the account already; after the
+second, it selects that tab instead of 此裝置). The import confirmation says when
+it replaces the one recovery copy this browser keeps. After a confirmed
+**刪除雲端備份** the status line reads 上次備份：(date) · 雲端備份已刪除 (changed after the
+third D2 review; it kept reading 雲端備份); it cannot see a delete or overwrite made on
+another device. Nothing is uploaded or restored without the player's
+confirmation, and the lobby sends no account request of its own.
+[LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
+own the rules.
+
 ## What a backup contains
 
 The versioned envelope is

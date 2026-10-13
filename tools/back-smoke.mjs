@@ -22,6 +22,16 @@
  * bfcache on (a second browser without --disable-back-forward-cache, production's
  * Cache-Control), a restore on the entry Forward left from, whichever load wrote it,
  * walks back to 洞府 once, and the next Back leaves the game.
+ * With D2 (save durability) merged: the file import's dialog, opened from the new journey's
+ * restore offer or from 旅程閣, is one Back layer even when the file arrives after the tap's
+ * activation has expired, and Back closes it with no profile write; the offer's 雲端旅程 is
+ * 旅程閣 and Back returns; while a confirmed import waits for the profile lock, Back (and
+ * Escape) hold its dialog, and the import then lands exactly once; a backup prompt shown
+ * after a win is a lobby strip, not a layer, so Back at 洞府 still leaves in one step; and
+ * 復原上次本機旅程, which shares that lock, holds the same way while written, then closes
+ * only its own dialog, so 匯入旅程備份 afterwards keeps the file picked in it. 恢復雲端旅程,
+ * reached from the offer's 雲端旅程 (fixture API), is not held: Back leaves 旅程閣 while it
+ * reads the cloud, and when it lands 洞府 shows the restored journey, without the offer.
  * Headless engines only: physical Android Back gestures and iOS edge swipes are separate evidence.
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/back-smoke.mjs
  */
@@ -33,6 +43,9 @@ import { createMatch, resolveRound } from '../engine.mjs';
 import { createProfile, beginBattle, finishBattle, PROFILE_KEY } from '../progression.mjs';
 import { mintInstance, syncCollection } from '../collection.mjs';
 import { NAV_STATE_KEY } from '../nav-stack.mjs';
+import { createSnapshot, fingerprintProfile } from '../cloud-save.mjs';
+import { PROFILE_LOCK, RECOVERY_KEY } from '../profile-store.mjs';
+import { SAVES_KEY } from '../save-status.mjs';
 
 const browserName = process.env.BROWSER || 'chromium';
 if (!['chromium', 'webkit'].includes(browserName)) throw Error('BROWSER must be chromium or webkit.');
@@ -75,6 +88,8 @@ assert.equal(finished.status, 'finished');
 const settled = finishBattle(overkill.started.profile, { encounterId: overkill.started.encounter.id, winner: finished.winner, playedCardIds: finished.player.used, now }).profile;
 const FIXTURES = {
   journey: { profile: JSON.stringify(journey()), battle: null },
+  // No journey stored: the game starts one and offers a restore (D2).
+  fresh: { profile: null, battle: null },
   playing: battleSeed(playing, opener),
   final: battleSeed(overkill, opener, { selected: killing.cardId, pills: killing.pills, fury: killing.fury }),
   // As commitMove persists the final round before its settlement is saved.
@@ -92,7 +107,8 @@ const browser = await engines[browserName].launch({ headless: true, ...(browserN
 /** hosting/_headers: production lets the bfcache keep the game; the loopback server sends no-store. */
 const PRODUCTION_CACHE = 'public, max-age=0, must-revalidate';
 /** from: the browser; cache: a Cache-Control to serve instead of no-store; via: a page the tab opens before the game. */
-async function open(name, { from = browser, cache = null, via = null } = {}) {
+/** api: a fixture handler for this origin's /api/ requests (by default, a guest). */
+async function open(name, { from = browser, cache = null, via = null, api = null } = {}) {
   const fixture = FIXTURES[name];
   const context = await from.newContext({ ...device, reducedMotion: 'reduce' });
   contexts.add(context);
@@ -108,7 +124,7 @@ async function open(name, { from = browser, cache = null, via = null } = {}) {
     try { storage = localStorage; } catch { return; } // about:blank after the root hands Back on
     if (!storage.getItem('back-smoke.seeded')) {
       storage.setItem('back-smoke.seeded', 'yes');
-      storage.setItem(keys.profile, fixture.profile);
+      if (fixture.profile) storage.setItem(keys.profile, fixture.profile);
       if (fixture.battle) storage.setItem(keys.battle, fixture.battle);
       storage.setItem(keys.preferences, JSON.stringify({ sound: false, ambience: 0.35, effects: 0.6, motion: 'reduce', pace: 'fast' }));
     }
@@ -121,6 +137,7 @@ async function open(name, { from = browser, cache = null, via = null } = {}) {
   }, { fixture, keys: { profile: PROFILE_KEY, battle: battleKey, preferences: preferenceKey }, now });
   await context.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
+    if (api && url.origin === base.origin && url.pathname.startsWith('/api/')) return api(route, request, url);
     if (url.origin === base.origin && url.pathname === '/api/v1/account' && request.method() === 'GET') {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: false, user: null, emailEnabled: true }) });
     }
@@ -162,7 +179,7 @@ const describe = page => page.evaluate(() => {
     parts.push(has('quest-scroll') ? 'quests' : has('experience-settings') ? 'settings' : inside('.rules-grid') ? 'rules'
       : has('encounter-prep') ? 'prep' : has('instance-modal') ? 'instance' : has('codex-detail') ? 'codex-detail'
       : has('battle-reveal') ? 'round-result' : inside('.match-score') ? 'match-result'
-      : inside('[data-action="abandon-navigate"]') ? 'leave' : 'dialog');
+      : inside('[data-action="abandon-navigate"]') ? 'leave' : has('import-modal') ? 'import' : 'dialog');
   }
   return parts.join('>');
 });
@@ -231,6 +248,28 @@ async function leaveFromRoot(page, label) {
   await page.locator('.game-lobby').waitFor();
   assert.equal(await profileRaw(page), before, `${label}: leaving and returning leaves the save bytes unchanged`);
   return writes;
+}
+
+// ── D2 save durability with the Back model ──────────────────────────────────────
+/** A journey export file (the stored journey, indented, as 匯出旅程備份 downloads it). */
+const exportFile = profile => ({ name: '萬象契旅程-back-smoke.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(profile, null, 2)) });
+const savesRecord = page => page.evaluate(key => JSON.parse(localStorage.getItem(key) || 'null'), SAVES_KEY);
+/** Pick a file through the page's own picker. `slow`: the person stays in the picker longer
+ * than the tap's activation lasts (about 5 s) and the file arrives with no input of its own,
+ * as on a phone. Playwright's setFiles would grant a fresh activation, so the page receives
+ * the file from a timer instead, and nothing is evaluated meanwhile (each evaluation would
+ * grant one too). Returns whether the page still had activation when the file arrived. */
+async function pickFile(page, trigger, file, { slow = false } = {}) {
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), trigger.click()]);
+  if (!slow) { await chooser.setFiles(file); return null; }
+  await page.evaluate(({ name, text, ms }) => setTimeout(() => {
+    window.backSmokePickActive = navigator.userActivation ? navigator.userActivation.isActive : null;
+    const input = document.getElementById('journey-import-file'), data = new DataTransfer();
+    data.items.add(new File([text], name, { type: 'application/json' }));
+    input.files = data.files; input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, ms), { name: file.name, text: file.buffer.toString('utf8'), ms: 5600 });
+  await page.waitForTimeout(6200);
+  return page.evaluate(() => window.backSmokePickActive);
 }
 
 try {
@@ -530,6 +569,207 @@ try {
     assert.ok(JSON.parse(raw).pending, 'the match is still pending');
     await leaveFromRoot(page, 'after a failed settlement on resume');
     passed(`${deviceName}: a settlement that fails on resume: Back closes the pending dialog, then the battle layer, then leaves 洞府; nothing written`);
+    await release(page);
+  }
+
+  {
+    // D2 with D1 (a): the file import's dialog is one layer, wherever it opens. It opens on the
+    // tap that opens the picker, so its entry is there even when the file comes back after the
+    // tap's activation has expired; Back closes it as × does, and nothing is written.
+    const page = await open('fresh'), offer = page.locator('[data-save-notice="restore-offer"]');
+    await offer.waitFor(); await settle(page, 'home');
+    const raw = await profileRaw(page), writes = await profileWrites(page), start = await page.evaluate(() => history.length);
+    const file = exportFile(journey());
+    const active = await pickFile(page, offer.locator('[data-action="import-save"]'), file, { slow: true });
+    assert.notEqual(active, true, 'the file arrived after the tap\'s activation expired');
+    await page.locator('.modal .import-compare').waitFor();
+    await settle(page, 'home>import');
+    assert.equal(await page.evaluate(() => history.length), start + 1, 'one entry, pushed on the tap');
+    await back(page, 'home');
+    assert.equal(await offer.count(), 1, 'the offer is still there');
+    // The picker's dialog itself, before a file (a browser that does not report a cancelled
+    // picker leaves it open): Back closes it too.
+    await Promise.all([page.waitForEvent('filechooser'), offer.locator('[data-action="import-save"]').click()]);
+    await page.locator('.modal [data-import-pick]').waitFor(); await settle(page, 'home>import');
+    await back(page, 'home');
+    // From 旅程閣: the dialog, then 旅程閣, then 洞府.
+    await click(page, '.game-header [data-action="account-open"]'); await settle(page, 'account', 1);
+    await pickFile(page, page.locator('#app [data-action="import-save"]'), file);
+    await page.locator('.modal .import-compare').waitFor(); await settle(page, 'account>import', 2);
+    await back(page, 'account', 1);
+    await back(page, 'home', 0);
+    // The offer's 雲端旅程 is 旅程閣 (this guest's cloud tab); Back returns to 洞府.
+    await click(page, '[data-save-notice="restore-offer"] [data-action="restore-offer-cloud"]'); await settle(page, 'account', 1);
+    await page.locator('.account-shell[aria-busy="false"]').waitFor();
+    await back(page, 'home');
+    assert.equal(await profileRaw(page), raw, 'the save bytes are unchanged'); assert.equal(await profileWrites(page), writes, 'no profile write');
+    assert.equal((await savesRecord(page))?.restoreOffer, 'open', 'Back did not close the offer');
+    assert.ok(await page.evaluate(() => history.length) <= start + 2, 'history stays bounded');
+    passed(`${deviceName}: D2 import dialog from the restore offer (a pick slower than the tap's activation) and from 旅程閣, and the offer's 雲端旅程: one layer per Back, no profile write`);
+    await release(page);
+  }
+
+  {
+    // D2 with D1 (b): Back while a confirmed import is waiting for the profile lock (as behind
+    // another tab's write) holds the dialog; the import then lands exactly once.
+    const page = await open('fresh'), offer = page.locator('[data-save-notice="restore-offer"]');
+    await offer.waitFor(); await settle(page, 'home');
+    const started = JSON.parse(await profileRaw(page)), writes = await profileWrites(page), backup = journey();
+    await pickFile(page, offer.locator('[data-action="import-save"]'), exportFile(backup));
+    await page.locator('.modal .import-compare').waitFor(); await settle(page, 'home>import');
+    await page.evaluate(name => new Promise(resolve => {
+      navigator.locks.request(name, () => { resolve(); return new Promise(done => { window.backSmokeReleaseLock = done; }); });
+    }), PROFILE_LOCK);
+    await click(page, '.modal [data-action="import-confirm"]');
+    await page.locator('#overlay-root .modal-backdrop[data-dismissible="false"] .modal[aria-busy="true"]').waitFor();
+    assert.ok(await page.locator('.modal [data-action="import-confirm"]').isDisabled(), 'no second confirmation while it is written');
+    page.expectRow = 'hold';
+    await back(page, 'home>import', 1);
+    await back(page, 'home>import', 1);
+    page.expectRow = null;
+    await page.keyboard.press('Escape'); await viewportFrames(page);
+    assert.equal(await describe(page), 'home>import', 'Escape holds too');
+    assert.equal(await profileWrites(page), writes, 'nothing written while the lock is held');
+    await page.evaluate(() => window.backSmokeReleaseLock());
+    await page.locator('#overlay-root .modal').waitFor({ state: 'detached' });
+    await settle(page, 'home', 0);
+    assert.equal(await profileWrites(page), writes + 1, 'one profile write: the import, once');
+    assert.equal(fingerprintProfile(JSON.parse(await profileRaw(page))), fingerprintProfile(backup), 'the backup was restored, not aborted');
+    assert.deepEqual(JSON.parse(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY)).snapshot, createSnapshot(started), 'the replaced journey is the recovery copy');
+    await viewportFrames(page);
+    assert.equal(await profileWrites(page), writes + 1, 'nothing applied again after the held Backs');
+    await leaveFromRoot(page, 'after an import held through Back');
+    passed(`${deviceName}: D2 while a confirmed import waits for the profile lock, Back (twice) and Escape hold its dialog; it then restores once (one profile write) and Back at 洞府 leaves`);
+    await release(page);
+  }
+
+  {
+    // D2 with D1 (c): a backup prompt after a win. The result holds on Back with the prompt
+    // still due; on 洞府 the prompt is a lobby strip, not a dialog, so it holds no entry: its
+    // 旅程閣 is one layer, and Back at 洞府 with the prompt showing leaves in one step.
+    const page = await open('final');
+    await click(page, '.game-lobby [data-action="resume"]'); await settle(page, 'battle');
+    await click(page, '.battle-table [data-action="commit"]'); await settle(page, 'battle>round-result');
+    const settledRaw = await profileRaw(page), writes = await profileWrites(page);
+    assert.equal((await savesRecord(page))?.prompts?.['first-win']?.state, 'due', 'the win left a prompt due');
+    await click(page, '.modal [data-action="next-round"]'); await settle(page, 'battle>match-result');
+    page.expectRow = 'hold';
+    await back(page, 'battle>match-result', 2);
+    page.expectRow = null;
+    assert.equal((await savesRecord(page)).prompts['first-win'].state, 'due', 'not used up behind the result');
+    await click(page, '.modal [data-action="end-home"]'); await settle(page, 'home');
+    const prompt = page.locator('[data-save-notice="first-win"]');
+    await prompt.waitFor();
+    assert.equal(await page.locator('#overlay-root .modal').count(), 0, 'a strip, not a dialog');
+    await click(page, '[data-save-notice="first-win"] [data-action="backup-prompt-cloud"]'); await settle(page, 'account', 1);
+    await page.locator('.account-shell[aria-busy="false"]').waitFor();
+    await back(page, 'home');
+    await prompt.waitFor();
+    assert.equal(await profileRaw(page), settledRaw, 'no write after the settlement'); assert.equal(await profileWrites(page), writes);
+    await leaveFromRoot(page, 'with a backup prompt on 洞府');
+    assert.equal(await prompt.count(), 0, 'shown once: not after returning');
+    passed(`${deviceName}: D2 a backup prompt after a win: the result holds on Back, the prompt then shows on 洞府 as a strip; its 旅程閣 closes on Back, and Back at 洞府 with the prompt leaves in one step`);
+    await release(page);
+  }
+
+  {
+    // D2 with D1 (d), integration review round 1: 復原上次本機旅程 shares the profile lock with
+    // the import, and every import leaves the recovery copy that offers it. While its restore
+    // waits for the lock its dialog holds on Back, Escape and the backdrop, as the import's
+    // does; it lands once and closes only itself, so 匯入旅程備份 then opens its dialog and
+    // keeps the file picked in it. Before, Back closed the dialog with the restore still
+    // queued, and its landing closed the import dialog opened since, dropping the file.
+    const page = await open('fresh'), offer = page.locator('[data-save-notice="restore-offer"]');
+    await offer.waitFor(); await settle(page, 'home');
+    const started = JSON.parse(await profileRaw(page)), backup = journey(), file = exportFile(backup);
+    await pickFile(page, offer.locator('[data-action="import-save"]'), file);
+    await page.locator('.modal .import-compare').waitFor(); await settle(page, 'home>import');
+    await click(page, '.modal [data-action="import-confirm"]');
+    await page.locator('#overlay-root .modal').waitFor({ state: 'detached' }); await settle(page, 'home', 0);
+    assert.deepEqual(JSON.parse(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY)).snapshot, createSnapshot(started), 'the import left a recovery copy');
+    await click(page, '.game-header [data-action="account-open"]'); await settle(page, 'account', 1);
+    await page.locator('.account-shell[aria-busy="false"]').waitFor();
+    await click(page, '#app [data-action="restore-recovery"]'); await settle(page, 'account>dialog', 2);
+    const writes = await profileWrites(page);
+    await page.evaluate(name => new Promise(resolve => {
+      navigator.locks.request(name, () => { resolve(); return new Promise(done => { window.backSmokeReleaseLock = done; }); });
+    }), PROFILE_LOCK);
+    await click(page, '.modal [data-action="confirm-restore-recovery"]');
+    await page.locator('#overlay-root .modal-backdrop[data-dismissible="false"] .modal[aria-busy="true"]').waitFor();
+    assert.ok(await page.locator('.modal [data-action="confirm-restore-recovery"]').isDisabled(), 'no second confirmation while it is written');
+    assert.equal(await page.locator('.modal .modal-close').isVisible(), false, '× is hidden while it is written');
+    page.expectRow = 'hold';
+    await back(page, 'account>dialog', 2);
+    await back(page, 'account>dialog', 2);
+    page.expectRow = null;
+    await page.keyboard.press('Escape'); await viewportFrames(page);
+    assert.equal(await describe(page), 'account>dialog', 'Escape holds too');
+    const point = await backdropPoint(page);
+    if (point) { await tapPoint(page, point.x, point.y); await viewportFrames(page); assert.equal(await describe(page), 'account>dialog', 'the backdrop holds too'); }
+    assert.equal(await profileWrites(page), writes, 'nothing written while the lock is held');
+    await page.evaluate(() => window.backSmokeReleaseLock());
+    await page.locator('#overlay-root .modal').waitFor({ state: 'detached' });
+    // The same task closes the dialog and shows the toast (2.6 s), so it is there now.
+    assert.equal(await page.locator('.toast').textContent(), '已復原上次本機旅程。');
+    await settle(page, 'account', 1);
+    assert.equal(await profileWrites(page), writes + 1, 'one profile write: the recovery restore, once');
+    assert.equal(fingerprintProfile(JSON.parse(await profileRaw(page))), fingerprintProfile(started), 'the recovery copy was restored');
+    // 匯入旅程備份 after it: its dialog opens on the tap and the file picked in it is compared.
+    await pickFile(page, page.locator('#app [data-action="import-save"]'), file);
+    await page.locator('.modal .import-compare').waitFor(); await settle(page, 'account>import', 2);
+    await back(page, 'account', 1);
+    await back(page, 'home', 0);
+    assert.equal(await profileWrites(page), writes + 1, 'nothing applied again after the held Backs');
+    await leaveFromRoot(page, 'after a recovery restore held through Back');
+    passed(`${deviceName}: D2 while 復原上次本機旅程 waits for the profile lock, Back (twice), Escape${point ? ' and the backdrop' : ''} hold its dialog; it restores once and closes only itself, and 匯入旅程備份 then opens with the picked file compared`);
+    await release(page);
+  }
+
+  {
+    // D2 with D1 (e), integration review round 2: 恢復雲端旅程 is not held (Back, ← 返回旅途 and
+    // the dock all leave 旅程閣 while it reads the cloud). Reached from the restore offer's
+    // 雲端旅程, Back returns to 洞府 with the restore's read still out (the fixture API keeps it
+    // until then); when it lands, 洞府 is redrawn from the restored journey: its coins, and no
+    // restore offer, which the restore closed. Before, 洞府 kept the replaced journey and the
+    // closed offer under the success toast until something else rendered.
+    const backup = journey(), snapshot = createSnapshot(backup), calls = [];
+    let answer; const read = new Promise(resolve => { answer = resolve; });
+    const api = async (route, request, url) => {
+      const reply = value => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
+      calls.push(`${request.method()} ${url.pathname}`);
+      if (url.pathname === '/api/v1/account' && request.method() === 'GET') return reply({ authenticated: true, user: { id: 'back-smoke-fixture', email: '' }, emailEnabled: true, journeyVersions: [1, 3] });
+      if (url.pathname === '/api/v3/journey' && request.method() === 'GET') {
+        // 旅程閣's lookup answers at once; the second read is the restore's own.
+        if (calls.filter(call => call === 'GET /api/v3/journey').length > 1) await read;
+        return reply({ backup: { revision: 1, updatedAt: now, snapshot }, revision: 1 });
+      }
+      errors.push(`Unexpected fixture API ${request.method()} ${url.pathname}`); return route.abort('blockedbyclient');
+    };
+    const page = await open('fresh', { api }), offer = page.locator('[data-save-notice="restore-offer"]');
+    await offer.waitFor(); await settle(page, 'home');
+    const started = JSON.parse(await profileRaw(page)), writes = await profileWrites(page);
+    const coins = () => page.locator('.game-header [title="金幣"] b').textContent().then(text => Number(text.replace(/\D/g, '')));
+    assert.equal(await coins(), started.coins); assert.notEqual(backup.coins, started.coins);
+    await click(page, '[data-save-notice="restore-offer"] [data-action="restore-offer-cloud"]'); await settle(page, 'account', 1);
+    await page.locator('.account-confirmation').waitFor();
+    await click(page, '#app [data-action="account-restore"]');
+    await page.locator('.account-shell[aria-busy="true"]').waitFor();
+    await back(page, 'home', 0);
+    await offer.waitFor();
+    assert.equal(await profileWrites(page), writes, 'nothing written while the restore reads the cloud');
+    answer();
+    // The landing redraws 洞府 before it toasts, so both are there at once.
+    await page.waitForFunction(() => document.querySelector('.toast')?.textContent.startsWith('已恢復雲端旅程'));
+    assert.equal(await coins(), backup.coins, '洞府 shows the restored journey\'s coins');
+    assert.equal(await offer.count(), 0, 'the offer the restore closed is gone from 洞府');
+    assert.equal((await savesRecord(page))?.restoreOffer, 'closed');
+    assert.equal(await describe(page), 'home'); assert.equal(await entryDepth(page), 0);
+    assert.equal(await profileWrites(page), writes + 1, 'one profile write: the cloud restore, once');
+    assert.equal(fingerprintProfile(JSON.parse(await profileRaw(page))), fingerprintProfile(backup), 'the cloud journey was restored');
+    assert.deepEqual(JSON.parse(await page.evaluate(key => localStorage.getItem(key), RECOVERY_KEY)).snapshot, createSnapshot(started), 'the replaced journey is the recovery copy');
+    assert.deepEqual(calls, ['GET /api/v1/account', 'GET /api/v3/journey', 'GET /api/v3/journey']);
+    await leaveFromRoot(page, 'after a cloud restore that landed on 洞府');
+    passed(`${deviceName}: D2 恢復雲端旅程 from the offer's 雲端旅程: Back leaves 旅程閣 while it reads the cloud; when it lands 洞府 shows the restored journey (◈ ${backup.coins}) without the offer, after one write, and Back at 洞府 leaves`);
     await release(page);
   }
 
