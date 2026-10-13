@@ -216,6 +216,17 @@ low-severity findings, all in documents:
   runs 8–35 px past the frame. A new 16-card journey flags at none of these
   sizes in either engine.
 
+Checks on the corrected tree, before committing the record: `node --test
+tests/*.test.mjs` exit 0, **603/603**; `npm run build` exit 0, 90 public
+files, manifest `e05db797…8746` (`dist/` deleted afterwards); `npm run
+audit:content` exit 0, no findings; `git diff --check` clean; the scratch link
+and anchor check finds all 487 local link targets and anchors in
+RELEASE-NEXT, this file, HANDOVER, ROADMAP and the docs index. This round's
+additions here and in HANDOVER moved 16 of RELEASE-NEXT's `HANDOVER.md:N` and
+`VALIDATION.md:N` citations; each was re-pointed and checked to cite the same
+text. The scratch scripts and their output were deleted. Network: loopback
+only.
+
 ## D3 first-battle teaching · 2026-10-12
 
 Branch `d3/first-battle-teaching`, from `origin/main` `335d2b7`; packet D3,
