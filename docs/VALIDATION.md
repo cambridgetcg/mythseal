@@ -259,8 +259,8 @@ reported more than once):
   with the same figures in both engines. At 741 px the tile runs 49 px under
   the pager's top; from 791 to 797 px it overruns the box by 7 to 1 px and
   stays above the pager. RELEASE-NEXT §1 and §12 item 18 and ROADMAP's N1
-  line now say about 741–797 px. N1's own records, NAVIGATION's Limits and
-  the N1 column of the M5.1 checklist's "Short screens" row, are left as
+  line now say about 741–797 px. N1's own records (NAVIGATION's Limits and
+  the N1 column of the M5.1 checklist's "Short screens" row) are left as
   written.
 - RELEASE-NEXT §13's closing "Not run for the 2026-10-13 revision" still
   listed `test:shell`, which review round 2 ran (99 s); it now limits that to
