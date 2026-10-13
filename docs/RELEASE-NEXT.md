@@ -1619,10 +1619,12 @@ disables cloud upload for new clients, so the owner decides.
       tall the tile runs 57 px past the box, 49 px of it under the pager;
       from 791 to 797 px it runs 7 to 1 px past the box and stays above the
       pager.
-    - A new journey (16 cards, one copy each) flags at none of those sizes, in
-      either engine. With two more copies of one character the tile is 336 px
-      and flags only with the insets (Chromium only). Which collections in
-      between flag was not mapped.
+    - A new journey (16 cards, one copy each) flags at none of the eight
+      sizes review round 2 tried (412×790, 393×780, 360×780, the two inset
+      sizes, 412×800, 393×800 and 412×839), in either engine. With two more
+      copies of one character the tile is 336 px and flags only with the
+      insets (Chromium only). Which collections in between flag, and at which
+      other heights, was not mapped.
     - Shorter screens flag more pages, and in landscape with insets a flagged
       list's items reach 3–21 px under the dock. On 2026-10-13
       `npm run test:shell` printed NOTE lines that match NAVIGATION's
