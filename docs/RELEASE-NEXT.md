@@ -1307,9 +1307,11 @@ wall time. Not re-timed at `b527dc3` or `0281798`. At `0281798` (2026-10-13,
 155.0.8059.40 and Playwright WebKit 26.6, one suite at a time):
 `test:expansion` **215 s**, `test:wx01` 205 s, `test:map-piece` 57 s,
 `test:liaozhai` 57 s, `test:inheritance` 54 s, `test:honglou` 40 s and
-`test:collection-display` 35 s. The orchestrating session's runs of
-`test:commands`, `test:back`, `test:saves`, `test:shell`, `test:coach`,
-`test:battle-table`, `test:viewport` and `test:browser` were not timed. With
+`test:collection-display` 35 s; later that day, in the same way on
+`127.0.0.1:4205`, review round 2's `test:shell` took 99 s (§13). The
+orchestrating session's runs of `test:commands`, `test:back`, `test:saves`,
+`test:shell`, `test:coach`, `test:battle-table`, `test:viewport` and
+`test:browser` were not timed. With
 those four new suites, the earlier guess of 10–15 runner minutes per run,
 browser installation included, is probably low: budget 20–30 (an estimate,
 not a measurement; the job's 30-minute timeout may need raising). Runner
@@ -1702,9 +1704,12 @@ network calls.
 
 **Not run for the 2026-10-13 revision** (by this revision itself): the SQL
 harness, `npm run deploy -- --dry-run`, `test:browser`, `test:commands`,
-`test:back`, `test:saves`, `test:shell`, `test:coach`, `test:battle-table` and
+`test:back`, `test:saves`, `test:coach`, `test:battle-table` and
 `test:viewport` (the orchestrating session ran all of these at `11d86d9`, the
-same tree, and they are attributed to it above); `test:atelier`; a browser
+same tree, and they are attributed to it above); `test:shell` in the first
+pass (the orchestrating session ran it at `11d86d9`; review round 2 then ran
+it in both engines on the code tree of `0281798`, and rounds 2 and 3 a
+scratch vertical-fit probe, as their rows above record); `test:atelier`; a browser
 first-screen measurement (the image set at `0281798` is inferred from the
 source, §9);
 `npx --no-install wrangler deploy --config wrangler.jsonc --dry-run` (A3);
