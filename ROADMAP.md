@@ -524,7 +524,11 @@ now contains `main` `a7bda4b` (D2 save durability, with N1) through merge
 `adb0dd4`. Review round 4 (2026-10-13) kept one slider drag on ① from passing
 ② on to ③, kept 剩 N 丹 and the Fury switch whole on the 302–339 px phones that
 N1 opened, and moved the branch name onto the review commits and the merge,
-which had been made on a detached HEAD.
+which had been made on a detached HEAD. Review round 5 (2026-10-13) bound a
+slider drag to its own pointer and keys, so another finger, a tap elsewhere or
+a key during the drag no longer lets it pass ② on to ③, and fitted the cost
+line in fractional pixels, so the ellipsis no longer cuts 剩 N 丹 by a
+fraction of a pixel at some widths.
 
 ### M5 · Mobile adaptation → iOS and Android closed beta
 

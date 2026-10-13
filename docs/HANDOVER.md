@@ -812,6 +812,32 @@ deployed; no hosted check.
   follow it; the pill slider's input branch calls `sliderCoachEvent()`.
   Checks: [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12),
   "Review round 4 fixes".
+- **Review round 5 fixes (2026-10-13):** source commits **`57dd7a5`** and
+  **`4e91136`** (`app.mjs` only) and smoke commit **`954e365`**
+  (`tools/coach-smoke.mjs`). A slider gesture is now bound to what drives it:
+  the pointers pressed on the slider (by `pointerId`) and the keys held on it
+  that change its value (by `code`). Another finger's lift, a tap that moves
+  focus away, or a key such as Shift during a drag no longer ends the drag's
+  gesture, so the drag stays on ② until it is released; a value key pressed
+  during a drag joins its gesture. The cost line's fit is measured in
+  fractional pixels (a Range over the text against the line's content box,
+  plus `scrollWidth` within `clientWidth`), so the ellipsis no longer cuts
+  剩 N 丹 by a fraction of a pixel (it did at 320×568 and 340×640 with one
+  pill and in the 734×343 and 812×325 landscapes at twelve in Chromium, and at
+  334×740 with Fury in WebKit). `test:coach` interrupts a held drag with
+  Shift, ArrowRight and a touchscreen tap, measures the cost line in
+  fractional pixels with Fury off and on, and adds 334×740 and the two
+  landscapes. **Saves:** unchanged. **Correction:** the round-4 note above
+  says that the cost line shows the widest form that fits, each ending
+  剩 N 丹; until this fix "fits" was measured in whole pixels, so at some
+  widths 剩 N 丹 was still cut. In `app.mjs`: `costRange` and `costFits` sit
+  above `fitAttackFormula`, whose cost loop calls `costFits`; `SLIDER_KEYS`,
+  `holdSlider`, `releaseSlider` and document listeners for pointerdown,
+  keydown, pointerup, pointercancel, lostpointercapture, keyup and focusout
+  replace the gesture listeners above `sliderCoachEvent`, which is
+  unchanged. Checks:
+  [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12), "Review
+  round 5 fixes".
 
 ## Experience planning checkpoint · 2026-09-29
 

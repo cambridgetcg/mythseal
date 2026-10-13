@@ -552,6 +552,129 @@ a three-digit estimate at any width; fonts other than the headless engines';
 `test:expansion`, `test:map-piece` and the literary preview smokes;
 `tools/battle-measure.mjs`; deploy dry runs, the SQL harness and CI.
 
+**Review round 5 fixes · 2026-10-13.** Review round 5 reviewed only the
+round-4 delta (`adb0dd4`..`039634a`) and reported two independently verified
+findings on `039634a`: one medium and one low. Both were reproduced here on
+`039634a` before the fix. The code fixes are in source commits **`57dd7a5`**
+(the slider gesture) and **`4e91136`** (the cost line), both `app.mjs` only,
+and smoke commit **`954e365`** (`tools/coach-smoke.mjs`). The documentation
+commit after them changes no served, test or tool file. No allowlist change.
+`engine.mjs` and the AI are unchanged. Environment as in round 4 (Chrome
+155.0.8059.40 with Pixel 7, WebKit 26.6 with iPhone 15), with
+`python3 tools/serve.py --port 4472` started fresh from the worktree for these
+runs (`GAME_URL=http://127.0.0.1:4472`) and stopped afterwards.
+
+- **The cost line still cut 剩 N 丹 by a fraction of a pixel** (medium).
+  `fitAttackFormula` kept the first cost form for which
+  `scrollWidth <= clientWidth + 0.5`. Both values are whole pixels, so a text
+  up to about 0.7 px wider than its cell passed, and the CSS ellipsis then
+  drew `…` over the end of 剩 N 丹. Reproduced at `039634a` (a Range over the
+  text against the cell, both in px; `scrollWidth`/`clientWidth` equal in
+  every case): Chromium at 320×568 with one pill, `消耗 1 丹 · 剩 11 丹`, 86.05
+  in 85.86 (at this size the player's caption is screen-reader only); at
+  340×640 with one pill, `共消耗 1 丹 · 剩 11 丹`, 96.27 in 95.86; in landscape
+  at 734×343 with twelve pills, `消耗 12 丹 · 剩 0 丹`, 89.09 in 88.63, and at
+  812×325, `共消耗 12 丹 · 剩 0 丹`, 99.31 in 98.63; WebKit at 334×740 with
+  Fury and one pill, `共消耗 4 丹 · 剩 8 丹`, 93.37 in 92.86. A form now fits
+  only when `scrollWidth` is within `clientWidth` and a Range over its text is
+  no wider than the line's content box (`costFits`). After the fix the same
+  states show `耗 1 丹 · 剩 11 丹` and `消耗 1 丹 · 剩 11 丹` (Chromium, 320 and
+  340 px), `耗 12 丹 · 剩 0 丹` and `消耗 12 丹 · 剩 0 丹` (Chromium landscape)
+  and `消耗 4 丹 · 剩 8 丹` (WebKit, 334 px), each inside its cell. Scratch
+  evidence (not committed): one page per engine resized through every width
+  from 302 to 430 px at 640 px high, nine states each (0, 1, 5, 9 and 12 pills
+  without Fury; 0, 1, 4 and 9 with it), 1161 states per engine. With only the
+  old whole-pixel test restored, 13 states were cut in Chromium and 16 in
+  WebKit; with the fix, none in either. `test:coach`'s cost check used the
+  same whole-pixel measure, and its sizes missed the failing widths. Its
+  `assertCostLine` (which `assertFuryLines` now calls) measures the shown
+  form, and every wider form, with the Range against the content box, and
+  `test:coach` now also checks the cost line without Fury at every portrait
+  size, adds 334×740 to the narrow loop, and checks twelve pills in the
+  734×343 and 812×325 landscapes. With only the fit's old test restored,
+  `test:coach` fails in Chromium at "one pill without Fury (320x568): the
+  cost line shows 剩 11 丹 whole (text 86.046875 px in 85.859375 px, scroll
+  86 in 86 …" and in WebKit at "Fury on with one pill (334x740): the cost
+  line shows 剩 8 丹 whole (text 93.37… px in 92.859375 px, scroll 93 in 93 …".
+  A scratch copy of the smoke without the portrait loop (deleted) fails in
+  Chromium at "twelve pills in landscape (734x343)". **Correction:** the
+  round-4 record above, the HANDOVER round-4 note, the plan and the ROADMAP
+  say that the cost line always shows 剩 N 丹 whole (from 302 px). Until this
+  fix that held only to the whole pixel: at some widths, in portrait and in
+  landscape, the chosen form was up to about 0.7 px too wide and its last
+  character was cut.
+- **Other input during a slider drag let it pass ② on to ③** (low). Any
+  `pointerup` or `pointercancel` in the document, and any `keyup` or
+  `focusout` from the slider, ended the slider's gesture, and any non-repeat
+  `keydown` on it (Shift included) started a fresh one. Reproduced at
+  `039634a` in both engines: a `page.mouse` press at 3% of the slider, moved
+  to 20% in four steps (② while held), then one of three inputs while still
+  held. A `page.touchscreen.tap()` at the centre of the status row: the next
+  move showed ③ in Chromium, and in WebKit the tap itself did (WebKit's tap
+  also sends emulated mouse events to the held slider, which set one value
+  and end its drag). Shift on the focused slider (Chromium focuses it on
+  mousedown; WebKit does not, so the probe called `focus()`): the next move
+  showed ③ in both. ArrowRight on it: ③ at once in both. Each ended with the record
+  `{"step":"commit"}`. A gesture now holds the pointers pressed on the slider
+  (by `pointerId`) and the keys held on it that change its value (arrow keys,
+  PageUp/PageDown, Home/End, by `code`). Another such pointer or key joins the
+  open gesture, so a key pressed during a drag never opens a new one, and the
+  gesture ends only when the last of them is released: that pointer's
+  `pointerup`, `pointercancel` or `lostpointercapture`, that key's `keyup`, or
+  focus leaving the slider for its keys. A pointer pressed again while still
+  held (its release was missed) starts a new gesture. Other pointers and keys
+  leave it running. An `input` with no press or key before it still counts as
+  a gesture of its own. After the fix all three cases stay on ② while held
+  and after release, with the record `{"step":"pills"}`. `test:coach` now
+  holds a `page.mouse` drag at ②, presses Shift and then ArrowRight on the
+  focused slider and taps the status row with the touchscreen, and requires ②
+  after each (and, after each key, at least one further `input` from the
+  drag; WebKit's tap ends the slider's own drag, so that is required after
+  the tap in Chromium only), ② and `{"step":"pills"}` after release, and ③ on
+  the next ArrowLeft press, which shows that the gesture ended. With only the
+  gesture fix reverted, `test:coach` fails in Chromium and in WebKit at "after
+  Shift on the slider: the held drag stays on ②, not ③ (2 input events)". A
+  scratch copy of the smoke without the key presses (deleted) fails in
+  Chromium at "after a tap elsewhere: the held drag stays on ②, not ③" and in
+  WebKit at "a tap elsewhere during the drag leaves ② (1 input events)".
+  **Correction:** the round-4 record above says that a gesture runs from
+  `pointerdown` or a non-repeat `keydown` to `pointerup`, `pointercancel`,
+  `keyup` or `focusout`; those events came from any pointer, and from any key
+  on the slider, so one gesture could move the coach two marks.
+
+The two main failures above came from reverting only that fix's commit in
+the worktree after the smoke commit (`git apply -R` of its diff); `app.mjs`
+was then restored with `git checkout`, and the suites below ran on the
+committed code. The two scratch-copy failures ran before the commits, with
+the same code reverted by hand, against a smoke draft that differed from
+`954e365` only by one redundant assertion.
+
+Checks at `954e365`, all browser suites with `GAME_URL=http://127.0.0.1:4472`:
+
+- `node --test tests/*.test.mjs`: exit 0, **603/603** (no new unit test: both
+  fixes are in `app.mjs`'s DOM code, which the unit tests do not load).
+- `npm run build`: exit 0, **90 public files**, manifest `e05db797…8746`.
+- `git diff --check 039634a 954e365`: exit 0.
+- `npm run test:coach`: exit 0, **16/16 checks in each engine** (Chrome
+  155.0.8059.40 with Pixel 7, then WebKit 26.6 with iPhone 15), 64 s for both,
+  with empty error lists.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit,
+  245 s for both.
+- `npm run test:shell`: exit 0, 26 checks in Chrome and 26 in WebKit, 99 s
+  for both (its `NOTE` lines are informational, as before).
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack (no real
+two-finger drag: the second pointer here is Playwright's touchscreen beside a
+held mouse); a key held while the move panel is re-rendered (focus leaving
+the old slider releases its keys, so the next value can still move one mark,
+as before); the attack formula's own fit, which still compares whole pixels
+(that line has no ellipsis, so a fraction of a pixel spills into the cell's
+padding; not measured here); phones narrower than 302 px, a three-digit
+estimate and fonts other than the headless engines'; `test:back`,
+`test:saves`, `test:viewport`, `test:browser` and the other suites listed
+under round 4.
+
 ## D1 Back model · 2026-10-12
 
 Branch `d1/back-model`, from `origin/main` `7712a7b`; packet D1, approved by the
