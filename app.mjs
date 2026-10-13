@@ -36,7 +36,7 @@ import { prepareScene, preparePack } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
-import { attackFormula, costText, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
+import { attackFormula, costVariants, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -334,16 +334,19 @@ function updateResourcePreview() {
 const commitLabel=()=>isMistGate()?'封丹 · 落子':'落子 · 決勝';
 /** D3: the live formula for the draft, from the engine's own numbers (battle-teaching.mjs).
  * A leading opponent's announced card is public, so its effects count; otherwise 預計. */
-let attackVariants=[];
+let attackVariants=[],costForms=[];
 const draftFormula=()=>attackFormula(match,{cardId:selected,pills,fury},{announcedCardId:permittedAnnouncement(match,aiMove,{revealPending})});
 function attackPreviewMarkup(formula=draftFormula()) {
   const note=formula.known?'· 已計對手亮牌':formula.exact?'· 對手出牌亦不變':'· 未計對手影響';
-  attackVariants=formula.variants;
+  attackVariants=formula.variants;costForms=costVariants(formula,match.player.pills);
   const label=formula.text?`${formula.exact?'':'<b>預計</b> '}<span class="attack-formula-text">${safe(formula.text)}</span>`:`${formula.exact?'己方攻擊':'己方預估攻擊'}`;
-  return `<div class="attack-preview" data-attack-exact="${formula.exact}"><span class="attack-preview-copy"><span class="attack-formula" id="attack-formula" aria-hidden="true">${label} <i>${note}</i></span><small id="cost-note">${safe(costText(formula,match.player.pills))}</small></span><strong id="attack-value">${formula.attack}</strong><span class="sr-only" id="attack-sentence">${safe(formula.sentence)}</span></div>`;
+  return `<div class="attack-preview" data-attack-exact="${formula.exact}"><span class="attack-preview-copy"><span class="attack-formula" id="attack-formula" aria-hidden="true">${label} <i>${note}</i></span><small id="cost-note">${safe(costForms[0])}</small></span><strong id="attack-value">${formula.attack}</strong><span class="sr-only" id="attack-sentence">${safe(formula.sentence)}</span></div>`;
 }
-/** Show the widest form of the formula that fits its cell on one line (the note goes first). */
+/** Show the widest form of the formula, and of the cost line, that fits its cell on one line
+ * (the formula's note goes first; every cost form keeps 剩 N 丹, down to N1's 302 px phones). */
 function fitAttackFormula() {
+  const cost=app.querySelector('.move-panel #cost-note');
+  if(cost&&costForms.length&&cost.getClientRects().length)for(const form of costForms){if(cost.textContent!==form)cost.textContent=form;if(cost.scrollWidth<=cost.clientWidth+0.5)break;}
   const line=app.querySelector('.move-panel #attack-formula'),text=line?.querySelector('.attack-formula-text');
   if(!text||!attackVariants.length||!line.getClientRects().length)return;
   const fits=()=>line.scrollWidth<=line.clientWidth+0.5;
@@ -414,13 +417,26 @@ function paintCoach(announcement='') {
   if(announcement||copy)announce(`${announcement}${copy?copy.text:''}`);
   nav.queue();
 }
+/** Moves the coach on for a taught action; true when the mark changed. */
 function coachEvent(event,announcement='',{paint=true,move=null}={}) {
-  if(!coach)return;
+  if(!coach)return false;
   const next=advanceCoach(coach,event,{nextRound:match?.status==='playing',move});
-  if(next===coach)return;
+  if(next===coach)return false;
   if(next.step==='done'){coachMemory.finish('done');coach=null;}else setCoach(next);
   if(paint)paintCoach(announcement);
+  return true;
 }
+// One gesture on the pill slider (a press and drag, or a held arrow key) fires an input
+// event for every value it passes but is one action, so it moves the coach by one mark at
+// most: the drag that shows ② leaves ② on screen when the finger lifts, and the next
+// gesture, ＋ or 怒擊 moves on to ③. An input with no press or key before it (assistive
+// technology) is a gesture of its own.
+let sliderGesture=null;
+const onSlider=event=>event.target?.id==='pill-slider';
+document.addEventListener('pointerdown',event=>{if(onSlider(event))sliderGesture={moved:false};},true);
+document.addEventListener('keydown',event=>{if(onSlider(event)&&!event.repeat)sliderGesture={moved:false};},true);
+for(const type of ['pointerup','pointercancel','keyup','focusout'])document.addEventListener(type,event=>{if(type.startsWith('pointer')||onSlider(event))sliderGesture=null;},true);
+const sliderCoachEvent=()=>{if(!sliderGesture?.moved&&coachEvent('pills')&&sliderGesture)sliderGesture.moved=true;};
 function endCoach(outcome) {
   if(!coach)return;
   const skipFocused=document.activeElement?.dataset?.action==='coach-skip';
@@ -1445,7 +1461,7 @@ document.addEventListener('input',event=>{
   pills=Number(event.target.value);const max=match.player.pills-(fury?3:0);
   app.querySelector('#pill-amount').textContent=pills;patchMarkup(app.querySelector('.move-panel .attack-preview'),attackPreviewMarkup());fitAttackFormula();
   app.querySelector('[data-action="pill-minus"]').disabled=pills===0;app.querySelector('[data-action="pill-plus"]').disabled=pills===max;
-  updateResourcePreview();coachEvent('pills');
+  updateResourcePreview();sliderCoachEvent();
   experience.unlockAudio().then(()=>playTone('pill'));
 });
 document.addEventListener('submit',event=>{

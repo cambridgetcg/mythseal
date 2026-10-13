@@ -131,10 +131,22 @@ export function formulaSentence(formula) {
   return `${head}${blocked}${fury}${hidden}`;
 }
 
-/** The move panel's cost line. It ends in an ellipsis when its cell is too narrow, so
- * it holds only the cost and the pills left, and Fury's damage is on its toggle. */
+/**
+ * Visible forms of the move panel's cost line, widest first; app.mjs shows the first
+ * that fits its cell on one line. It holds only the cost and the pills left (Fury's
+ * damage is on its toggle), and every form ends with the pills left, which the
+ * narrowest keeps alone: 共消耗 3 丹 · 剩 9 丹 · 消耗 3 丹 · 剩 9 丹 · 耗 3 丹 · 剩 9 丹 ·
+ * 耗 3 · 剩 9 丹 · 剩 9 丹. Phones from 302 px wide (N1 removed the page's 340 px
+ * minimum) have a cell too narrow for the first form.
+ */
+export function costVariants(formula, reserve) {
+  const cost = formula.cost, left = `剩 ${reserve - formula.cost} 丹`;
+  return [`共消耗 ${cost} 丹 · ${left}`, `消耗 ${cost} 丹 · ${left}`, `耗 ${cost} 丹 · ${left}`, `耗 ${cost} · ${left}`, left];
+}
+
+/** The cost line's widest form, as a cell wide enough shows it. */
 export function costText(formula, reserve) {
-  return `共消耗 ${formula.cost} 丹 · 剩 ${reserve - formula.cost} 丹`;
+  return costVariants(formula, reserve)[0];
 }
 
 /** The Fury toggle's note: its rule while off; with Fury on, the damage a win deals
@@ -240,8 +252,8 @@ const NUMERALS = ['零', '一', '二', '三', '四', '五', '六', '七', '八',
 const numeral = value => NUMERALS[value] ?? String(value);
 /** The coach mark's words, in the table's voice. Each must fit two lines of its hint on
  * a 360 px portrait phone, and three (all the 44 px status row holds) down to the
- * 340 px minimum; npm run test:coach measures the rendered copy there in Chromium and
- * WebKit (a character count is no proof of fit). ② budgets the player's pills over the
+ * 302 px phones N1 supports; npm run test:coach measures the rendered copy there in
+ * Chromium and WebKit (a character count is no proof of fit). ② budgets the player's pills over the
  * rounds left, this one included: 十二丹撐四回合 in round 1, 十二丹撐三回合 for an
  * owed ② in round 2. */
 export function coachCopy(step, { leader = 'player', commitLabel = '落子 · 決勝', pills = RULES.pills, roundsLeft = RULES.rounds } = {}) {

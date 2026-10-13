@@ -4,7 +4,7 @@ import { CARDS, RULES, createMatch, previewMove, resolveRound, validateDeck, has
 import { createRevealView, permittedAnnouncement } from '../battle-presentation.mjs';
 import { PROFILE_KEY } from '../progression.mjs';
 import {
-  attackFormula, formulaVariants, costText, furyNote, planningHint, revealTip,
+  attackFormula, formulaVariants, costText, costVariants, furyNote, planningHint, revealTip,
   coachStart, advanceCoach, coachCopy, createCoachMemory, COACH_KEY, COACH_STEPS, COACH_DONE,
 } from '../battle-teaching.mjs';
 
@@ -149,6 +149,22 @@ test('D3 formula: the packet example reads 力 6 ×（1＋3 丹）＝ 24; Fury a
   const blocked = attackFormula(match, { cardId: 'chiling', pills: 2 }, { announcedCardId: 'shuangli' });
   assert.equal(blocked.text, '力 7 ×（1＋2 丹）＝ 21');
   assert.equal(blocked.blocked, '破曉'); assert.match(blocked.sentence, /破曉被封鎖/);
+});
+
+test('D3 review round 4: every form of the cost line ends with the pills left, widest first, down to 剩 N 丹 alone', () => {
+  const match = createMatch({ rng: () => 0.23 });
+  match.player.hand = ['duying', 'qingxiao', 'chiling', 'cangjiao']; match.opponent.hand = ['yaoheng', 'yanxin', 'cuixian', 'shuangli'];
+  for (const draft of [{ pills: 1 }, { pills: 9, fury: true }, { pills: 0 }, { pills: 12 }]) {
+    const formula = attackFormula(match, { cardId: 'duying', ...draft }, { announcedCardId: 'yaoheng' });
+    const spent = draft.pills + (draft.fury ? RULES.furyCost : 0), left = `剩 ${12 - spent} 丹`;
+    const forms = costVariants(formula, match.player.pills);
+    assert.deepEqual(forms, [`共消耗 ${spent} 丹 · ${left}`, `消耗 ${spent} 丹 · ${left}`, `耗 ${spent} 丹 · ${left}`, `耗 ${spent} · ${left}`, left]);
+    assert.equal(costText(formula, match.player.pills), forms[0], 'a wide cell shows the first form');
+    forms.forEach((form, index) => {
+      assert.ok(form.endsWith(left), `every form keeps ${left}: ${form}`);
+      if (index) assert.ok(form.length < forms[index - 1].length, `each form is narrower than the one before: ${form}`);
+    });
+  }
 });
 
 test('D3 formula: only the announced card ID reaches it, so two hidden bids give the same formula; a non-open card is refused', () => {
