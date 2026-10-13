@@ -3,8 +3,11 @@
 Start here when joining development. Updated **2026-09-29**, with the Q0, Q4
 and Q1 checkpoints and the LZ-01 special-art addenda (under
 [LZ-01 local design preview](#lz-01-local-design-preview--2026-09-23)) added on
-**2026-10-11**. Q0 and Q4 merged into `main` in PRs #5 and #9, and Q1 by
-PR #10; none of them is deployed. The last recorded
+**2026-10-11**, the N1 mobile-shell checkpoint (2026-10-11), and the D1 Back
+model and D2 save-durability checkpoints (**2026-10-12**). Q0 and Q4 merged into
+`main` in PRs #5 and #9, Q1 by PR #10, D1 by PR #11 and N1 by PR #12. D2, which
+has merged D1 and N1 from `main`, is merging by D2's PR. None of them is
+deployed. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
 [AGENTS.md](../AGENTS.md), then this file and [ROADMAP.md](../ROADMAP.md). Provider
 state and permissions can change; dated evidence below is not a permanent health check.
@@ -39,6 +42,175 @@ A private repository still serves its approved JavaScript and artwork publicly.
 Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
+
+## N1 mobile shell checkpoint · 2026-10-11 (local only)
+
+Roadmap packet N1 (mobile shell polish), which the owner approved on 2026-10-11
+for the v0.6.0 release scope, is implemented on the branch
+**`n1/mobile-shell`**, started from `origin/main` `7712a7b`. Source commits:
+`623273d`, `42d1285`, `79fc4a4`, `9185563`, `f8c2134` and `484854b`; the
+documentation commit after them changes no served file. **Status:** merged into
+`main` in PR #12 (`e785b27`); not deployed; no hosted check. It was built alongside D1 (Back model) and
+D2 (save durability) in sibling worktrees from the same base; both edit
+`app.mjs` logic, and N1's only `app.mjs` change is two `aria-label` attributes
+in `experienceSettingsModal`.
+
+- **Changed** ([NAVIGATION · Mobile shell](NAVIGATION.md#mobile-shell)):
+  `viewport-fit=cover`; the safe-area insets read once into overridable
+  `--safe-area-inset-*` properties and used by the shell, dock, dialogs and
+  landscape sides; no 340px body minimum (302px phones no longer get a wider
+  page); 16px text entry on coarse pointers (no iOS focus zoom); touch-action,
+  overscroll and card-art callout rules; the arena's tabs two by two in short
+  landscape, so 來日 clears the dock; 44px minimum module tabs; named volume
+  sliders. No engine, save, reward, profile, Worker, SQL, allowlist or
+  journey-flag change; the build still has 83 public files.
+- **RELEASE-NEXT A6 (for whoever integrates that plan):** both WebKit failures
+  are fixed here. The rewards dialog's `module` tab (異聞) is at least 44px, so
+  WebKit `test:expansion` passes at every size in one run and §12 item 13 needs
+  no waiver once N1 merges. The `test:map-piece` WebKit launch failure was a
+  test-harness fault: `tools/map-piece-smoke.mjs` forced
+  `PLAYWRIGHT_BROWSERS_PATH` to the ignored `test-results/webkit-runtime` even
+  when that folder did not exist; it now checks first, as the other smokes do.
+  `npm run test:shell` is a new suite for §10 step 3 and A8.
+- **Checked** ([VALIDATION](VALIDATION.md#n1-mobile-shell--2026-10-11)): 535/535
+  Node tests, the content audit, an 83-file build, and `test:shell`,
+  `test:viewport`, `test:battle-table`, `test:expansion`, `test:map-piece`,
+  `test:commands`, `test:inheritance`, `test:collection-display` and
+  `test:wx01` in Chromium and WebKit, plus the 14 Chromium `test:browser`
+  suites, all exit 0. 28 desktop screenshots at 1440×900 and 1280×720 are
+  byte-identical to `7712a7b`'s.
+- **Open:** every physical-phone item in the
+  [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist) (real notch and home
+  indicator, iOS focus zoom, pull-to-refresh, long press, rotation), a native
+  shell overriding the inset properties, vertical fit under about 600px of
+  usable height (the viewport controller flags overflow there), and CI still
+  has no browser job.
+
+### N1 review round 1 · 2026-10-12
+
+Six verified review findings, fixed on the same branch in source commits
+`a313f08`, `8cdd1d4` and `5b31a4e`, with a documentation commit after them.
+Still not merged, pushed or deployed. The record above stays as written; these
+notes correct it.
+- **Fixed:** in short landscape the cards hub tabs were positioned against the
+  viewport, so with side insets 萬象圖鑑 covered the left third of 旅程閣 on
+  all three collection tabs; they are now anchored to the shell and end at
+  least 172px before its right edge. At 302px, the compact collection grid's
+  285px track ran items past the shell, and the codex was 1px wider than the
+  screen: "302px phones no longer get a wider page" was not yet true on the
+  圖鑑 tab. Below 350px the market's seven tabs overlapped; they now wrap four
+  and three, with the market title kept for screen readers only.
+- **Guarded:** `test:shell` now visits all three collection tabs and checks shell
+  gutters, tab rows, the landscape header row (including 852×393 with
+  0/59/21/59px insets) and the computed touch, overscroll and card-art
+  selection rules. `tests/mobile-shell.test.mjs` has static guards for each fix.
+  Each new check failed with its fix reverted.
+- **Corrected docs:** the open vertical-fit item is wider than "under about
+  600px of usable height". The collection's card list also overflows on
+  741–790px-tall phones and on taller phones with top and bottom insets
+  (NAVIGATION, Limits; it predates N1). `-webkit-touch-callout: none` is
+  declared but neither emulated engine parses it, so it is not evidence from
+  emulation.
+- **Checked** ([VALIDATION](VALIDATION.md#n1-review-fixes--2026-10-12)): 538/538
+  Node tests, the content audit, an 83-file build, `test:shell` (18/18 per
+  engine), and `test:viewport`, `test:expansion`, `test:battle-table`,
+  `test:collection-display`, `test:map-piece`, `test:wx01` in both engines and
+  the 14 Chromium `test:browser` suites, all exit 0.
+- **Still open:** the hub tabs overprint the wallet figures in short landscape,
+  as they did before N1, plus everything listed under Open above.
+
+### N1 review round 2 · 2026-10-12
+
+Three verified low-severity findings, handled on the same branch in source
+commits `751c35a` (the market) and `70d713c` (`test:shell` and a static
+guard), with a documentation commit after them. Still not merged, pushed or
+deployed. The notes above stay as written; these correct them.
+- **Fixed (N1 regression):** in Safari's toolbar-visible landscape under
+  `viewport-fit=cover` (an iPhone 15 at 852×343 with 0/59/21/59px insets, an
+  iPhone 13/14 at 844×340 with 0/47/21/47px), the dock's lift above the home
+  indicator left the scene 18px less than the same phone had before cover, and
+  the market's 秘匣, 西行印 and 秘券 buttons ran 10–32px under the opaque dock.
+  In short landscape the market's title now shares its tab row and 秘券's note
+  sits beside its button; every market module clears the dock at both sizes.
+  The dock keeps its lift.
+- **Guarded:** `test:shell` now opens every dock destination and module tab (28
+  states) at five landscape sizes, those two included, and fails on any control
+  under the dock; the header check covers the two sizes too. It failed on the
+  market in both engines with the fix reverted.
+- **Corrected docs:** with no insets the short-landscape hub tabs moved up to
+  42px left (568×320), not "up to 18px"; 18px holds only where 25% of the shell
+  beats the 172px floor. They still clear the brand and 旅程閣.
+- **Recorded as open (predates N1):** landscape phones below 701px wide (an
+  iPhone SE 2/3 or 6–8 at 667×375, 568×320) get the portrait layout in a short
+  frame. The arena's panel covers its module tabs, so 山行, 切磋 and 來日 cannot
+  be tapped; the market's 整盒 module covers its tab row; some market and arena
+  buttons sit under the dock. `7712a7b` behaves the same. NAVIGATION (Limits),
+  the M5.1 "Landscape dock and header" row and ROADMAP now say so, and
+  `test:shell` prints the 667×375 arena misses as a NOTE.
+- **Also recorded:** in Safari's landscape the collection's 我的戰卡 group,
+  which already runs under its list's pager (the vertical-fit limit), reaches
+  3px (852×343) and 6px (844×340) under the dock.
+- **Checked** ([VALIDATION](VALIDATION.md#n1-review-round-2--2026-10-12)): 539/539
+  Node tests, the content audit, an 83-file build, `test:shell` (22/22 per
+  engine), and `test:expansion`, `test:wx01` and `test:viewport` in both
+  engines plus the 14 Chromium `test:browser` suites, all exit 0.
+
+### N1 review round 3 · 2026-10-12
+
+Six verified findings (five low, one rated medium by one reviewer and low by
+the other), handled on the same branch in source commits `8c10456` (CSS) and
+`0c3c6dd` (`test:shell` and static guards), with a documentation commit after
+them. Still not merged, pushed or deployed. The notes above stay as written;
+these correct them.
+- **Fixed (N1 regressions):**
+  - Safari's toolbar-visible landscape on the 812pt-wide notch iPhones
+    (X/XS/11 Pro with 44px sides, 12 mini/13 mini with 50px) is 812×325 under
+    `viewport-fit=cover`, 18px shorter than the iPhone 15 case round 2 fixed.
+    The lifted dock covered 山行's button, the 圖鑑 faction filters and 秘券's
+    button by 2–4px, and 秘匣's picker and odds link by 10–18px. In short
+    landscape 秘匣's picker and progress panel now start at the top of the
+    module, its odds link sits beside the odds, and the 山行 card, the codex
+    filter module and 秘券's card give up a few pixels. Every control outside
+    the flagged lists clears the dock there by at least 3px.
+  - The coarse-pointer `font-size:16px!important` clamped every field, so
+    旅程閣's one-time code field (20px) shrank to 16px on phones. It keeps 20px
+    now; 16px is a floor.
+- **Guarded:** `test:shell` adds both 812×325 sizes to the dock and header
+  checks (26 checks per engine, was 22), draws the code field with a mocked
+  code request and checks every field against its size without the
+  coarse-pointer rules, and at 667×375, 640×360 and 568×320 opens every module
+  of 遊歷, 對弈 and 市集 directly and prints the ones that cover their tab row.
+  The static tests guard both fixes. Each new check failed with its fix
+  reverted.
+- **Corrected docs:**
+  - The round-2 "Guarded" bullet above says `test:shell` "fails on any control
+    under the dock". It does not fail on an item of a list the viewport
+    controller flags as taller than its frame; it prints those as NOTE lines.
+    The "Also recorded" bullet missed the cases with 48/44/34/44px insets at
+    844×390 (the 我的戰卡 group 17px under, the 三套牌組 draft cards 6px, the
+    圖鑑 cards 5px); at 812×325 they are 21, 10 and 9px.
+  - The hub-tab shift is a quarter of the two side gutters, (viewport − shell)
+    ÷ 4, with no ceiling: "up to 42px" above was wrong for desktop windows
+    500px tall or less and wider than 1312px, where the 1240px shell cap makes
+    it grow (50px at 1440×500, 170px at 1920×480). There N1 also removed an
+    older overlap: at 1920×480 the old tabs covered 旅程閣.
+  - The below-701px landscape record (round 2, "Recorded as open") named only
+    the arena's 問道 and the market's 整盒, because it tapped through each
+    scene's tabs in turn. Opening each module directly shows more, the same at
+    `7712a7b`: 西行印 covers all seven market tabs at 667×375, 640×360,
+    700×390, 667×331 and 568×320; 來日 covers all four arena tabs at those
+    sizes, 568×320 included (where the record said the tabs were reachable);
+    切磋 covers the 問道 tab; 遊歷's chapter module covers the world tabs. The
+    selected module survives a trip through the dock, so a player who opens
+    西行印 or 來日 cannot reliably tap back out until a reload. With 西行秘匣
+    selected, 開啟秘匣 is hidden entirely, and more buttons sit under the dock
+    than listed. NAVIGATION (Limits) has the full list. Still open; no code
+    change, since vertical fit below 701px is outside N1.
+- **Checked** ([VALIDATION](VALIDATION.md#n1-review-round-3--2026-10-12)): 541/541
+  Node tests, the content audit, an 83-file build, the Python unit tests,
+  `test:shell` (26/26 per engine), and `test:viewport`, `test:expansion`,
+  `test:wx01` and `test:collection-display` in both engines plus the 14
+  Chromium `test:browser` suites, all exit 0.
 
 ## Q0 battle-table checkpoint · 2026-10-11 (local only)
 
@@ -247,7 +419,8 @@ tests, allowlist), **`97543e8`** (the `app.mjs` hooks), **`37ca36c`**
 (`tools/back-smoke.mjs`, `npm run test:back`), `c86e529` (code comments only),
 **`cf14ee7`** (gives up an own history walk that never lands after 3 s) and
 `e2e1474` (smoke messages only); the commits after them change documentation
-only. **Status:** not merged, pushed or deployed; no hosted check.
+only. **Status:** merged to `main` in PR #11 (merge commit `335d2b7`); not
+deployed; no hosted check. D2's branch has since merged it (below).
 Two other packets were built at the same time from `7712a7b`: D2 (save
 durability) and N1 (mobile shell CSS). D2 also edits `app.mjs`, and this
 packet's `app.mjs` changes are one import, three one-line `nav.queue()` calls
@@ -322,6 +495,160 @@ input, popstate and pageshow listeners after the `pagehide` listener, and
   also runs real bfcache restores in Chrome; WebKit's page cache and phones
   remain open. Checks: [VALIDATION](VALIDATION.md#d1-back-model--2026-10-12),
   "Review round 3 fixes".
+
+## D2 save-durability checkpoint · 2026-10-12 (local only)
+
+Packet **D2 · saves never vanish silently**, approved by the owner on
+2026-10-11 for the v0.6.0 scope, is implemented on the branch
+**`d2/save-durability`** from `origin/main` `7712a7b`, after three review rounds
+(fixes `a290151` and `4ba6e31`, then `22c9f90`, then `a6467b5`, all
+2026-10-12). **Status:** merging by D2's PR, after `main` `335d2b7` (D1, PR #11)
+and then `e785b27` (N1, PR #12) were merged into the branch; not merged to
+`main` or deployed; no hosted service was called. Built alongside D1 (Back model) and N1 (mobile shell CSS) in sibling
+worktrees; D1 also edits `app.mjs`.
+
+- **Changed:** 匯入旅程備份 in the 旅程閣 tools imports the journey export
+  (only that format, including a v0.5.1 (profile v3) export since the second
+  review, migrated as `load()` migrates a legacy key; oversize, unparsable,
+  older than v3 or future, unfinished, inconsistent and invalid files are
+  refused before anything is written) and applies it through
+  `restoreLocalProfile`, the strict fenced restore that cloud
+  restore and local recovery use: recovery copy first, the replaced command
+  lineage retired, one profile write, nothing on refusal. Those checks now live
+  in `profile-store.mjs` `store.restore`. The 旅程閣 tools show the date of this
+  device's last cloud backup (上次備份), when its last export download started
+  (上次匯出; a page cannot confirm the file was saved, so an export is never a
+  backup and never ends or skips a prompt) and the browser's answer to
+  `navigator.storage.persist()`. It is asked once per device, at the first win or
+  first pack opening this device records (an existing journey's next one), and in
+  an installed web app at every launch until granted; never on an ordinary load.
+  A request whose page closed before the answer is settled at the next start from
+  `persisted()` (granted or 未有回覆). After a confirmed 刪除雲端備份 the status reads
+  上次備份：(date) · 雲端備份已刪除. A player not known to be signed in gets one
+  low-key lobby strip after each of those milestones, at most once ever; its
+  旅程閣 opens the 雲端旅程 tab. The lobby knows a player is signed in only after
+  旅程閣 looked the account up in that page. A journey this device has just started, because no journey key
+  existed, shows 有舊旅程？由備份還原 until dismissed, restored or its first battle,
+  with 備份檔 and 雲端旅程 (into 旅程閣: its cloud restore, or else its 雲端旅程
+  tab).
+  New allowlisted files: `platform.mjs` (the seam M5.2's native adapter extends),
+  `save-status.mjs` (device-local record `shanhai.saves.v1`), `save-ui.mjs`,
+  `saves.css`. `PROFILE_VERSION`, the snapshot format, the Worker, the SQL and
+  the journey flags are unchanged.
+- **Checked** (headless, against this worktree's server on port 4202; each
+  round lists only what ran on that round's tree):
+  - First build: the Node suite, `npm run audit:content`, `npm run build`,
+    `npm run test:saves` in Chromium and WebKit, `npm run test:commands` in
+    both, and the 14 Chromium `npm run test:browser` suites
+    ([VALIDATION](VALIDATION.md#d2-save-durability--2026-10-12)).
+  - Round 1 fixes: the same list, plus `test:viewport` and `test:wx01` in both
+    engines ([VALIDATION](VALIDATION.md#d2-review-fixes--2026-10-12)).
+  - Round 2 fixes: the Node suite, `audit:content`, `build`, `git diff --check`,
+    `test:saves` in both engines, and `test:browser` on the tree before the
+    commit ([VALIDATION](VALIDATION.md#d2-second-review-fixes--2026-10-12)).
+    **Not** `test:commands`, `test:viewport` or `test:wx01`. (Corrected after
+    the third review: this bullet said the whole first list ran again after the
+    second round.)
+  - Round 3 fixes: the Node suite, `audit:content`, `build`, `git diff --check`,
+    `test:saves` in both engines (18 groups) and `test:commands` in both, on
+    `a6467b5`, and `test:browser` on the same tree before the commit
+    ([VALIDATION](VALIDATION.md#d2-third-review-fixes--2026-10-12)). Not
+    `test:viewport` or `test:wx01`.
+- **Review round 1 (2026-10-12):** twelve findings, several overlapping, all low
+  after verification (one was first rated medium).
+  Fixed: 雲端旅程 on the first lobby after an eviction; the strip at 340 px; 勝局已記
+  instead of 首勝 for a journey with earlier wins, and a close label that no
+  longer says "later"; a `requested` persistence record stuck "waiting"; the
+  import confirmation now names the recovery copy it replaces; a test now pins
+  the offer closing on a restore. Documented instead of changed: a quote from
+  before an import into a journey without a ledger commits once on an identical
+  copy (§15 decision 1), and a signed-in player who has not opened 旅程閣 in the
+  page is prompted like a guest (the lobby makes no account request).
+- **Review round 2 (2026-10-12):** five findings, two of them the same defect.
+  Fixed: an export was recorded as the last backup when its link was clicked,
+  so a cancelled or blocked download read 上次備份 · 匯出檔案, ended the strip it
+  was pressed from and could skip a due prompt (low); the offer's 雲端旅程 opened
+  旅程閣 on 此裝置 for anyone without a cloud backup to confirm, hiding the sign-in
+  (medium); every v0.4.1–v0.5.1 export was refused although the strict legacy
+  path migrates it (medium; one verifier rated it low); and three documented
+  rules (an export counts only when it would import, a cloud backup ends the
+  prompt, a WX receipt's strip comes first) had no test (low). Each fix has a Node case
+  and a smoke group that failed with the fix reverted.
+- **Review round 3 (2026-10-12):** five findings. Fixed: the import confirmation
+  was one block taller than a phone's dialog page, so with a v0.5.1 file and a
+  recovery copy kept, the warning on how to keep that copy was drawn under the
+  pager from 340×640 to 390×664 (medium); it is now two page items (the file and
+  its notes, then the comparison), on one page from 340×640 and paged at 844×390.
+  A backup prompt's 旅程閣 opened the header's default 此裝置 tab (low); it now opens
+  雲端旅程, with 備份此裝置 brought onto its page. 上次備份 kept reading 雲端備份 after a
+  confirmed 刪除雲端備份 (low); it now reads 雲端備份已刪除 and no longer skips a
+  prompt. Corrected: the v0.5.1 fixture was byte-identical to v0.5.1's stored
+  profile, not to its download (low; the test now also builds the download's key
+  order), and this checkpoint claimed `test:commands` ran after round 2 (low). The
+  three behavioural fixes each have a Node case and a smoke group (S10b, S7, S11)
+  that failed with the fix reverted.
+- **UNVERIFIED:** real iPhone seven-day eviction, iOS home-screen storage
+  isolation, real `persist()` answers (the smoke uses a spy), and iOS Safari's
+  download sheet with the export (a refused download was checked only with
+  Playwright's `acceptDownloads: false`). Not run: the account smoke in WebKit
+  (it is Chromium-only), devices, deploy dry runs, CI; after round 2,
+  `test:commands`, `test:viewport` and `test:wx01`; after round 3, `test:viewport`
+  and `test:wx01` (see the round-3 VALIDATION note). The import confirmation's
+  layout was checked in Playwright's engines at the sizes S10b lists, not on a
+  phone, and not with enlarged text.
+- **Open:** LOCAL-COMMANDS §15 decision 1 still applies to the import, so the
+  packet's exit item "a command ID issued before the import is expired or
+  refused" holds only for a journey with a command ledger: without one, a quote on a copy the file holds unchanged
+  commits once, at its quoted price.
+  [LOCAL-COMMANDS §11 and §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)
+  own the rules. Importing a v0.5.1 export, which this list left to the owner's
+  stranded-v3 decision before the second review, now works; that decision (A5)
+  is about reading the v3 key, not files. `docs/RELEASE-NEXT.md` still says no
+  build imports a save file (§6) and points support at an open v0.5.1 tab's
+  footer export (C4); the orchestrator updates it after merge.
+- **Merge notes:** `app.mjs` changes are localised: imports, the `saves` record
+  next to `profileStore`, `restoreLocalProfile`'s lock body, one block after
+  `recoveryMarkup` (`lobbySaveNotice`, `reviewImport` and the import helpers),
+  `homeMarkup`, the 旅程閣 page's tools in `render`, one line each in
+  `recordFinishedMatch`, `showPackReceipt` and the legacy `buy-pack` modal, the
+  click handler's export/import/notice actions, `restore-offer-cloud` (which
+  selects the 雲端旅程 module since the second review) and `backup-prompt-cloud`
+  (the prompts' 旅程閣, since the third), `account-upload` and `account-delete`
+  (with `backupMade` and `backupDeleted` after `lobbySaveNotice`), and the
+  startup `saves.launch`. Add `npm run test:saves` beside `test:commands` in
+  the release checks, and the new files to `docs/README.md`.
+- **Merged with D1 (2026-10-12):** `origin/main` `335d2b7` (D1, PR #11) merged
+  into this branch with `--no-ff`. `app.mjs` keeps both: D1's `settling` flag
+  wraps `recordFinishedMatch()`'s save, with `saves.battleFinished` inside it
+  after the save succeeds, and the startup runs `saves.launch` then
+  `nav.start()` before the first render. The allowlist has `nav-stack.mjs`
+  followed by D2's four files.
+- **Integrated with D1 and N1 (2026-10-12):** `077b394` gives the file import
+  one Back layer. Its dialog opens on the tap that opens the picker, so the entry
+  is pushed with that tap's activation, and the file replaces its contents with
+  the confirmation; refusals and success close it through `closeModal()`; while
+  a confirmed import is written it is not dismissible and Back holds. The lobby
+  strips are not layers. `tools/back-smoke.mjs` has three D2 groups (19 checks
+  in Chrome, 18 in WebKit). Then `origin/main` `e785b27` (N1, PR #12) was merged
+  (`37bb0ce`; only the three documents conflicted), and `272f3c2` lets the
+  strip's label take a second line below 340 px, which phones reach since N1
+  removed the body's 340 px minimum. Rules:
+  [NAVIGATION](NAVIGATION.md#save-notices-on-the-lobby--2026-10-12-d2); checks:
+  [VALIDATION](VALIDATION.md#d2-integration-with-main--2026-10-12).
+- **Integration review round 1 (2026-10-13):** 復原上次本機旅程 now holds its
+  dialog while its restore is written, as the import does (`holdRestore`), and
+  each restore's success closes only its own dialog, so a recovery landing no
+  longer closes an import dialog and its picked file. `test:back` has a fourth
+  D2 group (20 checks in Chrome, 19 in WebKit), `test:saves` S12 (19 groups) and
+  `test:commands` B11 now checks the held dialog. Checks:
+  [VALIDATION](VALIDATION.md#d2-integration-review-round-1-fixes--2026-10-13).
+- **Integration review round 2 (2026-10-13):** a cloud restore (恢復雲端旅程,
+  which the offer's 雲端旅程 leads to) is not held, so the player can leave
+  旅程閣 while it reads the cloud; it now redraws the screen it lands on
+  (`restoreCloudJourney`), so 洞府 no longer keeps the replaced journey and the
+  closed offer. `test:back` has a fifth D2 group (21 checks in Chrome, 20 in
+  WebKit) and `test:saves` S13 (20 groups). Checks:
+  [VALIDATION](VALIDATION.md#d2-integration-review-round-2-fixes--2026-10-13).
 
 ## D3 first-battle teaching checkpoint · 2026-10-12 (local only)
 
@@ -984,7 +1311,9 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Battle table / battle UI (Q0, PR #5) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
 | Back model / history entries (D1) | `node --test tests/nav-stack.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:back` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor); `tools/navigation-smoke.mjs` for in-app close and return paths |
 | First-battle teaching (D3) | `node --test tests/battle-teaching.test.mjs tests/battle-table-view.test.mjs tests/nav-stack.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:coach` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor), with `npm run test:battle-table` and `npm run test:back` for the table and Back around it |
+| Mobile shell / safe areas / touch (N1) | `node --test tests/mobile-shell.test.mjs`; `GAME_URL=… npm run test:shell` (Chromium as a Pixel 7, then WebKit as an iPhone 15); `npm run test:viewport` and `npm run test:expansion` for scene layout. Desktop changes need a before/after screenshot comparison; emulation is not a physical-phone check |
 | Local commands / profile fence (Q1, PR #10) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
+| Save durability: export, file import, save status, persistence (D2) | `node --test tests/save-durability.test.mjs tests/profile-store.test.mjs tests/profile-fence.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:saves` (Chromium, then WebKit); `tools/account-smoke.mjs` for cloud and local recovery restore, which share `store.restore` |
 | Account controller / snapshot / API | `node --test tests/account-client.test.mjs tests/cloud-save.test.mjs tests/account-api.test.mjs` |
 | Connection helper | `npm run test:connections` |
 | Public boundary / build | `node --test tests/hosting.test.mjs`; `npm run build`; pinned Wrangler `deploy --dry-run` |
@@ -1068,6 +1397,12 @@ reason to replay or reverse the existing migrations casually.
   reach that tab; before then an upgrade can decide on older bytes and
   overwrite it, as before the fence. Never serve a pre-fence v5 build on an
   origin that has served Q1.
+- Since D2 (branch `d2/save-durability`), cloud restore, local recovery and the
+  file import share one strict restore (`restoreLocalProfile` →
+  `store.restore`); a new restore path must use it rather than write the
+  profile itself. The device-local `shanhai.saves.v1` record (backup time,
+  persistence answer, prompts, restore offer) is never journey data: keep it out
+  of the profile, exports, backups and the recovery-originals export.
 - Keep private-backup writes revision-checked. **`PT409` is intentional**;
   replacing it with SQLSTATE `40001` caused PostgREST transaction retries.
   Ownership comes from `auth.uid()`; the account header only guards stale tabs.

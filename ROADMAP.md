@@ -540,10 +540,36 @@ M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 **Current status:** the shared lobby and navigation pass desktop/phone Chrome
 emulation locally. Physical iPhone/Android checks, native projects, signing and
 beta distribution remain planned. See [the mobile release plan](docs/MOBILE-RELEASE.md).
+**N1 mobile shell (2026-10-11, branch `n1/mobile-shell`, merged to `main` in
+PR #12 (`e785b27`), not deployed; owner-approved for v0.6.0 scope):** safe-area insets under
+`viewport-fit=cover` as overridable custom properties, 16px text entry on touch
+screens (no iOS focus zoom), no horizontal overflow from 302 to 734px wide, the
+arena's 來日 clear of the dock in landscape 701px and wider, named volume
+sliders, and the two WebKit failures RELEASE-NEXT A6 named (the 43.08px rewards
+tab and the map-piece launch). Checked in Chromium and WebKit emulation (`npm run
+test:shell`, [NAVIGATION](docs/NAVIGATION.md#mobile-shell)); the physical-phone
+items are open in the [M5.1 checklist](docs/MOBILE-RELEASE.md#m51-phone-checklist).
+Review round 1 (2026-10-12) fixed what the first pass missed: the
+short-landscape cards hub tabs covered 旅程閣 under side insets, and at 302px
+the codex was 1px too wide, collection items ran past the shell and the
+market's seven tabs overlapped; `test:shell` now opens all three collection
+tabs and checks shell gutters, tab rows, the landscape header row and the
+computed touch rules. Review round 2 (2026-10-12): in Safari's toolbar-visible
+landscape (852×343, 844×340) the dock's lift above the home indicator had put
+the market's buy buttons under the dock; the market's title now shares its tab
+row, and `test:shell` checks every dock destination and module against the dock
+at those sizes. Review round 3 (2026-10-12): the 812pt-wide notch iPhones in
+the same Safari landscape (812×325) still had a few controls 2–18px under the
+dock, and the coarse-pointer 16px rule had shrunk 旅程閣's 20px code field;
+both are fixed and checked by `test:shell`. Landscape phones below 701px wide
+(iPhone SE/8 at 667×375, Android at 640×360, the first SE at 568×320) keep a
+fault that predates N1: opened, the market's 西行印 and 整盒, the arena's 問道,
+切磋 and 來日 and the world's chapter module cover their own tab row, and
+西行秘匣's buy button is hidden (NAVIGATION, Limits).
 
 **Back model (D1) · status 2026-10-12:** implemented on branch `d1/back-model`
-(from `main` `7712a7b`), with the fixes from three review rounds; not merged or
-deployed, and in the proposed v0.6.0 scope. Browser and system Back now close one layer at a time (dialog, sub-view,
+(from `main` `7712a7b`), with the fixes from three review rounds, and merged to
+`main` in PR #11 (`335d2b7`); not deployed, and in the proposed v0.6.0 scope. Browser and system Back now close one layer at a time (dialog, sub-view,
 destination → 洞府), hold on a battle result, open keep/abandon in a battle in
 progress and leave only from 洞府, with state-only history entries and no URL
 change. The [decision table](docs/NAVIGATION.md#back-model--2026-10-12) is in
@@ -552,6 +578,29 @@ are in [VALIDATION](docs/VALIDATION.md#d1-back-model--2026-10-12). Android
 gesture and predictive back, the iOS edge swipe and the Capacitor back-button
 wiring remain M5.1/M5.2 work
 ([mobile plan](docs/MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)).
+
+**D2 · saves never vanish silently, status 2026-10-12:** approved for the
+v0.6.0 scope and implemented on the branch `d2/save-durability` (from `main`
+`7712a7b`), which merged D1 (`335d2b7`) and then N1 (`e785b27`) from `main` and is
+merging by D2's PR; not merged to `main` or deployed. A journey export can now be imported through
+the strict restore, 旅程閣 shows the last backup's date and the browser's answer to
+a persistent-storage request (once per device; an installed web app asks at each
+launch until granted), players not known to be signed in get one backup prompt per
+milestone, and a new journey offers a restore from a file or the cloud.
+`platform.mjs` is the storage seam M5.2's native adapter extends. The first
+review's twelve findings were fixed or documented on 2026-10-12, and the second
+review's five the same day: an export is shown as a started download, never as a
+backup; the offer's 雲端旅程 opens the 雲端旅程 tab; v0.5.1 exports import. The third
+review's five, also that day: the import confirmation pages on phones instead of
+drawing its last note under the pager, a backup prompt's 旅程閣 opens 雲端旅程, a
+deleted cloud backup reads as deleted, and two documentation corrections. Headless
+Chromium and WebKit checks pass
+([VALIDATION](docs/VALIDATION.md#d2-third-review-fixes--2026-10-12)); real iPhone
+eviction and `persist()` behaviour are UNVERIFIED
+([LOCAL-COMMANDS §19](docs/LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12)).
+With D1 merged in, the file import is one Back layer that Back closes like ×, and
+holds while a confirmed import is written; the lobby strips are not layers
+([VALIDATION](docs/VALIDATION.md#d2-integration-with-main--2026-10-12)).
 
 ### Retired collectible launch phases
 

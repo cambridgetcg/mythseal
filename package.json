@@ -23,13 +23,15 @@
     "test:wx01": "node tools/wx01-presentation-smoke.mjs && node tools/profile-recovery-smoke.mjs && BROWSER=webkit node tools/wx01-presentation-smoke.mjs && BROWSER=webkit node tools/profile-recovery-smoke.mjs && node tools/wx01-box-smoke.mjs && BROWSER=webkit node tools/wx01-box-smoke.mjs",
     "test:inheritance": "node tools/inheritance-smoke.mjs && BROWSER=webkit node tools/inheritance-smoke.mjs",
     "test:commands": "node tools/command-smoke.mjs && BROWSER=webkit node tools/command-smoke.mjs",
+    "test:saves": "node tools/save-durability-smoke.mjs && BROWSER=webkit node tools/save-durability-smoke.mjs",
     "test:collection-display": "node tools/collection-display-smoke.mjs && BROWSER=webkit node tools/collection-display-smoke.mjs",
     "test:viewport": "node tools/viewport-smoke.mjs && BROWSER=webkit node tools/viewport-smoke.mjs",
     "test:battle-table": "node tools/battle-table-smoke.mjs && BROWSER=webkit node tools/battle-table-smoke.mjs",
     "test:back": "node tools/back-smoke.mjs && BROWSER=webkit node tools/back-smoke.mjs",
     "test:coach": "node tools/coach-smoke.mjs && BROWSER=webkit node tools/coach-smoke.mjs",
     "test:expansion": "node tools/expansion-smoke.mjs && BROWSER=webkit node tools/expansion-smoke.mjs",
-    "test:map-piece": "node tools/map-piece-smoke.mjs && BROWSER=webkit node tools/map-piece-smoke.mjs"
+    "test:map-piece": "node tools/map-piece-smoke.mjs && BROWSER=webkit node tools/map-piece-smoke.mjs",
+    "test:shell": "node tools/shell-smoke.mjs && BROWSER=webkit node tools/shell-smoke.mjs"
   },
   "overrides": {
     "xcode": {

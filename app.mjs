@@ -23,6 +23,9 @@ import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './pr
 import { previewCommand, commitCommand, readCommandReceipt, duplicateMessage, COMMAND_MESSAGES } from './local-commands.mjs';
 import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
+import { exportJourney, importJourney, journeySummary, isStandalone } from './platform.mjs';
+import { createSaveStatus } from './save-status.mjs';
+import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup } from './save-ui.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
@@ -43,6 +46,11 @@ const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const profileStore=createProfileStore({storage:localStorage});
 const loadProfile=()=>profileStore.load();
+// Device-local backup status, persistence outcome and prompts; never inside the journey or a
+// backup (docs/LOCAL-COMMANDS.md §11). load() starts a new journey only when none is stored,
+// and only then does the lobby offer a restore.
+const saves=createSaveStatus({storage:localStorage});
+const freshJourney=!profileStore.hasJourney();
 // localStorage is only eventually consistent between tabs, even for the next holder of the
 // Web Lock. Each holder waits for the bytes the previous holder recorded in the IndexedDB
 // fence (docs/LOCAL-COMMANDS.md §10.1). Read at call time so a browser that loses Web Locks
@@ -79,7 +87,7 @@ let preparation=null, preparationReturn=null, accountReturn='home', modalKind=nu
 const screenScroll=new Map();
 const account = createAccountController({
   getLocalProfile: loadProfile,
-  restoreLocalProfile,
+  restoreLocalProfile: restoreCloudJourney,
   onChange: () => {
     if (screen === 'account') render();
     else {
@@ -135,14 +143,12 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
   const lock = profileLock();
   if (!lock) throw Error('請用新版瀏覽器恢復旅程；本機進度未有更改。');
   return lock(() => {
-    const current = loadProfile();
-    if (!isCurrent()) throw Error('登入狀態已改變，未有恢復旅程。');
-    if (economyBusy || current.pending || current.expansion.fireMountain.run) throw Error('請先完成或放棄未完對局，再恢復雲端旅程。');
-    if (current.wx01.receipt) throw Error('請先查看並確認已入藏的西行畫作，再恢復旅程。');
-    if (fingerprintProfile(current) !== expectedFingerprint) throw Error('本機旅程剛有更新，請重新查看後再恢復。');
-    // Checks the replacement (with the replaced lineage's retired command boundary) first,
-    // then keeps a validated recovery copy of `current`, then saves; a refusal changes neither.
-    const next = profileStore.replace(current, restored, { savedAt: new Date().toISOString() });
+    // Cloud restore, local recovery and file import share this: it loads the latest journey,
+    // refuses an unfinished battle, an unacknowledged WX receipt or a changed journey, checks
+    // the replacement (with the replaced lineage's retired command boundary), then keeps a
+    // validated recovery copy of the current journey and saves; a refusal changes neither.
+    const next = profileStore.restore(restored, { expectedFingerprint, busy: economyBusy, isCurrent, savedAt: new Date().toISOString() });
+    saves.closeRestoreOffer();
     packOpening?.destroy();packOpening=null;
     localStorage.removeItem(BATTLE_KEY);
     syncProfile(next);passportQuote=null;
@@ -154,10 +160,120 @@ async function restoreLocalProfile(snapshot, expectedFingerprint, { isCurrent = 
     return next;
   });
 }
+// 恢復雲端旅程 (account.restore) lands wherever the player is by then. It is not held as the
+// import and 復原上次本機旅程 dialogs are: Back, ← 返回旅途 and the dock all leave 旅程閣 while
+// it reads the cloud, and leaving does not stop it. onChange redraws only 旅程閣, so off it the
+// screen on show is redrawn here from the restored journey, as those two restores redraw
+// theirs (洞府 then shows the restored coins, without the restore offer this closed). A dialog
+// opened meanwhile stays, since a restore closes only its own, except a preparation: its
+// draft is gone with the replaced journey (D2 integration review round 2, 2026-10-13).
+function restoreCloudJourney(snapshot, expectedFingerprint, options) {
+  return restoreLocalProfile(snapshot, expectedFingerprint, options).then(next=>{
+    if(screen!=='account'){if(modalKind==='preparation')closeModal();render();}
+    return next;
+  });
+}
 function recoveryMarkup() {
   const saved = read(RECOVERY_KEY, null);
   if (!saved?.snapshot) return '';
   return `<aside class="account-recovery"><p>上次恢復前的本機旅程已保留。你可以下載副本，或復原到當時進度。</p><button class="text-button" data-action="export-recovery">下載本機回復備份 ↗</button><button class="text-button" data-action="restore-recovery">復原上次本機旅程 →</button></aside>`;
+}
+// Save safety (docs/LOCAL-COMMANDS.md §11): export, file import through restoreLocalProfile,
+// and the lobby's restore offer and once-only backup prompts.
+let saveNotice=null, importDraft=null, importInput=null;
+function lobbySaveNotice() {
+  // The resume strip for a WX receipt or an activity has this place first.
+  if(profile.wx01.receipt||profile.expansion.fireMountain.run)return '';
+  // The lobby makes no account request: it knows only what 旅程閣 looked up in this page.
+  const known=account.getState();
+  if(saves.showRestoreOffer(profile))return saveNoticeMarkup('restore-offer',{cloud:Boolean(known.account)||!known.initialized||known.emailEnabled});
+  saveNotice??=saves.takePrompt({guest:!known.account});
+  return saveNoticeMarkup(saveNotice,{wins:profile.stats.won});
+}
+// A cloud backup the account API confirmed saved: the last backup, and the prompt's end.
+function backupMade() {
+  saves.recordBackup();saveNotice=null;
+  if(['account','home'].includes(screen))render();
+}
+// A cloud backup the account API confirmed deleted: 上次備份 says so, and no longer counts.
+function backupDeleted() {
+  saves.recordBackupDeleted();
+  if(screen==='account')render();
+}
+// The page cannot tell whether the browser saved the file (a cancelled or blocked download
+// looks the same), so an export is recorded as started, never as a backup: it neither ends
+// nor skips a prompt. Only a file that would import is recorded.
+function exportSave() {
+  try {
+    const result=exportJourney(loadProfile(),{document});
+    if(result.importable){saves.recordExport();if(screen==='account')render();}
+    toast(result.importable?'已開始下載旅程備份；請確認檔案已儲存。':'已開始下載旅程備份；對局或活動未完時的備份未能還原，完成後請再匯出一次。');
+  } catch(error) { toast(error.message||'未能匯出旅程備份。'); }
+}
+function importBlocked(current) {
+  if(economyBusy||current.pending||current.expansion.fireMountain.run)return '請先完成或放棄未完對局，再匯入旅程備份；本機旅程未有更改。';
+  if(current.wx01.receipt)return '請先查看並確認已入藏的西行畫作，再匯入旅程備份。';
+  return '';
+}
+// The import dialog is one Back layer (docs/NAVIGATION.md, "Back model"): ×, Escape, the
+// backdrop and Back close it; its own closes go through closeModal, which walks back over its entry.
+const importOpen=()=>modalKind==='import-review'&&Boolean(overlay.firstElementChild);
+function pickJourneyFile() {
+  if(importDraft?.restoring)return;
+  try{const blocked=importBlocked(loadProfile());if(blocked)return toast(blocked);}catch(error){return toast(error.message);}
+  // One input outside #app, so a render while the picker is open cannot detach it.
+  if(!importInput){
+    importInput=document.createElement('input');
+    Object.assign(importInput,{type:'file',accept:'.json,application/json',id:'journey-import-file',className:'sr-only',tabIndex:-1});
+    importInput.setAttribute('aria-hidden','true');
+    importInput.addEventListener('change',()=>{const file=importInput.files?.[0];importInput.value='';if(file)reviewImport(file);});
+    // A cancelled picker closes the dialog where the browser says so; elsewhere it stays, with 取消.
+    importInput.addEventListener('cancel',()=>{if(importOpen()&&overlay.querySelector('[data-import-pick]'))closeModal();});
+    document.body.append(importInput);
+  }
+  // The dialog opens on this tap, so its history entry is pushed with the tap's activation
+  // (about 5 s). Choosing a file usually takes longer, and an entry the confirmation pushed
+  // then would be refused, so Back would leave the game instead of closing it. The file
+  // replaces the dialog's contents: the same layer, on the same entry. The entry is pushed
+  // now, not on the queued reconciliation: Chromium's file picker consumes the activation.
+  modal(importPickMarkup(),'import-modal',true,'import-review');
+  nav.sync();
+  importInput.click();
+}
+async function reviewImport(file) {
+  const result=await importJourney(file);
+  // Closed meanwhile (×, Escape, Back): the file opens nothing.
+  if(!importOpen()||importDraft?.restoring)return;
+  const refuse=message=>{closeModal();toast(message);};
+  if(!result.ok)return refuse(result.message);
+  let current;
+  try{current=loadProfile();}catch(error){return refuse(error.message);}
+  const blocked=importBlocked(current);if(blocked)return refuse(blocked);
+  // Nothing is written until the confirmation; it restores only this journey, unchanged.
+  importDraft={snapshot:result.snapshot,fingerprint:fingerprintProfile(current)};
+  const kept=read(RECOVERY_KEY,null);
+  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null,legacy:result.legacy}),'import-modal',true,'import-review');
+}
+// While a confirmed restore is written its dialog cannot be dismissed: ×, Escape and the
+// backdrop are off and Back holds (BACK.HOLD re-arms its entry), since closing it could not
+// stop the restore, only hide its outcome. A refusal releases it as it was. The file import
+// (import-review) and 復原上次本機旅程 (recovery-restore) share this, as they share the
+// profile lock, and each one's success closes only its own dialog, never one opened since.
+function holdRestore(kind,held) {
+  if(modalKind!==kind||!overlay.firstElementChild)return;
+  const backdrop=overlay.firstElementChild,dialog=backdrop.querySelector('.modal');
+  backdrop.dataset.dismissible=String(!held);
+  dialog.setAttribute('aria-busy',String(held));
+  dialog.querySelector('.modal-close')?.toggleAttribute('hidden',held);
+  for(const button of dialog.querySelectorAll('.modal-close,.modal-actions button'))button.disabled=held;
+  if(held){dialog.tabIndex=-1;dialog.focus({preventScroll:true});}
+  else dialog.querySelector('.modal-actions .primary')?.focus({preventScroll:true});
+}
+function confirmImport() {
+  const draft=importDraft;
+  if(!draft||draft.restoring)return;
+  draft.restoring=true;holdRestore('import-review',true);
+  restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(importDraft===draft)importDraft=null;saveNotice=null;if(importOpen())closeModal();account.markLocalChanged();render();toast('已由備份還原旅程；原本的本機旅程已留作回復備份。');}).catch(error=>{draft.restoring=false;holdRestore('import-review',false);toast(error.message);});
 }
 async function economy(change,message,after,onSaved){
   if(economyBusy)return;economyBusy=true;
@@ -198,7 +314,7 @@ function cardMarkup(card, options = {}) {
 function header() {
   return gameHeaderMarkup({profile,screen,sound,accountButton:accountButtonMarkup(account.getState())});
 }
-function homeMarkup() { return lobbyMarkup(profile,cardMarkup,selectedNode); }
+function homeMarkup() { return `${lobbySaveNotice()}${lobbyMarkup(profile,cardMarkup,selectedNode)}`; }
 
 function updateResourcePreview() {
   if(!match||match.status!=='playing'||revealPending)return;
@@ -373,7 +489,7 @@ function render() {
   const previousMap=app.querySelector('.world-map[data-world]');
   if(previousMap)worldScrollPositions.set(previousMap.dataset.world,previousMap.parentElement.scrollLeft);
   profile=refreshDaily(profile);
-  const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}<div class="game-utilities"><button class="text-button" data-action="export-save">匯出旅程備份 ↗</button><button class="text-button" data-action="rules">弈道 · 遊戲規則</button></div>${recoveryMarkup()}</main>`};
+  const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}${saveToolsMarkup(saves.status())}${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
   app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?((profile.wx01.receipt||profile.expansion.fireMountain.run)?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
   prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});fitAttackFormula();
@@ -471,8 +587,8 @@ function experienceSettingsModal() {
   const p=experience.getPreferences();
   modal(`<div class="eyebrow">旅途隨心</div><h2>聲息與節奏</h2><p>留一點水聲，或安靜落子。依你的步調遊歷。</p>
     <label class="experience-field"><span>開啟聲音<small>水聲與落子音效</small></span><input id="experience-sound" type="checkbox" ${p.sound?'checked':''}></label>
-    <label class="experience-field"><span>環境聲 <output id="experience-ambience-value">${Math.round(p.ambience*100)}%</output></span><input id="experience-ambience" type="range" min="0" max="1" step="0.05" value="${p.ambience}"></label>
-    <label class="experience-field"><span>落子音效 <output id="experience-effects-value">${Math.round(p.effects*100)}%</output></span><input id="experience-effects" type="range" min="0" max="1" step="0.05" value="${p.effects}"></label>
+    <label class="experience-field"><span>環境聲 <output id="experience-ambience-value">${Math.round(p.ambience*100)}%</output></span><input id="experience-ambience" aria-label="環境聲音量" type="range" min="0" max="1" step="0.05" value="${p.ambience}"></label>
+    <label class="experience-field"><span>落子音效 <output id="experience-effects-value">${Math.round(p.effects*100)}%</output></span><input id="experience-effects" aria-label="落子音效音量" type="range" min="0" max="1" step="0.05" value="${p.effects}"></label>
     <label class="experience-field"><span>動態</span><select id="experience-motion"><option value="system" ${p.motion==='system'?'selected':''}>跟隨裝置設定</option><option value="reduce" ${p.motion==='reduce'?'selected':''}>減少動態</option></select></label>
     <label class="experience-field"><span>揭曉節奏</span><select id="experience-pace"><option value="normal" ${p.pace==='normal'?'selected':''}>從容揭曉</option><option value="fast" ${p.pace==='fast'?'selected':''}>直接看結果</option></select></label>
     <p class="panel-footnote">設定會記在此裝置。揭曉時亦可直接跳過。</p><div class="modal-actions"><button class="primary" data-action="close-modal">${screen==='battle'?'返回對局':'返回旅途'} →</button></div>`,'experience-settings',true,'experience-settings');
@@ -486,6 +602,7 @@ function showPackReceipt(recovered=false) {
   syncProfile(loadProfile());
   const receipt=profile.wx01.receipt;
   if(!receipt){render();return toast('這份畫作已收入行囊。');}
+  if(!recovered&&['pack','box','ticket'].includes(receipt.kind))saves.packOpened();
   modal(packReceiptMarkup(receipt,cardMarkup),'pack-modal',true,'pack-receipt');
   packOpening=createPackOpeningController({element:overlay.querySelector('.pack-opening'),receipt,
     reducedMotion:()=>experience.reducedMotion(),pace:()=>experience.getPreferences().pace,announce,window,document,
@@ -960,6 +1077,7 @@ async function recordFinishedMatch() {
   try{
     const result=await transact(p=>finishBattle(p,{encounterId:settledId,winner:match.winner,playedCardIds:match.player.used,finalResources:{hp:match.player.hp,pills:match.player.pills}}),()=>clearBattleSnapshot(settledId));
     lastReward=result.reward;recorded=true;
+    saves.battleFinished(match.winner);
   }finally{settling=false;}
 }
 function resultModal({animate=false}={}) {
@@ -1082,12 +1200,12 @@ document.addEventListener('click', event=>{
   const accountActions = {
     'account-retry': () => account.init(),
     'account-refresh': () => account.refreshCloud(),
-    'account-upload': () => account.upload(),
+    'account-upload': () => account.upload().then(saved => { if (saved) backupMade(); }),
     'account-confirm-restore': () => account.setConfirmation('restore'),
     'account-confirm-delete': () => account.setConfirmation('delete'),
     'account-cancel-confirmation': () => {account.cancelConfirmation();viewport.selectModule({key:viewKey(),moduleId:'cloud'});},
     'account-restore': () => account.restore(),
-    'account-delete': () => account.deleteBackup(),
+    'account-delete': () => account.deleteBackup().then(deleted => { if (deleted) backupDeleted(); }),
     'account-change-email': () => account.changeEmail(),
     'account-logout': async () => { await account.logout(); accountChannel?.postMessage({type:'session-changed'}); },
   };
@@ -1101,9 +1219,12 @@ document.addEventListener('click', event=>{
     if(profile.pending||economyBusy)return toast('請先完成或放棄未完對局。');
     const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
     // A dialog reopened while a restore is in flight keeps that restore's draft, so a press in
-    // it is ignored too, not queued as a second restore that is refused after the first lands.
+    // it is ignored too, not queued as a second restore that is refused after the first lands;
+    // it opens held, as that restore's dialog is (holdRestore).
     if(!recoveryDraft?.restoring)recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
-    modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>');return;
+    modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>','',true,'recovery-restore');
+    if(recoveryDraft.restoring)holdRestore('recovery-restore',true);
+    return;
   }
   if(action==='confirm-restore-recovery'){
     const saved=read(RECOVERY_KEY,null),draft=recoveryDraft;
@@ -1112,8 +1233,8 @@ document.addEventListener('click', event=>{
     // A refusal changes nothing and leaves this dialog open, so the draft stays for a press
     // again: after a fence refusal that asks for a retry, it restores once the fence passes,
     // and every retry runs the backup and fingerprint checks again (docs/LOCAL-COMMANDS.md §11).
-    draft.restoring=true;
-    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(recoveryDraft===draft)recoveryDraft=null;closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>{draft.restoring=false;toast(error.message);});return;
+    draft.restoring=true;holdRestore('recovery-restore',true);
+    restoreLocalProfile(draft.snapshot,draft.fingerprint).then(()=>{if(recoveryDraft===draft)recoveryDraft=null;if(modalKind==='recovery-restore')closeModal();account.markLocalChanged();render();toast('已復原上次本機旅程。');}).catch(error=>{draft.restoring=false;holdRestore('recovery-restore',false);toast(error.message);});return;
   }
   if(action==='bag-tab')return switchCardsTab(id);
   if(action==='bag-card')return openBagGroup(id,{fromCodex:true});
@@ -1218,10 +1339,29 @@ document.addEventListener('click', event=>{
   if(action==='sell-card'){navigate('bag');bagView.query=getCard(id).name;render();return;}
   if(action==='buy-pack'){if(loadProfile().wx01.receipt)return showPackReceipt(true);const packSet=button.dataset.set||selectedPack;return economy(p=>buyPack(p,{set:packSet}),'',result=>{
     if(result.receipt)return showPackReceipt();
+    saves.packOpened();
     modal(`<div class="eyebrow">${PACK_SETS[result.set].name} · THREE FATES</div><h2>三份緣，已入藏。</h2><p>卡牌已加入收藏。多出的卡可到商旅市集出售。</p><div class="pack-reveal">${result.cards.map(({cardId,rarity,instanceId,printId})=>`<div class="pack-result" style="--rarity:${RARITIES[rarity].color}">${cardMarkup(getCard(cardId),{printId})}<span class="rarity-label">${RARITIES[rarity].name}</span><p>${getCard(cardId).name} · Lv.1<br><span class="instance-serial">#${safe(instanceId)}</span></p></div>`).join('')}</div><div class="modal-actions"><button class="secondary" data-action="close-modal">收入行囊 ✓</button><button class="primary" data-action="buy-pack" data-set="${result.set}" ${profile.coins<PACK_PRICE?'disabled':''}>再開一匣 · ${PACK_PRICE} 金幣</button></div>`,'pack-modal');
   });}
-  if(action==='export-save'){
-    const blob=new Blob([JSON.stringify(loadProfile(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`萬象契旅程-${profile.daily.date}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('旅程備份已匯出。');return;
+  if(action==='export-save')return exportSave();
+  if(action==='import-save')return pickJourneyFile();
+  if(action==='import-confirm')return confirmImport();
+  if(action==='save-notice-dismiss'){if(id==='restore-offer')saves.closeRestoreOffer();else saveNotice=null;render();return;}
+  if(action==='restore-offer-cloud'){
+    // 旅程閣 looks the account up (navigate's own init finds this one busy and sends nothing):
+    // a signed-in player with a cloud backup lands on its restore confirmation, anyone else
+    // on the 雲端旅程 tab (a guest's sign-in, the cloud panel, or the offline note), never
+    // on 此裝置, which would show only the new journey.
+    const looked=account.init();navigate('account');viewport.selectModule({key:viewKey(),moduleId:'cloud'});
+    looked.then(()=>{const state=account.getState();if(screen==='account'&&state.backup&&!state.confirmation)account.setConfirmation('restore');});
+    return;
+  }
+  if(action==='backup-prompt-cloud'){
+    // A backup prompt's 旅程閣 opens where the backup is: the 雲端旅程 tab, with a guest's
+    // sign-in, or 備份此裝置 brought onto its page once 旅程閣 knows the account; never the
+    // header's default 此裝置 tab, which has neither.
+    const looked=account.init();navigate('account');viewport.selectModule({key:viewKey(),moduleId:'cloud'});
+    looked.then(()=>{const upload=screen==='account'&&app.querySelector('[data-action="account-upload"]');if(upload&&!upload.closest('[data-viewport-module]')?.hidden)viewport.revealElement(upload);});
+    return;
   }
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}
   if(action==='rules')return rulesModal();
@@ -1332,6 +1472,7 @@ document.addEventListener('keydown',event=>{
   }
 });
 await transact(p=>p);
+saves.launch({fresh:freshJourney,standalone:isStandalone()}).catch(()=>{});
 nav.start();
 startupReady=true;
 render();
