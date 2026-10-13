@@ -185,7 +185,8 @@ const FIRST_NODE = 'mist-gate';
  * The coach's state: the mark on show and whether mark ② is owed. ② is the only mark
  * that says what pills do, so it is never skipped: a round 1 committed straight from ①
  * owes it. With step 'reveal', `owed` means ② waits for round 2's table; with step
- * 'pills', that this ② is the owed one, shown on round 2's table.
+ * 'pills', that this ② is the owed one: hidden on the round-1 reveal once 知道了 has
+ * closed ④, then shown on round 2's table.
  */
 const coachState = (step, owed = false) => Object.freeze({ step, owed });
 /** The state advanceCoach returns once the coach is complete. */
@@ -193,15 +194,19 @@ export const COACH_DONE = coachState('done');
 
 /**
  * Which coach state the first battle starts in, or null. Only the player's first
- * ever battle (no battle finished yet) at the first 霧隱渡口 encounter: round-1
- * planning starts at ①; a round-1 reveal (after a reload) at ④, still owing ② if
- * `owed`; round-2 planning at the owed ②, and only when it is owed.
+ * ever battle (no battle finished yet) at the first 霧隱渡口 encounter. `place` is
+ * the state this device kept for the battle in progress (createCoachMemory), so a
+ * reload resumes the mark it interrupted; a new first battle passes none.
+ * - Round-1 planning: ①, or the ② or ③ the place reached.
+ * - The round-1 reveal: ④, still owing ② if the place owes it; once 知道了 has
+ *   closed ④ with ② owed (place {pills, owed}), no mark, and ② still owed.
+ * - Round-2 planning: the owed ②, and only when it is owed.
  */
-export function coachStart({ seen = null, encounter = null, played = 0, match = null, revealPending = false, owed = false } = {}) {
+export function coachStart({ seen = null, encounter = null, played = 0, match = null, revealPending = false, place = null } = {}) {
   if (seen || encounter?.kind !== 'expedition' || encounter.nodeId !== FIRST_NODE || played !== 0 || !match) return null;
-  const rounds = match.history?.length ?? 0;
-  if (!revealPending && match.status === 'playing' && rounds === 0) return coachState('card');
-  if (revealPending && rounds === 1) return coachState('reveal', Boolean(owed));
+  const rounds = match.history?.length ?? 0, step = place?.step ?? 'card', owed = Boolean(place?.owed);
+  if (!revealPending && match.status === 'playing' && rounds === 0) return coachState(!owed && ['pills', 'commit'].includes(step) ? step : 'card');
+  if (revealPending && rounds === 1) return owed && step === 'pills' ? coachState('pills', true) : coachState('reveal', owed);
   if (!revealPending && match.status === 'playing' && rounds === 1 && owed) return coachState('pills', true);
   return null;
 }
@@ -209,17 +214,18 @@ export function coachStart({ seen = null, encounter = null, played = 0, match = 
 /**
  * A taught action moves the coach forward, never back, and never past ② before ② has
  * shown. From ①, a card, pills or Fury tap shows ②; from ②, a pills or Fury tap shows
- * ③; a commit shows ④. A commit from ① (a card is already chosen) shows ④ and owes ②.
- * 'continue' (繼續 or 知道了 after ④) then hands over to ② on round 2's table when
- * `nextRound`, and that ② stays while pills are set, until round 2's commit completes
- * the coach. Otherwise 'continue' after ④ completes it. Unchanged input returns the
- * same state object.
+ * ③; a commit shows ④. A commit from ① (a card is already chosen) shows ④ and owes ②,
+ * unless its `move` used pills or Fury: a tap on either shows ②, so only a reload that
+ * lost the device's record can bring such a draft back under ①. 'continue' (繼續 or
+ * 知道了 after ④) then hands over to ② on round 2's table when `nextRound`, and that ②
+ * stays while pills are set, until round 2's commit completes the coach. Otherwise
+ * 'continue' after ④ completes it. Unchanged input returns the same state object.
  */
-export function advanceCoach(coach, event, { nextRound = true } = {}) {
+export function advanceCoach(coach, event, { nextRound = true, move = null } = {}) {
   if (!coach || !COACH_STEPS.includes(coach.step)) return coach ?? null;
   const { step, owed } = coach;
   if (step === 'card') {
-    if (event === 'commit') return coachState('reveal', true);
+    if (event === 'commit') return coachState('reveal', !(move?.pills > 0 || move?.fury));
     return ['select', 'pills', 'fury'].includes(event) ? coachState('pills') : coach;
   }
   if (step === 'pills' && owed) return event === 'commit' ? COACH_DONE : coach;
@@ -230,29 +236,45 @@ export function advanceCoach(coach, event, { nextRound = true } = {}) {
 }
 
 const MARKS = ['①', '②', '③', '④'];
+const NUMERALS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+const numeral = value => NUMERALS[value] ?? String(value);
 /** The coach mark's words, in the table's voice. Each must fit two lines of its hint on
  * a 360 px portrait phone, and three (all the 44 px status row holds) down to the
  * 340 px minimum; npm run test:coach measures the rendered copy there in Chromium and
- * WebKit (a character count is no proof of fit). */
-export function coachCopy(step, { leader = 'player', commitLabel = '落子 · 決勝' } = {}) {
+ * WebKit (a character count is no proof of fit). ② budgets the player's pills over the
+ * rounds left, this one included: 十二丹撐四回合 in round 1, 十二丹撐三回合 for an
+ * owed ② in round 2. */
+export function coachCopy(step, { leader = 'player', commitLabel = '落子 · 決勝', pills = RULES.pills, roundsLeft = RULES.rounds } = {}) {
   const index = COACH_STEPS.indexOf(step);
   if (index < 0) throw new RangeError('Unknown coach step.');
   const text = {
     card: leader === 'opponent' ? '對手已亮出本輪戰卡。點你的一張戰卡應戰，金框即已選。' : '你持先手，先出牌。點一張戰卡出戰，金框即已選。',
-    pills: '按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹撐四回合，莫一次押盡。',
+    pills: `按＋投入仙丹：攻擊＝力×（1＋丹）。${numeral(pills)}丹撐${numeral(roundsLeft)}回合，莫一次押盡。`,
     commit: `定好便按「${commitLabel}」。雙方暗置的仙丹此刻一同揭曉。`,
     reveal: '比「實際攻擊」：高者勝，敗方受勝方傷害。留意對手還剩幾丹。',
   }[step];
   return Object.freeze({ step, index, total: COACH_STEPS.length, mark: MARKS[index], text });
 }
 
-/** Seen record for the first-battle coach on this device: {"firstBattle":"done"|"skipped"}.
- * Until then it may hold {"owed":"pills"} while round 1 was committed from ① and ② is
- * still to show, so a reload before round 2 keeps that debt; {} once ② shows after all.
- * A storage that throws (private mode, blocked site data) only costs the record: the
- * page still remembers for its own life. */
+/** The stored form of a coach state: {} for ①, else its step and, when owed, "owed". */
+const placeRecord = ({ step, owed }) => step === 'card' && !owed ? {} : { step, ...(owed ? { owed: 'pills' } : {}) };
+
+/**
+ * The first-battle coach's record on this device, under COACH_KEY:
+ * - {"firstBattle":"done"|"skipped"} once the coach ends; nothing is written after that.
+ * - Before an ending, the coach state of the first battle in progress (its "place"), so
+ *   a reload resumes the mark it interrupted: {"step":"pills"} or {"step":"commit"} in
+ *   round-1 planning, {"step":"reveal"} on the round-1 reveal; with ② owed (round 1
+ *   committed from ① at 0 pills, no Fury) {"step":"reveal","owed":"pills"} while ④ is
+ *   due, then {"step":"pills","owed":"pills"} from 知道了 or 繼續 on, through round 2's
+ *   ②, until round 2's commit (or 跳過, or Back) replaces it with the ending.
+ * - Nothing for mark ①: {} is written only when a new first battle starts at ① over a
+ *   place an abandoned one left.
+ * It is written only when the state changes. A storage that throws (private mode,
+ * blocked site data) only costs the record: the page still remembers for its own life.
+ */
 export function createCoachMemory(storage) {
-  let local = null, localOwed = null;
+  let local = null, localPlace = null;
   const record = () => {
     try {
       const value = JSON.parse(storage?.getItem(COACH_KEY) ?? 'null');
@@ -264,16 +286,24 @@ export function createCoachMemory(storage) {
     return COACH_OUTCOMES.has(value) ? value : null;
   };
   const seen = () => local || stored();
-  const owed = () => !seen() && (localOwed ?? record()?.owed === 'pills');
+  /** The kept coach state, or mark ① when none is kept; null after an ending. */
+  const place = () => {
+    if (seen()) return null;
+    if (localPlace) return localPlace;
+    const value = record();
+    return coachState(COACH_STEPS.includes(value?.step) ? value.step : 'card', value?.owed === 'pills');
+  };
   return {
     seen,
-    owed,
-    /** Records whether ② is owed; writes only when that changes, never after an ending. */
-    owe(flag) {
-      const value = Boolean(flag);
-      if (seen() || value === owed()) return;
-      localOwed = value;
-      try { storage?.setItem(COACH_KEY, JSON.stringify(value ? { owed: 'pills' } : {})); } catch {}
+    place,
+    /** Keeps the coach state in progress; writes only when it changes, never after an ending. */
+    keep(state) {
+      const now = place();
+      if (!now || !COACH_STEPS.includes(state?.step)) return;
+      const next = coachState(state.step, Boolean(state.owed));
+      if (next.step === now.step && next.owed === now.owed) return;
+      localPlace = next;
+      try { storage?.setItem(COACH_KEY, JSON.stringify(placeRecord(next))); } catch {}
     },
     finish(outcome) {
       if (!COACH_OUTCOMES.has(outcome)) throw new RangeError('A coach ends as done or skipped.');

@@ -259,7 +259,7 @@ test('D3 coach marks start only on the first ever battle at 霧隱渡口, in its
   const match = createMatch({ rng: () => 0.23, mode: 'expedition' });
   const first = { kind: 'expedition', nodeId: 'mist-gate' };
   assert.deepEqual(coachStart({ encounter: first, played: 0, match }), { step: 'card', owed: false });
-  assert.deepEqual(coachStart({ encounter: first, played: 0, match, owed: true }), { step: 'card', owed: false }, 'a new round 1 starts clean; its own commit decides what is owed');
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match, place: { step: 'reveal', owed: true } }), { step: 'card', owed: false }, 'a new round 1 starts clean; its own commit decides what is owed');
   assert.equal(coachStart({ encounter: first, played: 0, match, seen: 'skipped' }), null);
   assert.equal(coachStart({ encounter: first, played: 0, match, seen: 'done' }), null);
   assert.equal(coachStart({ encounter: first, played: 1, match }), null, 'a finished battle means this is not the first');
@@ -270,11 +270,13 @@ test('D3 coach marks start only on the first ever battle at 霧隱渡口, in its
   assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: true }), { step: 'reveal', owed: false }, 'a reload in the round-1 reveal resumes its last mark');
   assert.equal(coachStart({ encounter: first, played: 0, match: after, revealPending: false }), null, 'round 2 is past the coach');
   // Review round 2: a round 1 committed from ① owes ②, also across a reload.
-  assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: true, owed: true }), { step: 'reveal', owed: true });
-  assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: false, owed: true }), { step: 'pills', owed: true }, 'round 2 opens on the owed ②');
-  assert.equal(coachStart({ encounter: first, played: 0, match: after, revealPending: false, owed: true, seen: 'skipped' }), null);
+  const owedAt = step => ({ step, owed: true });
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: true, place: owedAt('reveal') }), { step: 'reveal', owed: true });
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: false, place: owedAt('reveal') }), { step: 'pills', owed: true }, 'round 2 opens on the owed ②');
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match: after, revealPending: false, place: owedAt('pills') }), { step: 'pills', owed: true });
+  assert.equal(coachStart({ encounter: first, played: 0, match: after, revealPending: false, place: owedAt('pills'), seen: 'skipped' }), null);
   const later = resolveRound(after, { cardId: after.player.hand[1], pills: 0, fury: false }, { cardId: after.opponent.hand[1], pills: 0, fury: false });
-  assert.equal(coachStart({ encounter: first, played: 0, match: later, revealPending: false, owed: true }), null, 'only round 2 can repay ②');
+  assert.equal(coachStart({ encounter: first, played: 0, match: later, revealPending: false, place: owedAt('pills') }), null, 'only round 2 can repay ②');
 });
 
 /** The marks a sequence of taught actions shows, from ①: the coach's own walk, one state at a time. */
@@ -344,30 +346,110 @@ test('D3 review round 2: mark ② (what pills do) is never skipped, whichever co
   assert.equal(advanceCoach(at('reveal', true), 'continue', { nextRound: false }), COACH_DONE, 'no round 2: the coach completes');
 });
 
-test('D3 coach memory keeps an owed ② across a reload, writes only on a change, and an ending replaces it', () => {
+test('D3 coach memory keeps the coach state across a reload, writes only on a change, and an ending replaces it', () => {
   const values = new Map(), writes = [];
-  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => { writes.push(key); values.set(key, value); } };
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => { writes.push(value); values.set(key, value); } };
+  const at = (step, owed = false) => ({ step, owed });
   const memory = createCoachMemory(storage);
-  assert.equal(memory.owed(), false);
-  memory.owe(false);
-  assert.deepEqual(writes, [], 'nothing owed, nothing written');
-  memory.owe(true); memory.owe(true);
-  assert.deepEqual(writes, [COACH_KEY]);
-  assert.deepEqual(JSON.parse(values.get(COACH_KEY)), { owed: 'pills' });
-  assert.equal(createCoachMemory(storage).owed(), true, 'a reload reads the debt');
+  assert.deepEqual(memory.place(), at('card'), 'no record is mark ①');
+  memory.keep(at('card'));
+  assert.deepEqual(writes, [], 'mark ① writes nothing');
+  memory.keep(at('reveal', true)); memory.keep(at('reveal', true));
+  assert.deepEqual(writes, ['{"step":"reveal","owed":"pills"}'], 'a commit from ① owes ②, written once');
+  assert.deepEqual(createCoachMemory(storage).place(), at('reveal', true), 'a reload reads the debt');
   assert.equal(createCoachMemory(storage).seen(), null, 'an owed ② is not a seen coach');
-  memory.owe(false);
-  assert.deepEqual(JSON.parse(values.get(COACH_KEY)), {}, '② shown after all clears the debt');
-  assert.equal(createCoachMemory(storage).owed(), false);
-  memory.owe(true); memory.finish('done');
+  memory.keep(at('pills', true));
+  assert.deepEqual(createCoachMemory(storage).place(), at('pills', true), '知道了 or 繼續 hands over to the owed ②, and a reload keeps it');
+  memory.keep(at('card'));
+  assert.equal(values.get(COACH_KEY), '{}', 'only a new first battle at ① clears an abandoned one\'s place');
+  assert.deepEqual(createCoachMemory(storage).place(), at('card'));
+  memory.keep(at('pills', true)); memory.finish('done');
   assert.deepEqual(JSON.parse(values.get(COACH_KEY)), { firstBattle: 'done' });
-  assert.equal(memory.owed(), false);
-  memory.owe(true);
-  assert.deepEqual(JSON.parse(values.get(COACH_KEY)), { firstBattle: 'done' }, 'nothing is owed after an ending');
-  assert.ok(writes.every(key => key === COACH_KEY));
+  assert.equal(memory.place(), null);
+  memory.keep(at('pills', true));
+  assert.deepEqual(JSON.parse(values.get(COACH_KEY)), { firstBattle: 'done' }, 'nothing is kept after an ending');
+  values.set(COACH_KEY, '{"owed":"pills"}');
+  assert.deepEqual(createCoachMemory(storage).place(), at('card', true), 'a record without a step still owes ②');
   const broken = createCoachMemory({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
-  broken.owe(true);
-  assert.equal(broken.owed(), true, 'without storage the page still remembers for its own life');
+  broken.keep(at('commit'));
+  assert.deepEqual(broken.place(), at('commit'), 'without storage the page still remembers for its own life');
+});
+
+test('D3 review round 3: the owed ② keeps {"step":"pills","owed":"pills"} while it shows, until round 2\'s commit', () => {
+  // Drives the pure coach as app.mjs does: setCoach keeps every new state; an ending is finished.
+  const values = new Map(), writes = [];
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => { writes.push(value); values.set(key, value); } };
+  const first = { kind: 'expedition', nodeId: 'mist-gate' }, match = createMatch({ rng: () => 0.23, mode: 'expedition' });
+  let memory = createCoachMemory(storage), coach = coachStart({ encounter: first, played: 0, match, place: null });
+  const event = (name, options) => {
+    const next = advanceCoach(coach, name, options);
+    if (next === coach) return;
+    if (next.step === 'done') { memory.finish('done'); coach = null; } else { coach = next; memory.keep(next); }
+  };
+  const reload = (state) => { memory = createCoachMemory(storage); coach = coachStart({ encounter: first, played: 0, place: memory.place(), ...state }); };
+  const round1 = resolveRound(match, { cardId: match.player.hand[0], pills: 0, fury: false }, { cardId: match.opponent.hand[0], pills: 0, fury: false });
+  event('commit', { move: { cardId: match.player.hand[0], pills: 0, fury: false } });
+  assert.equal(values.get(COACH_KEY), '{"step":"reveal","owed":"pills"}');
+  event('continue');
+  assert.deepEqual(coach, { step: 'pills', owed: true });
+  assert.equal(values.get(COACH_KEY), '{"step":"pills","owed":"pills"}', 'the owed ② keeps the debt while it shows');
+  event('pills');
+  reload({ match: round1, revealPending: false });
+  assert.deepEqual(coach, { step: 'pills', owed: true }, 'a reload in round 2 brings ② back');
+  event('commit', { move: { cardId: match.player.hand[1], pills: 1, fury: false } });
+  assert.equal(coach, null);
+  assert.deepEqual(writes, ['{"step":"reveal","owed":"pills"}', '{"step":"pills","owed":"pills"}', '{"firstBattle":"done"}'], 'no {} while ② shows: it is written only when a new first battle starts at ①');
+});
+
+test('D3 review round 3: a reload resumes the mark it interrupted, so a commit after ② or ③ owes nothing', () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const first = { kind: 'expedition', nodeId: 'mist-gate' }, match = createMatch({ rng: () => 0.23, mode: 'expedition' });
+  const memory = createCoachMemory(storage);
+  let coach = coachStart({ encounter: first, played: 0, match });
+  for (const name of ['select', 'pills']) { coach = advanceCoach(coach, name); memory.keep(coach); }
+  assert.deepEqual(coach, { step: 'commit', owed: false });
+  assert.equal(values.get(COACH_KEY), '{"step":"commit"}');
+  // The reload: the battle snapshot restores the draft; the record restores ③, not ①.
+  const resumed = coachStart({ encounter: first, played: 0, match, place: createCoachMemory(storage).place() });
+  assert.deepEqual(resumed, { step: 'commit', owed: false });
+  assert.deepEqual(advanceCoach(resumed, 'commit', { move: { cardId: match.player.hand[0], pills: 12, fury: false } }), { step: 'reveal', owed: false }, 'nothing is owed to a player who saw ②');
+  values.set(COACH_KEY, '{"step":"pills"}');
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match, place: createCoachMemory(storage).place() }), { step: 'pills', owed: false }, 'a reload on ② keeps ②');
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match, place: null }), { step: 'card', owed: false }, 'a new first battle starts at ①, whatever an abandoned one reached');
+  // Without the record (storage blocked), a reload can still bring ① back over a draft with
+  // pills or Fury: such a commit shows ④ and owes nothing.
+  const card = { step: 'card', owed: false }, cardId = match.player.hand[0];
+  assert.deepEqual(advanceCoach(card, 'commit', { move: { cardId, pills: 2, fury: false } }), { step: 'reveal', owed: false });
+  assert.deepEqual(advanceCoach(card, 'commit', { move: { cardId, pills: 0, fury: true } }), { step: 'reveal', owed: false });
+  assert.deepEqual(advanceCoach(card, 'commit', { move: { cardId, pills: 0, fury: false } }), { step: 'reveal', owed: true }, 'a commit at 0 pills without Fury owes ②');
+});
+
+test('D3 review round 3: 知道了 on ④ with ② owed is kept, so a reload in the reveal shows no ④ and round 2 still opens on ②', () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const first = { kind: 'expedition', nodeId: 'mist-gate' }, match = createMatch({ rng: () => 0.23, mode: 'expedition' });
+  const memory = createCoachMemory(storage);
+  const round1 = resolveRound(match, { cardId: match.player.hand[0], pills: 0, fury: false }, { cardId: match.opponent.hand[0], pills: 0, fury: false });
+  let coach = advanceCoach(coachStart({ encounter: first, played: 0, match }), 'commit', { move: { cardId: match.player.hand[0], pills: 0, fury: false } });
+  memory.keep(coach);
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match: round1, revealPending: true, place: createCoachMemory(storage).place() }), { step: 'reveal', owed: true }, 'before 知道了 a reload shows ④ again');
+  coach = advanceCoach(coach, 'continue'); memory.keep(coach);
+  const reloaded = coachStart({ encounter: first, played: 0, match: round1, revealPending: true, place: createCoachMemory(storage).place() });
+  assert.deepEqual(reloaded, { step: 'pills', owed: true }, 'after 知道了 a reload in the reveal shows no ④, and ② is still owed');
+  assert.equal(advanceCoach(reloaded, 'continue'), reloaded, '繼續 then keeps the owed ② for round 2');
+  assert.deepEqual(coachStart({ encounter: first, played: 0, match: round1, revealPending: false, place: createCoachMemory(storage).place() }), { step: 'pills', owed: true });
+});
+
+test('D3 review round 3: mark ② budgets the pills left over the rounds left', () => {
+  assert.equal(coachCopy('pills').text, '按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹撐四回合，莫一次押盡。', 'round 1 reads as before');
+  assert.equal(coachCopy('pills', { pills: RULES.pills, roundsLeft: RULES.rounds }).text, coachCopy('pills').text);
+  const owed = coachCopy('pills', { pills: 12, roundsLeft: 3 }).text;
+  assert.equal(owed, '按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹撐三回合，莫一次押盡。', 'an owed ② in round 2 counts three rounds');
+  assert.match(coachCopy('pills', { pills: 9, roundsLeft: 2 }).text, /九丹撐二回合/);
+  for (let pills = 0; pills <= RULES.pills; pills++) for (let roundsLeft = 1; roundsLeft <= RULES.rounds; roundsLeft++) {
+    assert.ok([...coachCopy('pills', { pills, roundsLeft }).text].length <= 32, `② stays within the copy budget at ${pills} pills and ${roundsLeft} rounds`);
+  }
 });
 
 test('D3 coach memory writes only its own device-local key, once, and survives a storage that throws', () => {
