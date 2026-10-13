@@ -398,6 +398,25 @@ deployed; no hosted check.
   one `nav.queue()` line in `resultModal()`'s `onPhase`. Checks:
   [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12), "Review
   round 1 fixes".
+- **Review round 2 fixes (2026-10-13):** source commit **`94456a6`**
+  (`battle-teaching.mjs`, `battle-teaching.css`, `app.mjs`, `battle-ui.mjs`,
+  `tests/battle-teaching.test.mjs`, `tests/battle-table-view.test.mjs`) and
+  smoke commit **`bd91390`** (`tools/coach-smoke.mjs`). Coach mark ②, the only
+  one that says what pills do, is never skipped: ＋, the slider or 怒擊 on ①
+  shows ②, and a round 1 committed straight from ① shows ④ and then opens
+  round 2's table on ②, which stays until that round's commit completes the
+  coach. Before an ending `shanhai.coach.v1` may now hold `{"owed":"pills"}`
+  (or `{}`), so a reload keeps the owed ②; it is still device-local only. The
+  coach hint clamps at three lines on portrait phones, so ② shows whole down to
+  the 340 px minimum inside the row's 44 px. `test:coach` waits for the table's
+  entry animations before measuring, which ends a WebKit flake. New `app.mjs`
+  touch points for the D2 merge, all in the D3 block and branches above:
+  `coachStep` became `coach` (`{step,owed}`) with a `setCoach` helper;
+  `startCoach` passes `owed`; `coachEvent` passes `nextRound`;
+  `revealTeachingMarkup` passes `owed`; the coach-done click branch calls
+  `coachEvent('continue', …)`; the next-round branch's announcement appends an
+  owed ②. Checks: [VALIDATION](VALIDATION.md#d3-first-battle-teaching--2026-10-12),
+  "Review round 2 fixes".
 
 ## Experience planning checkpoint · 2026-09-29
 

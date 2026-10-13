@@ -514,7 +514,10 @@ pending; capping the AI's round-1 spend stays an owner fallback after it.
 Review round 1 (2026-10-13) fixed five defects: a false sum in a clamped
 formula, the Fury cost line hiding the pills left, mark ② cut at 360 px, Back
 during the animated reveal skipping mark ④, and untested 預計 and announced-card
-wiring.
+wiring. Review round 2 (2026-10-13) made mark ② (what pills do) impossible to
+skip (a round 1 committed straight from ① now gets it on round 2's table),
+showed it whole on phones narrower than 360 px, and ended a WebKit flake in
+`test:coach`.
 
 ### M5 · Mobile adaptation → iOS and Android closed beta
 

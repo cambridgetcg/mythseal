@@ -208,6 +208,99 @@ engines'; the WebKit runs of `test:browser`'s suites; `test:commands`,
 `test:map-piece` and the literary preview smokes; `tools/battle-measure.mjs`;
 deploy dry runs, the SQL harness and CI.
 
+**Review round 2 fixes · 2026-10-13.** Review round 2 reported five findings
+on `4dba880`, and independent reproductions confirmed all five. They are three
+defects: two pairs of findings describe the same one. They are fixed in source
+commit **`94456a6`** (`battle-teaching.mjs`, `battle-teaching.css`, `app.mjs`,
+`battle-ui.mjs`, `tests/battle-teaching.test.mjs`,
+`tests/battle-table-view.test.mjs`) and smoke commit **`bd91390`**
+(`tools/coach-smoke.mjs`). The documentation commit after them changes no
+served, test or tool file. No allowlist change. Environment as above;
+`python3 tools/serve.py --port 4204` started fresh from the worktree for these
+runs.
+
+- **Coach mark ② could be skipped for good** (low, twice). It is the only mark
+  that says what pills do (攻擊＝力×（1＋丹）, 十二丹撐四回合). ＋, the slider or
+  怒擊 on ① went straight to ③. A commit on ① went straight to ④: a card is
+  already chosen and the pills start at 0, so the commit button is live under
+  ①. 繼續 then recorded `done`, and ② never showed. Now ① moves only to ②,
+  whichever of the card, ＋, the slider or 怒擊 is used. A commit straight
+  from ① shows ④ and owes ②, recorded as `{"owed":"pills"}` under
+  `shanhai.coach.v1`. 繼續 or 知道了 (its accessible name then reads
+  知道了，下一回合再說仙丹) opens round 2's table on ②. That ② is announced
+  with the round's start, stays while pills are set and across a reload, and
+  round 2's commit records `done`. One reviewer's note on weight: the 0 of 300
+  games is for a player who never adds pills; 0 in round 1 and then an even
+  spread won 82 %. So what this path lost was the ② sentence, not a winnable
+  game. New unit tests cover the transitions, the owed start and the memory.
+  `test:coach` now commits from ①, reloads in the reveal, taps 知道了, finds ②
+  on round 2's table, adds a pill, reloads, commits, finds `done` and no mark in
+  round 3; it also checks ＋ on ① and the slider on ① (at the narrow sizes
+  below). With only the transition rule reverted (① to ③ on pills or 怒擊, ① to
+  ④ on a commit, nothing owed), the new unit test fails (1 of 13 in
+  `tests/battle-teaching.test.mjs`) and `test:coach` fails in Chromium at "a
+  commit from ① owes ②". **Correction:** the finding says it was first raised
+  in round 1, which the round-1 fix record above does not list. The plan
+  described the skip-ahead as intended, and the smoke encoded it ("commit
+  straight away" expected ④ after ①; ＋ on ① expected ③).
+- **Coach mark ② was cut on phones 340–354 px wide** (medium and low; one
+  verifier rated the medium one low). The two-line clamp hid 盡。 below about 355 px in Chromium (for
+  example Playwright's Pixel 4 at 353×745) and below 349 px in WebKit, down to
+  the supported 340 px minimum. The clamp is now three lines on portrait
+  phones: three 14 px lines (42 px) fit the status row's 44 px, so the row
+  stays 45 px with its 1 px rule. At 340×640 mark ②'s hint is now 42 px tall
+  with 42 px of text in both engines, ending 莫一次押盡。. `test:coach` measures every copy of
+  marks ①–③ (both leaders, both commit labels) at 340×640, 348×760, 353×745
+  and 354×640: whole, at most three lines, and the row's height unchanged. At
+  360×640 and 360×560 it still requires two lines. With the clamp back at two
+  lines, `test:coach` fails in Chromium and in WebKit at "340x640: the pills
+  copy (player leads, 封丹 · 落子) shows whole, in 3 lines". **Correction:** the
+  open item "narrower layouts … not measured" above is now measured.
+- **`test:coach` failed in WebKit about half the time** (medium). Its
+  full-motion section measured 跳過 during the table's 3 px entry translate,
+  where WebKit gives the 44 px button a height of 43.999996 px. Every coach
+  check now first waits until no finite animation runs (the coach outline's
+  infinite glow is ignored); the 44 px check keeps no tolerance. With that wait
+  made a no-op, 4 of 8 WebKit runs failed with "full motion: 跳過 is a 44 px
+  target"; with it, 10 of 10 WebKit runs passed in the worktree before the
+  commits. **Correction:** the round-1 record above gives `test:coach` as
+  "exit 0, 9/9 checks in each engine" without saying that its WebKit run was
+  flaky. At `4dba880` (the smoke is unchanged since `f421044`) the reviewers
+  saw 4 of 8, 3 of 17 and 3 of 9 WebKit runs fail.
+
+Each failure above came from reverting only that fix in the worktree before
+the commits; the file was then restored, and the suites below ran on the
+committed code.
+
+Checks at `bd91390`, all browser suites with `GAME_URL=http://127.0.0.1:4204`:
+
+- `node --test tests/*.test.mjs`: exit 0, **571/571** (two new tests in
+  `tests/battle-teaching.test.mjs`; its start and order tests and the reveal-tip
+  test in `tests/battle-table-view.test.mjs` were extended).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries (120 `local-playable`, 30
+  `preview`), no findings.
+- `npm run build`: exit 0, 86 public files, manifest `8568ce1d…3bf5`.
+- `git diff --check 4dba880 bd91390`: exit 0.
+- `npm run test:coach`: exit 0, **12/12 checks in each engine** (Chrome
+  154.0.8037.98 with Pixel 7, then WebKit 26.6 with iPhone 15), with empty
+  error lists.
+- `npm run test:battle-table`: exit 0, 40/40 in Chrome and 40/40 in WebKit
+  (246 s). Its Mist Gate fixture runs with a coach mark on the table at the
+  six contract sizes.
+- `npm run test:back`: exit 0, 16 checks in Chrome and 15 in WebKit.
+- `npm run test:viewport`: exit 0, 23/23 in Chrome and 23/23 in WebKit.
+- `npm run test:browser` (Chrome, 14 suites): exit 0, 91 `PASS` lines; every
+  printed error list was empty.
+
+Not run or not shown: the owner's playtest with first-time players (still the
+real exit); physical phones, real Safari, VoiceOver and TalkBack (the owed ②'s
+announcement was checked only as `#announcer` text); fonts other than the
+headless engines'; the WebKit runs of `test:browser`'s suites;
+`test:commands`, `test:wx01`, `test:inheritance`, `test:collection-display`,
+`test:expansion`, `test:map-piece` and the literary preview smokes;
+`tools/battle-measure.mjs`; deploy dry runs, the SQL harness and CI.
+
 ## D1 Back model · 2026-10-12
 
 Branch `d1/back-model`, from `origin/main` `7712a7b`; packet D1, approved by the

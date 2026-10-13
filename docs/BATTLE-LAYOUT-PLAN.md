@@ -446,8 +446,8 @@ and `app.mjs` wires them to the table.
 | Element | Behaviour |
 | --- | --- |
 | Planning hint | One visible line under the round and prompt in the status row: 選一張戰卡 → 定仙丹 → 封丹 · 落子 (落子 · 決勝 outside 霧隱渡口). The reveal-time table reads 查看本回合結果，再進下一回合. The line uses the 44 px the row already had for 對弈紀錄, so the Q0 one-table layout keeps its rows. |
-| Coach marks | Only on the first ever battle: a 霧隱渡口 expedition encounter while `stats.played` is 0 (no battle finished yet) and this device has no coach record, starting in round 1. ① pick a card → ② add pills (攻擊＝力×（1＋丹）; the twelve pills must last four rounds, so not all at once) → ③ commit → ④ read the reveal. ①–③ take the hint line's place (on a portrait phone, both lines of the row) and outline the control they teach with a dashed gold line; nothing covers a control. ④ sits in the round-1 reveal footer with 知道了 and outlines both 實際攻擊 figures. Using the taught control moves to the next mark; using a later one first skips ahead (for example adding pills before choosing a card). |
-| Ending | 跳過 on the table, 知道了 or Back end every mark at once; 繼續 · 下一回合 after ④ completes them. Either way the device-local key `shanhai.coach.v1` records `{"firstBattle":"skipped"}` or `"done"`, and no mark returns, also after a reload or in a restarted first battle. A first battle abandoned before any ending shows the marks again in the next one, because `stats.played` is still 0. A player whose first battle is a practice or arena match never sees them. |
+| Coach marks | Only on the first ever battle: a 霧隱渡口 expedition encounter while `stats.played` is 0 (no battle finished yet) and this device has no coach record, starting in round 1. ① pick a card → ② add pills (攻擊＝力×（1＋丹）; the twelve pills must last four rounds, so not all at once) → ③ commit → ④ read the reveal. ①–③ take the hint line's place (on a portrait phone, the whole row: two lines, or three for ② below about 355 px) and outline the control they teach with a dashed gold line; nothing covers a control. ④ sits in the round-1 reveal footer with 知道了 and outlines both 實際攻擊 figures. Using the taught control moves to the next mark, but ② is never skipped: on ①, a card, ＋, the slider or 怒擊 shows ②; on ②, ＋, the slider or 怒擊 shows ③; a commit shows ④. A commit straight from ① (a card is already chosen, at 0 pills) shows ④ and owes ②: 繼續 or 知道了 after ④ then opens round 2's table on ②, which stays while pills are set and leaves with that round's commit. (Until review round 2, 2026-10-13, using a later control first skipped ahead, so ＋ on ① went to ③ and a commit on ① went to ④, and ② never showed.) |
+| Ending | 跳過 on the table or Back end every mark at once. 繼續 · 下一回合 or 知道了 after ④ completes them, or, when ② is owed, hands over to it, and round 2's commit then completes them (知道了's accessible name says which). Either way the device-local key `shanhai.coach.v1` records `{"firstBattle":"skipped"}` or `"done"`, and no mark returns, also after a reload or in a restarted first battle. A first battle abandoned before any ending shows the marks again in the next one, because `stats.played` is still 0. A player whose first battle is a practice or arena match never sees them. |
 | Back | A coach mark is one dismissible layer in the [Back model](NAVIGATION.md#back-model--2026-10-12): under any dialog opened over the table, and above the held round result once the reveal has completed and shows ④. Back closes it as 跳過 does; the next Back opens keep/abandon or holds the result as before. While the reveal still animates, ④ is hidden, so it is no layer yet and Back holds the result as it does without the coach. |
 | Formula | The move panel's estimate cell shows the arithmetic behind its number, for example `力 6 ×（1＋3 丹）＝ 24`. See below. |
 | Reveal tip | Once each round's reveal completes, the footer states 對手剩 N 丹 · 你剩 M 丹 and one hint, in the place 直接看結果 leaves. See below. |
@@ -455,8 +455,11 @@ and `app.mjs` wires them to the table.
 
 No teaching element writes the profile, the battle snapshot, an export or a
 backup. The only stored value is `shanhai.coach.v1`, beside
-`shanhai.experience.v1`. If storage throws, only the record is lost: the marks
-stay closed for the rest of that page's life.
+`shanhai.experience.v1`. Before an ending it can hold `{"owed":"pills"}`
+between a round-1 commit from ① and round 2's commit, so a reload in the
+reveal or in round 2 keeps the owed ②; `{}` if ② shows after all. If storage
+throws, only the record is lost: the marks stay closed, and an owed ② is still
+kept, for the rest of that page's life.
 
 **Formula rules.** The number is always the engine's own. When the opponent
 leads, its announced card is public, so the number is `resolveRound`'s player
@@ -504,14 +507,21 @@ separate from the automation.
 - The owner playtest above, and the owner's review of the copy's tone.
 - Physical iPhone and Android phones, real Safari, and VoiceOver/TalkBack
   reading of the marks. Marks ② and ③ and the endings are announced when they
-  change; ① and ④ are page text with an sr-only step number, and the start of
-  the battle still announces 對局開始。選一張戰卡，再分配仙丹。
+  change, an owed ② with round 2's start; ① and ④ are page text with an
+  sr-only step number, and the start of the battle still announces
+  對局開始。選一張戰卡，再分配仙丹。
 - Every copy of marks ①–③ (both leaders, both commit labels) fits two lines at
   360×640 and 360×560 with headless Chromium's and WebKit's fonts, measured by
   `npm run test:coach`. Review round 1 found mark ② at three lines in Chromium
   at 360 px (its last two characters hidden) and shortened it by one
-  character. Narrower layouts, down to the 340 px minimum, and other fonts are
-  not measured; the two-line clamp would hide a third line there.
+  character. Review round 2 measured narrower phones: below about 355 px
+  (Chromium) and 349 px (WebKit), down to the 340 px minimum, mark ② needs a
+  third line, which the two-line clamp hid (盡。). The clamp is now three lines:
+  three 14 px lines (42 px) fit the status row's 44 px, so the row never grows.
+  `test:coach` measures every copy whole, in at most three lines and with the
+  row's height unchanged, at 340×640, 348×760, 353×745 (Playwright's Pixel 4)
+  and 354×640. Other fonts are not measured; a copy needing a fourth line would
+  still be cut.
 - The cost line can still end in an ellipsis beside a three-digit estimate in
   a 360 px cell, as it could before D3.
 - The compact formula forms drop the spacing, and the folded form shows the
