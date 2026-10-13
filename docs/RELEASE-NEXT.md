@@ -140,8 +140,13 @@ added, 72,648 B; existing files +34,247 B); its 23 PNGs are unchanged. PR #13
   CSS and the viewport meta only, plus two `aria-label`s in `app.mjs`. No
   storage key; no engine, save, profile, Worker, SQL or journey-flag change.
   Emulation only: the physical-phone items are open in the
-  [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), and landscape
-  phones below 701 px wide keep a fault that predates N1 (NAVIGATION, Limits).
+  [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist). Landscape phones
+  below 701 px wide keep a fault N1 recorded but did not cause, in the scene
+  modules of 市集, 對弈 and 遊歷: with 西行秘匣 selected 開啟秘匣 is hidden, and
+  西行印 or 來日, once opened, cover their own tab row until a reload
+  ([NAVIGATION.md:450-515](NAVIGATION.md)). It was already at `7712a7b`, but
+  those modules are new since v0.5.1, so v0.6.0 would ship it to players for
+  the first time (§12 item 17).
 - **D2 · save durability** (PR #14, `a7bda4b`): 匯入旅程備份 in the 旅程閣
   tools, and 「有舊旅程？由備份還原」 on a journey this device has just started
   because no journey key existed, import a 匯出旅程備份 file, either a v5 export
@@ -272,7 +277,7 @@ path.** The v0.5.1 deployment used an ignored helper
 | G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:317-323](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
 | G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e 0281798` exits 0). `test:commands` last passed 13/13 groups per engine at `11d86d9`, the tree of `0281798` (orchestrating session, 2026-10-13, §13); before that at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)). The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
 | G10 | D1, N1, D2 and D3 release checks: `npm run test:back`, `test:shell`, `test:saves` and `test:coach` pass in Chromium and WebKit ([NAVIGATION](NAVIGATION.md#checks); [LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12); [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12); the D2 merge notes in [HANDOVER](HANDOVER.md#d2-save-durability-checkpoint--2026-10-12-local-only)). `test:browser` runs none of the four | New at `0281798`. All four passed at `11d86d9` (orchestrating session, 2026-10-13, §13): `test:back` 21 checks in Chromium and 20 in WebKit, `test:shell` 26 per engine, `test:saves` 20 groups per engine, `test:coach` 16 checks per engine. No CI job runs them yet (G7) | A6, A8, B1 |
-| G11 | The packets' owner-pending exits: D3's human playtest with at least three first-time players and the owner's review of the coach copy ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12), Exit); D1's root Back without a confirm, the owner default as built ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)); the physical-phone items of D1, N1, D2 and D3 ([M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist)) | Open | B0 (owner accepts or defers); §12 items 15 and 16 |
+| G11 | The packets' owner-pending exits: D3's human playtest with at least three first-time players and the owner's review of the coach copy ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12), Exit); D1's root Back without a confirm, the owner default as built ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12)); the physical-phone items of D1, N1, D2 and D3: N1's in the [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only N1's rows, and D1's, D2's and D3's in their own records (listed in §12 item 1); the landscape fault below 701 px wide that N1 recorded and v0.6.0 would ship publicly for the first time (§1, §12 item 17) | Open | B0 (owner accepts or defers); §12 items 1, 15, 16 and 17 |
 
 ## 5. Ordered checklist
 
@@ -567,7 +572,8 @@ environment differs from the job's (B1).
 **A7 · Version and docs.** Bump to 0.6.0 (§3). Correct stale counts: HOSTING
 still says "19 runtime files" (`docs/HOSTING.md:13`). Draft release notes. They
 must tell players to reload every open tab after the release (§6), and can say
-that a 匯出旅程備份 file from v0.5.1 imports in 旅程閣 (D2).
+that a 匯出旅程備份 file from v0.5.1 imports in 旅程閣 (D2). If the owner ships
+the landscape fault below 701 px (§12 item 17), they name it as a known issue.
 
 **A8 · Local release-candidate checks**, on `main` at or after `0281798` plus
 the release PR, never on `8afbabc` or another pre-fence commit (§1).
@@ -605,8 +611,10 @@ approval, whether G3 can be waived, the v2 flag, the B3 backup method, the
 apex Worker's CPU limit (§6), either the A5 guards or a written acceptance
 of the §6 open-tab and hidden-backup cases, the Q1 contract with its
 forward-only rule (G9, §12 item 12), how exact-source CI happens while the
-Actions budget blocks it (G7, §12 item 14), D1's root Back (item 15) and
-D3's playtest exit (G11, item 16). Staging was decided in A0. The WebKit
+Actions budget blocks it (G7, §12 item 14), the packets' physical-phone items
+and the review rounds D2 and N1 ended at their cap (item 1), D1's root Back
+(item 15), D3's playtest exit (G11, item 16) and the landscape fault below
+701 px (item 17). Staging was decided in A0. The WebKit
 expansion tab (item 13) needs no decision any more: N1 fixed it.
 
 **B1 · CI then OWNER · Exact source.** Open the release PR. CI must pass on the
@@ -1315,7 +1323,12 @@ physical-device evidence ([HANDOVER.md:317-321](HANDOVER.md)).
    real Worker, or the owner has accepted the risk in writing.
 7. The owner has signed off on the Q0 open items (G8) and the derivative art,
    and has decided the packets' owner-pending exits (G11): D3's playtest held
-   or deferred, and D1's root Back confirmed or changed (§12 items 15 and 16).
+   or deferred and its coach copy reviewed, D1's root Back confirmed or
+   changed, the physical-phone items of D1, N1, D2 and D3 accepted on
+   emulation evidence or checked, and the landscape fault below 701 px shipped
+   as documented or fixed (§12 items 1, 15, 16 and 17). The owner has also
+   seen that D2's and N1's last review fixes were not reviewed again (§12
+   item 1).
 8. Either the A5 guards ship, or the owner has accepted the open-tab and
    hidden-backup cases (§6) in writing, knowing that without A5(a) no in-game
    path reads progress stranded in the v3 key; D2's import reaches only what
@@ -1350,9 +1363,34 @@ disables cloud upload for new clients, so the owner decides.
 ## 12. Owner decisions needed
 
 1. Go/no-go on scope, including the Q0 items still open (G8) and the
-   physical-phone items D1, N1, D2 and D3 leave open (G11; the
-   [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist)): ship on
-   emulation evidence, or check phones first.
+   physical-phone items D1, N1, D2 and D3 leave open (G11): ship on
+   emulation evidence, or check phones first. N1's are the
+   [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only
+   N1's rows. The other packets' are in their own records:
+   - D1: Android gesture navigation with predictive back, the iOS Safari edge
+     swipe, whether a real Back button skips an entry, and bfcache restores on
+     phones ([NAVIGATION](NAVIGATION.md#back-model--2026-10-12), "Checks";
+     [HANDOVER](HANDOVER.md#d1-back-model-checkpoint--2026-10-12-local-only),
+     "Open").
+   - D2: Safari's seven-day eviction, iOS home-screen storage isolation, real
+     browsers' `persist()` answers, and what the iOS Safari download sheet
+     does with the export against its 1 s `revokeObjectURL`
+     ([LOCAL-COMMANDS §19](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12),
+     **UNVERIFIED**). §6's rollback advice and C4's support route rely on
+     that export.
+   - D3: real Safari, and VoiceOver and TalkBack reading the coach marks
+     ([BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12),
+     "Open").
+
+   The same decision covers a residual review risk. D2's and N1's review
+   loops ended at their round cap without a clean round (their PR bodies, as
+   the orchestrating session reported on 2026-10-13; not re-read here), so the
+   fixes of their last rounds were not reviewed again: D2's integration review
+   round 2, which changed `restoreCloudJourney` on the cloud-restore path C3
+   uses ([HANDOVER](HANDOVER.md#d2-save-durability-checkpoint--2026-10-12-local-only)),
+   and N1's round 3, the dock fix for 812×325 and the 16 px field floor
+   ([HANDOVER](HANDOVER.md#n1-review-round-3--2026-10-12)). The owner can ask
+   for one more review of those before GO.
 2. Approval of the WebP derivatives and of the `sharp` devDependency
    (A1, §9).
 3. Whether the versioned module graph (A2) ships now or is waived for this
@@ -1456,6 +1494,30 @@ disables cloud upload for new clients, so the owner decides.
     pending. Capping the AI's round-1 spend stays an owner fallback, to be
     considered only after that playtest; `engine.mjs` and `chooseAIMove` are
     unchanged.
+17. **Landscape phones below 701 px wide** (G11). N1 recorded a fault it did
+    not cause and did not fix ([NAVIGATION.md:450-515](NAVIGATION.md);
+    [HANDOVER](HANDOVER.md#n1-review-round-3--2026-10-12)). Held sideways at
+    667×375, 640×360 or 568×320 (also 700×390 and 667×331), the scenes get
+    the portrait layout in a short frame, because the short-landscape rules
+    sit under `@media(max-height:500px) and (min-width:701px)`
+    (`expansion.css:94`, `:105`, `:110`; `scene-navigation.css:153`, `:174`).
+    In both engines, in emulation:
+    - with 西行秘匣 selected (what 秘匣 opens with), 開啟秘匣 is wholly hidden,
+      so a WX-01 pack cannot be bought there;
+    - 市集's 西行印 and 對弈's 來日, once opened, cover their own tab row, and
+      the selected module survives a trip through the dock, so a player cannot
+      reliably tap back out until a reload; 問道, 切磋, 整盒 and 遊歷's chapter
+      module cover some or all of their tab row at some of these sizes;
+    - several buy and travel buttons sit partly or wholly under the dock.
+
+    The fault was already at `7712a7b`, but the modules it is in are new since
+    v0.5.1: live v0.5.1's 19 public files include no `viewport.mjs`,
+    `scene-navigation.css`, `expansion.css` or WX-01 module ([cmd] `git show
+    v0.5.1:hosting/public-assets.json`), so v0.6.0 would ship it to players for
+    the first time. How v0.5.1's own simpler market and arena pages lay out at
+    these sizes was not checked. Decide: ship with the fault documented (the
+    A7 release notes then name it), or fix it first, which is new work:
+    vertical fit below 701 px was outside N1.
 
 ## 13. Checks run for this plan
 

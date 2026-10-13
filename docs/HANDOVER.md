@@ -97,13 +97,37 @@ during `npm run preview -- --dry-run`, outside the project's services.
   imports a save file.
 - **Still open:** the owner decisions in RELEASE-NEXT §12, among them the Q1
   contract (item 12), A5 or a written acceptance (item 9), the Actions budget
-  (item 14), D1's root Back without a confirm (item 15) and D3's exit (item
-  16); D3's human playtest with at least three first-time players and the
-  review of its coach copy; physical iPhone and Android checks for D1, N1, D2
-  and D3 ([M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist)); real
-  browsers' `persist()` answers and Safari's eviction; Linux WebKit in a CI
-  browser job; and all of RELEASE-NEXT's Phases B and C (hosted migrations,
-  deploy, hosted checks).
+  (item 14), D1's root Back without a confirm (item 15), D3's exit (item 16)
+  and the landscape fault below 701 px (item 17); D3's human playtest with at
+  least three first-time players and the review of its coach copy; physical
+  iPhone and Android checks for D1, N1, D2 and D3: N1's in the
+  [M5.1 checklist](MOBILE-RELEASE.md#m51-phone-checklist), which holds only
+  N1's rows, and the others in each packet's own open list
+  ([D1](#d1-back-model-checkpoint--2026-10-12-local-only): gesture and
+  predictive back, the iOS edge swipe, bfcache on phones;
+  [D2](LOCAL-COMMANDS.md#19-file-import-and-save-safety-d2-2026-10-12):
+  Safari's eviction, iOS home-screen storage, real `persist()` answers, the
+  iOS download sheet; [D3](#d3-first-battle-teaching-checkpoint--2026-10-12-local-only):
+  real Safari, VoiceOver and TalkBack), gathered in RELEASE-NEXT §12 item 1;
+  Linux WebKit in a CI browser job; and all of RELEASE-NEXT's Phases B and C
+  (hosted migrations, deploy, hosted checks).
+- **Landscape phones below 701 px wide** (RELEASE-NEXT §12 item 17): the
+  fault N1 recorded and left open
+  ([N1 round 3](#n1-review-round-3--2026-10-12);
+  [NAVIGATION · Mobile shell](NAVIGATION.md#mobile-shell), Limits) ships to
+  players for the first time in v0.6.0, because live v0.5.1
+  has none of the scene or WX-01 modules it is in. With 西行秘匣 selected,
+  開啟秘匣 is hidden, so a WX-01 pack cannot be bought there; 西行印 and 來日,
+  once opened, cover their own tab row until a reload; several buy and travel
+  buttons sit under the dock. The owner decides whether it ships documented
+  or is fixed first.
+- **Review rounds that ended at the cap:** D2's and N1's review loops stopped
+  at their round cap without a clean round (their PR bodies, as the
+  orchestrating session reported; not re-read here). So D2's integration
+  review round 2 (`restoreCloudJourney`, on the cloud-restore path) and N1's
+  round 3 (the 812×325 dock fix and the 16 px field floor) were not reviewed
+  again. RELEASE-NEXT §12 item 1 puts this before the owner, who can ask for
+  one more review before GO.
 - **Older status lines superseded:** the dated D1, N1, D2 and D3 checkpoints
   below stay as written. The D2 checkpoint's "merging by D2's PR … not merged
   to `main`" and the D3 checkpoint's "not merged, pushed or deployed" predate
