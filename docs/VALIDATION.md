@@ -111,7 +111,7 @@ over; this pass did not repeat them:
   `test:browser` (Chromium, 14 suites) 91 PASS lines.
 - `npm run audit:content`: 150 entries, no findings.
 
-**Documentation.** RELEASE-NEXT is revised for D1–D3 (its §13 lists every
+**Documentation.** RELEASE-NEXT is revised for D1, N1, D2 and D3 (its §13 lists every
 check above); the docs index, the roadmap's D1, N1, D2 and D3 status lines and
 a new [handover checkpoint](HANDOVER.md#v060-integration-checkpoint--2026-10-13-local-only)
 are brought up to the merges. The dated N1, D1, D2 and D3 entries below were

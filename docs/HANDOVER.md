@@ -89,7 +89,7 @@ during `npm run preview -- --dry-run`, outside the project's services.
   the v0.6.0 scope; this pass did not read or touch the branch.
 - **Release plan:** [RELEASE-NEXT](RELEASE-NEXT.md) was revised on
   2026-10-13: the candidate is `main` at or after `0281798` plus the release
-  PR; D1–D3's suites are gate G10 and their owner exits G11; §6 covers D2's
+  PR; the four packets' suites are gate G10 and their owner exits G11; §6 covers D2's
   file import, the device-local keys `shanhai.saves.v1` and `shanhai.coach.v1`
   and a rollback to v0.5.1; A5 and owner decision 9 say what D2 covers (a
   v0.5.1 export file) and what it does not (progress stranded in the v3 key).

@@ -205,7 +205,7 @@ equal `7712a7b`'s) and the plan's first, at `8afbabc`, are kept in brackets.
 | Item | Live (mythseal.com) | Candidate, measured at `0281798` [at `b527dc3`; at `8afbabc`] | Evidence |
 | --- | --- | --- | --- |
 | `clientVersion` / commit | `0.5.1` / `ea48558` | `0.5.1` (not bumped yet) / `0281798` | live `release.json`; `dist/release.json` |
-| Public files | 19 files, **11,130,757 B** | 90 files, **74,496,049 B** (71.04 MiB) [83 files, 74,389,154 B; 80 files, 74,347,757 B]. Q1 added three modules (32,980 B) and grew five existing ones by 8,417 B; D1–D3 add seven files (72,648 B) and grow existing ones by 34,247 B (§1) | all three manifests |
+| Public files | 19 files, **11,130,757 B** | 90 files, **74,496,049 B** (71.04 MiB) [83 files, 74,389,154 B; 80 files, 74,347,757 B]. Q1 added three modules (32,980 B) and grew five existing ones by 8,417 B; D1, N1, D2 and D3 add seven files (72,648 B; N1 adds none) and grow existing ones by 34,247 B, N1's 6,350 B among them (§1) | all three manifests |
 | Manifest SHA-256 | `7c18fceb…4e88` | `e05db797…8746` [`10f594fc…4014`; `98028a3a…54db`] | build output; the live value in full is in [HOSTING.md:137](HOSTING.md) (§13) |
 | Of which PNG | 3 files, 10,838,776 B | **23 files, 73,418,493 B**, unchanged since `8afbabc` | `dist/release.json` |
 | Account API | `{"authenticated":false,"user":null,"emailEnabled":true}`: no `journeyVersions` field, so the v1-only Worker (2026-10-11 probe) | `/api/v2` and `/api/v3` routes behind `JOURNEY_V2_ENABLED` / `JOURNEY_V3_ENABLED`; `journeyVersions` in every account reply. Q1, D1, N1, D2 and D3 change no route (`server/` is unchanged since `7712a7b`) | live probe; `server/account-api.mjs:8-16`, `:123-125`, `:173`; v0.5.1 routes: `git show v0.5.1:server/account-api.mjs` lines 7-12 |
@@ -213,7 +213,7 @@ equal `7712a7b`'s) and the plan's first, at `8afbabc`, are kept in brackets.
 | Cloud snapshot | v1: 512 KiB, 2,000 copies | v3: 4 MiB, 10,000 copies; v1 is still accepted. The ledger never enters a backup. D2's file import wraps the imported journey as a snapshot v3 before restoring it, as a cloud restore would | `cloud-save.mjs:9-13`, `:177-192`; `server/account-api.mjs:5-6`; `platform.mjs:103-106` |
 | Hosted migrations | `20260921210000`, `20260921210100` applied | plus `20260922210000` (v2) and `20260923000000` (v3), **not applied** | [HANDOVER.md:1458-1462](HANDOVER.md); [ACCOUNTS.md:12](ACCOUNTS.md) |
 | Deploy helper | v0.5.1's tracked `tools/deploy.mjs` was 15 lines, with no identity, secret or `--keep-vars` checks | Hosted preflight plus `--keep-vars` (`tools/deploy.mjs:63-84`, `:93-97`). It has only stub-test evidence | [cmd] `git show v0.5.1:tools/deploy.mjs` |
-| Worker bundle | (unknown) | `Total Upload: 910.52 KiB / gzip: 189.56 KiB` at `0281798` [not measured at `b527dc3`; `906.25 KiB / gzip: 188.52 KiB` at `8afbabc`]. The Worker's 14-module import graph from `server/account-api.mjs` is unchanged from `7712a7b` to `0281798` ([cmd] scratch Node walk of static imports, then `git diff --stat 7712a7b 0281798` over those files: empty). PRs #6–#9 changed no runtime file (§1), so the +4.27 KiB / +1.04 KiB since `8afbabc` is Q1's, and D1–D3 add nothing to it. The Worker imports `cloud-save.mjs` (`server/account-api.mjs:2`) and, through it, `progression.mjs` (`cloud-save.mjs:2`), which since Q1 imports `command-ledger.mjs` (`progression.mjs:11`), so the bundle now contains Q1 code. Q1 also changed `hydrateProfile` (`progression.mjs:250`), which the validator runs (`cloud-save.mjs:159`). Verdicts are unchanged: `validateProfile`'s exact-key check rejects a `commands` key first (`cloud-save.mjs:113`; `tests/cloud-save.test.mjs:405-411`; [LOCAL-COMMANDS §2](LOCAL-COMMANDS.md#2-files-in-the-pr)) | [cmd] `npm run preview -- --dry-run` exit 0 at `0281798` and at `8afbabc` |
+| Worker bundle | (unknown) | `Total Upload: 910.52 KiB / gzip: 189.56 KiB` at `0281798` [not measured at `b527dc3`; `906.25 KiB / gzip: 188.52 KiB` at `8afbabc`]. The Worker's 14-module import graph from `server/account-api.mjs` is unchanged from `7712a7b` to `0281798` ([cmd] scratch Node walk of static imports, then `git diff --stat 7712a7b 0281798` over those files: empty). PRs #6–#9 changed no runtime file (§1), so the +4.27 KiB / +1.04 KiB since `8afbabc` is Q1's, and D1, N1, D2 and D3 add nothing to it. The Worker imports `cloud-save.mjs` (`server/account-api.mjs:2`) and, through it, `progression.mjs` (`cloud-save.mjs:2`), which since Q1 imports `command-ledger.mjs` (`progression.mjs:11`), so the bundle now contains Q1 code. Q1 also changed `hydrateProfile` (`progression.mjs:250`), which the validator runs (`cloud-save.mjs:159`). Verdicts are unchanged: `validateProfile`'s exact-key check rejects a `commands` key first (`cloud-save.mjs:113`; `tests/cloud-save.test.mjs:405-411`; [LOCAL-COMMANDS §2](LOCAL-COMMANDS.md#2-files-in-the-pr)) | [cmd] `npm run preview -- --dry-run` exit 0 at `0281798` and at `8afbabc` |
 
 The delta from v0.5.1 to `0281798` covers 223 commits (202 non-merge)
 [127 and 115 at `b527dc3`; 61 and 56 at `8afbabc`]. Of the 90 allowlisted
@@ -267,7 +267,7 @@ path.** The v0.5.1 deployment used an ignored helper
 | G3 | Coherent hashed/versioned module graph ([HANDOVER.md:1184-1185](HANDOVER.md); [ROADMAP.md:266-267](../ROADMAP.md)) | Not implemented: the build copies files under their source names (`tools/build.mjs:44-47`) and one `Cache-Control: public, max-age=0, must-revalidate` covers everything (`hosting/_headers:7`) | A2 |
 | G4 | Hosted proof that the publishable-key binding survives `--keep-vars` ([HOSTING.md:71-81](HOSTING.md)) | Stub tests only | C1 verify |
 | G5 | Hosted acceptance of old and new backups ([HANDOVER.md:1186](HANDOVER.md), `:1245-1247`) | `tools/live-account-check.mjs:83` exercises `/api/v1` only | A4, B4, C3 |
-| G6 | Transfer-size optimization before a hosted rollout ([HANDOVER.md:1578](HANDOVER.md)); first screen ≤ 1.5 MiB ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | First screen measured at **6.98 MiB** at `8afbabc`; **6.99 MiB** at `b527dc3` and **7.02 MiB** at `0281798`, both recomputed statically (Q1's three modules; then D1–D3's seven files and grown modules) (§9) | A1 |
+| G6 | Transfer-size optimization before a hosted rollout ([HANDOVER.md:1578](HANDOVER.md)); first screen ≤ 1.5 MiB ([CONTENT-RELEASE-PIPELINE.md:63](CONTENT-RELEASE-PIPELINE.md)) | First screen measured at **6.98 MiB** at `8afbabc`; **6.99 MiB** at `b527dc3` and **7.02 MiB** at `0281798`, both recomputed statically (Q1's three modules; then the seven files D1, D2 and D3 added and the files all four packets grew, N1's stylesheets among them) (§9) | A1 |
 | G7 | Exact-source CI before deploy ([HOSTING.md:42-43](HOSTING.md)) | CI exists; it has no browser job (`.github/workflows/ci.yml:16-73`). **Updated 2026-10-13.** The two WebKit failures A6 named are fixed by N1 (PR #12): at `0281798`, `test:expansion` and `test:map-piece` exit 0 in Chromium and WebKit, `test:map-piece` with no `test-results/webkit-runtime` folder (A6, §13). **Hosted CI is blocked:** GitHub Actions did not start PR #15's CI job; its check-run annotation reads "The job was not started because an Actions budget is preventing further use." (run 38350385399). Until the owner restores the Actions budget (a billing decision, **OWNER**) or accepts a local CI record instead, no exact-source CI run exists for `0281798` or can exist for the release commit. **Local CI record** (orchestrating session, 2026-10-13, at `11d86d9`, whose tree equals `0281798`'s): every step of `ci.yml` ran and passed (`npm test` 603/603; `tools/test-backup-sql.sh` on a throwaway loopback PostgreSQL **16.14**, TCP only, where CI uses `postgres:17`; Python unittest 9 OK; `npm run test:contracts`; `npm run build`, 90 public files; `npm run preview -- --dry-run` and `npm run deploy -- --dry-run`, both exit 0 with `WRANGLER_SEND_METRICS=false`; `node --check` on every module; `py_compile` of `serve.py`; `bash -n Play.command`), on Node **26.0.0** where CI uses 22, and with the existing `node_modules` instead of `npm ci` | A6, B1; §12 item 14 |
 | G8 | Q0 open items: physical devices, real-Safari blur, short portrait windows, owner layout review ([HANDOVER.md:317-323](HANDOVER.md)) | Open | B0 (owner accepts or defers) |
 | G9 | Q1 release rules ([LOCAL-COMMANDS §11](LOCAL-COMMANDS.md#11-profile-field-and-migration-impact), §15 decision 3): Q1 ships in this first public v5 release; the candidate and every later deploy or rollback target contains the fence `7a7d03e` or is not a v5 build; `npm run test:commands` passes in Chromium and WebKit | New at `b527dc3`. Q1 is in the candidate (`git merge-base --is-ancestor 7a7d03e 0281798` exits 0). `test:commands` last passed 13/13 groups per engine at `11d86d9`, the tree of `0281798` (orchestrating session, 2026-10-13, §13); before that at `38fa64f` ([VALIDATION](VALIDATION.md#q1-third-pre-merge-review-fixes--2026-10-11)). The owner's review of the Q1 contract is open (§12) | A8, B0, B1, C1 |
@@ -761,8 +761,8 @@ since v0.5.1, so either behaviour binds the same key.
 run `node tools/smoke.mjs` ([HOSTING.md:102](HOSTING.md)) and `node
 tools/journey-smoke.mjs`. **Only these two run against production.** The
 navigation suite and 21 other smoke scripts, Q1's `tools/command-smoke.mjs`
-and D1–D3's `back-smoke.mjs`, `save-durability-smoke.mjs`, `shell-smoke.mjs`
-and `coach-smoke.mjs` among them, throw on a non-loopback URL
+and the packets' `back-smoke.mjs` (D1), `save-durability-smoke.mjs` (D2),
+`shell-smoke.mjs` (N1) and `coach-smoke.mjs` (D3) among them, throw on a non-loopback URL
 (`tools/navigation-smoke.mjs:13`: "Navigation smoke requires a loopback game
 server."; [cmd] grep of `tools/*smoke*.mjs` at `b527dc3`, and again at
 `0281798`: 22 of 26 guarded, §13). That error would look like a
@@ -870,8 +870,8 @@ CI link, or the accepted local CI record and the owner's written acceptance
   candidate and every recorded rollback version's source with
   `git merge-base --is-ancestor 7a7d03e <commit>`. After players have committed
   commands, going back below Q1 to a v5 build needs a forward fix instead.
-  Every `main` commit from `7712a7b` on contains the fence, D1–D3's merges
-  `335d2b7`, `e785b27`, `a7bda4b` and `0281798` included.
+  Every `main` commit from `7712a7b` on contains the fence, the merges of D1,
+  N1, D2 and D3 (`335d2b7`, `e785b27`, `a7bda4b` and `0281798`) included.
 - **D2's file import writes only through the strict restore.** Since PR #14,
   匯入旅程備份 (旅程閣 tools) and the new-journey offer's 備份檔 read a
   匯出旅程備份 file: a v5 export, or a v3 one from v0.4.1–v0.5.1 (or a v4 one,
@@ -966,7 +966,8 @@ CI link, or the accepted local CI record and the owner's written acceptance
     **UNVERIFIED** in a browser; this follows from D1's notes and v0.5.1's
     source.
 
-  A rollback to v0.5.1 is therefore as harmless after D1–D3 as after Q1; the
+  A rollback to v0.5.1 is therefore as harmless after D1, N1, D2 and D3 as
+  after Q1; the
   stale-v3, orphaned-rollback-window and hidden-backup cases remain the real
   costs.
 - **The forward deploy also strands progress made in v0.5.1 tabs left open.**
@@ -1096,7 +1097,7 @@ quality 11). Run at `8afbabc`, the
 same script gives exactly the 57 text files and byte counts of the browser
 measurement. No browser measured `b527dc3`.
 
-**Recomputed at `0281798` for D1–D3** (2026-10-13, the same scratch Node
+**Recomputed at `0281798` for D1, N1, D2 and D3** (2026-10-13, the same scratch Node
 script, exit 0; it again reproduces `8afbabc`'s 57 files and `b527dc3`'s 60
 files byte for byte). D1–D3's seven new files are all on the first screen:
 `nav-stack.mjs`, `platform.mjs`, `save-status.mjs`, `save-ui.mjs` and
@@ -1120,8 +1121,10 @@ at `b527dc3` and at `8afbabc` are in brackets.
 
 The first screen is still about **4.7× over budget** (4.68–4.71×), and about
 96% of it is two PNGs (95.6% at gzip, 96.3% at brotli; 96–97% at `b527dc3`).
-Q1 added 41,397 B raw and 12,585–15,151 B compressed; D1–D3 add 106,895 B raw
-and 33,270–40,027 B compressed.
+Q1 added 41,397 B raw and 12,585–15,151 B compressed; D1, N1, D2 and D3 add
+106,895 B raw and 33,270–40,027 B compressed (brotli–gzip), of which N1's CSS,
+meta and two `aria-label`s are 6,350 B raw and 1,969–2,277 B compressed (the
+`335d2b7` and `e785b27` figures in §13's first-screen row).
 **UNVERIFIED:** the compression level Cloudflare actually applies; the gzip and
 brotli columns bracket the likely range.
 
@@ -1140,7 +1143,8 @@ outputs in the scratch directory, not committed):
 
 The PNGs have not changed since the `cwebp` run, so its image figures stand;
 only the text term moved. At `0281798` scenario A leaves about 294–341 KiB of
-the budget (300,542–349,064 B, gzip–brotli); D1–D3 used about 32–39 KiB of it.
+the budget (300,542–349,064 B, gzip–brotli); D1, N1, D2 and D3 used about
+32–39 KiB of it, N1 about 2 KiB.
 
 Quality evidence so far: SSIM of the native WebP q80 against the PNG, from
 [cmd] ffmpeg 8.1.2 (exit 0):
@@ -1499,9 +1503,9 @@ disables cloud upload for new clients, so the owner decides.
 | 2026-10-13: `git log --first-parent --format='%h %p' origin/main` (`origin/main` = `0281798`); `git rev-parse 11d86d9^{tree} 0281798^{tree}`; `git merge-base --is-ancestor 7a7d03e 0281798`; `git log --diff-filter=A --format=%h 0281798 -- profile-fence.mjs` (§1) | PRs #11, #12, #14 and #15 each landed as a two-parent merge (`335d2b7`, `e785b27`, `a7bda4b`, `0281798`), as PR #10 did (`7712a7b`); both trees `3c211f98…`; exit 0; `7a7d03e` |
 | 2026-10-13: `npm run build` at each merge commit `7712a7b`, `335d2b7`, `e785b27`, `a7bda4b` and `0281798`, in one detached scratch worktree (`git worktree add --detach`, then `git checkout --detach` per commit; `dist/` deleted after each, the worktree removed afterwards) (§1, §2) | each exit 0: 83 files, 74,389,154 B, manifest `10f594fc…4014` · 84, 74,408,267 B, `2beb9777…bb80` · 84, 74,414,617 B, `939f26f8…f49c` · 88, 74,456,379 B, `5b403015…9c39` · **90, 74,496,049 B, `e05db797…8746`**; 23 PNG, 73,418,493 B at all five |
 | 2026-10-13: first-screen text by the Q1 revision's method (scratch Node script: static imports from `bootstrap.mjs`, its `import('./app.mjs')`, `index.html`'s stylesheets, `mark.svg`; `node:zlib` gzip 6 and brotli 11) at `8afbabc`, `b527dc3`, `7712a7b`, `335d2b7`, `e785b27`, `a7bda4b` and `0281798` (§9) | exit 0; `8afbabc` and `b527dc3` reproduce 57 and 60 files byte for byte, and `7712a7b` equals `b527dc3`; then 61 files, 989,774 / 289,614 / 246,767 B (raw / gzip / brotli); 61, 996,124 / 291,891 / 248,736; 65, 1,037,886 / 308,044 / 261,996; **67, 1,077,556 / 322,718 / 274,196** at `0281798`. `bootstrap.mjs:3` is still the only dynamic import |
-| 2026-10-13: the public files' `git diff 7712a7b 0281798` searched for `url(`, `assets/`, `.png`, `.webp` and `.svg` (§9) | no match: D1–D3 add or change no image reference |
+| 2026-10-13: the public files' `git diff 7712a7b 0281798` searched for `url(`, `assets/`, `.png`, `.webp` and `.svg` (§9) | no match: D1, N1, D2 and D3 add or change no image reference |
 | 2026-10-13: `WRANGLER_SEND_METRICS=false npm run preview -- --dry-run` at `0281798`, no `hosting/.dev.vars` (§2) | exit 0; `Total Upload: 910.52 KiB / gzip: 189.56 KiB`. Its banner reported a newer Wrangler (4.149.0), so Wrangler ran its own version check; the project's 4.136.1 ran |
-| 2026-10-13: the Worker's static import graph from `server/account-api.mjs` (scratch Node script), then `git diff --stat 7712a7b 0281798` over its 14 files (§2) | empty: D1–D3 change nothing the Worker bundles |
+| 2026-10-13: the Worker's static import graph from `server/account-api.mjs` (scratch Node script), then `git diff --stat 7712a7b 0281798` over its 14 files (§2) | empty: D1, N1, D2 and D3 change nothing the Worker bundles |
 | 2026-10-13: `git rev-list --count [--no-merges] v0.5.1..0281798`; `git diff --name-status/--numstat v0.5.1 0281798` over the allowlist at `0281798`, and over `server/account-api.mjs`, the migrations, `tools/deploy.mjs` and `ci.yml` (§2) | 223 commits (202 non-merge); 83 of 90 runtime files changed (71 added, 12 modified), +8,486/−390; the outside files unchanged since `8afbabc`. The same script reproduces `b527dc3`'s 127/115, 76 (64/12) and +6,947/−371 |
 | 2026-10-13: `curl -A 'Mozilla/5.0'` of `https://mythseal.com/release.json`, no other header (§2) | HTTP 200, exit 0, at about 05:23 UTC: `clientVersion` `0.5.1`, `gitCommit` `ea485586…`, 19 files, 11,130,757 B, manifest `7c18fceb…4e88`. Live is still v0.5.1 |
 | 2026-10-13: `python3 tools/serve.py --port 4205` from this worktree at `0281798`, started after checkout and stopped afterwards; `GAME_URL=http://127.0.0.1:4205`; `PLAYWRIGHT_BROWSERS_PATH` unset and no `test-results/webkit-runtime` folder; installed Chrome 155.0.8059.40, Playwright 1.63.0 with WebKit 26.6, Node 26.0.0, macOS 26.6.2; one suite at a time | the five rows below (seven suites); `test-results/` deleted afterwards |
