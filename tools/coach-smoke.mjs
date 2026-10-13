@@ -31,6 +31,12 @@
  * after 知道了 closed ④ with ② owed, a reload in the reveal shows no ④, Back holds the
  * result and round 2 still opens on ②; the owed ② counts the three rounds left
  * (十二丹撐三回合); the record keeps {"step":"pills","owed":"pills"} while that ② shows.
+ * Review round 4 added: one slider gesture moves the coach by one mark at most (a page.mouse
+ * drag on ①, an input event per value, leaves ② on screen while held and after release; a
+ * held arrow key too; the next gesture shows ③); a new first battle over an abandoned one's
+ * ③ starts at ① and writes {}; the owed ② is announced with its exact sentence; and N1's
+ * narrower phones (302×640, 320×568) are measured: every copy fits three lines, and the cost
+ * line shows the widest form that fits, always ending 剩 N 丹 whole, also with Fury on.
  * Headless engines only: the owner's playtest with first-time players is the real exit
  * (docs/VALIDATION.md).
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/coach-smoke.mjs
@@ -242,8 +248,9 @@ async function assertFormula(page, label, { exact = null, leader = null } = {}) 
 }
 /** With Fury on, the cost line shows the pills left whole (it is what carries them where the
  * player's caption yields), and the Fury toggle's note states the engine's damage inside its
- * button, clear of the switch. */
-async function assertFuryLines(page, label) {
+ * button, clear of the switch. The cost line shows the widest of its forms that fits its cell
+ * (review round 4: below 340 px only a shorter one fits); `full` requires the widest. */
+async function assertFuryLines(page, label, { full = true } = {}) {
   const view = await page.evaluate(async battleKey => {
     const { previewMove, resolveRound } = await import('./engine.mjs');
     const saved = JSON.parse(localStorage.getItem(battleKey)), match = saved.match;
@@ -253,14 +260,22 @@ async function assertFuryLines(page, label) {
     const engine = match.initiative === 'opponent' ? resolveRound(match, draft, saved.aiMove).lastResult.player : previewMove(match, 'player', draft);
     const cost = document.querySelector('.move-panel #cost-note'), note = fury.querySelector('small'), track = fury.querySelector('.toggle-track');
     const box = fury.getBoundingClientRect(), noteBox = note.getBoundingClientRect(), trackBox = track.getBoundingClientRect();
-    return { size: `${innerWidth}x${innerHeight}`, pressed: draft.fury, damage: engine.damage, spent: engine.cost, reserve: match.player.pills - engine.cost, cost: cost.textContent, scroll: cost.scrollWidth, client: cost.clientWidth,
+    const spent = engine.cost, left = `剩 ${match.player.pills - spent} 丹`, shown = cost.textContent;
+    const forms = [`共消耗 ${spent} 丹 · ${left}`, `消耗 ${spent} 丹 · ${left}`, `耗 ${spent} 丹 · ${left}`, `耗 ${spent} · ${left}`, left];
+    const scroll = cost.scrollWidth, client = cost.clientWidth;
+    // Would a wider form than the one shown fit? (Measured, then the shown text is put back.)
+    const widerFits = forms.slice(0, Math.max(0, forms.indexOf(shown))).filter(form => { cost.textContent = form; return cost.scrollWidth <= cost.clientWidth + 0.5; });
+    cost.textContent = shown;
+    return { size: `${innerWidth}x${innerHeight}`, pressed: draft.fury, damage: engine.damage, spent, reserve: match.player.pills - spent, forms, widerFits, cost: shown, scroll, client,
       note: note.textContent, noteInside: noteBox.left >= box.left - 0.5 && noteBox.right <= box.right + 0.5 && noteBox.width > 0,
       clearOfTrack: noteBox.right <= trackBox.left + 0.5 || noteBox.bottom <= trackBox.top + 0.5 || noteBox.top >= trackBox.bottom - 0.5, trackInside: trackBox.right <= box.right + 0.5 && trackBox.left >= box.left - 0.5 };
   }, battleKey);
   const at = `${label} (${view.size})`;
   assert.equal(view.pressed, true, `${at}: Fury is on`);
-  assert.equal(view.cost, `共消耗 ${view.spent} 丹 · 剩 ${view.reserve} 丹`, `${at}: the cost line holds the cost and the pills left`);
+  assert.ok(view.forms.includes(view.cost) && view.cost.endsWith(`剩 ${view.reserve} 丹`), `${at}: the cost line holds the cost and the pills left (${view.cost})`);
+  if (full) assert.equal(view.cost, `共消耗 ${view.spent} 丹 · 剩 ${view.reserve} 丹`, `${at}: the cell is wide enough for the whole cost line`);
   assert.ok(view.scroll <= view.client + 0.5, `${at}: the cost line shows 剩 ${view.reserve} 丹 whole with Fury on (${view.scroll} > ${view.client}: ${view.cost})`);
+  assert.deepEqual(view.widerFits, [], `${at}: the cost line is the widest form that fits (${view.cost})`);
   assert.match(view.note, new RegExp(`^另付 ${RULES.furyCost} 丹 · (傷害|預計傷) ${view.damage}$`), `${at}: the Fury note states the damage a win deals (${view.note})`);
   assert.ok(view.noteInside && view.clearOfTrack && view.trackInside, `${at}: the Fury note stays inside its button, clear of the switch (${JSON.stringify(view)})`);
 }
@@ -468,7 +483,7 @@ try {
     assert.equal(roundTwo.round, 2); assert.equal(roundTwo.player.pills, 12, 'round 1 spent nothing');
     assert.match(second.hintText, /攻擊＝力×（1＋丹）。十二丹撐三回合，莫一次押盡。$/, 'the owed ② says what pills do, over the three rounds left');
     assert.deepEqual(await coachRecord(page), { step: 'pills', owed: 'pills' }, 'the record keeps the debt while ② shows');
-    assert.match(await page.locator('#announcer').textContent(), /攻擊＝力×（1＋丹）/, 'the owed ② is announced with the round');
+    assert.match(await page.locator('#announcer').textContent(), /。按＋投入仙丹：攻擊＝力×（1＋丹）。十二丹撐三回合，莫一次押盡。$/, 'the owed ② is announced with the round, counting the three rounds left');
     await settleDepth(page, 2, 'round 2 and its coach mark');
     await assertReachable(page, '.move-panel [data-action="pill-plus"]', 'owed ② add pills');
     await teaching(page, 'a pill under the owed ②', () => tap(page, '.move-panel [data-action="pill-plus"]'));
@@ -540,6 +555,57 @@ try {
     assert.deepEqual(await coachRecord(page), { firstBattle: 'done' });
     await assertNoCoach(page, 'round 2 after a reload on ③ and a 12-pill commit');
     passed('a reload in round 1 resumes ② or ③ with the draft; a commit after them (12 pills) shows ④, owes nothing and 繼續 completes the coach');
+    await release(page);
+  }
+  {
+    // Review round 4: one slider gesture moves the coach by one mark at most. A drag fires an
+    // input event for every value it passes (locator.fill fires one), so a drag on ① used to
+    // show ② and then ③ before the finger lifted.
+    const page = await open('fresh');
+    await startFirstJourneyBattle(page);
+    await assertCoach(page, 'card', 'before a slider drag on ①');
+    await page.evaluate(() => { window.coachSmokeInputs = 0; document.addEventListener('input', event => { if (event.target.id === 'pill-slider') window.coachSmokeInputs++; }, true); });
+    const step = () => page.evaluate(() => document.querySelector('#app .battle-table')?.dataset.coachStep ?? null);
+    /** Presses the slider at one fraction of its width, drags to another and releases; returns what showed while held. */
+    const drag = async (from, to) => {
+      const box = await page.locator('#pill-slider').boundingBox(), y = box.y + box.height / 2, before = await page.evaluate(() => window.coachSmokeInputs);
+      await page.mouse.move(box.x + box.width * from, y); await page.mouse.down();
+      await page.mouse.move(box.x + box.width * to, y, { steps: 12 });
+      const held = { step: await step(), inputs: await page.evaluate(() => window.coachSmokeInputs) - before };
+      await page.mouse.up(); await viewportFrames(page);
+      return held;
+    };
+    const first = await drag(0.02, 0.4);
+    assert.ok(first.inputs >= 2, `the drag fired several input events (${first.inputs})`);
+    assert.equal(first.step, 'pills', 'a drag on ① shows ② while the finger is still down, not ③');
+    const shown = await assertCoach(page, 'pills', 'after the drag on ①');
+    assert.match(shown.hintText, /攻擊＝力×（1＋丹）。十二丹撐四回合，莫一次押盡。$/, 'the drag leaves ② on screen');
+    assert.ok(Number(await page.locator('#pill-amount').textContent()) >= 2, 'the drag set several pills');
+    assert.deepEqual(await coachRecord(page), { step: 'pills' }, 'the record keeps ②');
+    const second = await drag(0.5, 0.6);
+    assert.equal(second.step, 'commit', 'the next drag shows ③');
+    await assertCoach(page, 'commit', 'after a second drag');
+    assert.deepEqual(await coachRecord(page), { step: 'commit' });
+    // A new first battle over the abandoned one's ③ starts at ①, and only then is {} written.
+    await abandonToLobby(page);
+    assert.equal(JSON.parse(await stored(page, PROFILE_KEY)).stats.played, 0, 'an abandoned battle is not a played one');
+    assert.deepEqual(await coachRecord(page), { step: 'commit' }, 'the abandoned battle\'s place stays until a new battle starts');
+    await startFirstJourneyBattle(page);
+    await assertCoach(page, 'card', 'a new first battle after one abandoned on ③');
+    assert.deepEqual(await coachRecord(page), {}, 'a new first battle at ① over an abandoned one\'s place writes {}');
+    // A held arrow key is one gesture too (repeated keydowns); the next press shows ③.
+    await page.locator('#pill-slider').focus();
+    for (let press = 0; press < 3; press++) await page.keyboard.down('ArrowRight');
+    await page.keyboard.up('ArrowRight'); await viewportFrames(page);
+    assert.equal(await page.locator('#pill-amount').textContent(), '3', 'the held key set three pills');
+    await assertCoach(page, 'pills', 'a held arrow key on ①');
+    await page.keyboard.press('ArrowRight'); await viewportFrames(page);
+    await assertCoach(page, 'commit', 'the next arrow key press');
+    await tap(page, '.move-panel [data-action="commit"]');
+    await page.locator('#overlay-root [data-battle-coach="reveal"]').waitFor();
+    assert.equal(await page.locator('#overlay-root [data-action="coach-done"]').getAttribute('aria-label'), '知道了，結束新手指引', 'nothing is owed after ② showed');
+    assert.deepEqual(await coachRecord(page), { step: 'reveal' });
+    passed('one slider gesture moves the coach by one mark: a drag on ① (several input events) leaves ② while held and after release, the next drag shows ③; a new first battle over an abandoned one\'s ③ starts at ① and writes {}; a held arrow key on ① shows ②, the next press ③');
     await release(page);
   }
 
@@ -621,9 +687,10 @@ try {
   }
   // ── 6. A 360 px phone: every mark's copy fits its two lines; Fury keeps 剩 N 丹 whole ──
   // 360×640 is a battle-table contract size; at 360×560 the player's caption yields and the
-  // cost line alone carries the pills left. Review round 2: narrower phones down to the
-  // 340 px minimum (353×745 is Playwright's Pixel 4) give mark ② a third line, inside the
-  // 44 px status row.
+  // cost line alone carries the pills left. Review round 2: narrower phones (353×745 is
+  // Playwright's Pixel 4) give mark ② a third line, inside the 44 px status row. Review
+  // round 4: N1 removed the page's 340 px minimum, so phones from 302 px are measured too
+  // (at 320×568 the player's caption yields), with the cost line's narrower forms.
   for (const size of [{ width: 360, height: 640 }, { width: 360, height: 560 }]) {
     const at = `${size.width}x${size.height}`, page = await open('fresh', { size });
     await startFirstJourneyBattle(page);
@@ -654,7 +721,7 @@ try {
     await release(page);
   }
   passed('at 360×640 and 360×560 every copy of marks ①–③ fits its two lines; with Fury on the cost line shows 剩 N 丹 whole and the Fury note states the damage inside its button');
-  for (const size of [{ width: 340, height: 640 }, { width: 348, height: 760 }, { width: 353, height: 745 }, { width: 354, height: 640 }]) {
+  for (const size of [{ width: 302, height: 640 }, { width: 320, height: 568 }, { width: 340, height: 640 }, { width: 348, height: 760 }, { width: 353, height: 745 }, { width: 354, height: 640 }]) {
     const at = `${size.width}x${size.height}`, page = await open('fresh', { size });
     await startFirstJourneyBattle(page);
     // The row is 44 px (對弈紀錄's height) plus its 1 px rule; ①'s two lines leave it so.
@@ -680,9 +747,15 @@ try {
     const pills = await assertCoach(page, 'pills', `${at} the slider on ①`);
     assert.match(pills.hintText, /莫一次押盡。$/, `${at}: mark ② ends whole`);
     assert.ok(pills.status.height <= row + 0.5, `${at}: mark ② keeps the status row's height (${pills.status.height} against ${row})`);
+    // Review round 4: below 340 px the cost line keeps 剩 N 丹 whole in a shorter form.
+    await tap(page, '.move-panel [data-action="fury"]');
+    await assertCoach(page, 'commit', `${at} 怒擊 on ②`);
+    await assertFuryLines(page, 'Fury on with one pill', { full: false });
+    await page.locator('#pill-slider').fill('9'); await viewportFrames(page);
+    await assertFuryLines(page, 'Fury on with nine pills', { full: false });
     await release(page);
   }
-  passed('at 340×640, 348×760, 353×745 (Pixel 4) and 354×640 every copy of marks ①–③ shows whole in at most three lines and the status row keeps its height; the slider on ① shows ②');
+  passed('at 302×640, 320×568, 340×640, 348×760, 353×745 (Pixel 4) and 354×640 every copy of marks ①–③ shows whole in at most three lines and the status row keeps its height; the slider on ① shows ②; with Fury on the cost line is the widest form that fits and shows 剩 N 丹 whole');
 
   // ── 7. Full motion: Back while the round-1 reveal animates holds the result ─────────
   {
