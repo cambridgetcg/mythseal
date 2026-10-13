@@ -342,11 +342,21 @@ function attackPreviewMarkup(formula=draftFormula()) {
   const label=formula.text?`${formula.exact?'':'<b>預計</b> '}<span class="attack-formula-text">${safe(formula.text)}</span>`:`${formula.exact?'己方攻擊':'己方預估攻擊'}`;
   return `<div class="attack-preview" data-attack-exact="${formula.exact}"><span class="attack-preview-copy"><span class="attack-formula" id="attack-formula" aria-hidden="true">${label} <i>${note}</i></span><small id="cost-note">${safe(costForms[0])}</small></span><strong id="attack-value">${formula.attack}</strong><span class="sr-only" id="attack-sentence">${safe(formula.sentence)}</span></div>`;
 }
+const costRange=document.createRange();
+/** The cost line's text fits its content box, in fractional pixels: scrollWidth and
+ * clientWidth round to whole ones, so a text up to about 0.7 px too wide passed, and the
+ * ellipsis then drew over 剩 N 丹 (review round 5). */
+function costFits(cost) {
+  if(cost.scrollWidth>cost.clientWidth)return false;
+  costRange.selectNodeContents(cost);
+  const style=getComputedStyle(cost),inner=cost.getBoundingClientRect().width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight)-parseFloat(style.borderLeftWidth)-parseFloat(style.borderRightWidth);
+  return costRange.getBoundingClientRect().width<=inner;
+}
 /** Show the widest form of the formula, and of the cost line, that fits its cell on one line
  * (the formula's note goes first; every cost form keeps 剩 N 丹, down to N1's 302 px phones). */
 function fitAttackFormula() {
   const cost=app.querySelector('.move-panel #cost-note');
-  if(cost&&costForms.length&&cost.getClientRects().length)for(const form of costForms){if(cost.textContent!==form)cost.textContent=form;if(cost.scrollWidth<=cost.clientWidth+0.5)break;}
+  if(cost&&costForms.length&&cost.getClientRects().length)for(const form of costForms){if(cost.textContent!==form)cost.textContent=form;if(costFits(cost))break;}
   const line=app.querySelector('.move-panel #attack-formula'),text=line?.querySelector('.attack-formula-text');
   if(!text||!attackVariants.length||!line.getClientRects().length)return;
   const fits=()=>line.scrollWidth<=line.clientWidth+0.5;
