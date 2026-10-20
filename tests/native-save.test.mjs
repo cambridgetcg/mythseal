@@ -6,7 +6,7 @@
  * restore. A fake bridge proves the page's side of the contract, not the plugins' native code. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createProfile, claimLogin, sellInstance, PROFILE_KEY } from '../progression.mjs';
+import { createProfile, claimLogin, sellInstance, beginBattle, startActivity, finishBattle, NODES, PROFILE_KEY } from '../progression.mjs';
 import { mintInstance, setInstanceXP, saveInstanceDeck, getActiveDeck } from '../collection.mjs';
 import { fingerprintProfile } from '../cloud-save.mjs';
 import { createProfileStore, RECOVERY_KEY } from '../profile-store.mjs';
@@ -212,6 +212,67 @@ test('a copy the strict checks refuse is set aside, kept, and never written into
   assert.deepEqual(kept, [`LIBRARY:mythseal/journey.v5.refused-20260921T123456789Z.json`]);
   assert.equal(fs.files.get(kept[0]), JSON.stringify(tampered), 'kept byte for byte for support');
   assert.equal(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)), device.data.get(PROFILE_KEY), 'the copy now follows the new journey');
+});
+
+/** The copy as the last save left it: `change` turns the journey into an unfinished one, the
+ * way a battle or a 火焰山 run is saved and mirrored while it is open. */
+async function leftOpen(fs, journey, change) {
+  const device = install(fs, { stored: journey });
+  await device.launch();
+  device.store.save(change(device.store.load()));
+  await settle();
+  return JSON.parse(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)));
+}
+
+test('a copy saved mid-battle comes back with that battle given up, as 放棄此局 would', async () => {
+  for (const kind of ['practice', 'arena']) {
+    const fs = bridge();
+    const journey = travelled();
+    const open = await leftOpen(fs, journey, profile => beginBattle(profile, { kind, now }).profile);
+    assert.equal(open.pending.kind, kind, 'the copy holds the open battle');
+    const device = install(fs);
+    assert.deepEqual(await device.launch(), { state: 'restored', reason: null, forfeited: 'battle' }, kind);
+    const restored = JSON.parse(device.data.get(PROFILE_KEY));
+    assert.equal(restored.pending, null, 'the battle is given up');
+    assert.equal(restored.coins, 4321);
+    assert.deepEqual(copies(restored), copies(journey), 'every UID, printing, XP and level');
+    assert.deepEqual(device.writes.slice(-2), [RECOVERY_KEY, PROFILE_KEY], 'through the strict restore');
+    assert.deepEqual([...fs.files.keys()].filter(name => name.includes('.refused-')), [], 'nothing set aside');
+    assert.equal(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)), device.data.get(PROFILE_KEY), 'then the copy follows again');
+  }
+});
+
+test('a copy saved during a 火焰山 run comes back with the run set down and its banked rewards kept', async () => {
+  const ready = () => ({ ...createProfile({ now }), cleared: NODES.filter(node => !node.campaign).map(node => node.id), coins: 2468 });
+  const begun = profile => startActivity(profile, { route: 'loaner', rng: () => .96, now }).profile;
+  // Stage 1 won: the run waits at a supply stop with nothing pending, its rewards banked.
+  const supply = profile => { const open = begun(profile); return finishBattle(open, { encounterId: open.pending.id, winner: 'player', finalResources: { hp: 6, pills: 2 }, now }).profile; };
+  for (const [phase, change] of [['battle', begun], ['supply', supply]]) {
+    const fs = bridge();
+    const open = await leftOpen(fs, ready(), change);
+    assert.equal(open.expansion.fireMountain.run.phase, phase, phase);
+    assert.equal(open.pending === null, phase === 'supply', 'pending only while the battle is open');
+    const device = install(fs);
+    assert.deepEqual(await device.launch(), { state: 'restored', reason: null, forfeited: 'activity' }, phase);
+    const restored = JSON.parse(device.data.get(PROFILE_KEY));
+    assert.equal(restored.pending, null);
+    assert.equal(restored.expansion.fireMountain.run, null, 'the run is set down');
+    assert.equal(restored.coins, open.coins, 'rewards the run already banked are kept');
+    assert.deepEqual(restored.expansion.grants, open.expansion.grants, 'and so is its banked grant');
+    assert.equal(restored.daily.date, open.daily.date, "settled at the copy's own day");
+  }
+});
+
+test('an unfinished copy that is not consistent as saved is refused and set aside as it was', async () => {
+  const fs = bridge();
+  const open = beginBattle(travelled(), { kind: 'practice', now }).profile;
+  const edited = JSON.stringify({ ...open, inventory: { ...open.inventory, qingxiao: open.inventory.qingxiao + 3 } });
+  fs.files.set(fs.key('LIBRARY', MIRROR_PATH), edited);
+  const device = install(fs);
+  assert.deepEqual(await device.launch(), { state: 'refused', reason: IMPORT_MESSAGES.tampered }, 'settling never repairs an edited copy');
+  assert.equal(device.data.has(RECOVERY_KEY), false, 'no restore ran');
+  const kept = [...fs.files.keys()].filter(name => name.includes('.refused-'));
+  assert.equal(fs.files.get(kept[0]), edited, 'the original text is kept, not a settled one');
 });
 
 test('a refused copy that cannot be moved is left untouched for that launch', async () => {

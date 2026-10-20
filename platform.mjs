@@ -5,7 +5,7 @@
  * journey sits in the app's files (docs/IOS-FIRST-FLIGHT.md). Nothing here writes the journey:
  * a candidate is applied only by the shared strict restore (profile-store.mjs `restore`).
  * No network or RNG; navigator, window and document are injected so Node tests can spy. */
-import { PROFILE_VERSION, hydrateProfile } from './progression.mjs';
+import { PROFILE_VERSION, hydrateProfile, abandonBattle, abandonActivity } from './progression.mjs';
 import { saveFile } from './native-shell.mjs';
 import { createSnapshot, restoreSnapshot, fingerprintProfile, MAX_SNAPSHOT_BYTES } from './cloud-save.mjs';
 import { assertLocalProfile, createProfileStore } from './profile-store.mjs';
@@ -118,21 +118,55 @@ export async function importJourney(file, { now = new Date() } = {}) {
   return checkJourneyText(text, { now });
 }
 
+/** This device's own copy, saved while a battle or a 火焰山 run was open, settled the way the
+ * game's 放棄此局 settles it: the open battle gives no reward, and an activity run is set down
+ * with what it already banked kept. The copy follows every save, and a player may leave a
+ * battle open for days (保留並離開), so this is a likely state for it to be in when iOS clears
+ * the web storage. A file import keeps D2's refusal of the same state: the player chose when to
+ * export, and can finish or give up the battle first; nobody chose when the copy was taken.
+ * The copy's own day is the clock for every step, as checkJourneyText's canonical check uses
+ * it, so settling brings no daily or weekly rollover. The copy as saved must already be
+ * canonical at that day: settling goes through hydrateProfile, which would otherwise repair an
+ * edited copy before the strict check could see the edit. Returns the settled text and what
+ * was given up, or a refusal; the caller still passes the text through checkJourneyText. */
+function settleMirrorCopy(text) {
+  let raw;
+  try { raw = JSON.parse(text); } catch { return refuse('unparsable'); }
+  if (raw.version !== PROFILE_VERSION) return refuse('unfinished');
+  const day = `${raw.daily.date}T12:00:00.000Z`;
+  try {
+    if (fingerprintProfile(raw) !== fingerprintProfile(hydrateProfile(raw, { now: day }))) return refuse('tampered');
+    const profile = hydrateProfile(raw, { now: day }), run = profile.expansion.fireMountain.run;
+    // A run is set down whether its battle is open or it waits at a supply stop (pending null).
+    const activity = run !== null || profile.pending?.kind === 'activity';
+    const settled = activity ? abandonActivity(profile, { expectedRunId: run?.id, now: day }) : abandonBattle(profile);
+    return { ok: true, text: JSON.stringify(settled), forfeited: activity ? 'activity' : 'battle' };
+  } catch { return refuse('unfinished'); }
+}
+
 /** The store app's launch after iOS cleared its web storage (docs/IOS-FIRST-FLIGHT.md). If the
  * app's file copy (native-shell.mjs createDurableMirror) holds a journey, it is checked exactly
  * as an imported file is (checkJourneyText) and handed to `restore`, which in app.mjs is the
  * strict fenced restore every restore shares: the recovery copy first, one profile write,
- * nothing on refusal. It is never written into storage any other way. A copy that fails the
- * check or the restore is set aside, kept, and so never overwritten by the new journey's saves.
- * Resolves { state, reason }: 'none' (no copy), 'restored', 'refused' (set aside), or 'kept'
- * (refused but could not be moved: the caller must leave the copy alone for this launch). */
+ * nothing on refusal. It is never written into storage any other way. One difference from an
+ * import: a copy refused only because a battle or run was open is settled first
+ * (settleMirrorCopy) and the settled text goes through the same check. A copy that fails the
+ * check or the restore is set aside as it was read, kept, and so never overwritten by the new
+ * journey's saves. Resolves { state, reason }: 'none' (no copy), 'restored' (with `forfeited`,
+ * 'battle' or 'activity', when an open one was given up), 'refused' (set aside), or 'kept'
+ * (refused but could not be moved: the caller must leave the copy alone, still undecided). */
 export async function restoreFromMirror({ mirror, restore, now = new Date() }) {
   const text = await mirror.read();
   if (text === null) return { state: 'none', reason: null };
-  const check = checkJourneyText(text, { now });
+  let check = checkJourneyText(text, { now }), forfeited = null;
+  if (!check.ok && check.reason === 'unfinished') {
+    const settled = settleMirrorCopy(text);
+    check = settled.ok ? checkJourneyText(settled.text, { now }) : settled;
+    if (check.ok) forfeited = settled.forfeited;
+  }
   let reason = check.ok ? null : check.message;
   if (check.ok) {
-    try { await restore(check.snapshot); return { state: 'restored', reason: null }; }
+    try { await restore(check.snapshot); return forfeited ? { state: 'restored', reason: null, forfeited } : { state: 'restored', reason: null }; }
     catch (error) { reason = error?.message || String(error); }
   }
   try { await mirror.setAside(); return { state: 'refused', reason }; }

@@ -248,7 +248,7 @@ async function launchMirror() {
     // Refused but not movable: leave the copy untouched for this launch.
     if(outcome.state==='kept')return;
     if(outcome.state==='restored')freshJourney=false;
-    if(outcome.state!=='none')mirrorNote=outcome.state;
+    if(outcome.state!=='none')mirrorNote=outcome;
     mirrorHeld=false;
   }
   mirror.write(localStorage.getItem(PROFILE_KEY));
@@ -1574,5 +1574,8 @@ saves.launch({fresh:freshJourney,standalone:isStandalone()}).catch(()=>{});
 nav.start();
 startupReady=true;
 render();
-if(mirrorNote==='restored')toast('已由此裝置的保存副本還原旅程。');
-else if(mirrorNote==='refused')toast('此裝置的保存副本未能還原，已另行保留；這是新的旅程。');
+// A copy saved mid-battle or mid-run comes back with that battle or run given up, worded as
+// the game's own 放棄未完對局 and 放下此程 are (platform.mjs settleMirrorCopy).
+const forfeitNote={battle:'；副本中的未完對局已放棄，不會獲得對局獎勵',activity:'；副本中的火焰山三連戰已放下，所得獎勵已保留'};
+if(mirrorNote?.state==='restored')toast(`已由此裝置的保存副本還原旅程${forfeitNote[mirrorNote.forfeited]??''}。`);
+else if(mirrorNote?.state==='refused')toast('此裝置的保存副本未能還原，已另行保留；這是新的旅程。');
