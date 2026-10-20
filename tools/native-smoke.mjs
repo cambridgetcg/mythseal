@@ -1,7 +1,9 @@
 /** Offline guest shell acceptance: the native build, with a simulated Capacitor bridge, shows
  * no account entry, never calls /api and never leaves the local origin, even when the account
- * routes are triggered directly. The web build (no bridge) still shows the account entry.
- * Emulated phone over loopback; not evidence from a physical device or a real WebView. */
+ * routes are triggered directly, D2's lobby actions (雲端旅程, 旅程閣) included: they reach
+ * the choke points (the inert account controller, navigate's refusal), so 旅程閣 never opens.
+ * The web build (no bridge) still shows the account entry. Emulated phone over loopback; not
+ * evidence from a physical device or a real WebView. */
 import assert from 'node:assert/strict';
 
 const engines = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -26,10 +28,11 @@ async function visit({ native }) {
     await page.goto(new URL('index.html', base).href);
     await page.locator('.game-lobby').waitFor();
     const accountButtons = await page.locator('[data-action="account-open"]').count();
+    let archiveOpened = false;
     if (native) {
       // Every other way into the archive: the actions, a session broadcast and a reload.
       await page.evaluate(() => {
-        for (const action of ['account', 'account-open', 'account-retry', 'account-upload', 'account-refresh']) {
+        for (const action of ['account', 'account-open', 'account-retry', 'account-upload', 'account-refresh', 'restore-offer-cloud', 'backup-prompt-cloud']) {
           const button = document.createElement('button');
           button.dataset.action = action;
           document.body.append(button);
@@ -38,12 +41,14 @@ async function visit({ native }) {
         }
         new BroadcastChannel('mythseal-account').postMessage({ type: 'session-changed' });
       });
+      await page.waitForTimeout(300);
+      archiveOpened = await page.locator('.account-shell').count() > 0 || !(await page.locator('.game-lobby').count());
       await page.reload();
       await page.locator('.game-lobby').waitFor();
       await page.waitForTimeout(500);
     }
     await context.close();
-    return { accountButtons, requests };
+    return { accountButtons, requests, archiveOpened };
   } finally {
     await browser.close();
   }
@@ -51,6 +56,7 @@ async function visit({ native }) {
 
 const native = await visit({ native: true });
 assert.equal(native.accountButtons, 0, 'native shell shows no 旅程閣 button');
+assert.equal(native.archiveOpened, false, 'no action, D2 lobby strips included, opens 旅程閣 in the native shell');
 assert.deepEqual(native.requests.filter(url => url.pathname.startsWith('/api/')).map(String), [], 'native shell never calls /api');
 assert.deepEqual(native.requests.filter(url => url.origin !== base.origin).map(String), [], 'native shell never leaves the bundle');
 

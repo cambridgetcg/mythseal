@@ -39,6 +39,8 @@ export function saveToolsMarkup(status) {
 
 // The latest progress, not the journey: a signed-in player's cloud backup is made only on request.
 const kept = '這段旅程的最新進度只保存在此瀏覽器；匯出一份備份，或在旅程閣備份到雲端。';
+// Where there is no cloud (a store build), the file is the only copy a player can take away.
+const keptHere = '這段旅程的最新進度只保存在此裝置；匯出一份備份檔，另存一處。';
 const notices = {
   'restore-offer': { text: '有舊旅程？由備份還原', label: '這是此裝置的新旅程。若你曾匯出旅程備份或備份到雲端，可以由這裡還原；雲端旅程會先在旅程閣確認登入。' },
   'first-win': { text: '首勝已記 · 留份備份？', label: `首勝已記下。${kept}` },
@@ -49,17 +51,19 @@ const laterWin = { text: '勝局已記 · 留份備份？', label: `勝局已記
 const glyph = mark => `<span class="save-notice-glyph" aria-hidden="true"> ${mark}</span>`;
 
 /** A small strip above the lobby; never a dialog. `wins` is the journey's win count, so a
- * first-win prompt says 首勝 only on its first win. `cloud: false` drops the restore offer's
- * cloud path, for a guest 旅程閣 knows cannot sign in now; otherwise 雲端旅程 leads into
- * 旅程閣, which looks the account up (the lobby does not). A prompt's 旅程閣 opens its
- * 雲端旅程 tab, where the sign-in and 備份此裝置 are, not the header's default 此裝置. */
+ * first-win prompt says 首勝 only on its first win. `cloud: false` drops every path into
+ * 旅程閣 and every mention of a cloud: the restore offer's, for a guest 旅程閣 knows cannot
+ * sign in now, and both, in a store build, which has no 旅程閣 at all. Otherwise 雲端旅程
+ * leads into 旅程閣, which looks the account up (the lobby does not), and a prompt's 旅程閣
+ * opens its 雲端旅程 tab, where the sign-in and 備份此裝置 are, not the header's default 此裝置. */
 export function saveNoticeMarkup(kind, { cloud = true, wins = null } = {}) {
   const notice = kind === 'first-win' && wins !== 1 ? laterWin : notices[kind];
   if (!notice) return '';
   const actions = kind === 'restore-offer'
     ? `<button type="button" class="small-button" data-action="import-save">備份檔${glyph('↗')}</button>${cloud ? `<button type="button" class="small-button" data-action="restore-offer-cloud">雲端旅程${glyph('→')}</button>` : ''}`
-    : '<button type="button" class="small-button" data-action="export-save">匯出備份</button><button type="button" class="small-button" data-action="backup-prompt-cloud">旅程閣</button>';
-  const label = kind === 'restore-offer' && !cloud ? '這是此裝置的新旅程。若你曾匯出旅程備份，可以由這裡還原。' : notice.label;
+    : `<button type="button" class="small-button" data-action="export-save">匯出備份</button>${cloud ? '<button type="button" class="small-button" data-action="backup-prompt-cloud">旅程閣</button>' : ''}`;
+  const label = cloud ? notice.label
+    : kind === 'restore-offer' ? '這是此裝置的新旅程。若你曾匯出旅程備份，可以由這裡還原。' : notice.label.replace(kept, keptHere);
   return `<div class="resume-banner scene-resume-strip save-notice" data-save-notice="${kind}" role="region" aria-label="${safe(label)}"><span>${safe(notice.text)}</span><div>${actions}<button type="button" class="small-button save-notice-close" data-action="save-notice-dismiss" data-id="${kind}" aria-label="${kind === 'restore-offer' ? '不用還原，關閉提示' : '關閉提示，不會再出現'}">×</button></div></div>`;
 }
 

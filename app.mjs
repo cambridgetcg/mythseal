@@ -16,7 +16,8 @@ import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResonanceMarkup, m
 import { createExperienceController } from './experience.mjs';
 import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConfrontationMarkup, battleLineupMarkup, revealPairMarkup, battleStatusMarkup, battleHintMarkup, battleCoachMarkup, COACH_SKIP_MARKUP, revealTipMarkup } from './battle-ui.mjs';
 import { createRoundPresentation, paintRoundResources, permittedAnnouncement, createPlanningView, createRevealView } from './battle-presentation.mjs';
-import { createAccountController } from './account-client.mjs';
+import { createAccountController as createAccountClient } from './account-client.mjs';
+import { createOfflineAccount } from './account-offline.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
 import { isNativeShell } from './platform.mjs';
@@ -87,8 +88,12 @@ let inheritanceView=null;
 let preparation=null, preparationReturn=null, accountReturn='home', modalKind=null, modalOrigin=null;
 const screenScroll=new Map();
 // Store builds (Capacitor) are offline guest builds: the account client's same-origin /api
-// calls cannot reach mythseal.com from the app, so it is never started or shown there.
+// calls cannot reach mythseal.com from the app, so it is never started or shown there. The
+// choke point is the controller itself: in a native shell it is account-offline.mjs's inert
+// one, so every path to the account (navigate, the lobby strips' 雲端旅程 and 旅程閣, a session
+// broadcast, an account action) reaches nothing, wherever it is called from.
 const NATIVE_SHELL = isNativeShell();
+const createAccountController = options => NATIVE_SHELL ? createOfflineAccount() : createAccountClient(options);
 const account = createAccountController({
   getLocalProfile: loadProfile,
   restoreLocalProfile: restoreCloudJourney,
@@ -101,7 +106,7 @@ const account = createAccountController({
   },
   notify: message => toast(message),
 });
-const accountChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('mythseal-account') : null;
+const accountChannel = !NATIVE_SHELL && typeof BroadcastChannel === 'function' ? new BroadcastChannel('mythseal-account') : null;
 accountChannel?.addEventListener('message', event => {
   const state = account.getState();
   if (event.data?.type !== 'session-changed' || (!state.initialized && !state.busy)) return;
@@ -190,9 +195,10 @@ function lobbySaveNotice() {
   if(profile.wx01.receipt||profile.expansion.fireMountain.run)return '';
   // The lobby makes no account request: it knows only what 旅程閣 looked up in this page.
   const known=account.getState();
-  if(saves.showRestoreOffer(profile))return saveNoticeMarkup('restore-offer',{cloud:Boolean(known.account)||!known.initialized||known.emailEnabled});
+  // A store build has no cloud: its strips offer the file and nothing that leads to 旅程閣.
+  if(saves.showRestoreOffer(profile))return saveNoticeMarkup('restore-offer',{cloud:!NATIVE_SHELL&&(Boolean(known.account)||!known.initialized||known.emailEnabled)});
   saveNotice??=saves.takePrompt({guest:!known.account});
-  return saveNoticeMarkup(saveNotice,{wins:profile.stats.won});
+  return saveNoticeMarkup(saveNotice,{wins:profile.stats.won,cloud:!NATIVE_SHELL});
 }
 // A cloud backup the account API confirmed saved: the last backup, and the prompt's end.
 function backupMade() {
@@ -1050,6 +1056,8 @@ function requestNavigation(destination) {
   }else navigate(destination);
 }
 function navigate(destination) {
+  // 旅程閣 does not exist in a store build: no screen, no account lookup, whoever asks.
+  if(NATIVE_SHELL&&destination==='account')return;
   if(destination==='daily'){closeModal();questsModal('daily');return;}
   const originScreen=screen,originScroll=modalOrigin?.scroll??window.scrollY;
   closeModal();screenScroll.set(viewKey(),originScroll);

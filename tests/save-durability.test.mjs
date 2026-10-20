@@ -653,8 +653,8 @@ test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud rest
   assert.match(exported, /if\(result\.importable\)\{saves\.recordExport\(\);/, 'only a file that would import is recorded');
   assert.doesNotMatch(exported, /backupMade|recordBackup|saveNotice/, 'an export never counts as a backup or ends a prompt');
   assert.match(source, /'account-upload': \(\) => account\.upload\(\)\.then\(saved => \{ if \(saved\) backupMade\(\); \}\)/, 'a cloud backup counts once the API says it saved');
-  assert.match(lobby, /saveNoticeMarkup\(saveNotice,\{wins:profile\.stats\.won\}\)/, 'the prompt copy knows the win count');
-  assert.match(lobby, /cloud:Boolean\(known\.account\)\|\|!known\.initialized\|\|known\.emailEnabled/, 'the cloud path stays while the account is unknown');
+  assert.match(lobby, /saveNoticeMarkup\(saveNotice,\{wins:profile\.stats\.won[,}]/, 'the prompt copy knows the win count');
+  assert.match(lobby, /cloud:(?:!NATIVE_SHELL&&\()?Boolean\(known\.account\)\|\|!known\.initialized\|\|known\.emailEnabled/, 'the cloud path stays while the account is unknown (on the website; a store build has none)');
   assert.doesNotMatch(lobby, /account\.init/, 'the lobby makes no account request');
   const cloud = source.slice(source.indexOf("if(action==='restore-offer-cloud')"), source.indexOf("if(action==='navigate-confirm')"));
   assert.match(cloud, /const looked=account\.init\(\);navigate\('account'\);viewport\.selectModule\(\{key:viewKey\(\),moduleId:'cloud'\}\);/, '旅程閣 looks the account up on its 雲端旅程 tab, then the confirmation opens');

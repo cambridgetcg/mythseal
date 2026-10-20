@@ -10,6 +10,7 @@
   "cloud-save.mjs",
   "account-client.mjs",
   "account-ui.mjs",
+  "account-offline.mjs",
   "navigation-ui.mjs",
   "mist-gate-ui.mjs",
   "experience.mjs",
