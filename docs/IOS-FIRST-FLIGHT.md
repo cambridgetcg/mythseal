@@ -34,6 +34,14 @@ same thing in both repositories. orchard added `testflight-external` on
 2026-10-20 for Beta App Review, so `review` only ever means App Review for the
 store.
 
+**Device reached (2026-10-20).** App Store Connect processed 0.5.1 (3) to
+Ready to Test (internal, no export-compliance question, thanks to
+`ITSAppUsesNonExemptEncryption = NO`). The owner installed it through TestFlight
+on their iPhone (group "Mindicraft internal") and it runs. A TestFlight tester is
+bound to one Apple Account, so the owner's personal account was added to the
+team as its own App Store Connect user rather than accepting the team
+account's invitation.
+
 **Signed-archive reached (2026-10-20).** Xcode Cloud build 3 of `bc7252e`
 (workflow "Internal TestFlight Build", Xcode 27.1 27A9275, macOS 27.0.1) ran
 `ci_post_clone.sh` (Node 24.22.0 from Homebrew, `npm ci`, 667/667 tests, the
