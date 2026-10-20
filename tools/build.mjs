@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 
 export const PUBLIC_FILES = Object.freeze(JSON.parse(readFileSync(new URL('../hosting/public-assets.json', import.meta.url), 'utf8')));
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -28,7 +29,9 @@ export const BUILD_TARGETS = Object.freeze(['web', 'native']);
 export const NATIVE_EXCLUDED = Object.freeze(['account-client.mjs', 'account-ui.mjs', 'account.css']);
 /** The only edits the store build makes, so nothing it ships points at an excluded file. Each
  * must match exactly once, or the build stops: a silent miss would ship a broken import.
- * account-offline.mjs exports the same names as the two modules it replaces, inert. */
+ * account-offline.mjs exports the same names as the two modules it replaces, inert, and the
+ * build checks that it still does (NATIVE_OFFLINE): a name it lacks would pass every Node test
+ * and then stop the app at module linking, before the game loads. */
 export const NATIVE_EDITS = Object.freeze({
   'app.mjs': Object.freeze([
     ["from './account-client.mjs';", "from './account-offline.mjs';"],
@@ -36,6 +39,35 @@ export const NATIVE_EDITS = Object.freeze({
   ]),
   'index.html': Object.freeze([['  <link rel="stylesheet" href="account.css">\n', '']]),
 });
+export const NATIVE_OFFLINE = 'account-offline.mjs';
+
+/** What `path` (a module) imports from the module at `target` (a path from the root, as
+ * localReferences resolves it): each named import by the name it is exported under, plus
+ * 'default' for a default import and '*' for a namespace import, which no export list can
+ * vouch for. Static imports only; the store build's swap makes only those. */
+export function importedNames(path, text, target) {
+  const names = [];
+  for (const [, clause, reference] of text.matchAll(/\bimport\s*([^'"`;]*?)\s*\bfrom\s*['"](\.{1,2}\/[^'"]+)['"]/g)) {
+    if (posix.normalize(posix.join(posix.dirname(path), reference)) !== target) continue;
+    const named = /\{([^}]*)\}/.exec(clause);
+    if (named) names.push(...named[1].split(',').map(part => part.trim().split(/\s+as\s+/)[0]).filter(Boolean));
+    const rest = clause.replace(/\{[^}]*\}/, '').replace(/,/g, ' ').trim();
+    if (rest) names.push(rest.startsWith('*') ? '*' : 'default');
+  }
+  return names;
+}
+
+/** The names a module exports, read from its text: `export function|class|const|let|var`
+ * (the first binding of a declaration), `export { a, b as c }` lists and `export default`. */
+export function exportedNames(text) {
+  const names = new Set();
+  for (const [, name] of text.matchAll(/\bexport\s+(?:async\s+)?(?:function\s*\*?|class|const|let|var)\s*([A-Za-z_$][\w$]*)/g)) names.add(name);
+  for (const [, list] of text.matchAll(/\bexport\s*\{([^}]*)\}/g)) {
+    for (const part of list.split(',')) { const name = part.trim().split(/\s+as\s+/).at(-1); if (name) names.add(name); }
+  }
+  if (/\bexport\s+default\b/.test(text)) names.add('default');
+  return names;
+}
 
 /** Local files a shipped page or module refers to: src/href in HTML; static, re-exported and
  * dynamic imports in modules; @import and url() in CSS. Same reading as tests/hosting.test.mjs. */
@@ -80,6 +112,14 @@ export async function build(root = fileURLToPath(new URL('../', import.meta.url)
       const excluded = localReferences(path, bytes.toString('utf8')).find(reference => NATIVE_EXCLUDED.includes(reference));
       if (excluded) throw new Error(`Native build: ${path} still refers to ${excluded}, which the store build leaves out`);
     }
+    // Every name a shipped module takes from the inert stand-in must be one it exports.
+    const offline = files.find(file => file.path === NATIVE_OFFLINE);
+    const provided = offline ? exportedNames(offline.bytes.toString('utf8')) : new Set();
+    for (const { path, bytes } of files) {
+      if (!path.endsWith('.mjs')) continue;
+      const missing = importedNames(path, bytes.toString('utf8'), NATIVE_OFFLINE).filter(name => name === '*' || !provided.has(name));
+      if (missing.length) throw new Error(`Native build: ${path} imports ${missing.join(', ')} from ${NATIVE_OFFLINE}, which ${offline ? `does not export ${missing.length > 1 ? 'them' : 'it'} by that name` : 'the build does not ship'}; give ${NATIVE_OFFLINE} an inert export for each name app.mjs takes from account-client.mjs and account-ui.mjs`);
+    }
   }
   // _headers is Cloudflare's hosting file; a native shell serves the bundle itself.
   const headers = target === 'web' ? await readRegular(root, 'hosting/_headers') : null;
@@ -106,9 +146,16 @@ export async function build(root = fileURLToPath(new URL('../', import.meta.url)
   return release;
 }
 
+/** The command line: `--target <name>` or `--target=<name>`, web when absent. A bare
+ * `--target`, any other option or a stray argument is refused rather than read as the web
+ * build, which ships the account client; an unknown name is refused by build(). */
+export function parseBuildArgs(args) {
+  const { values } = parseArgs({ args, options: { target: { type: 'string', default: 'web' } }, strict: true, allowPositionals: false });
+  return { target: values.target };
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const flag = process.argv.indexOf('--target');
-  const target = flag === -1 ? 'web' : process.argv[flag + 1];
+  const { target } = parseBuildArgs(process.argv.slice(2));
   const release = await build(undefined, { target });
   console.log(`Built Mythseal ${release.clientVersion}${target === 'web' ? '' : ` (${target})`}: ${release.assets.length} public files, manifest ${release.assetsManifestSHA256}`);
 }
