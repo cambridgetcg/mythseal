@@ -26,7 +26,16 @@ never stands in for a higher one.
 | `device` | it runs on a physical iPhone |
 | `signed-archive` | Apple's signing accepted a build (Xcode Cloud or the Actions backup) |
 | `testflight-internal` | App Store Connect processed the build for internal testers |
-| `review` | Beta App Review or App Review accepted it |
+| `review` | App Review accepted it (for the App Store) |
+
+The rungs and their wording are orchard's (`DESIGN.md` §1), so a rung means the
+same thing in both repositories. Beta App Review, which an external TestFlight
+group needs, is not `review`: it sits above `testflight-internal` and orchard's
+ladder has no rung for it yet, so it is recorded as a dated note on
+`testflight-internal` (for example "Beta App Review accepted build 3 for the
+external group, 2026-…"), never as `review`. Whether orchard adds a rung for it
+(such as `testflight-external`) is orchard's change to make, and this table
+follows it.
 
 **This branch reaches `web` and `native-project` only.** No WKWebView, Simulator
 or device has run any of it; the headless WebKit smoke is closer to Safari than
