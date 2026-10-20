@@ -142,7 +142,11 @@ async function nativeRun() {
     assert.match(files.get(`CACHE:${cachePath}`), /^\{\n  "version": 5,/, "D2's indented export format");
     await until(async () => /已經分享選單送出/.test(await page.locator('.saves-panel [data-last-export]').textContent()), 'the panel records the export');
     passed('export: Cache file handed to the share sheet, recorded in 旅程存檔');
-    await page.locator('.saves-panel .modal-close').click();
+    // D1's Back model: the dialog is one layer, so Back closes it and stays in the game.
+    await page.goBack();
+    await until(async () => await page.locator('.saves-panel').count() === 0, 'Back closes 旅程存檔');
+    assert.equal(await page.locator('.game-lobby').count(), 1, 'and leaves the player on 洞府');
+    passed('Back closes 旅程存檔 like any dialog');
 
     // A distinctive journey, saved: the copy follows.
     const { profile, uid } = travelled();
