@@ -34,6 +34,19 @@ same thing in both repositories. orchard added `testflight-external` on
 2026-10-20 for Beta App Review, so `review` only ever means App Review for the
 store.
 
+**Signed-archive reached (2026-10-20).** Xcode Cloud build 3 of `bc7252e`
+(workflow "Internal TestFlight Build", Xcode 27.1 27A9275, macOS 27.0.1) ran
+`ci_post_clone.sh` (Node 24.22.0 from Homebrew, `npm ci`, 667/667 tests, the
+store build, the `MARKETING_VERSION` stamp, `cap sync`), resolved
+`capacitor-swift-pm` 8.5.3 and `ion-ios-filesystem` 2.0.1 from the committed
+`Package.resolved`, archived `Mythseal.app`, and exported it for App Store
+distribution with Apple's cloud signing. Version 0.5.1 (3) went to App Store
+Connect. The ad-hoc and development exports failed (exit 70), as they do on a
+team with no registered devices; they are not used. Build 2 failed only because
+a test still expected `npx cap` after the template change (fixed in `bc7252e`).
+`testflight-internal` follows App Store Connect's processing, and the first
+TestFlight install on an iPhone is also the first `device` evidence.
+
 **This branch reaches `simulator` (2026-10-20, Xcode 27.1, iOS 27.0 Simulator,
 iPhone 17).** `orchard sim mythseal` at `0cb207f` built, installed and launched
 the app. On an earlier launch of the same build path (`f8a9bfd`) the Capacitor
