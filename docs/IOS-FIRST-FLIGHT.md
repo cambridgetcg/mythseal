@@ -120,6 +120,19 @@ source, not observed): that is why the export uses the share sheet.
   has never run.
 - The privacy page is a draft.
 
+## Known limits of the native copy
+
+- A copy whose restore fails for a reason outside the copy itself (no Web
+  Locks, a profile fence that refuses) is set aside like an invalid one. It is
+  kept byte for byte in the app's Library, but the app does not yet offer it
+  back; listing set-aside copies in 旅程存檔 with an export would close that.
+- The copy follows each save asynchronously, so a crash right after a save can
+  leave it one save behind localStorage.
+- The copy lives in the app's container: deleting the app deletes it. Only an
+  exported file or a device backup survives that.
+- A completed share sheet is recorded as an export, never as a backup: iOS
+  reports that an activity finished, not where the file went.
+
 ## Other hands
 
 The `n2/landscape-short-phones` and `r1/astra-review-fixes` worktrees (other
