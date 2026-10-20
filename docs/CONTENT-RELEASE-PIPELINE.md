@@ -21,6 +21,8 @@
 
 既有原稿的生成提示及排列見 [ART.md](ART.md) 和 [ART-CLASSICS.md](ART-CLASSICS.md)。後續沿用內建 imagegen 製作／編輯插畫；**不在每次 CI build 重新生成圖片**，也不承諾相同提示會得到相同輸出。若工具回傳 model、尺寸或 reference 資料便記錄，沒有回傳的 seed／model version 不自行補寫。
 
+**2026-10-20 補充（參考圖）：** 專案擁有者決定新圖可以用參考圖，但只限 Mythseal 自己已提交、並有出處紀錄的畫作，紀錄寫明檔案路徑及 SHA-256；不用第三方圖片、真人照片或其他 IP。原因（同一角色跨系列、跨版本保持一致）見 [ART.md](ART.md#reference-images--2026-10-20)。入門卷（T2）計劃用 ArtCraft 製圖；計劃中的入門、教學及主視覺新圖，連同 ArtCraft 條款未確認之處，記錄於 [ART-ONBOARDING.md](ART-ONBOARDING.md)。本節保存選中輸出原始 bytes、不在 CI 重新生成的做法不變。
+
 | 階段 | 人／AI 的工作 | 確定性工具的工作與產物 |
 | --- | --- | --- |
 | 角色 brief | 確認古典來源、人物輪廓、色板、道具、服裝與安全構圖；畫風參考不使用現代改編角色的專屬造型 | `art-brief`、來源及使用範圍記錄 |

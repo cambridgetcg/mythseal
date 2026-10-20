@@ -1,5 +1,9 @@
 # Original character art
 
+This file is also the art provenance hub. It links to every `ART-*.md` record,
+and its last section states the [reference-image principle](#reference-images--2026-10-20)
+that new art follows.
+
 Generated on 2026-09-21 with the built-in **imagegen** tool (no CLI/API fallback). Selected user direction: Eastern mythology × refined dark fantasy. No source images or old-game artwork were supplied to the generator.
 
 The final atlas is saved in [assets/portraits.png](../assets/portraits.png). It was copied unchanged from the tool output; the game uses CSS background positions to display the twelve cells. The atlas is 4 columns × 3 rows, each a 3:4 portrait. UI frames, type, symbols and controls are separate code-native elements. The original generator output is preserved.
@@ -107,3 +111,46 @@ local HL-01 study. These five original built-in imagegen PNGs remain preview-onl
 card rules and frames are rendered separately. [ART-HL01.md](ART-HL01.md) records
 the exact prompt components, selected archive outputs, tile mappings and hashes.
 黛玉、湘雲、探春 alternate artworks retain their base character's rules.
+
+## Onboarding, tutorial and key art · planned 2026-10-20
+
+Planned key art (K-01), the 守渡弈者 guide figure (T-01), the 霧隱渡口 scene
+(T-02), the four rule-tile vignettes (T-07) and a 洞府 lobby backdrop (G-01)
+have a provenance record, [ART-ONBOARDING.md](ART-ONBOARDING.md), ready before
+any of them is generated. It also records what is known about ArtCraft, the
+planned tool for the illustrated 入門卷, and the written confirmation of
+commercial use that must come before any of its output ships in a store build.
+No image has been generated or committed for it.
+
+## Reference images · 2026-10-20
+
+The owner decided on 2026-10-20 that new art may use reference images, but only
+Mythseal's own: **a generator may be given an image only if it is art committed
+to this repository's `assets/` with its provenance recorded in this file or an
+`ART-*.md` record.** Never a third-party image, a photo of a real person, or
+anything from another IP: film, television, animation, games, other artists'
+work, or a tool's built-in library. This replaces the "no reference images" rule
+of the LZ-01 briefs for new work. The records above that say no reference image
+was supplied stay as written, because that is what happened.
+
+Why: a reference keeps a character recognisably the same person across sets,
+printings and scenes, which text alone has not done reliably here. The
+2026-10-11 LZ-01 specials
+reused each character's BASE description, as their briefs require, and their
+reviews still record identity drift: 嬰寧's face rounder and her hair looser
+than BASE, 陳氏 younger and rounder, and in the round-four 嬰寧 AA both faces
+"rounder, younger and more anime-leaning than the BASE painted realism"
+([ART-LZ01 · Provenance](ART-LZ01.md#provenance--special-printings--2026-10-11)).
+A reference also passes its look into the output. Mythseal's own committed art
+is the only material whose origin is already on record here; someone else's
+image, photo or design would carry their work or likeness into art that this
+public repository and its store build present as original.
+
+Recording it: the selected image's provenance block names each reference by
+repository path and SHA-256; for a crop of an atlas cell, add the crop rectangle
+and the SHA-256 of the bytes uploaded. An image can serve as a reference once it
+is committed with its record. An edit of committed art, such as an inpainted
+version, is a new file under a new name that lists its parent as a reference;
+committed bytes never change behind a path. Uploading a reference sends it to
+the generating service under that service's terms; for ArtCraft, see
+[ART-ONBOARDING](ART-ONBOARDING.md#artcraft-what-is-known-and-what-is-pending).

@@ -110,5 +110,7 @@ Collectible commercialization was retired as a delivery objective on
 Record art prompts and provenance in the matching `docs/ART*.md` file (start at
 [ART.md](docs/ART.md)). Existing assets were generated for this project.
 Traditional character inspiration does not grant rights to modern adaptations,
-actor likenesses, fonts or third-party artwork. The repository is private, and
+actor likenesses, fonts or third-party artwork. A generator may take reference
+images only from Mythseal's own committed art
+([why](docs/ART.md#reference-images--2026-10-20)). The repository is private, and
 no open-source license has been selected.

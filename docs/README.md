@@ -15,7 +15,9 @@ the merges of PRs #5 and #9 and to PR #10, which merges that branch. On
 release plan, the validation log, the handover, the roadmap, navigation, the
 battle table, the local-commands contract, the mobile plan, accounts and
 hosting were brought up to D1, N1, D2 and D3 (PRs #11, #12, #14 and #15); the
-document count is unchanged.
+document count is unchanged. On 2026-10-20, on `art/own-reference-policy` from
+`main` `3f3d351`, the art provenance rows gained the onboarding record and the
+reference-image principle.
 
 ## Status vocabulary
 
@@ -49,6 +51,7 @@ contract.
 | Which checks actually ran, and on what? | [VALIDATION.md](VALIDATION.md) |
 | Which save and backup formats does `main` use? | [Guarded saves](HANDOVER.md#playable-local-wx-01-and-guarded-saves) and the [save and settlement contract](CAMPAIGN-AND-EVENTS.md#save-and-settlement-contract) |
 | Who owns which source file? | [Code ownership map](HANDOVER.md#code-ownership-map) |
+| May a generator be given a reference image? | Only Mythseal's own committed art: [ART.md · Reference images](ART.md#reference-images--2026-10-20) |
 
 ## Start here
 
@@ -141,7 +144,7 @@ this index.
 | [Mobile publishing runbook](MOBILE-PUBLISHING-RUNBOOK.md) | The standard publishing and review flow for any app, with Mythseal as the worked example | `current` for the pipeline (hybrid route since 2026-10-20); review sections fill in as Stage 2 runs |
 | [Mobile field notes](MOBILE-FIELD-NOTES.md) | Dated evidence for every mobile run, console step and review, each with a "pay attention to" lesson | `record`, dated per entry |
 | [iOS first flight](IOS-FIRST-FLIGHT.md) | Every change on the `ios/first-flight` branch (PR #13 merged and fixed for Mindicraft, Xcode Cloud and native saves), its reason and the ladder rung it reached | `record · 2026-10-20` · branch only, not merged |
-| [Content release pipeline](CONTENT-RELEASE-PIPELINE.md) | Art versions, animation budget and compatible release manifests (中文) | `proposal · 2026-09-21` |
+| [Content release pipeline](CONTENT-RELEASE-PIPELINE.md) | Art versions, animation budget and compatible release manifests (中文) | `proposal · 2026-09-21`; its §2 has a 2026-10-20 note on reference images and onboarding art |
 
 ## Retired collectible research
 
@@ -161,13 +164,14 @@ explain the earlier thinking; none is an instruction to mint or sell.
 
 | Document | What it covers | Status |
 | --- | --- | --- |
-| [Art provenance hub](ART.md) | Prompts for the original twelve-portrait atlas and six-realm map, links to every `ART-*` record, and the code-drawn and synthesized Mist Gate and battle-presentation notes | `record · 2026-09-21`, entries to 2026-09-23 |
+| [Art provenance hub](ART.md) | Prompts for the original twelve-portrait atlas and six-realm map, links to every `ART-*` record, the code-drawn and synthesized Mist Gate and battle-presentation notes, and the [reference-image principle](ART.md#reference-images--2026-10-20): references only from Mythseal's own committed art | `record · 2026-09-21`, entries to 2026-09-23; its reference-image principle (2026-10-20) is `current` |
 | [Classical portrait atlas](ART-CLASSICS.md) | Prompt and inspection notes for the v0.3 classical atlas | `record · 2026-09-21` |
 | [Story-map artwork](ART-STORIES.md) | Prompts for the 西遊, 封神 and 白蛇 volume maps | `record · 2026-09-22` |
 | [WX-01 production artwork](ART-WX01.md) | Prompts for four base atlases and ten special illustrations | `record · 2026-09-22` |
 | [西行 special-print studies](ART-EXPANSION.md) | Three Wukong studies (異畫, 墨卷, 天工) shown in `atelier.html`, also reused unchanged for the WX-01 Wukong AA, INK and TR printings | `record · 2026-09-22` |
 | [HL-01 art studies](ART-HL01.md) | Prompts and integrity notes for the 紅樓 preview art | `record · 2026-09-23` |
 | [LZ-01 art studies](ART-LZ01.md) | Prompts for the 聊齋 preview art, the briefs for its six later special prints and their provenance; all seven specials are bound | `record · 2026-09-23`; briefs 2026-10-10; specials generated and bound 2026-10-11 (merged in PR #8, `daf18ed`; preview allowlist only) |
+| [Onboarding, tutorial and key art](ART-ONBOARDING.md) | Planned key art (K-01), the 守渡弈者 guide figure (T-01, not the playable 渡影), the 霧隱渡口 scene (T-02), rule-tile vignettes (T-07) and a 洞府 backdrop (G-01); the provenance fields each selected image fills; what is known about ArtCraft and its terms, and the written commercial-use confirmation that gates a store build | `proposal · 2026-10-20`; nothing briefed, generated or committed |
 
 ## Research and naming
 
