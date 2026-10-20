@@ -1,9 +1,13 @@
 # First-visit hints and glossary · T1
 
-**Status: `proposal · 2026-10-20`.** This is an implementation spec on the
-branch `t1/first-visit-hints`, started from `main` `3f3d351`. Nothing in it is
-built, merged or deployed. Every file:line below was read at `3f3d351`. No
-test, build or browser ran for this document.
+**Status: `proposal · 2026-10-20 · revised after review`.** This is an
+implementation spec on the branch `t1/first-visit-hints`, started from `main`
+`3f3d351`. Nothing in it is built, merged or deployed. Every file:line below
+was read at `3f3d351`. No test, build or browser ran for this document. The
+first draft (`34e24e1`) was reviewed the same day for game truth and for UX and
+architecture; this revision applies those reviews, and the
+[critique log](#critique-log) records each point and the few that were not
+taken as written.
 
 **Owner decisions it implements (Yu, 2026-10-20):**
 
@@ -27,7 +31,8 @@ Contents: [1 · Rules-first fix](#1-the-rules-first-fix) ·
 [6 · Accessibility, Back, builds](#6-accessibility-motion-back-native-and-web-builds) ·
 [7 · Tests](#7-test-plan) · [8 · Open questions](#8-open-questions-for-yu) ·
 [9 · Order and coordination](#9-implementation-order-coordination-and-scope) ·
-[Appendix · facts checked](#appendix-facts-checked-in-code)
+[Appendix · facts checked](#appendix-facts-checked-in-code) ·
+[Critique log](#critique-log)
 
 ---
 
@@ -53,29 +58,54 @@ Contents: [1 · Rules-first fix](#1-the-rules-first-fix) ·
    - Only the marks are lost. The planning hint, the formula, the Fury and
      cost notes and the reveal tip show in every battle.
 
+The same dialog opens from three more places, each with the same button
+outside battle:
+
+- web 旅程閣's tools row, 「弈道 · 遊戲規則」 (`saveToolsMarkup`,
+  `save-ui.mjs:52`, rendered on the account page at `app.mjs:592`);
+- the store build's 旅程存檔 panel, the same row (`save-ui.mjs:80`, opened at
+  `app.mjs:245`); the rules dialog then replaces the panel;
+- battle's 弈道 header button (`navigation-ui.mjs:23`), whose button is
+  明白，返回對局.
+
+One more first-visit path to practice stays open: in 任務手札, 今日落子's
+前往 leads to 對弈 (`adventure-ui.mjs:38`, `matches` → `arena`). The
+`arena-first` hint (§2.3) speaks there, but T1 does not reroute it.
+
 D3's design says a first practice or arena battle shows no marks (the Ending
 row in [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12);
 `tools/coach-smoke.mjs:708-717` tests it with the arena page's `start`). What
-D3 never said is that the lobby's first-visit rules link leads into practice.
+D3 never said is that the first-visit rules lead into practice.
 
 ### 1.2 New behaviour
 
-`rules-start` decides its route at tap time:
+`rules-start` decides its route at tap time, wherever the dialog was opened
+outside battle:
 
 | Profile at the tap (fresh read through `loadProfile()`) | 知其道，入其局 does |
 | --- | --- |
-| First visit: `stats.played === 0` and no `pending` battle | Closes the rules dialog, goes to 遊歷 with `selectedNode = 'mist-gate'`, and opens the 霧隱渡口 preparation: `prepareEncounter('expedition', 'mist-gate')`. This is exactly what the lobby's own 先赴霧隱渡口 does (`story-unlock`, `app.mjs:1291-1293`). |
+| First visit: `stats.played === 0` and no `pending` battle | Closes the rules dialog, goes to 遊歷 with `selectedNode = 'mist-gate'`, and opens the 霧隱渡口 preparation: `prepareEncounter('expedition', 'mist-gate')`. This is what the lobby's own 先赴霧隱渡口 does (`story-unlock`, `app.mjs:1291-1293`). |
 | Anything else | Unchanged: `prepareEncounter()`, the 自由切磋 preparation. With a pending battle, that still shows the pending-battle dialog. |
 
 **Why the condition is the lobby's.** "First visit" is the lobby's own
-predicate (`navigation-ui.mjs:57`). So whoever sees 「初次落子？讀懂弈道」 is
-sent to the ferry, and whoever sees 「溫習弈道」 is not.
+predicate (`navigation-ui.mjs:57`). In the lobby, whoever sees
+「初次落子？讀懂弈道」 is sent to the ferry and whoever sees 「溫習弈道」 is
+not. From 旅程閣 or 旅程存檔 the label is 「弈道 · 遊戲規則」 for everyone,
+but the same predicate decides: a player who has never finished a battle is
+sent to the coached first battle wherever they read the rules. This is
+intended.
 
 **It reads only the profile, not the coach state.** A player who skipped the
 coach and then abandoned that battle still has `played === 0`. 霧隱渡口 is
 still their natural first step, and `coachStart` decides on its own whether
 marks show. The hint copy reads the coach state only so that it never
 promises guidance that will not come (§2.3).
+
+**A known edge, unchanged.** A v2–v4 save hydrated with cleared nodes but
+`stats.played === 0` counts as a first visit. Such a player already sees
+「初入山海」 in the lobby and D3's coach today; T1 sends their rules tap to
+the ferry too, consistent with both. Changing the predicate would change the
+lobby, so it stays (open question 12).
 
 **Unchanged:**
 
@@ -86,18 +116,28 @@ promises guidance that will not come (§2.3).
   `shanhai.coach.v1`.
 - In battle, the rules button is still 明白，返回對局 (`close-modal`).
 
-### 1.3 Cancel, Back and writes
+### 1.3 Cancel, Back, focus and writes
 
 - **Cancel** (稍後出發, ×, or Back) closes the preparation and leaves the
   player on 遊歷 with 霧隱渡口 selected, as a cancelled 啟程遊歷 or
-  先赴霧隱渡口 already does. The rules dialog does not reopen. The lobby
-  still offers 「初次落子？讀懂弈道」, and tapping it again gives the same
-  route.
-- **Back:** before the tap the layers are `home > modal:rules`. After it they
-  are `world > modal:preparation`. Back closes the preparation, and the next
-  Back goes home. `navigate()` closes the rules dialog (`app.mjs:1102-1115`
-  calls `closeModal()`), and the tap's activation covers the preparation's
-  history entry, as for `story-unlock`.
+  先赴霧隱渡口 already does. The rules dialog does not reopen, and tapping
+  the rules entry again gives the same route.
+- **Back.** `navigate()` closes the rules dialog (`app.mjs:1102-1115` calls
+  `closeModal()`); the layers before and after the tap, as `navSignature`
+  writes them (洞府 is the root and adds no layer):
+
+  | Opened from | Before the tap | After the tap | History |
+  | --- | --- | --- | --- |
+  | Lobby | `modal:rules` (depth 1) | `destination:world>modal:preparation` (depth 2) | the tap's activation pushes one entry, as for `story-unlock` |
+  | 旅程閣 (web) | `sub-view:account>modal:rules` (depth 2, when 旅程閣 was opened from 洞府) | `destination:world>modal:preparation` (depth 2) | same depth: the entry is replaced |
+  | 旅程存檔 (store build) | `modal:rules` (depth 1; the rules dialog replaced the panel) | `destination:world>modal:preparation` (depth 2) | one entry pushed |
+
+  In each case Back closes the preparation, and the next Back goes home.
+- **Focus.** `navigate()`'s render removes the control that opened the rules,
+  so `modal()` would record `document.body` as `lastFocus` and a cancel would
+  leave focus nowhere. The branch therefore focuses the dock's 遊歷 button
+  before `prepareEncounter`; cancelling returns focus there. (`story-unlock`
+  has the same gap today; T1 does not change it.)
 - **Writes:** nothing until 踏上渡口. `prepareEncounter` only sets the
   in-memory `preparation` and opens a dialog (`app.mjs:794-801`), and
   `navigate()` writes no profile.
@@ -132,7 +172,9 @@ if(action==='rules-start'){
   syncProfile(loadProfile());
   const route=rulesStartRoute(profile);
   if(route.kind!=='expedition')return prepareEncounter();
-  selectedNode=route.nodeId;navigate('world');return prepareEncounter(route.kind,route.nodeId);
+  selectedNode=route.nodeId;navigate('world');
+  app.querySelector('.game-dock [data-action="world"]')?.focus({preventScroll:true});
+  return prepareEncounter(route.kind,route.nodeId);
 }
 ```
 
@@ -153,8 +195,8 @@ node and T1's route ever disagree.
   > 知其道，入其局 opens the 霧隱渡口 preparation instead of 自由切磋
   > ([TUTORIAL-T1](TUTORIAL-T1.md#1-the-rules-first-fix)).
 - [NAVIGATION](NAVIGATION.md): one line under the encounter loop or
-  destinations about the rules dialog's two routes, and a Back-model line
-  (§1.3).
+  destinations about the rules dialog's two routes and their three origins,
+  and the Back-model lines of §1.3.
 - `tools/coach-smoke.mjs`:
   - The existing practice case (`:708-717`) stays as it is, because D3's
     rule is unchanged. Its assertion message 'practice leaves the coach for
@@ -168,11 +210,17 @@ node and T1's route ever disagree.
     3. Tap 稍後出發 and check:
        - still on 遊歷, no `shanhai.battle.v5`, and the profile bytes and
          coach record (`null`) unchanged;
+       - focus is on the dock's 遊歷 button;
        - `page.goBack()` once reaches the lobby.
-    4. Repeat to the preparation, tap 踏上渡口, and assert mark ①
+    4. **1b, the 旅程閣 origin.** On a fresh profile, open 旅程閣, tap its
+       tools row's 「弈道 · 遊戲規則」, then `rules-start`: the same
+       `.is-mist-prep` on 遊歷. One Back closes the preparation and a second
+       reaches 洞府. (The store build's 旅程存檔 origin is checked by
+       guide-smoke's native pass, §7.2.)
+    5. Repeat to the preparation, tap 踏上渡口, and assert mark ①
        (`assertCoach(page, 'card', …)`) with the encounter `mist-gate`
        stored.
-    5. On the veteran profile (`played: 1`), `rules-start` opens a
+    6. On the veteran profile (`played: 1`), `rules-start` opens a
        preparation without `.is-mist-prep`, eyebrow 自由切磋 · 出發前整備.
   - Extend the header comment's "Asserts" paragraph with one sentence for
     this case.
@@ -184,20 +232,36 @@ node and T1's route ever disagree.
 ### 2.1 Principles
 
 1. **A hint takes the place of an existing line; it never adds one.** Each
-   hint has a **slot**: one node it replaces, plus optional nodes it removes.
-   The hint is the same element (tag) as the replaced node, with the same
-   classes and the same parent, plus `guide-hint`. Every breakpoint rule that
-   sizes, places or hides the slot then sizes, places or hides the hint.
-   - The lobby's `.lobby-route>p` rule is one such rule.
+   hint has a **slot**: one node it replaces, plus optional nodes it removes,
+   plus an optional `requires` selector that must match in the scene or the
+   hint is not placed. The hint is the same element (tag) as the replaced
+   node, with the same classes and the same parent, plus `guide-hint`. Every
+   breakpoint rule that sizes, places or hides the slot then sizes, places or
+   hides the hint.
    - A re-render brings the slot back once the hint retires.
-   - The acceptance test (§7.2) is that the hint's box, margins included,
-     is no taller than the boxes it replaces at 302, 360, 393 and 430 px
-     portrait. Item 18's framed lists then lose no height, and no new
-     `data-viewport-overflow` flag appears.
+   - **Size floor.** No hint text is smaller than 10 px, the floor of D3's
+     hint and coach lines (`battle-teaching.css:7,21`), and the 「初見」 seal
+     is never smaller than the text beside it. Every slot below is already
+     ≥ 10 px on phones (§2.4).
+   - **"Cut" means shorter copy.** A copy that does not fit is rewritten
+     shorter. A hint is never clamped, ellipsised or clipped
+     (no `line-clamp`, `text-overflow` or `overflow:hidden`).
+   - **Acceptance (§7.2)**, measured against a hints-off run of the same
+     scene at every tested size:
+     - the hint's box, margins included, is no taller than the boxes it
+       replaces and removes;
+     - every later sibling of the slot, and every list frame in the surface,
+       keeps its position and height or improves (moves up, grows);
+     - in the lobby, which has no modules and so never raises an overflow
+       flag, `.lobby-continue`, `.scene-lobby-companions` and `.lobby-ledger`
+       with its rules link sit no lower than in the hints-off run and above
+       the dock;
+     - no new `data-viewport-overflow` flag appears, and page counts are the
+       same.
 2. **No control inside a hint.** `tools/viewport-smoke.mjs:92` fails any
    visible control smaller than 43.5 × 43.5 px. A 44 px 知道了 cannot sit
    inside a one- or two-line footnote slot without growing it.
-   - Hints therefore retire on their own (the "Retires" column below), and
+   - Hints therefore retire on their own (the "Lasts" column below), and
      one switch in 聲息與節奏 turns them all off, or back on to see them again
      (§5.6).
    - Whether Yu wants a per-hint 知道了 anyway is open question 5.
@@ -206,24 +270,58 @@ node and T1's route ever disagree.
    - It is not a dialog, overlay or live region, and it never takes focus.
    - `navLayers` and the history entries are unchanged: Back does what it did
      before, and no hint is ever closed by Back.
-4. **Read-only conditions.** A condition reads the profile, the view
-   (`viewKey()`, `selectedNode`), `coachMemory.seen()` (a read, never a write)
-   and the `shanhai.guide.v1` record. It never writes, settles or spends.
-5. **Placed only in a scene's first view.** A hint goes outside modules or in
-   the module a scene opens on, so a "visit" hint is seen when it is counted.
-   The one exception is `world-level`, which retires by condition (see
-   below).
+4. **Read-only conditions.** A condition reads the profile, the guide key and
+   `selectedNode`, `coachMemory.seen()` (a read, never a write) and the
+   `shanhai.guide.v1` record. It never writes, settles or spends.
+5. **Newcomers only.** The hints are for people new to the game, not for
+   every journey that lacks a `shanhai.guide.v1` record (every existing
+   journey, restores, the owner's TestFlight save):
+   - every *visit* hint requires `isNewcomer(profile)`, which is
+     `stats.played < NEWCOMER_BATTLES` (10; open question 11), plus its own
+     newness signal where an exact one exists (`bag-decks`,
+     `market-printing`);
+   - `fire-mountain` uses only its own exact signal (no run ever started), so
+     a veteran who has never climbed it sees it once;
+   - the condition hints have their own conditions (`home-start` and
+     `arena-first` need `played === 0`; `world-level` needs `isNewcomer`).
+
+   A journey with ten or more finished battles therefore sees no hint after
+   the update, and none again after site data is cleared or iOS evicts
+   storage.
+6. **A visit is a screen, not a view.** The screen channel's key is
+   `guideScreenKey(screen, bagView.tab)`: the screen, or for 藏卡
+   `bag-cards` / `bag-decks`. It is not `viewKey()`, which changes within the
+   bag when 排列方式 changes or a character opens (`app.mjs:1116`). The
+   dialog channel's key is the dialog's kind.
+7. **Recorded only once seen.** A *visit* hint is recorded in
+   `shanhai.guide.v1` only after it has been painted and could be read:
+   - the check runs two animation frames after placement (a hidden page runs
+     no frames, so it waits until the page is shown);
+   - the hint must still be connected and visible (not inside `[hidden]`,
+     with client rects) and `document.visibilityState` must be `'visible'`;
+   - on the screen channel, no dialog may be open (`app.inert` is false).
+     Flows such as `prepareNextEncounter` (`app.mjs:821-827`) render a screen
+     and open a dialog in the same task; a hint placed there is not recorded
+     until the dialog closes, when `closeModal()` runs the check again;
+   - a hint that is in a hidden module at the check (for example 山行 when
+     the 火焰山 dialog opens on 牌組) is not recorded. If the player then
+     switches to it, they see it unrecorded, and it shows once more on the
+     next visit. That is the worst case, by design.
 
 ### 2.2 Voice
 
 **Recommendation: split by place.**
 
 - **守渡弈者 for the two hints that send the player to his ferry** (`home-start`,
-  `arena-first`). They are written like his lines in `mist-gate-ui.mjs`:
-  visible label 守渡弈者, then a 「quoted」 line in his register, with the
-  lantern, the river, 落子 and 你 (「不必急着渡河，先看清手中的牌。」,
-  「水面很靜，落子由你。」).
-- **A neutral narrator for the seven system hints**, in the register of the
+  `arena-first`). They are written like his quoted lines in
+  `mist-gate-ui.mjs`: visible label 守渡弈者, then a 「quoted」 line in his
+  register, with the lantern, the river, 落子 and 你. His lines are
+  「不必急着渡河，先看清手中的牌。」 and 「燈還亮着。這一程，你想怎樣走？」
+  (`mistGateArrivalMarkup`, `:8`), and
+  「霧未散，船也還在。歇一息，再來。」 (`mistGateResultMarkup`, `:24-25`).
+  (「水面很靜，落子由你。」 is the battle heading's caption, `:13`, not one of
+  his quoted lines.)
+- **A neutral narrator for the six system hints**, in the register of the
   footnotes they replace (「每張卡各有畫作、編號與歷練；點開卡面查看同行記。」
   `backpack-ui.mjs:61`).
 
@@ -243,85 +341,106 @@ as 渡影 would merge a card with the NPC.
 
 Visual marker:
 
-- Narrator hints start with a small gold 「初見」 seal (aria-hidden).
-- Guardian hints start with his gold label, as in `mistGateArrivalMarkup`.
+- Narrator hints start with a small gold 「初見」 seal (aria-hidden), at the
+  text's own size.
+- Guardian hints start with his gold label, inline before the quote.
 - Both carry a screen-reader prefix 「初見提點：」, as the coach's
   「新手指引 n / 4：」 does (`battle-ui.mjs:86`).
 
-### 2.3 Registry (9 hints)
+### 2.3 Registry (8 hints)
 
 **How to read the table:**
 
 - **Copy** is the exact zh-Hant text, counted in code points; every one is
   ≤ 40.
 - **Slot** gives the render site at `3f3d351` and the CSS selector the
-  adapter uses (§5.4). "Removes" nodes disappear while the hint shows.
+  adapter uses (§5.4). "Removes" nodes disappear while the hint shows;
+  "requires" must match or nothing is placed.
+- **Key** is the guide key (§2.1 item 6) of the scene, or the dialog kind.
 - **Lasts:**
   - *condition*: shows every time its condition holds, and retires when
-    the condition ends.
-  - *visit*: shows for the whole first visit on which it is actually on
-    screen, is recorded in `shanhai.guide.v1` at once, and never shows
-    again.
+    the condition ends. Never recorded.
+  - *visit*: shows for the whole of the first visit on which it is recorded
+    (§2.1 item 7), and never again.
   - With the switch off (§5.6), none shows.
 
-| # | id · scene | Slot: render site → replaced (and removed) | Condition (read-only) | Voice | Copy | Lasts · retires |
+| # | id · scene (key) | Slot: render site → replaced (removed, requires) | Condition (read-only) | Voice | Copy | Lasts · retires |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `home-start` · 洞府 (screen key `home`) | `navigation-ui.mjs:67` → `.lobby-route > p` (the realm's subtitle, on a first visit 霧隱渡口's description 「渡船停在霧中，掌燈人正等你落下第一子。」, also shown in its preparation); **removes** `.lobby-route-footnote` (「四回合對弈 · AI 守境人」) | `isFirstVisit(profile)` | 守渡弈者 | Coach not yet ended: 「燈在渡口等你。首局，我陪你一步步走。」 (18). Coach ended (`coachMemory.seen()`): 「燈在渡口等你。先落第一子，其餘慢慢來。」 (19) | condition · the first finished battle |
-| 2 | `arena-first` · 對弈, 問道 module (`arena`) | `adventure-ui.mjs:74` → `.arena-lobby-copy > .arena-fairness` (「保留同族共鳴與技能；出過牌的卡各得 12 EXP（勝）或 8 EXP（和／敗）。」) | `isFirstVisit(profile)` | 守渡弈者 | Coach not ended: 「擂台與切磋不急。先到霧隱渡口，首局我陪你走一遍。」 (24). Ended: 「擂台與切磋不急。先到霧隱渡口，落下第一子。」 (21) | condition · the first finished battle |
-| 3 | `arena-modes` · 對弈, 問道 module (`arena`) | same slot as #2 (the conditions never overlap) | `stats.played > 0 && arena.played === 0` | narrator | 「擂台記積分，得金幣與 EXP；切磋不得金幣與 EXP。兩者皆用基礎能力。」 (36) | visit · or the first finished arena match |
-| 4 | `world-level` · 遊歷, 此境 module (`world`) | `adventure-ui.mjs:31` → `.destination-panel > .panel-footnote` (for example 「勝利後續寫下一境；每日首勝另有秘藏。」) | the selected node is unlocked (`isNodeUnlocked`) and `profile.cleared.length < 2`. A locked node keeps its 「先踏破…」 footnote, which matters more | narrator | 「建議 Lv 只作參考，不設門檻；修練越高越穩。」 (23) | condition · the second cleared node. 此境 is not the module 遊歷 opens on, so this hint is not counted by visit |
-| 5 | `bag-copies` · 藏卡 我的戰卡 (`bag-cards-groups`, `bag-cards-copies`) | `backpack-ui.mjs:96` → `.bag-lead > .bag-overview` (持有卡牌 · 收集角色 · 已鎖定珍藏), which is outside every module and above the framed list | none | narrator | 「同名卡可藏多張，每張各有編號、畫作與歷練；出過牌的那張才得 EXP。」 (34) | visit |
-| 6 | `bag-decks` · 藏卡 三套牌組 (`bag-decks`) | the same `.bag-overview` (the lead also shows on 三套牌組). The full rule now sits only on the last tab, 編組說明 (`backpack-ui.mjs:85`, moved by `scene-adapters.mjs:29,36`) | none | narrator | 「每套 8 位不同角色、總星數不超過 25；可存 3 套，設為出戰的才上陣。」 (37). The three numbers are rendered from `RULES.deckSize`, `RULES.starLimit` and `MAX_DECK_SLOTS` | visit |
-| 7 | `market-printing` · 市集, 秘匣 module (`market`) | `adventure-ui.mjs:62` → `.scene-pack-module .scene-pack-copy > p` (WX-01: 「16 位同行者，29 種版本。本畫、異畫與領契，記下不同瞬間。」; other packs: the pack's description) | none | narrator | 「凡、靈、神品是收藏品階，本畫、異畫等是畫作；兩者皆不改變星數與能力。」 (34) | visit |
-| 8 | `quests-why` · 任務手札, 朝露 module (dialog `quests`) | `adventure-ui.mjs:51` → `.daily-gift > p` (「每日上線，收一份遠方捎來的心意。」). `.daily-gift .eyebrow` is already hidden there (`navigation.css:137`), so no second line is available; the copy is short on purpose | none | narrator | 「功課換來的金幣與靈砂，正是開匣與修練所需。」 (21) | visit |
-| 9 | `fire-mountain` · 火焰山三連戰, 山行 module (dialog `activity`) | `expansion-ui.mjs:44` → `.activity-arrival > p` (`FIRE_MOUNTAIN.description`, about 45 characters) | `getExpansionSummary(profile).activity`: `unlocked`, `clears === 0`, no `run`, and `lastResult === null` (never tried) | narrator | 「三戰相連：生命與仙丹帶到下一戰，戰間補給一項；敗或和即止，所得仍在。」 (34) | visit · or the first run started. When the dialog opens on 牌組 (`openActivity(true)`), 山行 is hidden, so the hint is not counted until it is seen |
+| 1 | `home-start` · 洞府 (`home`) | `navigation-ui.mjs:67` → `.lobby-route > p` (the realm's subtitle: on a first visit normally 霧隱渡口's 「渡船停在霧中，掌燈人正等你落下第一子。」, also shown in its preparation); **removes** `.lobby-route-footnote` (「四回合對弈 · AI 守境人」); **requires** `.lobby-continue[data-action="continue-journey"]`. When the lobby shows a locked node of another volume (`blocked`, `:60`), the button reads 先赴霧隱渡口 and the footnote 「渡口首勝後，展開此卷」 (`:67`): those already say what the hint would, so no hint is placed and the footnote stays | `isFirstVisit(profile)` | 守渡弈者 | Coach not yet ended: 「燈在渡口等你。首局，我陪你一步步走。」 (18). Coach ended (`coachMemory.seen()`): 「燈在渡口等你。先落第一子，其餘慢慢來。」 (19) | condition · the first finished battle |
+| 2 | `arena-first` · 對弈, 問道 module (`arena`) | `adventure-ui.mjs:74` → `.arena-lobby-copy > .arena-fairness` (「保留同族共鳴與技能；出過牌的卡各得 12 EXP（勝）或 8 EXP（和／敗）。」) | `isFirstVisit(profile)` | 守渡弈者 | Coach not ended: 「擂台與切磋不急。先到遊歷的霧隱渡口，首局我陪你走一遍。」 (27). Ended: 「擂台與切磋不急。先到遊歷的霧隱渡口，落下第一子。」 (24) | condition · the first finished battle |
+| 3 | `world-level` · 遊歷, 此境 module (`world`) | `adventure-ui.mjs:31` → `.destination-panel > .destination-subtitle` (the node's four-character flavour line, for example 「聽風尋跡」). The footnote 「勝利後續寫下一境；每日首勝另有秘藏。」 stays | `isNewcomer(profile)`, the selected node is unlocked (`isNodeUnlocked`; a locked node keeps its 「先踏破…」 lines), and its 建議 Lv is above the highest card level in the active deck (`activeDeckTopLevel`) | narrator | 「建議 Lv 僅供參考，修練越高越穩。」 (18) | condition · the deck catches up, or the tenth finished battle |
+| 4 | `bag-copies` · 藏卡 我的戰卡 (`bag-cards`) | `backpack-ui.mjs:96` → `.bag-lead > .bag-overview` (持有卡牌 · 收集角色 · 已鎖定珍藏), outside every module and above the framed list. An opened character (`expandedCardId`) renders no lead, so no slot: the hint stays pinned to the visit and returns when the character closes | `isNewcomer(profile)` | narrator | 「同名卡可藏多張，每張各記編號、畫作與歷練；哪張出牌，哪張得歷練。」 (32) | visit |
+| 5 | `bag-decks` · 藏卡 三套牌組 (`bag-decks`) | the same `.bag-overview` (the lead also shows on 三套牌組). The full rule now sits only on the last tab, 編組說明 (`backpack-ui.mjs:85`, moved by `scene-adapters.mjs:29,36`) | `isNewcomer(profile)` and one deck slot (`deckSlots.length === 1`) | narrator | 「每套 8 位不同角色、總星數不超過 25；可存 3 套，設為出戰的才上陣。」 (37). The three numbers are rendered from `RULES.deckSize`, `RULES.starLimit` and `MAX_DECK_SLOTS` | visit |
+| 6 | `market-printing` · 市集, 秘匣 module, WX-01 offer (`market`) | `adventure-ui.mjs:62` → `.scene-wx01-offer .scene-pack-copy > p` (「16 位同行者，29 種版本。本畫、異畫與領契，記下不同瞬間。」). The slot exists only while 西行秘匣 is selected (the default); the classic packs keep their own description. The eyebrow, 西行秘匣 and 「每匣 3 張 · 至少一張靈品或神品」 stay | `isNewcomer(profile)` and no WX-01 pack opened yet (`wx01.opened === 0`) | narrator | 「凡、靈、神品是品階，本畫、異畫是畫作；皆不改變星數與能力。」 (29) | visit |
+| 7 | `quests-why` · 任務手札, 朝露 module (dialog `quests`) | `adventure-ui.mjs:51` → `.daily-gift > p` (「每日上線，收一份遠方捎來的心意。」), the only description of the 朝露 gift: `.daily-gift .eyebrow` is hidden there (`navigation.css:137`). The copy therefore names the daily gift as well as the tasks | `isNewcomer(profile)` | narrator | 「每日贈禮與功課所得的金幣、靈砂，正是開匣與修練所需。」 (26) | visit |
+| 8 | `fire-mountain` · 火焰山三連戰, 山行 module (dialog `activity`) | `expansion-ui.mjs:44` → `.activity-arrival > p` (`FIRE_MOUNTAIN.description`, about 45 characters) | `getExpansionSummary(profile).activity`: `unlocked` and no `run`; and `profile.expansion.serial === 0`, which `startActivity` increments on every run start (`progression.mjs:737`), so a run abandoned before its first result also counts as tried | narrator | 「三戰相連：生命與仙丹帶到下一戰，戰間可選一項補給；敗或和即止，所得仍在。」 (36) | visit · or the first run started |
+
+The first draft's ninth hint, `arena-modes`, is dropped: the arena page
+already states both of its rules in place (統一基礎能力 on 問道, 「不獲金幣或卡牌
+EXP」 on 切磋, `adventure-ui.mjs:74,76`), and it would have hidden the only
+exact card-EXP line for the arena.
 
 **Truth of each copy** (the appendix has the code lines):
 
 - `home-start`, `arena-first`:
   - 「首局…我陪你」 is promised only while the coach has not ended, and
-    `rules-start` or 先赴霧隱渡口 then really leads to the coached battle.
+    `rules-start`, 啟程遊歷 or 先赴霧隱渡口 then really leads to the coached
+    battle.
   - The guardian is that battle's opponent, so the line is framed in-world
     (open question 1).
-- `arena-modes`:
-  - The arena pays points, coins and card EXP 12 or 8.
-  - Practice pays no coins and no card EXP.
-  - Both use Lv.1 base cards, because `getBattleCard` applies levels only
-    in `mode === 'expedition'`.
+  - 遊歷 is the dock's destination where 霧隱渡口 is, since a hint holds no
+    button.
 - `world-level`:
-  - Unlocking depends only on the cleared prerequisite.
-  - Card levels add power and damage in expeditions (`LEVEL_BONUSES`).
-  - The copy makes no claim about what 建議 Lv is compared with, because the
-    code compares it with nothing (open question 3).
-- `bag-copies`: each copy has its own UID, print and XP, and only played
-  copies receive XP.
+  - Unlocking depends only on the cleared prerequisite (`isNodeUnlocked`).
+  - Card levels add power and damage in expeditions (`LEVEL_BONUSES`,
+    `engine.mjs:88`; `getBattleCard`, `:115-121`).
+  - The condition compares 建議 Lv with the deck's card levels only to
+    choose *when* to speak. The copy makes no claim about what 建議 Lv is
+    compared with, because the game compares it with nothing (open
+    question 3).
+- `bag-copies`: each copy has its own UID, print and card EXP, and play adds
+  card EXP to the copy that was played (`awardInstanceXP` on the played UIDs,
+  `progression.mjs:683-688`). The copy says which copy gains from play; it
+  does not say play is the only way (同名傳承 is the other, taught in the
+  passport, `backpack-ui.mjs:109`). The hint uses 歷練 throughout, never EXP
+  in the same sentence.
+- `bag-decks`: `validateDeck` requires exactly 8 different cards and at most
+  25 stars (`engine.mjs:123-131`); three slots (`MAX_DECK_SLOTS`,
+  `collection.mjs:7`); only the active deck plays.
 - `market-printing`:
   - Rarity is independent of stars, power and level
     (`progression.mjs:40`).
   - 「畫作不改變角色的星數、能力或品階」 (`pack-ui.mjs:32`).
-- `quests-why`: coins buy packs, and coins and 靈砂 pay for 修練. The copy
-  says "what they are for", not "the only source".
+- `quests-why`: the 朝露 gift pays coins and 靈砂 (`LOGIN_REWARD`,
+  `progression.mjs:73`), as do the tasks (`:76-78`); coins buy packs, and
+  coins and 靈砂 pay for 修練. The copy says what they are for, not that they
+  are the only source.
 - `fire-mountain`:
-  - Life and pills carry over, with recovery after a win.
-  - Between battles the player chooses one supply.
+  - Life and pills carry over, with recovery after a win (`settleActivity`,
+    `progression.mjs:764-796`; rules at `expansion-ui.mjs:47`).
+  - Between battles the player may choose one supply; with both full, the
+    run goes straight on (`expansion-ui.mjs:48`).
   - A loss or draw ends the run, and banked rewards stay
-    (`expansion-ui.mjs:46-50`).
+    (`expansion-ui.mjs:49`; `progression.mjs:793`).
 
 ### 2.4 Height budgets
 
 These are estimates from the CSS at the 302 px portrait width. `npm run
 test:guide` (§7.2) measures them; a copy that exceeds its slot at any tested
-width is cut, never allowed to grow the scene.
+width is cut shorter (§2.1), never allowed to grow the scene.
 
 | Hint | Slot at 302 px (estimate) | Copy (estimate) |
 | --- | --- | --- |
-| `home-start` | Subtitle 1 line at 12 px / 1.8, plus the footnote line and its 8 px margin, about 45 px in all | label and quote, 2 lines of about 20 characters, about 43 px |
-| `arena-first`, `arena-modes` | 2 lines at 10 px / 1.7, about 24 characters a line | 2 lines |
-| `world-level` | 1 line at 10 px, about 24 characters | 1 line (23 including the seal) |
-| `bag-*` | the overview's stacked figure and label, about 37 px | 2 lines at 11 px / 1.6 (`guide.css`), about 35 px |
-| `market-printing` | WX-01 copy column about 149 px wide (`scene-navigation.css` grid `91px minmax(0,1fr)`), 4 lines | 3 lines |
-| `quests-why` | 1–2 lines | 21 characters, 1–2 lines |
-| `fire-mountain` | 3–4 lines | ≤ 3 lines |
+| `home-start` | Subtitle 1–2 lines at 11–12 px (`scene-navigation.css:111,121,156`), plus the 10 px footnote and its 5–8 px margin | label and quote inline, 2 lines at the slot's size |
+| `arena-first` | 2 lines at 10 px / 1.7 (`scene-navigation.css:118`), about 24 characters a line | label and 27 characters, 2 lines |
+| `world-level` | Subtitle, 1 line at 11 px (12 px wider; `scene-navigation.css:61,113`) with 3 px letter-spacing (`adventure.css:54`) | 1 line at 11 px with letter-spacing 0: 18 code points plus the seal, about 215 px of a panel about 240 px wide |
+| `bag-*` | the overview's figure row, about 37 px | 2 lines at 11 px / 1.6 (`guide.css`), about 35 px |
+| `market-printing` | the WX-01 copy column, about 141 px wide (offer padding 12 px, grid `91px minmax(0,1fr)` with a 14 px gap, `scene-navigation.css:114`), p at 11 px / 1.7, about 12 characters a line: 3 lines | 29 code points, 3 lines |
+| `quests-why` | `.daily-gift > p` at 10 px in the quests dialog (`navigation.css:139`), 1–2 lines beside the reward figure | 26 code points, 2 lines |
+| `fire-mountain` | 3–4 lines at 11 px (`expansion.css:96`) | 36 code points, ≤ 3 lines |
+
+The 9 px `!important` rule for `.destination-panel .panel-footnote` on phones
+(`adventure.css:202`) no longer matters: no hint uses that footnote.
 
 ### 2.5 Left out, and why
 
@@ -331,6 +450,7 @@ width is cut, never allowed to grow the scene.
   opens with its own footnote. Another hint would repeat both.
 - **圖鑑, 旅程閣, card pages and inheritance.** Each already teaches in place,
   and the earlier gap review rated them adequate.
+- **`arena-modes`** (the first draft's #3): see §2.3.
 - **A "where next" hint on the first match result.** It would sit on D3's
   勝負已定 page. T1 keeps D3 frozen, so this is open question 8.
 
@@ -345,13 +465,16 @@ width is cut, never allowed to grow the scene.
 - `scene-dialogs.mjs:85-92` (`rules()`) makes one module, 弈道
   (`data-viewport-module="rules"`).
 - It pages the four rules and the `.rules-note` as a list
-  (`data-viewport-list="rules"`) and puts the intro `<p>` above them.
+  (`data-viewport-list="rules"`) and puts the intro `<p>` above them, outside
+  the list (`:89`), so the intro keeps its height on every page.
 - With one module, the viewport hides the tab row
   (`viewport.mjs:180`, `tabs.hidden = modules.length < 2`).
 
 **T1 adds a second module, 詞彙.** The tab row then appears with two tabs,
-弈道 and 詞彙. It takes about one 44 px row from the list pages, which the
-pager absorbs.
+弈道 and 詞彙, about one 44 px row plus a gap. To pay for it, the intro `<p>`
+moves into the paged list as its first item, so paging absorbs the tab row on
+every page instead of shrinking the list frame. §7.2 measures the dialog at
+every portrait size and on the landscape sizes against `main`.
 
 The changed `rules()`:
 
@@ -359,10 +482,12 @@ The changed `rules()`:
 function rules(anchor) {
   heading(anchor); fixedActions(anchor);
   const rules = anchor.querySelector('.rules-grid'), note = anchor.querySelector('.rules-note');
-  if (note) rules.append(note);
-  const module = section(anchor, 'rules', '弈道'); module.append(paged(rules, 'rules'));
-  const intro = children(anchor).filter(node => node.tagName === 'P'); if (intro.length) module.prepend(...intro);
-  // T1 (docs/TUTORIAL-T1.md §3): the glossary is the second module; opened at a term, it is the default.
+  // T1 (docs/TUTORIAL-T1.md §3): the intro is the list's first item, so paging absorbs the tab row.
+  const intro = children(anchor).filter(node => node.tagName === 'P' && !node.matches('.rules-privacy'));
+  rules.prepend(...intro); if (note) rules.append(note);
+  const privacy = anchor.querySelector(':scope > .rules-privacy'); if (privacy) rules.append(privacy);
+  section(anchor, 'rules', '弈道', [paged(rules, 'rules')]);
+  // The glossary is the second module; opened at a term, it is the default.
   const glossary = anchor.querySelector(':scope > .glossary-list');
   if (glossary) {
     const words = section(anchor, 'glossary', '詞彙', [paged(glossary, 'glossary')]);
@@ -372,17 +497,28 @@ function rules(anchor) {
 }
 ```
 
+(`.rules-privacy` is rendered only once `PRIVACY_URL` is set, `app.mjs:833`;
+it becomes the list's last item.)
+
 **`rulesModal({ term = null } = {})`** in `app.mjs:834-842`:
 
 - It renders `glossaryMarkup({ open: term })` after `.rules-note`.
+- **Heading.** `heading()` pins the eyebrow and `h2` above both tabs
+  (`scene-dialogs.mjs:26-28`), so a dialog opened at a word must not sit
+  under a duel-rules title:
+  - without a term (and in battle): THE ART OF THE DUEL /
+    「入局，先知取捨。」, unchanged;
+  - opened at a term: WORDS ON THE ROAD / 「識其名，知其用。」 (proposed;
+    the copy goes to Yu, open question 2).
 - It opens as `modal(content, 'rules-dialog', true, 'rules')`. Today the kind
   is `null`, which shares the viewport key `modal-dialog` with other dialogs.
   With its own kind, its module and page memory are its own.
   - `prepareDialog` still reaches `rules()` through `.rules-grid`.
   - `refreshOverlay` and `dismissModal` treat the kind as before.
   - Its Back signature becomes `modal:rules`. back-smoke classifies dialogs
-    by their DOM (`.rules-grid`, `tools/back-smoke.mjs:179`), so it is
-    unaffected.
+    by their DOM (`.rules-grid`, `tools/back-smoke.mjs:179`), and the only
+    `modal:dialog` assertion (`tests/nav-stack.test.mjs:600`) is for the
+    inspect dialog, so neither is affected.
 - **The fixed action:**
   - in battle, 明白，返回對局 (`close-modal`, unchanged);
   - opened at a term, 明白了 (`close-modal`): the player came to read a
@@ -409,37 +545,49 @@ function rules(anchor) {
 
 ### 3.2 Terms
 
-There are 17 entries in three groups. Each definition is at most 40
-display units (a CJK character counts 1, an ASCII character ½), so it fits
-2 lines in the dialog at 302 px (measured by §7.2). Numbers come from
-constants where a constant exists (§5.3). The sources are at `3f3d351`.
+There are 20 entries in three groups. Each definition is at most 40 display
+units, counted as: a printable ASCII character (U+0020–U+007E) is ½; every
+other code point is 1, including CJK, full-width punctuation and the symbols
+× − – ／ ·. At the dialog's 12 px text in its content box at 302 px (about
+258 px: the backdrop's 8 px and the dialog's 14 px padding,
+`scene-content.css:15`), 40 units fit 2 lines (measured by §7.2). Numbers
+come from constants or data where they exist (§5.3). The sources are at
+`3f3d351`.
 
 | id | Term (title) | Definition | Source |
 | --- | --- | --- | --- |
-| `coins` | 金幣 | 開秘匣、商旅購卡與修練所用；對局、功課與出售可得。只是遊戲金幣。 | Start 1,200: `progression.mjs:137`. Spent on packs, boxes, market, buyback, 修練 and training: `progression.mjs:334,349,376,483,510,550,559` (`spend`, `:270-275`). Earned from rewards (`:266-268`) and sales (`:493`) |
-| `dust` | 靈砂 | 修練戰卡所需：升一級付 6×Lv 靈砂與 120×Lv 金幣。對局與功課可得。 | `getUpgradeCost` `progression.mjs:538`. The only 靈砂 spends are 修練 and training (`:550,559`) |
-| `xp` | 修為 | 旅途累積的歷練：遊歷、擂台、火焰山與功課可得，切磋不得；決定執令者 Lv。 | `addReward` `progression.mjs:266-268`. Expedition `:644-663`, arena `:670`, activity `:769`, login `:73`, tasks and arena chest `:74-84`. No practice branch in `finishBattle`. Used only by `getHeroLevel` (`:839-841`); PROGRESSION.md:104. See open question 4 |
-| `hero-level` | 執令者 Lv | 修為滿 100 為 Lv.2，400 為 Lv.3，900 為 Lv.4；只記旅途，不加戰力。 | `getHeroLevel` = 1 + ⌊√(修為/100)⌋, `progression.mjs:839-841`; nothing in battle reads it |
-| `card-level` | 修練（戰卡 Lv） | 每張卡 Lv.1–5：以金幣靈砂修練，或累積 EXP 升級；加成只在遊歷生效。 | `LEVEL_BONUSES` `engine.mjs:88`. `getBattleCard` applies levels only in expeditions (`:115-121`). EXP thresholds level up automatically (`collection.mjs:9,87-92`) |
-| `card-exp` | 歷練（卡牌 EXP） | 只記出過牌的那張：遊歷勝 20、和敗 12；擂台與火焰山 12／8；切磋不得。 | `progression.mjs:683-688`; `awardInstanceXP` `collection.mjs:325-339` |
-| `journal` | 同行記 | 每張卡自己的履歷：編號、畫作、入藏緣由、對弈記錄與歷練。在藏卡點卡面查看。 | `instanceMarkup` `backpack-ui.mjs:112` |
+| `coins` | 金幣 | 開秘匣、購卡與修練所用；遊歷、擂台、火焰山勝、任務手札與寄售可得，切磋不得。 | Start 1,200: `progression.mjs:137`. Spent on packs, boxes, market, buyback, 修練 and training: `:334,349,376,483,510,550,559`. Earned: expedition win or not (`:646`), arena win or not (`:670`), fire-mountain wins only (`:769`; a loss pays nothing, `:793`), the 朝露 gift, tasks and the 三戰 chest (`:73-84`), sales (`:493`). No practice branch in `finishBattle` |
+| `dust` | 靈砂 | 修練戰卡所需，與金幣同付（見「修練」）；遊歷勝、擂台、火焰山勝與任務手札可得。 | `getUpgradeCost` `progression.mjs:533-538`. An expedition loss or draw pays 0 靈砂 (`:646`); the arena pays 3 or 1 (`:670`); a fire-mountain win 3 (+2 from the gift roll) (`:769-775`); gift, tasks and chest (`:73-84`). The only 靈砂 spends are 修練 and training (`:550,559`) |
+| `xp` | 修為 | 執令者的旅途閱歷，又稱旅途歷練；遊歷、擂台、火焰山勝與任務手札可得。 | `addReward` `progression.mjs:266-268`. Expedition win or not (`:646`), arena win or not (`:670`), fire-mountain wins (`:769`), gift, tasks and chest (`:73-84`). Used only by `getHeroLevel` (`:839-841`). Shown as 「旅途歷練」 in 旅程閣 (`account-ui.mjs:13`) and in the import comparison (`save-ui.mjs:119`). Not 歷練 alone, which the game uses for card EXP (`backpack-ui.mjs:28,112`). See open question 4 |
+| `hero-level` | 執令者 Lv | 由修為而定：滿 100 為 Lv.2、400 為 Lv.3、900 為 Lv.4，如此類推；不加戰力。 | `getHeroLevel` = 1 + ⌊√(修為/100)⌋, `progression.mjs:839-841`, no cap; nothing in battle reads it |
+| `cache` | 秘藏 | 主線與故事各境，每日首勝另得一份秘藏：金幣、靈砂與修為；續卷沒有。 | `progression.mjs:660-664` (`!node.campaign`, once per node per day); `dailyReward` `:71`, `stories.mjs:51`; 續卷 nodes have none (`campaign-content.mjs:114`) |
+| `stars` | 星數 | 角色 2–5 星；一套牌組合計不超過 25 星。首回合星數高者先手；同攻時低星勝。 | Range from `CARDS` (2–5 at `3f3d351`, rendered from data); `RULES.starLimit` `engine.mjs:12`; first player `:177-179`; attack tie `:256-259`; rule 02 `app.mjs:837` |
+| `card-level` | 修練（戰卡 Lv） | Lv.1–5：歷練夠即升級，或在 Lv.L 付 120×L 金幣、6×L 靈砂修練；加成只在遊歷。 | `XP_THRESHOLDS` level up automatically (`collection.mjs:9,87-92`); `getUpgradeCost` uses the current level: Lv.1→2 costs 120 and 6 (`progression.mjs:533-538`); `LEVEL_BONUSES` `engine.mjs:88`, applied only in expeditions (`:115-121`) |
+| `card-exp` | 歷練（卡牌 EXP） | 出過牌的自有卡得：遊歷勝 20、和或敗 12，擂台、火焰山 12／8；同名傳承亦可灌注。 | `progression.mjs:683-688`; `awardInstanceXP` `collection.mjs:325-339`. Practice gives 0; borrowed decks give none (`expansion-ui.mjs:50`). 同名傳承 gives the target 80 plus each material's EXP (`inheritance.mjs:6,71,88`; `backpack-ui.mjs:109`) |
+| `journal` | 同行記 | 每張卡的履歷：編號、畫作、相逢緣由、對弈記錄與歷練；藏卡中展開角色，點卡面即見。 | `instanceMarkup` `backpack-ui.mjs:112` (卡牌編號, 畫作版本, 入藏日期, 相逢緣由, 對弈記錄). In the default grouped layout a card opens its character (`bag-open-group`), whose cards open the passport (`instance-inspect`) |
 | `rarity` | 品階 · 凡品／靈品／神品 | 收藏稀有度：影響開匣機率與商旅價錢，不改變星數、力量與傷害。 | `RARITIES` (weight, buy and sell prices) and the comment at `progression.mjs:35-40` |
 | `printing` | 畫作 · 本畫／異畫／領契／墨卷／天工 | 同一角色的不同畫作，只改外觀，不改星數、能力與品階；領契可作洞府肖像。 | `PRINT_TREATMENTS` `card-presentation.mjs:6-12`; `pack-ui.mjs:32`; leader portrait `backpack-ui.mjs:110` |
 | `seals` | 西行印 | 每開一匣西行秘匣得 1 印，七日弈緣另得 5 印；可換指定特別畫作，不過期。 | +1 per pack, box pack and ticket: `progression.mjs:344,391,821`. Weekly `:81,311`. Costs `wx01-pack.mjs:7`. 「保留的印不會到期」 `pack-ui.mjs:32` |
-| `tickets` | 西行秘匣券 · 秘券 | 免金幣開一匣西行秘匣。續卷終章首勝、火焰山每週第 1 與第 3 次全通各贈一張。 | Volume final, first clear: `progression.mjs:699`. Fire mountain weekly: `:786`. Opening: `:811-822`. 「券不過期」: `expansion-ui.mjs:71-73` |
-| `initiative` | 先手 | 首回合四張總星數高者先手，其後輪換。先手先亮卡；攻擊、星數皆同時先手勝。 | `engine.mjs:176-179,254-262,304`; rule 04 `app.mjs:839` |
+| `tickets` | 西行秘匣券 · 秘券 | 免金幣開一匣西行秘匣。續卷每卷終章首勝、火焰山每週第 1 與第 3 次全通各贈一張。 | Each of the six volume finals (`volumeFinal: order === 7`, `campaign-content.mjs:115`), first clear: `progression.mjs:699`. Fire mountain weekly: `:786`. Opening: `:811-822`. The game's own line: 「續卷每卷終章贈一券」 `expansion-ui.mjs:73`; 「券不過期」 `:73` |
+| `initiative` | 先手 | 首回合總星數高者先手，同則隨機，其後輪換。先手先亮卡；攻擊、星數皆同時先手勝。 | `engine.mjs:176-179` (equal sums: random), `:254-262,304`; rules note 「相同則隨機」 `app.mjs:840`; rule 04 `:839` |
+| `pills` | 仙丹 | 每局 12 顆，暗中分配給四回合；攻擊＝力量 ×（1＋所用仙丹）。火焰山沿用到下一戰。 | `RULES.pills` `engine.mjs:12`; attack `:235`; rule 01 `app.mjs:836`; fire mountain carries pills (at least 8 after a win) `progression.mjs:791`, `expansion-ui.mjs:47`. 怒擊's 「丹」 is this |
 | `resonance` | 共鳴（同族共鳴） | 抽出的四張中，有兩位不同的同族角色，該族加成便啟動；出過的卡仍計。 | `hasFactionBonus` `engine.mjs:193-198` (the hand includes used cards); rule 03 `app.mjs:838` |
 | `fury` | 怒擊 | 另付 3 丹；贏得該回合時傷害 +2。不加攻擊。 | `RULES.furyCost` and `furyDamage` `engine.mjs:12`, applied at `:236` |
-| `block` | 封鎖 | 令對手的角色技能失效，不影響同族共鳴；雙方都封鎖時一同生效。 | `engine.mjs:231-232`; ability text `:28` |
-| `power-down` | 減力 | 對手力量 −N（最低 1），在乘仙丹之前計算。例：迷渡、離間。 | `engine.mjs:234`; 渡影 `:35`, 貂蟬 `:67` |
-| `attack-down` | 減攻 | 乘仙丹之後，對手攻擊 −N（最低 1）。例：空城、月隱的月蝕。 | `engine.mjs:235`; 諸葛亮 `:63`; `FACTIONS.moon` `:18` |
+| `block` | 封鎖 | 令對手的角色技能失效，不影響同族共鳴；雙方都封鎖時一同生效。 | `engine.mjs:231-233`; ability text `:28,40,50` |
+| `power-down` | 減力 | 對手力量 −N（最低 1），在仙丹倍率之前計算。例：迷渡、離間。 | `engine.mjs:234`; 渡影 `:35-36`, 貂蟬 `:67-68`, whose ability text says 「在仙丹倍率之前計算」 |
+| `attack-down` | 減攻 | 計算仙丹倍率後，對手攻擊 −N（最低 1）。例：空城、月隱的月蝕。 | `engine.mjs:235`; 諸葛亮 `:63-64`; `FACTIONS.moon` `:18` |
 
 減力 and 減攻 are the two terms the game used without defining: in the rules
-note (`app.mjs:840`) and in the formula's 預計 sentence
-(`battle-teaching.mjs:130`). 封鎖 is also defined in each blocking card's
-ability text. The glossary gathers all three in one place.
+note (`app.mjs:840`), in the formula's 預計 sentence
+(`battle-teaching.mjs:130`), and in ten 續卷 tactical notes (for example
+`campaign-content.mjs:20,47,74`). 封鎖 is also defined in each blocking
+card's ability text. The glossary gathers all three in one place.
 
-### 3.3 Markup
+Not added: 同名傳承 and 借牌. Each is explained where it appears (the
+passport's 同名傳承 entry, 「每張素材提供 80 ＋ 原有 EXP」; the 續卷 notes and
+火焰山's rules for 借牌), and `card-exp` now points to 同名傳承.
+
+### 3.3 Markup and style
 
 `glossaryMarkup({ open })` renders this:
 
@@ -447,19 +595,30 @@ ability text. The glossary gathers all three in one place.
 <div class="glossary-list" data-glossary data-open="true|false">
   <article class="glossary-term" data-viewport-id="term-coins" data-glossary-term="coins"
            tabindex="-1" aria-labelledby="glossary-term-coins">
-    <h3 id="glossary-term-coins">金幣</h3><p>開秘匣、商旅購卡與修練所用；…</p>
+    <h3 id="glossary-term-coins">金幣</h3><p>開秘匣、購卡與修練所用；…</p>
   </article>
   …
 </div>
 ```
 
-- The order is 旅途 (`coins`, `dust`, `xp`, `hero-level`), then 卡牌
-  (`card-level`, `card-exp`, `journal`, `rarity`, `printing`, `seals`,
-  `tickets`), then 對弈 (`initiative`, `resonance`, `fury`, `block`,
-  `power-down`, `attack-down`).
-- There are no group headings: they would become list items of their own.
+- The order is 旅途 (`coins`, `dust`, `xp`, `hero-level`, `cache`), then
+  卡牌 (`stars`, `card-level`, `card-exp`, `journal`, `rarity`, `printing`,
+  `seals`, `tickets`), then 對弈 (`initiative`, `pills`, `resonance`, `fury`,
+  `block`, `power-down`, `attack-down`).
+- There are no group headings or group eyebrows: a heading would become a
+  list item of its own, and an eyebrow costs a line per term.
 - Each term is a list item, so the pager keeps every term reachable at any
   height.
+
+Glossary rules in `guide.css` (`.scene-dialog .dialog-module>p` does not reach
+these nested paragraphs, and `.rule h3`/`.rule p` do not match them):
+
+- `.scene-dialog .glossary-term h3{font:15px/1.4 var(--serif);color:var(--gold);margin:0 0 3px;letter-spacing:1px}`
+- `.scene-dialog .glossary-term p{font-size:12px;line-height:1.7;margin:0}`
+- `.scene-dialog .glossary-term:focus-visible{outline:2px solid var(--gold);outline-offset:2px}`
+
+A long title (畫作's five names) may wrap to a second line; the 2-line limit
+is the definition's.
 
 ---
 
@@ -473,29 +632,30 @@ ability text. The glossary gathers all three in one place.
   exposed.
 - Each resource keeps its `<span>` (so `.wallet>span` and
   `.game-header-resources>span` keep their breakpoints: `adventure.css:7-8,198`,
-  `navigation.css:11,163`) and drops its `title`. Inside, it holds a button:
+  `navigation.css:11,163`) and drops its `title`. Inside, it holds a button
+  whose accessible name starts with the visible text (WCAG 2.5.3):
   ```html
   <span><button type="button" class="game-resource" data-action="glossary" data-id="coins"
-        aria-label="金幣 1,200，查看說明"><span aria-hidden="true">◈</span> <b>1,200</b><small>金幣</small></button></span>
+        aria-label="1,200 金幣，查看說明"><span aria-hidden="true">◈</span> <b>1,200</b><small>金幣</small></button></span>
   ```
-  The `dust` button is the same with ✧ and 靈砂. The visible number is part
-  of the accessible name (WCAG 2.5.3).
+  The `dust` button is the same with ✧ and 靈砂.
 - `執令者 · Lv.N` (`:27`) becomes
-  `<button type="button" class="game-player-level" data-action="glossary" data-id="hero-level" aria-label="執令者 Lv.N，查看說明">`.
+  `<button type="button" class="game-player-level" data-action="glossary" data-id="hero-level" aria-label="執令者 · Lv.N，查看說明">`.
   It keeps its class, so the rule that hides it below 1,051 px
   (`navigation.css:154`) still applies.
 - `guide.css`:
   - `.game-shell .game-header .game-resource` and
     `.game-shell .game-header .game-player-level` get `min-width:44px`,
     `min-height:44px`, `display:inline-flex`, `align-items:center`,
-    `gap:inherit`, `padding:0 4px`, `border:0`, `background:none`, and
+    `gap:inherit`, `padding:0 2px`, `border:0`, `background:none`, and
     `color`, `font` and `letter-spacing` set to inherit.
   - Each gets a visible gold `:focus-visible` outline.
   - At 302 px the header holds the 44 px brand mark (`viewport.css:38`),
     the resources, the 44 px 旅程閣 or 存檔 button and the 44 px ☷ button
     (`scene-navigation.css:123-125`), with 10 px gaps. That leaves about
-    116 px for the two resources against about 99 px needed (an estimate;
-    `test:shell` and `test:guide` measure it).
+    116 px for the two resources; with 2 px padding they need about 114 px
+    (an estimate, tight; `test:shell` and `test:guide` measure it, on both
+    builds).
 - **Phones and Lv.** Lv is hidden in the header below 1,051 px, and the
   lobby's 「執令者 Lv.N」 kicker is 9 px text in a row whose height must not
   change. A real 44 px target there would grow the row. On phones, Lv is
@@ -517,29 +677,38 @@ ability text. The glossary gathers all three in one place.
 It follows the pattern of `battle-teaching.mjs`. It has no DOM, no randomness,
 no profile writes and no storage of its own: its memory is handed a storage
 object. It imports only pure modules: `engine.mjs` (`RULES`),
-`collection.mjs` (`MAX_DECK_SLOTS`) and `progression.mjs`
+`collection.mjs` (`MAX_DECK_SLOTS`, `getActiveDeck`) and `progression.mjs`
 (`getExpansionSummary`, `isNodeUnlocked`, `NODES`).
 
 ```js
 export const GUIDE_KEY = 'shanhai.guide.v1';
 export const FIRST_EXPEDITION = 'mist-gate';
-export const isFirstVisit = profile => …;            // §1.4
-export function rulesStartRoute(profile) { … }       // §1.4
+export const NEWCOMER_BATTLES = 10;                    // open question 11
+export const isFirstVisit = profile => …;              // §1.4
+export const isNewcomer = profile => profile?.stats?.played < NEWCOMER_BATTLES;
+export function rulesStartRoute(profile) { … }         // §1.4
+/** The screen channel's visit key (§2.1 item 6): the screen, or bag-cards / bag-decks. */
+export const guideScreenKey = (screen, bagTab) => screen === 'bag' ? `bag-${bagTab === 'decks' ? 'decks' : 'cards'}` : screen;
+/** The highest card level in the active deck, 1 if none (world-level's condition). */
+export function activeDeckTopLevel(profile) { … }
 /** The registry of §2.3, frozen: { id, channel: 'screen'|'dialog', scene(key) → boolean,
- *  slot: { replace: selector, remove: [selectors] }, voice: 'guardian'|'narrator',
- *  lasts: 'visit'|'condition', when(ctx) → boolean, copy(ctx) → string }. */
+ *  slot: { replace: selector, remove: [selectors], requires: selector|null },
+ *  voice: 'guardian'|'narrator', lasts: 'visit'|'condition', when(ctx) → boolean, copy(ctx) → string }. */
 export const GUIDE_HINTS = Object.freeze([ … ]);
+/** The dialog kinds that have hints ('quests', 'activity'): fitOverlay skips every other kind. */
+export const GUIDE_DIALOG_KINDS = Object.freeze([ … ]);
 /** Hints whose scene and condition hold. ctx = { profile, key, selectedNode, coachSeen } is
  *  read only; no condition writes or throws on a hydrated profile. */
 export function guideHints(ctx, channel) { … }
-/** The hint's inner markup: escaped text, the seal or the guardian's label, the
- *  sr-only prefix. No control, no focusable element. */
+/** The hint's inner markup: one <span class="guide-hint-body"> holding the sr-only prefix,
+ *  the seal or the guardian's label, and the escaped text. No control, no focusable
+ *  element, and no b, i or small (§5.4). */
 export function hintMarkup(hint, ctx) { … }
-export function createGuideMemory(storage) { … }     // §5.2
+export function createGuideMemory(storage) { … }       // §5.2
 ```
 
-`isFirstVisit`, `rulesStartRoute` and `GUIDE_HINTS` are the only places those
-rules live. `navigation-ui.mjs:57` imports `isFirstVisit`.
+`isFirstVisit`, `isNewcomer`, `rulesStartRoute` and `GUIDE_HINTS` are the only
+places those rules live. `navigation-ui.mjs:57` imports `isFirstVisit`.
 
 ### 5.2 `shanhai.guide.v1`: schema and memory
 
@@ -547,12 +716,12 @@ The key holds device-local JSON, beside `shanhai.coach.v1` and
 `shanhai.experience.v1`:
 
 ```json
-{"seen":["arena-modes","bag-copies"],"off":true}
+{"seen":["bag-copies","quests-why"],"off":true}
 ```
 
-- **`seen`:** ids of *visit* hints already shown, as sorted unique strings.
-  Unknown ids that look like ids (`/^[a-z0-9-]{1,40}$/`, at most 64 of them)
-  are kept, so an older build never drops a newer build's record.
+- **`seen`:** ids of *visit* hints already recorded, as sorted unique
+  strings. Unknown ids that look like ids (`/^[a-z0-9-]{1,40}$/`, at most 64
+  of them) are kept, so an older build never drops a newer build's record.
 - **`off`:** present (`true`) only while the player has turned hints off.
 - **What it is never part of:** the profile, `PROFILE_VERSION`, a battle
   snapshot, an export, a cloud backup or the native mirror.
@@ -571,10 +740,10 @@ storage and is merged with the page's own copy, as `createCoachMemory` does
 | --- | --- |
 | `enter(channel, key)` | Returns a visit token for `'screen'` or `'dialog'`. The token changes only when `key` differs from that channel's last key. |
 | `leave(channel)` | Ends the channel's visit (the next `enter` starts a new one). |
-| `select(hints, token)` | `[]` while `off`. Otherwise returns the hints to place: a *condition* hint always; a *visit* hint that is unseen, or pinned to this token. |
-| `shown(ids, token)` | Called after the viewport has decided visibility. Each *visit* hint among `ids` is recorded as seen and pinned to `token`, so it stays for the rest of this visit. Writes once, only if something changed. *Condition* hints are never written. |
+| `select(hints, token)` | `[]` while `off`, or while `token` is quiet (below). Otherwise returns the hints to place: a *condition* hint always; a *visit* hint that is unseen, or pinned to this token. |
+| `shown(ids, token)` | Called only by the recording check (§2.1 item 7). Each *visit* hint among `ids` is recorded as seen and pinned to `token`, so it stays for the rest of this visit. Writes once, only if something changed. *Condition* hints are never written. A stale token (its channel has moved on) records nothing. |
 | `enabled()` | Whether hints are on. |
-| `setEnabled(on)` | Off: records `off` and drops all pins. On: clears `seen` and `off`, so every hint can show again on later visits. |
+| `setEnabled(on)` | Off: records `off` and drops all pins. On: clears `seen` and `off`, and marks each channel's current token quiet, so nothing appears in the visits already in progress; hints return from each channel's next visit. |
 
 **Fail-safe:**
 
@@ -583,12 +752,15 @@ storage and is merged with the page's own copy, as `createCoachMemory` does
   record. The page's own copy then keeps working for the life of the page,
   and nothing throws into `render()`.
 - The worst case is that a retired *visit* hint shows once more after a
-  reload, as the coach's marks do when storage is lost.
+  reload, as the coach's marks do when storage is lost; the newcomer gate
+  (§2.1 item 5) bounds it to the first ten battles.
 
-**When writes happen:** only when a *visit* hint first becomes visible on a
-non-battle screen or dialog, and when the switch changes. There is never a
-write in battle. That keeps coach-smoke's `teaching()` check true: during
-teaching actions only `shanhai.coach.v1` is written
+**When writes happen:** only (a) when a *visit* hint passes the recording
+check, and (b) when the switch changes. Neither happens in battle: no hint
+has the battle screen as its scene, no dialog opened in battle (rules,
+round and match results, 聲息與節奏) has hints, and the switch's row is not
+offered in battle (§5.6). That keeps coach-smoke's `teaching()` check true:
+during teaching actions only `shanhai.coach.v1` is written
 (`tools/coach-smoke.mjs:328-338`).
 
 ### 5.3 `glossary.mjs` (new, pure)
@@ -599,81 +771,108 @@ export const GLOSSARY_IDS = Object.freeze(GLOSSARY.map(entry => entry.id));
 export function glossaryMarkup({ open = null } = {}) { … }  // §3.3; an unknown `open` is ignored
 ```
 
-**Numbers that come from constants:**
+**Numbers that come from constants or data:**
 
-- 怒擊 uses `RULES.furyCost` and `RULES.furyDamage`.
+- 怒擊 uses `RULES.furyCost` and `RULES.furyDamage`; 仙丹 uses `RULES.pills`;
+  星數 uses `RULES.starLimit` and the star range of `CARDS`.
 - 品階 names use `RARITIES[*].name`.
 - 畫作 names use `PRINT_TREATMENTS[*].name`.
 - 執令者 Lv thresholds are `100 × (Lv − 1)²` for Lv.2–4, the inverse of
   `getHeroLevel`.
 
 **Numbers with no constant**, written out and checked by §7.1 against the
-functions themselves: upgrade costs 120×Lv and 6×Lv; card EXP 20/12 and 12/8;
+functions themselves: upgrade costs 120×L and 6×L; card EXP 20/12 and 12/8;
 seals +1 per pack and 5 weekly.
 
-### 5.4 Placement adapter: `placeGuideHints` in `scene-adapters.mjs`
+### 5.4 Placement adapter in `scene-adapters.mjs`
 
-`scene-adapters.mjs` is already the home of presentation-only DOM restructuring
-("Nodes are moved, never cloned or persisted").
+`scene-adapters.mjs` is already the home of presentation-only DOM restructuring.
+The DOM side of T1 lives there, so `app.mjs` carries only short hooks.
 
 ```js
 /** T1 (docs/TUTORIAL-T1.md §2): each hint replaces its slot with an element of the same tag
  * and classes, plus `guide-hint`, role="note" and data-guide-hint; the slot's other nodes are
- * removed. A re-render restores them. Returns [{ id, node }] for the hints placed. */
+ * removed. Idempotent: a hint already in `root` counts as placed. A missing slot, or a
+ * `requires` that does not match, places nothing. A re-render restores the slot.
+ * Tolerates null nodes. Returns [{ id, node }] for the hints placed. */
 export function placeGuideHints(root, entries /* [{ hint, html }] */) { … }
+/** The ids among `placed` that can be seen now: connected, not inside [hidden], with client
+ *  rects. A node without getClientRects (a test stub) counts as not visible. */
+export function visibleGuideHints(placed) { … }
 ```
 
-- A slot that is missing (markup changed) is skipped silently. §7.2 asserts
-  each hint is placed in its scene, so a missed slot cannot pass unseen.
-- **Visible** means not inside `[hidden]` and having client rects. A slot
-  that a breakpoint hides keeps its hint hidden too, and an unseen hint is
-  never recorded.
+- §7.2 asserts each hint is placed in its scene, so a missed slot cannot pass
+  unseen.
+- `fitOverlay` runs again without new markup (the pack controller's
+  `onLayout`, `app.mjs:709`; the inheritance refresh, `:935`), so idempotence
+  matters: no slot is ever replaced twice, and a slot selector that matches a
+  hint already placed (`.daily-gift > p`) is not replaced again.
 
-**Per-slot CSS in `guide.css`:**
+**Per-slot CSS in `guide.css`.** Every hint's inner markup is one
+`<span class="guide-hint-body">` (§5.1), with no `b`, `i` or `small`, so the
+slots' descendant and sibling rules cannot restyle it:
 
-- Only the bag's `.bag-overview` slot needs any. It is a flex row of stacked
-  figures, so the hint overrides it:
-  - `.bag-overview.guide-hint{display:block;font-size:11px;line-height:1.6;color:var(--muted)}`
-  - `.bag-overview.guide-hint>span{display:inline;padding:0;border:0}`
-  - Same specificity as `scene-content.css`'s rules; `guide.css` loads last,
-    so it wins.
+- **The bag's `.bag-overview`.** It is a flex row of stacked figures, and its
+  child rules are strong: `.scene-surface .bag-overview>span+span`
+  (0,2,2; `scene-content.css:4,14`), `.bag-overview>span+span` (border-left,
+  `backpack.css:8`), `.scene-surface .bag-overview>span` (0,2,1) and
+  `.bag-overview b/i/small` (`backpack.css:9-11`). With a single child,
+  `span+span` never matches; the rest is beaten at (0,3,0):
+  - `.scene-surface .bag-overview.guide-hint{display:block}`
+  - `.bag-overview.guide-hint>.guide-hint-body{display:block;padding:0;border:0;text-align:left;font-size:11px;line-height:1.6;letter-spacing:0;color:var(--muted)}`
+- **`world-level`'s subtitle** drops the slot's 3 px letter-spacing and gold:
+  `.scene-world .destination-panel .destination-subtitle.guide-hint{letter-spacing:0;font-size:11px;line-height:1.6;color:var(--muted)}`
+  (0,4,0, above `.scene-world .destination-subtitle`).
 - Every other slot is text and keeps its own rules.
-- `.guide-hint-seal` is the small gold 「初見」 box and `.guide-hint-voice`
-  the gold 守渡弈者 label.
-- There is no animation (§6).
+- `.guide-hint-seal` is the small gold 「初見」 box at `font-size:1em` (never
+  smaller than the text) and `.guide-hint-voice` the gold 守渡弈者 label,
+  both inline.
+- There is no animation or transition (§6).
+
+guide-smoke checks the computed result (§7.2).
 
 ### 5.5 Every touch point
 
 **`app.mjs`.** The r1 and PR #17 lines named in §9 are the likely conflicts.
 
-1. **Imports.** Add after `:42`:
-   - `import { createGuideMemory, guideHints, hintMarkup, rulesStartRoute } from './first-visit.mjs';`
+1. **Imports.** Add after `:42`, each on one line with named imports only
+   (r1's controller test reads them with a one-line pattern, §9):
+   - `import { createGuideMemory, guideHints, guideScreenKey, hintMarkup, rulesStartRoute, GUIDE_DIALOG_KINDS } from './first-visit.mjs';`
    - `import { glossaryMarkup } from './glossary.mjs';`
 
-   `:38` gains `placeGuideHints`. Do not touch the `account-client.mjs` and
-   `account-ui.mjs` import lines (`:19,21`): `NATIVE_EDITS` must match each
-   exactly once.
+   `:38` gains `placeGuideHints, visibleGuideHints`. Do not touch the
+   `account-client.mjs` and `account-ui.mjs` import lines (`:19,21`):
+   `NATIVE_EDITS` must match each exactly once.
 2. **Memory and helper.** Beside `coachMemory` (`:446`):
    - `const guide=createGuideMemory({getItem:…,setItem:…})`, built the same
      way as `coachMemory`.
-   - A helper `applyGuide(root,channel,key)` that:
-     1. builds `ctx` (`{profile,key,selectedNode,coachSeen:coachMemory.seen()}`);
-     2. calls `guide.select(guideHints(ctx,channel),token)` and
+   - `applyGuide(root,channel,key)`, a few lines that:
+     1. return a no-op at once for a dialog kind not in `GUIDE_DIALOG_KINDS`;
+     2. build `ctx` (`{profile,key,selectedNode,coachSeen:coachMemory.seen()}`)
+        and call `guide.select(guideHints(ctx,channel),token)` and
         `placeGuideHints(root,…)`;
-     3. returns a function that calls `guide.shown(visibleIds,token)`.
-3. **`render()`** (`:586-611`): `const guideShown=applyGuide(app,'screen',viewKey());`
-   between `app.innerHTML=…` and `prepareScene(…)`, then `guideShown();`
+     3. return a function that schedules the recording check (§2.1 item 7):
+        two nested `requestAnimationFrame`s, then
+        `guide.shown(visibleGuideHints(placed),token)` if the page is visible
+        and, for the screen channel, `!app.inert`. A screen placement that
+        fails only because a dialog is open is kept as the pending one.
+   - `retryGuide()`: runs the same check on the pending screen placement.
+3. **`render()`** (`:586-611`):
+   `const guideCommit=applyGuide(app,'screen',guideScreenKey(screen,bagView.tab));`
+   between `app.innerHTML=…` and `prepareScene(…)`, then `guideCommit();`
    right after `viewport.refresh(…)`.
-4. **`fitOverlay()`** (`:657-663`): the same for the dialog. Before
-   `prepareDialog`/`preparePack`, `const guideShown=applyGuide(dialog,'dialog',modalKind);`,
-   and after `viewport.refresh`, `guideShown();`. `refreshOverlay` (quests,
+4. **`fitOverlay()`** (`:657-663`): the same for the dialog,
+   `applyGuide(dialog,'dialog',modalKind)` before `prepareDialog`/`preparePack`,
+   and its commit after `viewport.refresh`. `refreshOverlay` (quests,
    activity) reaches it through `fitOverlay`.
-5. **`closeModal()`** (`:621-633`): `guide.leave('dialog');`.
-6. **`experienceSettingsModal()`** (`:685-694`): one field row (§5.6).
+5. **`closeModal()`** (`:621-633`): `guide.leave('dialog');retryGuide();`
+   beside `modalKind=null`, not on the function's first line (§9).
+6. **`experienceSettingsModal()`** (`:685-694`): one field row, omitted when
+   `screen==='battle'` (§5.6).
 7. **The `change` listener** (`:1517`): a `guide-hints` branch (§5.6).
 8. **`rulesModal()`** (`:834-842`): `{term}`, `glossaryMarkup`, kind
-   `'rules'`, the three fixed actions, `viewport.forget('modal-rules')`, and
-   the reveal frame (§3.1).
+   `'rules'`, the two headings, the three fixed actions,
+   `viewport.forget('modal-rules')`, and the reveal frame (§3.1).
 9. **Dispatcher:**
    - `:1484` area: `glossary` branch (§4);
    - `:1486`: `start` and `rules-start` split (§1.4).
@@ -682,8 +881,8 @@ export function placeGuideHints(root, entries /* [{ hint, html }] */) { … }
 
 - `navigation-ui.mjs:26-27`: the header buttons and group role (§4).
 - `navigation-ui.mjs:57`: `isFirstVisit`.
-- `scene-dialogs.mjs:85-92`: the 詞彙 module (§3.1).
-- `scene-adapters.mjs`: the new `placeGuideHints` export.
+- `scene-dialogs.mjs:85-92`: the intro in the list and the 詞彙 module (§3.1).
+- `scene-adapters.mjs`: `placeGuideHints` and `visibleGuideHints`.
 
 `adventure-ui.mjs`, `backpack-ui.mjs`, `expansion-ui.mjs`, `mist-gate-ui.mjs`,
 `battle-*.mjs` and `nav-stack.mjs` do not change: slots are found by selector.
@@ -697,27 +896,34 @@ export function placeGuideHints(root, entries /* [{ hint, html }] */) { … }
   - `index.html`: `<link rel="stylesheet" href="guide.css">` after
     `battle-teaching.css`.
   - `hosting/public-assets.json`: three entries.
-  - `package.json`: a `test:guide` script.
+  - `package.json`: a `test:guide` script right after `test:coach`.
   - `tools/coach-smoke.mjs` (§1.5) and the documents in §1.5 and §9.
 
 ### 5.6 The switch in 聲息與節奏
 
 The switch is the only control T1 adds besides the header buttons.
 
-- **Row.** After 揭曉節奏 in `experienceSettingsModal()`:
+- **Row.** After 揭曉節奏 in `experienceSettingsModal()`, outside battle only:
   `<label class="experience-field"><span>初見提點<small>初到各處時的一行說明；重新開啟會再看一次</small></span><input id="guide-hints" type="checkbox" ${guide.enabled()?'checked':''}></label>`.
+  In battle (☷ in the battle header, `navigation-ui.mjs:23`, and over the
+  reveal) no hint can show, so the row is left out and nothing about hints is
+  written there.
 - **Turning it off:** `guide.setEnabled(false)`, then `render()`. The scene
   behind the dialog loses its hint at once; `refreshOverlay` ignores
   `experience-settings`.
-- **Turning it on:** `guide.setEnabled(true)` without a render. Hints show
-  again from the next visit, so nothing is recorded while the dialog covers
-  the scene.
+- **Turning it on:** `guide.setEnabled(true)` without a render. The visits in
+  progress stay quiet (§5.2), so no hint appears in the scene behind the
+  dialog, now or on a later render of the same visit. Hints show again from
+  each channel's next visit, for a newcomer (§2.1 item 5).
 - The dialog is a paged list (`scene-dialogs.mjs` `settings()`), so one more
   row only adds a page item. Its 「設定會記在此裝置」 footnote stays true.
 - The checkbox's computed font size must stay ≥ 16 px, as N1 requires of
   every input. `tools/shell-smoke.mjs`'s `INPUT_IDS` should gain
   `'guide-hints'` once n2 has landed, since n2 edits that file (§9);
   until then guide-smoke checks it.
+- For playtests: a fresh install per tester also starts with an empty
+  `shanhai.guide.v1`, and turning the switch off and on replays the hints on
+  one device.
 
 ---
 
@@ -726,28 +932,30 @@ The switch is the only control T1 adds besides the header buttons.
 **Hints:**
 
 - Each hint is `role="note"` on the slot's own element, in reading order,
-  with an sr-only 「初見提點：」 prefix.
+  with an sr-only 「初見提點：」 prefix (`.sr-only`, `styles.css`).
 - It is not live, takes no focus, and has no `aria-label` that would hide
   its text.
 - The guardian's label is visible text.
-- Colour is the slot's own, plus the gold seal or label, which the existing
-  palette already uses for text.
+- Colour is the slot's own (or the muted text colour where §5.4 resets it),
+  plus the gold seal or label, which the existing palette already uses for
+  text.
+- Text is ≥ 10 px and never clipped (§2.1).
 
 **Glossary:**
 
 - The module tabs are the viewport's own (`role="tab"`, arrows, Home and
   End).
 - Each term is an `article` named by its `h3`. Opening at a term focuses that
-  term (`tabindex="-1"`), so the screen reader reads the word and then its
-  definition.
+  term (`tabindex="-1"`, with a visible gold `:focus-visible` outline), so
+  the screen reader reads the word and then its definition.
 
-**Header:** 44 × 44 targets, names that include the visible numbers, and a
+**Header:** 44 × 44 targets, names that start with the visible text, and a
 gold `:focus-visible` outline.
 
-**Reduced motion:** hints and the glossary have no animation of their own.
-The viewport's existing page-arrival animation already honours
+**Reduced motion:** hints and the glossary have no animation or transition of
+their own. The viewport's existing page-arrival animation already honours
 `prefers-reduced-motion` and `body[data-motion="reduce"]`
-(`scene-content.css:35`).
+(`scene-content.css:35`). guide-smoke asserts it (§7.2).
 
 **Back (D1):**
 
@@ -756,10 +964,12 @@ The viewport's existing page-arrival animation already honours
   `modal:rules`. Switching tabs is not a layer, as in every viewport dialog.
 - Opening the glossary from the header pushes one entry on the tap, and
   Back closes it.
-- The rules-first route's layers are in §1.3.
+- The rules-first route's layers, from each origin, are in §1.3.
 
 **Text scaling, VoiceOver and TalkBack:** not verified. They stay physical-
-phone checks, as for D3 (M5.1).
+phone checks, as for D3. The M5.1 phone checklist gains two rows: the hints
+read in order with their 「初見提點」 prefix, and a header resource opens 詞彙
+with the term read first, under VoiceOver and under TalkBack.
 
 **Native build:**
 
@@ -767,8 +977,9 @@ phone checks, as for D3 (M5.1).
   `NATIVE_EDITS` still matches exactly once (`tools/build.mjs:39-45`).
 - `npm run build:native` must pass its reference and offline-name checks
   (`tools/build.mjs:114-127`).
-- The store build gets the same hints, glossary and header. The 旅程存檔
-  button (`savesButtonMarkup`) keeps its place: `test:native` asserts it
+- The store build gets the same hints, glossary and header, and the same
+  rules-first route from its 旅程存檔 panel (§1.3). The 旅程存檔 button
+  (`savesButtonMarkup`) keeps its place: `test:native` asserts it
   (`tools/native-smoke.mjs:122`).
 
 **Web build:**
@@ -792,25 +1003,35 @@ phone checks, as for D3 (M5.1).
 **`tests/first-visit.test.mjs`**
 
 - *Registry:*
-  - 8–12 hints with unique ids;
+  - 6–10 hints with unique ids (8 now);
   - each copy ≤ 40 code points for every `ctx` variant;
   - each has a channel, scene, slot, voice and lasts;
-  - guardian copy is 「quoted」.
+  - guardian copy is 「quoted」;
+  - `GUIDE_DIALOG_KINDS` equals the dialog hints' kinds.
 - *Conditions*, on real fixtures built with `createProfile`, `beginBattle`,
-  `finishBattle` and `abandonBattle`:
-  - fresh: `home-start`, `arena-first` and `world-level` (mist-gate) hold;
-    `arena-modes` does not.
-  - one finished practice match: `arena-modes` holds; `home-start` and
-    `arena-first` do not.
+  `finishBattle`, `abandonBattle`, `startActivity` and `abandonActivity`:
+  - fresh: `home-start`, `arena-first`, `bag-copies`, `bag-decks`,
+    `market-printing` and `quests-why` hold; `world-level` does not on
+    霧隱渡口 (建議 Lv.1, deck Lv.1).
+  - after 霧隱渡口 is won: `home-start` and `arena-first` do not hold;
+    `world-level` holds on 青玉森庭 (建議 Lv.2 above a Lv.1 deck) and stops
+    holding once a deck card reaches Lv.2; `fire-mountain` holds.
   - a first battle begun, then abandoned: `home-start` holds again
     (`played` is still 0).
   - with a `pending` battle: `home-start` does not hold.
-  - after one finished arena match: `arena-modes` does not hold.
-  - after 霧隱渡口 is won: `fire-mountain` holds. It stops holding with a
-    run, a `lastResult` or one clear.
-  - locked node: `world-level` does not hold. Nor does it once two nodes
-    are cleared.
+  - `fire-mountain`: stops holding with a run; also after a run started and
+    abandoned before any result (`serial` 1, `lastResult` null, `clears` 0).
+  - `bag-decks` stops holding with a second deck slot; `market-printing`
+    after one WX-01 pack.
+  - **Veteran:** a journey with `stats.played === 10` (and one fire-mountain
+    run tried) gets no hint at all, on every scene and dialog; with no run
+    ever started it gets only `fire-mountain`. One with 9 finished battles
+    still gets the visit hints.
+  - locked node: `world-level` does not hold.
   - copy variants follow `coachSeen`.
+- *Keys:* `guideScreenKey('bag','cards')` and `('bag','decks')` give
+  `bag-cards` and `bag-decks` whatever the layout or opened character;
+  other screens give the screen.
 - *Read-only:* evaluating every condition and copy on a deep-frozen profile
   neither throws nor changes its JSON.
 - *`rulesStartRoute`:*
@@ -827,44 +1048,60 @@ phone checks, as for D3 (M5.1).
     changed;
   - unknown ids are kept and malformed ones dropped;
   - visit semantics: `select`, then `shown`, records and pins; the same
-    token shows it again, a new token does not;
+    token shows it again, a new token does not; a stale token records
+    nothing;
   - condition hints are never written;
-  - `setEnabled(false)` gives nothing; `setEnabled(true)` clears `seen`.
-- *Markup:* `role` is added by the adapter, not the string. The string
-  contains the sr-only prefix and the seal or label, no `<button>`, `<a>`,
-  `tabindex` or `aria-live`, and its text is escaped.
+  - `setEnabled(false)` gives nothing; `setEnabled(true)` clears `seen`, and
+    `select` on the tokens current at that moment gives nothing until each
+    channel's next `enter` with another key.
+- *Markup:* `role` is added by the adapter, not the string. The string is one
+  `guide-hint-body` span holding the sr-only prefix, the seal or label and
+  escaped text; no `<button>`, `<a>`, `tabindex`, `aria-live`, `<b>`, `<i>`
+  or `<small>`.
 
 **`tests/glossary.test.mjs`**
 
-- *Shape:* 15–18 entries with unique ids; `coins`, `dust` and `hero-level`
-  exist; each definition is ≤ 40 display units; `glossaryMarkup` gives one
-  `data-viewport-id` and `data-glossary-term` per entry, `tabindex="-1"`,
-  and `data-open` only for a known id.
+- *Shape:* 18–22 entries (20 now) with unique ids; `coins`, `dust` and
+  `hero-level` exist; each definition is ≤ 40 display units by the §3.2
+  rule; `glossaryMarkup` gives one `data-viewport-id` and
+  `data-glossary-term` per entry, `tabindex="-1"`, and `data-open` only for
+  a known id.
 - *Truth, against the engine and progression:*
-  - 怒擊 text contains `RULES.furyCost` and `RULES.furyDamage`;
-  - `getHeroLevel` at 99, 100, 399, 400, 899, 900 修為 gives 1, 2, 2, 3, 3, 4;
+  - 怒擊 text contains `RULES.furyCost` and `RULES.furyDamage`; 仙丹 contains
+    `RULES.pills`; 星數 contains `RULES.starLimit` and the min and max of
+    `CARDS`' stars;
+  - `getHeroLevel` at 99, 100, 399, 400, 899, 900, 1,600 修為 gives 1, 2, 2,
+    3, 3, 4, 5;
   - `getUpgradeCost` on a Lv.1 and a Lv.2 copy gives 120/6 and 240/12;
-  - `finishBattle` gives these card EXP amounts:
-    - expedition win 20, loss 12;
-    - arena win 12, loss 8;
-    - practice 0 and no coins;
+  - `finishBattle` gives these rewards:
+    - expedition win: card EXP 20; loss or draw: card EXP 12, 靈砂 0, coins
+      and 修為 > 0;
+    - arena win 12, loss 8 card EXP, both with coins, 靈砂 and 修為;
+    - a fire-mountain loss: no coins, 靈砂 or 修為; a win 60/3(+2)/30;
+    - practice: no card EXP, coins, 靈砂 or 修為;
+    - a borrowed deck (`route: 'loaner'`): no card EXP;
+  - `previewInheritance` gives the target 80 plus the material's EXP;
   - `XP_THRESHOLDS` give automatic levels;
+  - every `volumeFinal` node (six) adds one ticket on its first clear, and
+    the fire mountain's first and third weekly clears add one each;
   - `buyPack({set:'wx01'})` gives +1 seal, and `WEEKLY_TASKS` 'matches'
     pays 5 seals;
+  - a non-campaign node's first win of the day adds `dailyReward`
+    (`reward.dailyCache`), a 續卷 node's does not;
   - `RARITIES` names, and `PRINT_TREATMENTS` names and codes, appear;
   - `hasFactionBonus`:
     - two different same-faction names: true;
     - one: false;
     - a used card still counts;
-  - `createMatch` with controlled hands: the higher star sum leads, and
-    `resolveRound` alternates the lead;
+  - `createMatch` with controlled hands: the higher star sum leads, equal
+    sums follow the injected `rng`, and `resolveRound` alternates the lead;
   - 減力, 減攻 and 封鎖 through `resolveRound`:
     - 渡影 lowers the opponent's power by 1 before the multiplier;
     - 諸葛亮 lowers attack by 4 after it, to a minimum of 1;
     - 霜璃 blocks the ability but not resonance.
 - *Header markup:* `gameHeaderMarkup` has `data-action="glossary"` buttons
-  for `coins`, `dust` and `hero-level`, with aria-labels that contain the
-  formatted numbers, no `title` on the resources, and `role="group"`.
+  for `coins`, `dust` and `hero-level`, with aria-labels that start with the
+  formatted visible text, no `title` on the resources, and `role="group"`.
 
 **Existing suites that must still pass:** `tests/hosting.test.mjs`
 (allowlist reachability), `tests/native-build.test.mjs`,
@@ -880,10 +1117,20 @@ delete `test-results/*.png`, but keep `test-results/webkit-runtime`.
 **New `tools/guide-smoke.mjs`** (`npm run test:guide`: Chromium as a Pixel 7
 in installed Chrome, then WebKit as an iPhone 15):
 
-- **Sizes:** portrait 302×640, 360×740, 393×852 and 430×932, with
-  synthetic saves and the clock and `Math.random` fixed as coach-smoke does.
+- **Sizes**, portrait: 302×640, 320×568, 360×740, 360×780, 393×659,
+  393×780, 412×790, 430×932, and with top and bottom insets 412×839 (48/34)
+  and 393×852 (59/34), the sizes where item 18 flags
+  ([NAVIGATION.md:428-436](NAVIGATION.md), RELEASE-NEXT §12 item 18) and
+  shell-smoke's set. Synthetic saves; the clock and `Math.random` fixed as
+  coach-smoke does. The bag scenes use the N1 fixture with every WX-01
+  printing minted (as `tools/shell-smoke.mjs:58` and
+  `tools/viewport-smoke.mjs:35` do).
 - **Control pass:** each scene renders with `{"off":true}` and records:
   - the slot's boxes (replaced + removed, margins included);
+  - the boxes of every later sibling of the slot and of every list frame
+    in the surface;
+  - in the lobby, the boxes of `.lobby-continue`, `.scene-lobby-companions`,
+    `.lobby-ledger` and its rules link, and the dock's top;
   - every `[data-viewport-overflow="true"]` in the surface, its modules and
     its lists;
   - each list's `data-page-count`;
@@ -892,40 +1139,77 @@ in installed Chrome, then WebKit as an iPhone 15):
   1. the hint is placed with `role="note"`, the replaced node is gone, and
      the removed nodes are absent;
   2. the hint's box, margins included, is ≤ the slot's total + 1 px;
-  3. no new overflow flag, the same page counts, the same number of
+  3. every recorded later sibling and list frame is at the same or a higher
+     position with the same or a greater height (± 1 px); in the lobby the
+     three nodes are no lower and stay above the dock;
+  4. no new overflow flag, the same page counts, the same number of
      controls;
-  4. active modules keep `scrollHeight ≤ clientHeight + 1`;
-  5. no document scroll.
+  5. active modules keep `scrollHeight ≤ clientHeight + 1`;
+  6. no document scroll;
+  7. computed style: the hint text and its seal or label are ≥ 10 px and
+     the seal is not smaller than the text; no `line-clamp`, ellipsis or
+     hidden overflow, and the hint's own `scrollHeight ≤ clientHeight + 1`;
+     the bag hint's body has no border and its intended 11 px.
 - **Behaviour:**
   - *visit* hints show for the whole visit and are gone on the next visit
     and after a reload;
+  - in the bag, toggling 排列方式 and opening and closing a character keep
+    the visit: the hint is back when the character closes, and recorded once;
+  - **not recorded under a dialog:** from the lobby, in one task, tap the
+    dock's 藏卡 and then an injected `data-action="rules"` button (the
+    pattern of `tools/save-durability-smoke.mjs:712`); after two frames
+    there is no record; after the dialog closes, `bag-copies` is recorded;
   - *condition* hints follow the profile;
+  - the lobby with a locked node of another volume selected on a first
+    visit shows no `home-start`, and keeps 「渡口首勝後，展開此卷」;
   - `fire-mountain` is not recorded while 牌組 is the open module;
-  - the switch: off removes the hint in the scene behind the dialog; on,
-    then a new visit, shows hints again; the checkbox's font is ≥ 16 px;
+  - placement is idempotent: re-running `fitOverlay` on the quests dialog
+    leaves one `quests-why`;
+  - the switch: off removes the hint in the scene behind the dialog; on
+    shows nothing in the current visit, then a new visit shows hints again;
+    the row is absent in battle; the checkbox's font is ≥ 16 px;
+  - **veteran:** a 12-battle journey with a fire-mountain run tried shows no
+    `[data-guide-hint]` on any scene or dialog, and `shanhai.guide.v1` is
+    never written;
   - while browsing, only `shanhai.guide.v1` is written and the profile
     bytes never change;
-  - no hint ever appears on the battle screen.
+  - no hint ever appears on the battle screen, and no write happens there.
 - **Back:** the history depth (`history.state['mythseal.nav'].depth`) is the
   same with and without a hint. Back from a scene with a hint goes home as
   before.
 - **Glossary:**
   - 金幣 and 靈砂 at each size, and 執令者 Lv at 1280×800, open the dialog
-    on 詞彙 with that term on the current page and focused.
+    on 詞彙 with that term on the current page and focused, under the
+    term-mode heading.
   - Back closes the dialog and focus returns to the button.
-  - The lobby's 弈道 link opens on 弈道 page 1 even after the dialog was
-    last left on 詞彙.
-  - Each term fits 2 lines at 302 px.
+  - The lobby's 弈道 link opens on 弈道 page 1, with the intro as its first
+    item, even after the dialog was last left on 詞彙.
+  - Each definition fits 2 lines at 302 px.
+  - **The rules dialog against `main`:** at every portrait size above and at
+    852×393 (with shell-smoke's iPhone side insets), 844×390 and 734×343,
+    and, once n2 has landed, 667×375, 640×360 and 568×320: the `rules`
+    module and list gain no `data-viewport-overflow="true"` that `main`
+    does not have, and its list frame is not shorter than `main`'s.
 - **Header:**
   - every header control is ≥ 44 × 44;
   - no two overlap, and taps across each one's width land on it (the same
     test as `tools/shell-smoke.mjs` `headerClash`);
-  - no horizontal overflow at 302 px with 99,999 coins.
+  - no horizontal overflow at 302 px with 999,999 coins and 99,999 靈砂;
+  - at the cap (1,000,000,000 each, `progression.mjs:21`) the header is no
+    wider than `main`'s with the same save (recorded either way).
+- **Reduced motion:** `.guide-hint` and `.glossary-term` have no animation
+  or transition under `body[data-motion="reduce"]` and under emulated
+  `prefers-reduced-motion: reduce`.
+- **Native pass:** with `GAME_URL` serving `npm run build:native`'s `dist/`
+  and native-smoke's simulated bridge: the header (with 存檔) passes the
+  header checks; 金幣 opens 詞彙; on a fresh profile, 存檔's
+  「弈道 · 遊戲規則」 then 知其道，入其局 opens `.is-mist-prep` on 遊歷, and
+  Back twice reaches 洞府.
 - **Regression sizes, recorded only:** the same checks at 844×390 and
   734×343 are recorded as NOTE lines when the control pass already flags
   (items 17 and 18), and asserted otherwise.
 
-**`npm run test:coach`:** the rules-first case in §1.5.
+**`npm run test:coach`:** the rules-first cases in §1.5, including 1b.
 
 **Regression suites**, one at a time, deleting PNGs after each:
 
@@ -934,6 +1218,9 @@ in installed Chrome, then WebKit as an iPhone 15):
 | `test:shell` | header row, inputs |
 | `test:viewport` | every visible control ≥ 44 px; surfaces on fresh profiles now carry hints |
 | `test:back` | `modal:rules` |
+| `test:commands` | uses the rules dialog as its "other dialog" during a held lock (`tools/command-smoke.mjs:455-459`) |
+| `test:saves` | the same (`tools/save-durability-smoke.mjs:712-718`), and `journeyKeys` (`:40`) asserts that no key but the save record is written in its flows (`:277-346`). By design no guide write happens there: the lobby's only hints are condition hints, the rules dialog has none, and nothing is recorded under a dialog. If a later hint changes that, exclude `GUIDE_KEY` beside `SAVES_KEY` in `journeyKeys` (device-local, not journey data), coordinating with r1, which edits that file |
+| `tools/account-smoke.mjs` | 旅程閣's tools row and its rules entry |
 | `test:expansion` | the 火焰山 overview |
 | `test:native` | 存檔 button, store build |
 | `tools/navigation-smoke.mjs` | |
@@ -954,14 +1241,16 @@ in installed Chrome, then WebKit as an iPhone 15):
 ## 8. Open questions for Yu
 
 1. **Voice.** Is the split right: 守渡弈者 for the two ferry hints, a narrator
-   for the other seven? And may the guardian promise 「首局，我陪你一步步走」?
+   for the other six? And may the guardian promise 「首局，我陪你一步步走」?
    He is that battle's opponent, and the teaching comes from the table's
    marks.
-2. **Copy and tone.** Please review the 11 hint strings (§2.3) and 17
-   definitions (§3.2). Conventions questions:
+2. **Copy and tone.** Please review the 10 hint strings (§2.3), the 20
+   definitions (§3.2) and the term-mode heading WORDS ON THE ROAD /
+   「識其名，知其用。」 (§3.1). Conventions questions:
    - 着 as the game writes it;
    - 「Lv」 and 「EXP」 in Latin letters, as the UI shows them;
-   - Arabic numerals in rules (8 位、25 星), as the deck editor writes them.
+   - Arabic numerals in rules (8 位、25 星), as the deck editor writes them;
+   - 修為 glossed as 「執令者的旅途閱歷」, to keep it apart from card 歷練.
 3. **What 建議 Lv means.**
    - The code compares it with nothing.
    - On the original and story nodes it sets the guardians' card level to
@@ -971,29 +1260,46 @@ in installed Chrome, then WebKit as an iPhone 15):
 
    Was it meant as card Lv or 執令者 Lv? The hint avoids claiming either.
 4. **修為 means two things.**
-   - Reward lines, the profile strip and the glossary use it for journey
-     experience (`adventure-ui.mjs:10`).
-   - 「這張卡牌已達最高修為」 (`progression.mjs:548,558`) and
-     PROGRESSION.md use it for a card's level.
+   - Reward lines and the glossary use it for journey experience
+     (`adventure-ui.mjs:10`; `expansion-ui.mjs:11,53`).
+   - It means a card's level or EXP in visible copy and messages:
+     「同行之意 · 化作修為」 on every 同名傳承 result
+     (`inheritance-ui.mjs:46`); 「這張卡牌已達最高修為」
+     (`progression.mjs:548,558`; `local-commands.mjs:82`);
+     「卡牌修為記錄無效…」 (`inheritance.mjs:39`); 「修為等級須為 1 至 5。」
+     (`collection.mjs:83`); and `docs/PROGRESSION.md:102,104,112`.
+   - The player's 修為 total is shown nowhere in normal play: `profileStrip`
+     is unused, and only web 旅程閣 and the import comparison (both builds)
+     show it, as 「旅途歷練」. The store build has no 旅程閣, so a player
+     there cannot check the 執令者 Lv thresholds against a total.
 
-   Should that error say 等級 instead? That would be a separate one-line
-   change.
+   Should the card-level uses say 等級 or 歷練 instead (a separate copy
+   change), and should the 修為 total be shown somewhere (for example in the
+   執令者 Lv entry when opened from the header)?
 5. **No per-hint 知道了.** Hints retire on their own, and the switch turns
    them all off or replays them. A 44 px dismiss control would cost a row in
-   most scenes. Accept, or add one where the slot allows?
+   most scenes. Accept, or add one where the slot allows? And should a visit
+   hint show for two visits instead of one, in case one glance misses it?
 6. **Lv on phones.** Is reaching it through 詞彙 enough? Or should phones
    get a third 44 px 「Lv.N」 header button (to be measured at 302 px)?
 7. **The rules dialog's button.** Keep 「知其道，入其局」 on a first visit,
-   or say where it goes (for example 「知其道，赴渡口」)? And is 「明白了」
-   right when it opens at a term?
-8. **A "where next" hint after the first result.** It would point to
-   同行記, 任務手札 and 修練, and it would sit on D3's 勝負已定 page. Do you
-   want it as T1.1, outside D3's freeze?
+   or say where it goes (for example 「知其道，赴渡口」)? The route is decided
+   at tap time either way; a profile-dependent label could go stale in a
+   dialog kept open across a restore (command-smoke and save-durability-smoke
+   do exactly that). And is 「明白了」 right when it opens at a term?
+8. **After the first result.** A "where next" hint on D3's 勝負已定 page
+   (pointing to 同行記, 任務手札 and 修練) would need D3's freeze lifted:
+   T1.1? An alternative that leaves D3 alone: a lobby condition hint while
+   `stats.played` is 1–2, pointing to 任務手札 and 修練.
 9. **Release track.** TestFlight or native first, v0.6.0 (which reopens a
    fixed scope), or v0.6.1? The rules-first fix (§1) is small and could land
    on its own before D3's playtest, so careful newcomers reach the coach.
 10. **The switch.** Is 聲息與節奏 the right place, and 「初見提點」 the
     right name?
+11. **Newcomer gate.** Visit hints stop after 10 finished battles
+    (`NEWCOMER_BATTLES`). Is 10 right? Playtests may move it.
+12. **Old saves.** A v2–v4 save with cleared nodes but `played === 0` counts
+    as a first visit (lobby, coach and now the rules route). Leave it?
 
 ---
 
@@ -1005,19 +1311,21 @@ in installed Chrome, then WebKit as an iPhone 15):
    - `first-visit.mjs` with `isFirstVisit` and `rulesStartRoute` only;
    - its Node tests;
    - the `app.mjs` dispatcher split and `navigation-ui.mjs:57`;
-   - the coach-smoke case;
+   - the coach-smoke cases;
    - BATTLE-LAYOUT-PLAN's Ending row.
-2. `glossary.mjs` and its tests, the 詞彙 module, `rulesModal({term})`, the
-   header buttons and `guide.css`'s header rules.
+2. `glossary.mjs` and its tests, the 詞彙 module and the intro move,
+   `rulesModal({term})`, the header buttons and `guide.css`'s header and
+   glossary rules.
 3. The hint registry, memory and markup, with their tests;
-   `placeGuideHints`; the `render`, `fitOverlay` and `closeModal` hooks;
-   the allowlist and `index.html`.
+   `placeGuideHints` and `visibleGuideHints`; the `render`, `fitOverlay` and
+   `closeModal` hooks; the allowlist and `index.html`.
 4. The switch.
 5. `tools/guide-smoke.mjs` and `test:guide`.
 6. Documents:
    - NAVIGATION, for the routes, the Back lines and the header;
    - HANDOVER, a T1 checkpoint with the `app.mjs` touch points;
    - VALIDATION;
+   - MOBILE-RELEASE's M5.1 checklist rows (§6);
    - this file's status;
    - the `docs/README.md` row;
    - ROADMAP, a T1 row.
@@ -1025,15 +1333,32 @@ in installed Chrome, then WebKit as an iPhone 15):
 **Other hands.** Never touch their uncommitted worktrees:
 
 - **r1** (`~/Games/mythseal-review-fixes`) edits `app.mjs`'s `modal()`,
-  `closeModal()`, `render()` and the dispatcher, plus `nav-stack.mjs`.
+  `closeModal()`, `render()` and the dispatcher, plus `nav-stack.mjs`. As
+  the UX review reported (not re-read for this revision):
+  - its untracked `tests/support/app-controller.mjs` reads `app.mjs`'s
+    imports with a one-line pattern (`^import \{…\} from '…';`) and runs
+    `render`/`modal` with stub nodes whose `querySelector` returns null. T1's
+    imports are single-line and named, and its hooks tolerate null nodes and
+    a missing `getClientRects` (§5.4–5.5);
+  - it inserts lines at the top of `closeModal()`, `modal()` and `render()`
+    (after `refreshDaily`), and before `fitOverlay()` in `refreshOverlay`.
+    T1's `closeModal` line sits beside `modalKind=null`, and its `render`
+    lines sit after `app.innerHTML`.
 - **n2** (`~/Games/mythseal-landscape`) edits `scene-navigation.css`,
-  `expansion.css`, `package.json` and `tools/shell-smoke.mjs`.
+  `expansion.css`, `package.json` and `tools/shell-smoke.mjs`. It changes
+  `scene-navigation.css:153,174` from `(min-width:701px)` to
+  `(orientation:landscape)`, which restyles `.lobby-route>p`,
+  `.scene-pack-copy p` and `.arena-fairness` on 568–700 px landscapes: two
+  of T1's slots. After rebasing onto n2, re-run guide-smoke's measurements.
+- Both r1 and n2 start from `998b614`.
 
 T1 overlaps them only at:
 
 - one line each in `render()`, `fitOverlay()` and `closeModal()`;
 - `rulesModal()` and three dispatcher branches;
-- one script line in `package.json`;
+- one script line in `package.json` (`test:guide` right after `test:coach`;
+  PR #17's `test:native` and n2's `test:landscape` both edit the end of the
+  list);
 - deferred, `INPUT_IDS` in `shell-smoke.mjs`.
 
 T1 avoids `scene-navigation.css` by keeping all its CSS in `guide.css`. If
@@ -1047,15 +1372,16 @@ merge points.
 - any change to `battle-teaching.mjs`, the coach or `shanhai.coach.v1`;
 - the AI round-1 cap;
 - the "where next" hint (open question 8);
-- the 修為 wording fix (open question 4);
+- the 修為 wording fix and a 修為 total display (open question 4);
+- rerouting 任務手札's 今日落子 前往 (§1.1);
 - locking destinations behind progress.
 
 **Acceptance for T1:**
 
-- Everything in §7 passes in both engines.
+- Everything in §7 passes in both engines, and guide-smoke's native pass.
 - The build diff is exactly §6's.
-- No new `viewport-overflow` flag appears at 302, 360, 393 and 430 px
-  portrait.
+- No new `viewport-overflow` flag, and no lower later sibling or shorter
+  list frame, at any §7.2 size.
 - The profile, exports, backups and the native mirror are byte-for-byte as
   before.
 - Yu has answered §8's copy and voice questions.
@@ -1074,11 +1400,17 @@ All read at `3f3d351`. None was run.
 - The lobby's first visit is `stats.played === 0 && !pending`
   (`navigation-ui.mjs:57`). It sets the title (`:63`), the 啟程遊歷 button
   (`:67`) and the 「初次落子？讀懂弈道」 link (`:71`).
+- With a locked node of another volume selected, `blocked` (`:60`) turns the
+  button into 先赴霧隱渡口 (`story-unlock`) and the footnote into
+  「渡口首勝後，展開此卷」 (`:67`).
 - A new journey starts at `location: NODES[0].id`, which is `mist-gate`
   (`progression.mjs:142`), with 1,200 金幣 and 20 靈砂 (`:137`).
 - `rules-start` and `start` share `prepareEncounter()`, whose default is
   practice (`app.mjs:1486,794`). `story-unlock` is the 霧隱渡口 route
   (`:1291-1293`).
+- The rules dialog also opens from `saveToolsMarkup` (`save-ui.mjs:52`), on
+  旅程閣 (`app.mjs:592`) and in the native panel (`save-ui.mjs:80`,
+  `app.mjs:245`), and from the battle header (`navigation-ui.mjs:23`).
 
 **Battles and the coach:**
 
@@ -1089,13 +1421,33 @@ All read at `3f3d351`. None was run.
 - An expedition starts the coach through `startMatch` → `enterStartedBattle`
   → `startCoach({fresh:true})` (`app.mjs:1053-1066,782-784`).
 
+**Rewards:**
+
+- Expedition: a win pays the node's `winReward`; a loss or draw pays
+  `{coins: 35|20, dust: 0, xp: 10}` (`progression.mjs:646`). Arena: win
+  `{90, 3, 35}`, otherwise `{45|25, 1, 15}` (`:670`). Fire mountain: a win
+  `{60, 3, 30}` plus a gift roll (`:769-775`); a loss or draw pays nothing
+  and ends the run (`:793`). Practice: nothing.
+- Card EXP: 20/12 (expedition), 12/8 (arena, fire mountain), 0 otherwise
+  (`:683`), only for played own copies; 同名傳承 adds 80 plus each
+  material's EXP (`inheritance.mjs:6,71,88`).
+- `expansion.serial` is incremented only by `startActivity` (`:737`);
+  `lastResult` only when a fire-mountain battle settles (`:794`).
+- Six volume finals (`campaign-content.mjs:115`) each give a ticket on first
+  clear (`progression.mjs:699`).
+
 **Dialog structure and the layout limits:**
 
-- The rules dialog has one paged module (`scene-dialogs.mjs:85-92`), and a
-  single module hides the tab row (`viewport.mjs:180`).
+- The rules dialog has one paged module (`scene-dialogs.mjs:85-92`), with the
+  intro outside the list (`:89`), and a single module hides the tab row
+  (`viewport.mjs:180`). `heading()` pins the eyebrow and `h2` for all
+  modules (`scene-dialogs.mjs:26-28`).
 - Every visible control must be ≥ 43.5 px (`tools/viewport-smoke.mjs:92`).
 - Header controls are 44 px (`scene-navigation.css:123-125`), and below
   330 px the header shows the brand mark alone (`viewport.css:37-38`).
+- `viewKey()` changes within the bag (`app.mjs:1116`); the bag's lead is not
+  rendered while a character is open (`backpack-ui.mjs:96`) and stays
+  outside modules (`scene-adapters.mjs:21-46`).
 
 **Levels:**
 
@@ -1110,3 +1462,62 @@ All read at `3f3d351`. None was run.
 - `wx01MarketMarkup` (`pack-ui.mjs:17`) is not used by `app.mjs`; the
   market's live WX-01 offer is `adventure-ui.mjs:62`.
 - `profileStrip` (`adventure-ui.mjs:16`) is not used by `app.mjs`.
+
+---
+
+## Critique log
+
+Two reviews of `34e24e1` (2026-10-20), both read-only against `3f3d351`. Each
+point was checked against the code for this revision.
+
+**Game-truth review: all 21 required changes applied.**
+
+| # | Point | Outcome |
+| --- | --- | --- |
+| 1 | 修為 defined with 歷練 | Applied: 「執令者的旅途閱歷，又稱旅途歷練…」 (§3.2). Correction: besides 旅程閣, the import comparison in both builds also labels it 旅途歷練 (`save-ui.mjs:119`) |
+| 2 | Open question 4 incomplete | Applied, with the same correction: the total is not shown only in web 旅程閣 |
+| 3 | "Only the played copy gets EXP" | Applied in `card-exp`, `bag-copies` and the truth lines |
+| 4 | Tickets per volume final | Applied |
+| 5 | Initiative tie | Applied |
+| 6 | Currency sources | Applied per currency |
+| 7 | 靈砂 cost level | Applied in `card-level` (「在 Lv.L 付…6×L」); `dust` points to it |
+| 8 | Returning players | Applied: newcomer gate plus per-hint signals (§2.1 item 5), veteran fixtures in §7.1 and §7.2 |
+| 9 | Other rules origins | Applied: §1.1–1.3, test 1b and the native pass |
+| 10 | Bag CSS specificity | Applied: single wrapper child, (0,3,0) rules (§5.4) |
+| 11 | Visit keyed on `viewKey()` | Applied: `guideScreenKey` |
+| 12 | Recorded under a dialog | Applied (§2.1 item 7) |
+| 13 | Write in battle | Applied: the switch row is left out in battle; §5.2 restated |
+| 14 | Switch back on mid-visit | Applied: quiet tokens |
+| 15 | `fire-mountain` "never tried" | Applied: `expansion.serial === 0` |
+| 16 | `quests-why` slot | Applied: the copy names the daily gift too |
+| 17 | `home-start` when blocked | Applied: `requires` keeps the hint out and the footnote in |
+| 18 | Glossary typography | Applied (§3.3) |
+| 19 | 同行記 labels and route | Applied |
+| 20 | `.bag-lead` outside modules | Applied: asserted through guide-smoke's placement and later-sibling checks |
+| 21 | coach-smoke origins | Applied: step 1b |
+
+Optional points: 1 (星數, 仙丹, 秘藏 added; 同名傳承 and 借牌 not, §3.2),
+2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13 and 15 applied; 9 recorded as an edge
+and open question 12 rather than changing the lobby's predicate; 14 is moot,
+because `world-level` no longer uses that footnote.
+
+**UX and architecture review: all 15 required changes applied; one
+corrected.**
+
+- **4 (`world-level`):** applied as proposed (the deck-level comparison and
+  the subtitle slot), with the newcomer gate added so veterans do not see it
+  for every hard node. One premise is wrong: "建議 Lv is 1 and 2 and starter
+  cards already meet it" holds only at 霧隱渡口. 青玉森庭 is 建議 Lv.2, and
+  starter copies are Lv.1 (a first win gives 20 EXP; Lv.2 needs 80,
+  `collection.mjs:9`). The new condition handles both cases correctly.
+- **13 (r1, n2, PR #17 fit):** applied as reported. The r1 details were not
+  re-read for this revision, so as not to touch another hand's worktree.
+- 1, 2, 3, 5–12, 14 and 15: applied as written (§2.1, §3.1, §5.2–5.6,
+  §7.2).
+
+Optional points: 1 (`arena-modes` dropped), 2 (`market-printing` limited to
+the WX-01 offer), 3, 4 (DOM work moved to `scene-adapters.mjs`), 8, 10 and 11
+applied. 5 (two visits) and 6 (a lobby hint after the first battles) became
+parts of open questions 5 and 8. 7: the focus style is applied; group
+eyebrows are not, since each would cost a line per term and the order already
+groups them. 9 stays open question 7, with the stale-label risk noted.
