@@ -12,8 +12,12 @@ dist/
 .dev.vars*
 .mythseal-secret-*
 *.log
+# Signing material: keys, certificates, keystores, profiles. *.p8 covers App Store Connect API
+# keys (AuthKey_<id>.p8) under any name. A backstop only: it does not untrack a committed file
+# or stop `git add -f`, and the documented flows keep keys outside the repository.
 *.pem
 *.key
+*.p8
 *.keystore
 *.jks
 *.p12
@@ -22,9 +26,10 @@ saves/
 backups/
 山海弈旅程-*.json
 萬象契旅程-*.json
-# Mobile builds (fastlane outputs; signing material is already ignored above)
+# Mobile builds and archives (fastlane and Xcode outputs; signing material is ignored above)
 build/
 *.ipa
+*.xcarchive
 *.aab
 *.apk
 *.dSYM.zip
