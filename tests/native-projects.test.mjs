@@ -97,3 +97,15 @@ test('the Swift package pins the same Capacitor as package.json and includes the
   assert.equal(pkg['@capacitor/ios'], '8.5.3');
   for (const product of ['CapacitorFilesystem', 'CapacitorShare']) assert.match(swift, new RegExp(`\\.product\\(name: "${product}", package: "${product}"\\)`));
 });
+
+test('Xcode Cloud runs the rendered post-clone script: fence, Node 24, tests, the store build, cap sync', () => {
+  const path = 'ios/App/ci_scripts/ci_post_clone.sh', script = read(path);
+  // Xcode Cloud finds ci_scripts next to the project and runs a script only if it is executable.
+  assert.match(execFileSync('git', ['ls-files', '--stage', path], { encoding: 'utf8' }), /^100755 /, 'committed executable');
+  assert.ok(script.startsWith('#!/bin/sh\n'));
+  assert.doesNotMatch(script, /\{\{/, 'fully rendered from orchard\'s template');
+  const steps = ['set -eu', 'cd "$CI_PRIMARY_REPOSITORY_PATH"', 'git fetch --unshallow', 'git merge-base --is-ancestor 7a7d03e HEAD', 'brew install node@24', 'npm ci', 'npm test', 'npm run build:native', 'ORCHARD_PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"', 'npx cap sync ios'];
+  let at = -1;
+  for (const step of steps) { const next = script.indexOf(step, at + 1); assert.ok(next > at, `${step} runs, in order`); at = next; }
+  assert.doesNotMatch(script, /\$\{\{\s*secrets|ASC_|\.p8\b|\bsecurity (?:find|add)|_KEY=/, 'Apple signs in the cloud: no key or secret here');
+});

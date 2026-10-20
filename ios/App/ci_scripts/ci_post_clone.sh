@@ -1,0 +1,38 @@
+#!/bin/sh
+# Rendered by orchard for Mythseal (com.mythseal.game).
+# Xcode Cloud runs this after cloning and before it resolves packages and builds.
+# It turns the web project into the bundle the iOS project embeds. Apple signs in the
+# cloud, so nothing here needs a secret.
+set -eu
+
+cd "$CI_PRIMARY_REPOSITORY_PATH"
+
+# The app repo's own release rules (for example an ancestry fence) need full history.
+if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+  git fetch --unshallow --quiet || echo "warning: could not unshallow; history-based checks may fail"
+fi
+git merge-base --is-ancestor 7a7d03e HEAD
+
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1
+brew install node@24
+PATH="$(brew --prefix node@24)/bin:$PATH"
+export PATH
+node --version
+
+npm ci
+npm test
+npm run build:native
+
+# The marketing version comes from the app's own version source; Xcode Cloud sets the build number.
+ORCHARD_PBXPROJ="ios/App/App.xcodeproj/project.pbxproj" node -e '
+const fs = require("fs");
+const version = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
+if (!/^\d+\.\d+\.\d+$/.test(version)) { console.error(`marketing version must be X.Y.Z, got ${version}`); process.exit(1); }
+const file = process.env.ORCHARD_PBXPROJ;
+const before = fs.readFileSync(file, "utf8");
+if (!/MARKETING_VERSION = [^;]+;/.test(before)) { console.error(`MARKETING_VERSION not found in ${file}`); process.exit(1); }
+fs.writeFileSync(file, before.replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${version};`));
+console.log(`MARKETING_VERSION = ${version}`);
+'
+
+npx cap sync ios
