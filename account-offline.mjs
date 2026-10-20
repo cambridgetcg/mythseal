@@ -7,7 +7,11 @@
  * makes no request, reads or writes no storage, starts no timer and never calls back, so every
  * path that reaches the account (a lobby strip, a session broadcast, an old action) stops here.
  * Its state reads as looked up and signed out with email sign-in off, which is what the lobby
- * and the save prompts treat as "no cloud". */
+ * and the save prompts treat as "no cloud".
+ *
+ * The store build (tools/build.mjs --target native) also imports this module in place of
+ * account-client.mjs and account-ui.mjs, so neither ships in the app; the last three exports
+ * are those modules' names for that substitution. */
 
 export const OFFLINE_ACCOUNT_STATE = Object.freeze({
   account: null, initialized: true, backendAvailable: false, emailEnabled: false,
@@ -38,3 +42,8 @@ export function createOfflineAccount() {
     invalidateSession() {},
   };
 }
+
+// The names app.mjs imports from account-client.mjs and account-ui.mjs, for the store build.
+export const createAccountController = () => createOfflineAccount();
+export const accountMarkup = () => '';
+export const accountButtonMarkup = () => '';
