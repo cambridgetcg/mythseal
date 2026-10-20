@@ -24,3 +24,10 @@
    never shorter than before T1 (measured by npm run test:guide against main). */
 .scene-dialog.rules-dialog>.viewport-module-tabs{padding-bottom:0}
 @media(max-height:500px){.scene-dialog.rules-dialog:has(>.viewport-module-tabs:not([hidden]))>.eyebrow.dialog-compact-heading{display:none}}
+
+/* §4 Tappable header resources: 44 px targets that keep the wallet's look; Lv stays hidden
+   below 1,051 px (navigation.css), where 詞彙's 旅途 group reaches it. */
+.game-shell .game-header .game-resource{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:inherit;padding:0;margin:0;border:0;border-radius:3px;background:none;color:inherit;font:inherit;letter-spacing:inherit;cursor:pointer}
+/* Lv keeps navigation.css's size, colour and display (hidden below 1,051 px). */
+.game-shell .game-header .game-player-level{min-width:44px;min-height:44px;padding:0 2px;margin:0;border:0;border-radius:3px;background:none;cursor:pointer}
+.game-shell .game-header .game-resource:focus-visible,.game-shell .game-header .game-player-level:focus-visible{outline:2px solid var(--gold);outline-offset:2px}

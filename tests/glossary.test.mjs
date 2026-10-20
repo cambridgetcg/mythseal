@@ -216,3 +216,23 @@ test('truth: resonance, initiative, 減力, 減攻 and 封鎖 through the engine
   assert.equal(sealed.opponent.bonusActive, true, 'resonance still applies under 封鎖');
   assert.equal(sealed.opponent.attack, getCard('zhugeliang').power + 6, '天光 still adds 6');
 });
+
+test('header: the resources and 執令者 Lv open their 詞彙 entries, named by their visible text', async () => {
+  const { gameHeaderMarkup } = await import('../navigation-ui.mjs');
+  const profile = { ...createProfile({ now }), coins: 999999, dust: 12345, xp: 400 };
+  const header = gameHeaderMarkup({ profile, screen: 'home', sound: false, accountButton: '' });
+  assert.match(header, /<div class="game-header-resources wallet" role="group" aria-label="旅途所得">/);
+  const buttons = [...header.matchAll(/<button type="button" class="(game-resource|game-player-level)" data-action="glossary" data-id="([^"]+)" aria-label="([^"]+)">([\s\S]*?)<\/button>/g)]
+    .map(([, kind, id, label, inner]) => ({ kind, id, label, visible: inner.replace(/<span aria-hidden="true">[^<]*<\/span>\s*/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }));
+  assert.deepEqual(buttons.map(button => button.id), ['coins', 'dust', 'hero-level']);
+  for (const id of buttons.map(button => button.id)) assert.ok(GLOSSARY_IDS.includes(id), id);
+  const number = value => value.toLocaleString('zh-Hant');
+  assert.deepEqual(buttons.map(button => button.label), [`${number(999999)} 金幣，查看說明`, `${number(12345)} 靈砂，查看說明`, '執令者 · Lv.3，查看說明']);
+  // WCAG 2.5.3: each accessible name starts with the visible text.
+  for (const button of buttons) assert.ok(button.label.startsWith(button.visible), `${button.label} starts with ${button.visible}`);
+  assert.doesNotMatch(header.slice(header.indexOf('game-header-resources'), header.indexOf('game-player')), /title=/, 'no title on the resources');
+  // The battle header is unchanged: no resources, its own 弈道.
+  const battle = gameHeaderMarkup({ profile, screen: 'battle', sound: false, accountButton: '' });
+  assert.doesNotMatch(battle, /data-action="glossary"/);
+  assert.match(battle, /<button type="button" data-action="rules">弈道<\/button>/);
+});

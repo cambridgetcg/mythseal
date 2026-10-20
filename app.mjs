@@ -1526,6 +1526,9 @@ document.addEventListener('click', event=>{
   }
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}
   if(action==='rules')return rulesModal();
+  // T1: a header resource opens 詞彙 at its term. WebKit does not focus a tapped button; focusing
+  // it here makes closing the dialog, or Back, return to it (as the inspect branch does).
+  if(action==='glossary'){button.focus({preventScroll:true});return rulesModal({term:id});}
   if(action==='close-modal')return dismissModal();
   if(action==='start')return prepareEncounter();
   // T1: a first visit's rules lead to 霧隱渡口, where D3's first-battle coach runs (docs/TUTORIAL-T1.md §1).
