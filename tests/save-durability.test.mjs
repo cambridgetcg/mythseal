@@ -113,12 +113,12 @@ test('D2 export then import keeps every UID, XP, deck and merchant copy, and the
   let saved = null;
   const document = { createElement: () => ({ click() { downloads.push({ href: this.href, download: this.download }); } }) };
   const urls = { createObjectURL: value => { saved = value; return 'blob:fixture'; }, revokeObjectURL: () => {} };
-  const result = exportJourney(exported, { document, URL: urls, setTimeout: () => {}, now: new Date(now) });
+  const result = await exportJourney(exported, { document, URL: urls, setTimeout: () => {}, now: new Date(now) });
   assert.deepEqual(downloads, [{ href: 'blob:fixture', download: exportFilename(exported) }]);
   assert.equal(exportFilename(exported), `萬象契旅程-${exported.daily.date}.json`);
   const text = await saved.text();
   assert.equal(text, JSON.stringify(exported, null, 2), 'unchanged export format, ledger included');
-  assert.deepEqual([result.importable, result.reason, result.bytes], [true, null, Buffer.byteLength(text)]);
+  assert.deepEqual([result.importable, result.reason, result.bytes, result.via], [true, null, Buffer.byteLength(text), 'download']);
 
   // A fresh device (cleared site data) imports it.
   const device = origin(fresh());

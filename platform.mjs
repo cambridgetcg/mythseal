@@ -1,10 +1,12 @@
 /** Platform seam for keeping a journey (docs/LOCAL-COMMANDS.md §11). The browser build asks
  * the browser to keep this site's storage, downloads the existing journey export and reads
- * an exported file back as a validated candidate. M5.2's native adapter extends this seam
- * (durable native storage, a share sheet, a file picker). Nothing here writes the journey:
+ * an exported file back as a validated candidate. In the store app, native-shell.mjs supplies
+ * the rest of M5.2's adapter: the export goes through a share sheet, and a durable copy of the
+ * journey sits in the app's files (docs/IOS-FIRST-FLIGHT.md). Nothing here writes the journey:
  * a candidate is applied only by the shared strict restore (profile-store.mjs `restore`).
  * No network or RNG; navigator, window and document are injected so Node tests can spy. */
 import { PROFILE_VERSION, hydrateProfile } from './progression.mjs';
+import { saveFile } from './native-shell.mjs';
 import { createSnapshot, restoreSnapshot, fingerprintProfile, MAX_SNAPSHOT_BYTES } from './cloud-save.mjs';
 import { assertLocalProfile, createProfileStore } from './profile-store.mjs';
 
@@ -46,13 +48,14 @@ export function exportText(profile) {
 }
 export const exportFilename = profile => `萬象契旅程-${profile.daily.date}.json`;
 
-/** Download the export. `importable` says whether importJourney would accept this file; it
- * is false only while a battle or activity is unfinished (the file is still saved). */
-export function exportJourney(profile, { document = globalThis.document, URL: urls = globalThis.URL, Blob: BlobType = globalThis.Blob, setTimeout: later = globalThis.setTimeout, now = new Date() } = {}) {
+/** Hand the export to the player: a download on the web, the share sheet in the app
+ * (native-shell.mjs saveFile; a dismissed sheet rejects with SaveCancelled). `importable` says
+ * whether importJourney would accept this file; it is false only while a battle or activity is
+ * unfinished (the file is still saved). `via` is 'download' or 'share'. */
+export async function exportJourney(profile, { document = globalThis.document, URL: urls = globalThis.URL, Blob: BlobType = globalThis.Blob, setTimeout: later = globalThis.setTimeout, now = new Date(), scope = globalThis } = {}) {
   const text = exportText(profile), filename = exportFilename(profile), check = checkJourneyText(text, { now });
-  const url = urls.createObjectURL(new BlobType([text], { type: 'application/json' })), link = document.createElement('a');
-  link.href = url; link.download = filename; link.click(); later(() => urls.revokeObjectURL(url), 1000);
-  return { filename, bytes: utf8Bytes(text), importable: check.ok, reason: check.ok ? null : check.reason };
+  const saved = await saveFile({ name: filename, text }, { scope, document, URL: urls, Blob: BlobType, setTimeout: later });
+  return { filename, bytes: utf8Bytes(text), importable: check.ok, reason: check.ok ? null : check.reason, via: saved.via };
 }
 
 /** Profile versions an export can come from besides the current one. Every public build
@@ -115,6 +118,27 @@ export async function importJourney(file, { now = new Date() } = {}) {
   return checkJourneyText(text, { now });
 }
 
+/** The store app's launch after iOS cleared its web storage (docs/IOS-FIRST-FLIGHT.md). If the
+ * app's file copy (native-shell.mjs createDurableMirror) holds a journey, it is checked exactly
+ * as an imported file is (checkJourneyText) and handed to `restore`, which in app.mjs is the
+ * strict fenced restore every restore shares: the recovery copy first, one profile write,
+ * nothing on refusal. It is never written into storage any other way. A copy that fails the
+ * check or the restore is set aside, kept, and so never overwritten by the new journey's saves.
+ * Resolves { state, reason }: 'none' (no copy), 'restored', 'refused' (set aside), or 'kept'
+ * (refused but could not be moved: the caller must leave the copy alone for this launch). */
+export async function restoreFromMirror({ mirror, restore, now = new Date() }) {
+  const text = await mirror.read();
+  if (text === null) return { state: 'none', reason: null };
+  const check = checkJourneyText(text, { now });
+  let reason = check.ok ? null : check.message;
+  if (check.ok) {
+    try { await restore(check.snapshot); return { state: 'restored', reason: null }; }
+    catch (error) { reason = error?.message || String(error); }
+  }
+  try { await mirror.setAside(); return { state: 'refused', reason }; }
+  catch { return { state: 'kept', reason }; }
+}
+
 /** Ask the browser to keep this site's storage. Feature-detected; never throws. Already
  * persisted storage is reported without asking again. */
 export async function requestPersistence({ navigator: nav = globalThis.navigator } = {}) {
@@ -140,9 +164,4 @@ export function isStandalone({ window: win = globalThis.window, navigator: nav =
   try { return nav?.standalone === true; } catch { return false; }
 }
 
-/** True only inside a Capacitor native shell: its bridge defines window.Capacitor before
- * page scripts run. Browsers, previews and Node have no bridge, so they get false. */
-export function isNativeShell(scope = globalThis) {
-  try { return scope?.Capacitor?.isNativePlatform?.() === true; }
-  catch { return false; }
-}
+export { isNativeShell } from './native-shell.mjs';

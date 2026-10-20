@@ -25,9 +25,10 @@ import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './pr
 import { previewCommand, commitCommand, readCommandReceipt, duplicateMessage, COMMAND_MESSAGES } from './local-commands.mjs';
 import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
-import { exportJourney, importJourney, journeySummary, isStandalone } from './platform.mjs';
+import { exportJourney, importJourney, journeySummary, isStandalone, restoreFromMirror } from './platform.mjs';
+import { saveFile, createDurableMirror, mirroredStorage } from './native-shell.mjs';
 import { createSaveStatus } from './save-status.mjs';
-import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup } from './save-ui.mjs';
+import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup, savesButtonMarkup, savePanelMarkup, SAVE_PANEL_NAME } from './save-ui.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
@@ -46,13 +47,19 @@ const announcer = document.querySelector('#announcer');
 const viewport = createViewportController({document,window,announce});
 const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
-const profileStore=createProfileStore({storage:localStorage});
+// The store app keeps a copy of the journey in its own files (native-shell.mjs), because iOS may
+// clear a WKWebView's storage; null on the web. Every profile write reaches it, except while a
+// journey this device has just started waits for launchMirror to decide whether to restore it.
+const mirror=createDurableMirror();
+let mirrorHeld=false,mirrorNote=null;
+const profileStore=createProfileStore({storage:mirror?mirroredStorage(localStorage,{key:PROFILE_KEY,mirror,held:()=>mirrorHeld}):localStorage});
 const loadProfile=()=>profileStore.load();
 // Device-local backup status, persistence outcome and prompts; never inside the journey or a
 // backup (docs/LOCAL-COMMANDS.md §11). load() starts a new journey only when none is stored,
 // and only then does the lobby offer a restore.
 const saves=createSaveStatus({storage:localStorage});
-const freshJourney=!profileStore.hasJourney();
+let freshJourney=!profileStore.hasJourney();
+mirrorHeld=Boolean(mirror)&&freshJourney;
 // localStorage is only eventually consistent between tabs, even for the next holder of the
 // Web Lock. Each holder waits for the bytes the previous holder recorded in the IndexedDB
 // fence (docs/LOCAL-COMMANDS.md §10.1). Read at call time so a browser that loses Web Locks
@@ -212,13 +219,39 @@ function backupDeleted() {
 }
 // The page cannot tell whether the browser saved the file (a cancelled or blocked download
 // looks the same), so an export is recorded as started, never as a backup: it neither ends
-// nor skips a prompt. Only a file that would import is recorded.
-function exportSave() {
+// nor skips a prompt. Only a file that would import is recorded. In the store app the file goes
+// through the share sheet (native-shell.mjs): it is recorded once the sheet reports an
+// activity, still not as a backup, and a dismissed sheet records nothing.
+async function exportSave() {
   try {
-    const result=exportJourney(loadProfile(),{document});
-    if(result.importable){saves.recordExport();if(screen==='account')render();}
-    toast(result.importable?'已開始下載旅程備份；請確認檔案已儲存。':'已開始下載旅程備份；對局或活動未完時的備份未能還原，完成後請再匯出一次。');
+    const result=await exportJourney(loadProfile(),{document});
+    if(result.importable){saves.recordExport();if(screen==='account')render();else if(modalKind==='saves-panel')openSavePanel();}
+    const unfinished='對局或活動未完時的備份未能還原，完成後請再匯出一次。';
+    toast(result.via==='share'?(result.importable?'已經分享選單送出旅程備份；請確認檔案已存好。':`已送出旅程備份；${unfinished}`):result.importable?'已開始下載旅程備份；請確認檔案已儲存。':`已開始下載旅程備份；${unfinished}`);
   } catch(error) { toast(error.message||'未能匯出旅程備份。'); }
+}
+// The store app's 旅程存檔 (docs/IOS-FIRST-FLIGHT.md): 旅程閣's save tools, which the app does
+// not have, as one dialog from the header: export, D2's strict import, the status (the last
+// export and the journey's copy in the app's files) and the recovery copy's actions.
+function openSavePanel() {
+  modal(savePanelMarkup({status:saves.status(),mirror:mirror?.status()??null,recovery:recoveryMarkup()}),'saves-panel',true,'saves-panel');
+}
+// The store app's launch. A journey this device has just started, because no journey key
+// existed, is what iOS leaves after clearing a WKWebView's storage; if the app's file copy
+// holds a journey, restoreFromMirror checks it as an imported file is checked and restores it
+// through restoreLocalProfile, the strict path every restore shares (never a direct write). A
+// refused copy is set aside and kept. Until that is decided the copy is not written; after it,
+// the copy follows every save.
+async function launchMirror() {
+  if(mirrorHeld){
+    const outcome=await restoreFromMirror({mirror,restore:snapshot=>restoreLocalProfile(snapshot,fingerprintProfile(loadProfile()))});
+    // Refused but not movable: leave the copy untouched for this launch.
+    if(outcome.state==='kept')return;
+    if(outcome.state==='restored')freshJourney=false;
+    if(outcome.state!=='none')mirrorNote=outcome.state;
+    mirrorHeld=false;
+  }
+  mirror.write(localStorage.getItem(PROFILE_KEY));
 }
 function importBlocked(current) {
   if(economyBusy||current.pending||current.expansion.fireMountain.run)return '請先完成或放棄未完對局，再匯入旅程備份；本機旅程未有更改。';
@@ -262,7 +295,7 @@ async function reviewImport(file) {
   // Nothing is written until the confirmation; it restores only this journey, unchanged.
   importDraft={snapshot:result.snapshot,fingerprint:fingerprintProfile(current)};
   const kept=read(RECOVERY_KEY,null);
-  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null,legacy:result.legacy}),'import-modal',true,'import-review');
+  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null,legacy:result.legacy,place:NATIVE_SHELL?SAVE_PANEL_NAME:'旅程閣',cloud:!NATIVE_SHELL}),'import-modal',true,'import-review');
 }
 // While a confirmed restore is written its dialog cannot be dismissed: ×, Escape and the
 // backdrop are off and Back holds (BACK.HOLD re-arms its entry), since closing it could not
@@ -322,7 +355,7 @@ function cardMarkup(card, options = {}) {
 }
 
 function header() {
-  return gameHeaderMarkup({profile,screen,sound,accountButton:NATIVE_SHELL?'':accountButtonMarkup(account.getState())});
+  return gameHeaderMarkup({profile,screen,sound,accountButton:NATIVE_SHELL?savesButtonMarkup():accountButtonMarkup(account.getState())});
 }
 function homeMarkup() { return `${lobbySaveNotice()}${lobbyMarkup(profile,cardMarkup,selectedNode)}`; }
 
@@ -1275,9 +1308,10 @@ document.addEventListener('click', event=>{
   if(accountActions[action]) { Promise.resolve(accountActions[action]()).catch(error=>toast(error.message)); return; }
   if(action==='export-recovery'){
     const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
-    const url=URL.createObjectURL(new Blob([JSON.stringify(saved.snapshot.profile,null,2)],{type:'application/json'})),link=document.createElement('a');
-    link.href=url;link.download='萬象契旅程-本機回復備份.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
+    // A download on the web, the share sheet in the store app (native-shell.mjs).
+    saveFile({name:'萬象契旅程-本機回復備份.json',text:JSON.stringify(saved.snapshot.profile,null,2)}).catch(error=>toast(error.message||'未能匯出回復備份。'));return;
   }
+  if(action==='saves-open')return openSavePanel();
   if(action==='restore-recovery'){
     if(profile.pending||economyBusy)return toast('請先完成或放棄未完對局。');
     const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
@@ -1535,7 +1569,10 @@ document.addEventListener('keydown',event=>{
   }
 });
 await transact(p=>p);
+if(mirror)await launchMirror();
 saves.launch({fresh:freshJourney,standalone:isStandalone()}).catch(()=>{});
 nav.start();
 startupReady=true;
 render();
+if(mirrorNote==='restored')toast('已由此裝置的保存副本還原旅程。');
+else if(mirrorNote==='refused')toast('此裝置的保存副本未能還原，已另行保留；這是新的旅程。');

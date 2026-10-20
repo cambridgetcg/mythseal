@@ -46,6 +46,7 @@
   "profile-fence.mjs",
   "nav-stack.mjs",
   "platform.mjs",
+  "native-shell.mjs",
   "save-status.mjs",
   "save-ui.mjs",
   "saves.css",
