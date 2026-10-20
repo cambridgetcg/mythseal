@@ -44,6 +44,7 @@ Chromium is, but it is not a WKWebView inside Capacitor.
 | 6 | `@capacitor/{cli,core,ios,android}` 8.5.2 → 8.5.3, exact pins. `npx cap sync ios` ran without Xcode (Command Line Tools only, exit 0, files only) and rewrote `CapApp-SPM/Package.swift`: `capacitor-swift-pm` exact 8.5.3, `.iOS(.v16)`, the Filesystem and Share packages. `IPHONEOS_DEPLOYMENT_TARGET` 16.0 (project and App target, Debug and Release; the CLI reads the first one for `Package.swift`), `TARGETED_DEVICE_FAMILY` 1, portrait only (the `~ipad` list removed), `ITSAppUsesNonExemptEncryption` false, `UIRequiredDeviceCapabilities` arm64 (was armv7), development region and only localization zh-Hant, and `ios/App/App/PrivacyInfo.xcprivacy` in the App target's Resources phase. The UIScene life cycle PR #13 set up (`SceneDelegate`, `UIApplicationSceneManifest`) is unchanged. `plutil -lint` passes on the project, `Info.plist` and the manifest; the project stays in the classic `project.pbxproj` format | Web Locks need iOS 15.4 and Capacitor 9 needs 16. iPad layouts and landscape below 701 px are unchecked or open (RELEASE-NEXT §12 items 17–18). The game uses only the OS's HTTPS and `crypto.randomUUID` (an identifier, not encryption), no WebCrypto. The UI ships Traditional Chinese only, so system sheets inside the app follow it. The manifest declares no tracking and no collected data, plus `NSPrivacyAccessedAPICategoryFileTimestamp` / `C617.1`: neither `@capacitor/filesystem` 8.1.5, `@capacitor/share` 8.0.3 nor `ion-ios-filesystem` 2.0.1 ships a manifest, the Filesystem plugin's `stat` reads creation and modification dates, and its README asks the app to declare exactly this; Capacitor's own xcframeworks carry theirs. Static checks in `tests/native-projects.test.mjs` (text, since CI runs on Linux) | `native-project` |
 | 7 | `ios/App/ci_scripts/ci_post_clone.sh`, rendered from orchard's `templates/xcode-cloud/ci_post_clone.sh` (app Mythseal, `com.mythseal.game`, Node 24, `npm ci`, `npm test`, `npm run build:native`, project `ios/App/App.xcodeproj`) with the release fence `git merge-base --is-ancestor 7a7d03e HEAD` as its preflight; committed mode 100755; `sh -n` clean. It unshallows the clone, installs Node with Homebrew, tests, builds the store bundle, stamps `MARKETING_VERSION` from `package.json` and runs `npx cap sync ios` | Xcode Cloud is the primary release route: Apple signs in the cloud, so no key or certificate reaches a runner and the script holds no secret. A build that has lost the fence (a squash or rebase of the release history) stops before anything is built. Not run: it needs Xcode Cloud (and `brew install` is not something to run on this Mac) | `native-project` |
 | 8 | `.github/workflows/mobile.yml`, now the backup route: both jobs check out full history (`fetch-depth: 0`) and run `git merge-base --is-ancestor 7a7d03e HEAD` before anything else; the iOS job pins `DEVELOPER_DIR=/Applications/Xcode_26.6.app/Contents/Developer` at job level and fails unless `xcodebuild -version` says `Xcode 26.6`, replacing the "major ≥ 26" check. SHA-pinned actions, step-scoped secrets, triggers and everything else are unchanged | The release fence is the repository's rule for any release build. The runner image's default Xcode moves when GitHub updates it, so the same commit could build against a different SDK on two runs; a pinned path, asserted, makes that a deliberate edit (26.6 is the macos-26 image's default, image 20261013, per the research). GitHub runs `workflow_dispatch` only when the workflow file is on the default branch, so before this merges the only trigger is a `mobile-v*` tag, which uploads | `native-project` (not run: no Actions run, budget state unknown) |
+| 9 | Documents: [MOBILE-RELEASE](MOBILE-RELEASE.md) (a dated first-flight note, the D2 seam's native adapter, the Apple entity decided), the [runbook](MOBILE-PUBLISHING-RUNBOOK.md) (hybrid route: Xcode Cloud setup and release first, the Actions workflow as backup and for Android; checklist items for 2.5.19 and saves), the [field notes](MOBILE-FIELD-NOTES.md) (a dated Stage 0 entry), the design spec's route amendment, the [docs index](README.md) rows and this record | Keep the publishing flow honest for the next app: which route builds a release, who publishes, what the app ships, and what nothing has proved yet | — |
 
 ## How the page reaches the plugins
 
@@ -85,3 +86,46 @@ source, not observed): that is why the export uses the share sheet.
   (`capacitor-swift-pm` 8.5.3, `ion-ios-filesystem` 2.0.1); the two plugins are
   local paths into `node_modules`. Regenerate and commit it after every
   Capacitor or plugin bump. `orchard doctor` reports it missing until then.
+- **Team ID.** Record Mindicraft's Team ID (Membership page) in orchard's
+  `orchard.json`, and as the `APPLE_TEAM_ID` variable only if the Actions backup
+  is set up.
+- **Who owns Mythseal.** The code, art and name sit in the `cambridgetcg`
+  organization; nothing here records who owns them. If that is not Mindicraft
+  Limited, Mindicraft needs a licence to publish them (App Review's
+  intellectual-property rules, section 5.2).
+- **Marketing version.** `package.json` says 0.5.1, which Xcode Cloud will
+  stamp as `MARKETING_VERSION`; the content is v0.6.0-era (RELEASE-NEXT §3).
+  Decide whether the first TestFlight build carries 0.5.1 or waits for the
+  0.6.0 bump.
+- **A licence for a public repository.** The repository is public, and
+  [AGENTS.md](../AGENTS.md) still says no open-source licence has been chosen.
+- **Xcode on a Mac.** Installing Xcode (and its iOS platform) is the owner's
+  step; it unlocks `Package.resolved`, the simulator rung and the first Xcode
+  Cloud workflow.
+- **Still M5 work, not done here:** the Capacitor Back button wiring
+  ([Back button in a native shell](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)),
+  safe-area insets from a native shell, audio and lifecycle recovery, and the
+  physical-phone checks.
+
+## Not verified yet
+
+- Nothing has run in a WKWebView, the iOS Simulator or an iPhone. The plugin
+  access path, the share sheet, `<input type=file>` inside the app, the Library
+  copy surviving whatever clears the WebView's storage, and the restore at
+  launch are read from source or simulated with a fake bridge in desktop
+  Chromium (Pixel 7) and Playwright's WebKit (iPhone 15).
+- No Xcode build, archive, signature, Xcode Cloud run or Actions run.
+- `ci_post_clone.sh` was checked with `sh -n` and its steps pinned by a test; it
+  has never run.
+- The privacy page is a draft.
+
+## Other hands
+
+The `n2/landscape-short-phones` and `r1/astra-review-fixes` worktrees (other
+contributors', based on `998b614`, left untouched) edit `app.mjs`, `styles.css`
+and `docs/README.md`. This branch edits `app.mjs` (the account controller,
+`navigate`, the lobby strips, the export, the header, the rules link, the
+recovery export and the launch), `save-ui.mjs`, `saves.css`, `platform.mjs`,
+`bootstrap.mjs`, `docs/README.md` and the mobile documents, and PR #13 edits
+`styles.css`. Expect conflicts when either lands; resolve them with merge
+commits, keeping both sides' intent.

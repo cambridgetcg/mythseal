@@ -15,6 +15,16 @@ Apple; nothing here establishes which entity holds the Play Console account.
 The privacy page now names Mindicraft and is a draft awaiting the owner's
 approval ([IOS-FIRST-FLIGHT](../../IOS-FIRST-FLIGHT.md)).
 
+**Amended 2026-10-20 (route).** The owner chose a hybrid route: iOS release
+builds run on **Xcode Cloud** first (Apple's cloud-managed signing, no key on a
+runner), with this design's GitHub Actions workflow as the **backup**, and a
+local Xcode on a developer Mac only for the simulator. That supersedes "Build
+in the cloud, not on this Mac" below for the simulator only; releases still
+build in the cloud. Android keeps the Actions route. The native target now
+also leaves the account files out of the bundle (§4.8 said they stayed,
+inert), and the app has its own save panel, share-sheet export and durable
+copy, which §3 listed as out of scope.
+
 ## 1. Purpose
 
 The owner asked for an iOS and Android publishing pipeline that builds in the

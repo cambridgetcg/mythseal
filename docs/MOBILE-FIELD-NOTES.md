@@ -52,3 +52,37 @@ Entry template:
 - Minutes used: none
 - **Pay attention to:** generate native projects early and look at every
   generated image. The generators fail quietly.
+
+### 2026-10-20 · Stage 0 · First flight, locally (branch `ios/first-flight`)
+- Build / run: no store build; local branch `ios/first-flight`, PR #13 merged
+  into `main` 998b614 with a merge commit ([IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md))
+- Done by: Ai, on the owner's Air (macOS 26.6.2, Command Line Tools 26.4, no
+  Xcode, Node 26.0.0)
+- Took: one session
+- Asked for: nothing from either store yet; the owner decided Mindicraft
+  Limited publishes and that Xcode Cloud is the primary route
+- Surprises and fixes:
+  - PR #13's native guard sat at call sites; D2's lobby actions reached
+    `account.init()` and `navigate('account')` past it. Guarding the choke
+    points (an inert account controller, `navigate`) closed every path at once.
+  - Apple's new guideline 2.5.19 (2026-10-16) makes "shipped but switched
+    off" a review risk, so the account files now stay out of the native build.
+  - `cloud-save.mjs` is not cloud-only: it validates every local journey. A
+    file's name is not its role; check the importers before excluding one.
+  - `@capacitor/filesystem` 8.1.5, `@capacitor/share` 8.0.3 and
+    `ion-ios-filesystem` 2.0.1 ship no privacy manifest; the Filesystem
+    README asks the app to declare the file-timestamp API (`C617.1`).
+  - Capacitor's bridge exposes `window.Capacitor.Plugins.<Name>` to plain ES
+    modules; no `@capacitor/core` bundle is needed (read from 8.5.3's source).
+  - `npx cap sync ios` (8.5.3, SPM) ran with Command Line Tools only and
+    exited 0; it reads the first `IPHONEOS_DEPLOYMENT_TARGET` in the project
+    for `Package.swift`'s platform, so set every occurrence.
+  - The plugin writes strings non-atomically; the journey's copy is written to
+    a `.next` file and renamed.
+  - `Package.resolved` needs Xcode; Xcode Cloud needs it committed.
+  - `tools/serve.py` reads the allowlist once at start: restart it after
+    adding a module, or the new module 404s.
+- Minutes used: none
+- **Pay attention to:** decide what the app leaves out, where its saves live
+  and which entity publishes before the first build; each of them changes the
+  project, the privacy answers or the page text.
