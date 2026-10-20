@@ -4,6 +4,7 @@ import { getActiveDeck, getInstance } from './collection.mjs';
 import { NODES, getHeroLevel, getArenaRank, getDailyTasks, getWeeklyTasks, isNodeUnlocked } from './progression.mjs';
 import { getWorldForNode } from './stories.mjs';
 import { cardArtStyle, cardPresentation, leaderInstance, leaderPortraitMarkup } from './card-presentation.mjs';
+import { isFirstVisit } from './first-visit.mjs';
 
 const safe = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 const number = value => Number(value || 0).toLocaleString('zh-Hant');
@@ -54,7 +55,7 @@ export function lobbyMarkup(profile, cardMarkup, selectedNode = profile.location
   const claimable = Number(!profile.daily.loginClaimed) + [...tasks, ...weekly].filter(task => !task.claimed && task.progress >= task.target).length
     + Number(!profile.daily.arenaChestClaimed && profile.daily.arenaMatches >= 3);
   const ownedRoles = CARDS.filter(card => profile.inventory[card.id] > 0).length;
-  const firstVisit = profile.stats.played === 0 && !profile.pending;
+  const firstVisit = isFirstVisit(profile);
   const pendingKind = { arena: '問道擂台', practice: '自由切磋' }[profile.pending?.kind];
   const title = pendingKind || node.name;
   const blocked = !profile.pending && !isNodeUnlocked(profile, node.id);

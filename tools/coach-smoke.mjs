@@ -42,6 +42,10 @@
  * next key press after it shows ③; the cost line is measured in fractional pixels (a Range
  * over its text against its content box), also with Fury off, at 334×740 and in landscape
  * at 734×343 and 812×325 (twelve pills).
+ * T1 (docs/TUTORIAL-T1.md §1, approved by the owner 2026-10-20) added: on a first visit the
+ * rules dialog's 知其道，入其局 opens the 霧隱渡口 preparation on 遊歷 (from the lobby and from
+ * 旅程閣), its 稍後出發 writes nothing, Back reaches 洞府, and boarding shows mark ①; a
+ * veteran's still opens 自由切磋. A first practice match still shows no mark (section 4).
  * Headless engines only: the owner's playtest with first-time players is the real exit
  * (docs/VALIDATION.md).
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/coach-smoke.mjs
@@ -717,6 +721,65 @@ try {
     assert.equal(await coachRecord(practice), null, 'practice leaves the coach for the first journey battle');
     passed(`no mark outside the first battle; the visible hint (${tip.kind} tip after round 1) and the formula remain; with Fury on the cost line shows the pills left whole and the Fury note the damage`);
     await release(practice);
+  }
+
+  // ── 4b. The rules lead a first visit to the ferry (T1, docs/TUTORIAL-T1.md §1) ─────────
+  {
+    const prep = '#overlay-root .encounter-prep', ferry = '#overlay-root .encounter-prep.is-mist-prep';
+    const onWorld = page => page.locator('#app .scene-world').waitFor();
+    const page = await open('fresh');
+    const rules = page.locator('.game-lobby [data-action="rules"]');
+    assert.match(await rules.textContent(), /^初次落子？讀懂弈道/, 'a first visit offers the rules');
+    const profile = await stored(page, PROFILE_KEY);
+    await tap(page, '.game-lobby [data-action="rules"]');
+    await tap(page, '#overlay-root [data-action="rules-start"]');
+    await page.locator(ferry).waitFor();
+    await onWorld(page);
+    await settleDepth(page, 2, 'the ferry preparation on 遊歷');
+    await tap(page, '#overlay-root .modal-actions [data-action="close-modal"]');
+    await page.waitForFunction(() => !document.querySelector('#overlay-root .modal'), null, { timeout: 4000 });
+    await onWorld(page);
+    assert.equal(await stored(page, battleKey), null, '稍後出發 starts no battle');
+    assert.equal(await stored(page, PROFILE_KEY), profile, 'the rules route writes no profile');
+    assert.equal(await coachRecord(page), null, 'the rules route writes no coach record');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('.game-dock [data-action="world"]')), true, 'focus returns to the dock\'s 遊歷');
+    await page.goBack(); await page.locator('.game-lobby').waitFor();
+    await settleDepth(page, 0, 'one Back from 遊歷 reaches 洞府');
+    // Read the rules again, this time boarding: D3's first mark shows.
+    await tap(page, '.game-lobby [data-action="rules"]');
+    await tap(page, '#overlay-root [data-action="rules-start"]');
+    await page.locator(ferry).waitFor();
+    await tap(page, '#overlay-root [data-action="confirm-start"]');
+    await planning(page);
+    assert.equal(JSON.parse(await stored(page, battleKey)).encounter.nodeId, 'mist-gate');
+    await assertCoach(page, 'card', 'the battle the rules led to');
+    await release(page);
+    // 1b: 旅程閣's tools row leads a first visit to the same ferry; Back twice reaches 洞府.
+    const archive = await open('fresh');
+    await tap(archive, '.game-header [data-action="account-open"]');
+    const archiveRules = archive.locator('#app .save-tools [data-action="rules"]');
+    await revealViewportItem(archive, archiveRules);
+    assert.equal((await archiveRules.textContent()).trim(), '弈道 · 遊戲規則');
+    await archiveRules.tap(); await viewportFrames(archive);
+    await tap(archive, '#overlay-root [data-action="rules-start"]');
+    await archive.locator(ferry).waitFor();
+    await onWorld(archive);
+    await archive.goBack();
+    await archive.waitForFunction(() => !document.querySelector('#overlay-root .modal'), null, { timeout: 4000 });
+    await onWorld(archive);
+    await archive.goBack(); await archive.locator('.game-lobby').waitFor();
+    await release(archive);
+    // A veteran's rules still open 自由切磋, on 洞府.
+    const veteranPage = await open('veteran');
+    assert.match(await veteranPage.locator('.game-lobby [data-action="rules"]').textContent(), /^溫習弈道/);
+    await tap(veteranPage, '.game-lobby [data-action="rules"]');
+    await tap(veteranPage, '#overlay-root [data-action="rules-start"]');
+    await veteranPage.locator(prep).waitFor();
+    assert.equal(await veteranPage.locator(ferry).count(), 0, 'no ferry for a veteran');
+    assert.equal((await veteranPage.locator(`${prep} .eyebrow`).first().textContent()).trim(), '自由切磋 · 出發前整備');
+    assert.equal(await veteranPage.locator('#app .game-lobby').count(), 1, 'the veteran stays on 洞府');
+    passed('on a first visit 知其道，入其局 opens the 霧隱渡口 preparation on 遊歷, from the lobby and from 旅程閣; 稍後出發 writes nothing and returns focus to 遊歷, Back reaches 洞府, and boarding shows mark ①; a veteran still gets 自由切磋');
+    await release(veteranPage);
   }
 
   // ── 5. The match result opens on 勝負已定 after a loss, whatever page was left open ──

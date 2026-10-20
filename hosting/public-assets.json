@@ -52,6 +52,7 @@
   "saves.css",
   "battle-teaching.mjs",
   "battle-teaching.css",
+  "first-visit.mjs",
   "wx01-cards.mjs",
   "wx01-pack.mjs",
   "wx01-state.mjs",

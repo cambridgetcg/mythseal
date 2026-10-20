@@ -40,6 +40,7 @@ import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
 import { attackFormula, costVariants, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
+import { rulesStartRoute } from './first-visit.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -1483,7 +1484,17 @@ document.addEventListener('click', event=>{
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}
   if(action==='rules')return rulesModal();
   if(action==='close-modal')return dismissModal();
-  if(action==='start'||action==='rules-start')return prepareEncounter();
+  if(action==='start')return prepareEncounter();
+  // T1: a first visit's rules lead to 霧隱渡口, where D3's first-battle coach runs (docs/TUTORIAL-T1.md §1).
+  if(action==='rules-start'){
+    if(economyBusy)return;
+    syncProfile(loadProfile());
+    const route=rulesStartRoute(profile);
+    if(route.kind!=='expedition')return prepareEncounter();
+    selectedNode=route.nodeId;navigate('world');
+    app.querySelector('.game-dock [data-action="world"]')?.focus({preventScroll:true});
+    return prepareEncounter(route.kind,route.nodeId);
+  }
   if(action==='end-home')return navigate('home');
   // WebKit does not focus a clicked button; record the origin so closing returns to it.
   if(action==='inspect'){if(screen==='battle')button.focus({preventScroll:true});return detailModal(id,button.dataset.side||'player');}
