@@ -4,8 +4,9 @@ v0.5.0 implements 旅程閣, player-session handling and account-private backups
 
 ## iOS first flight · 2026-10-20
 
-Branch `ios/first-flight` (local only; nothing pushed, merged, deployed,
-signed or uploaded), from `origin/main` **`998b614`** with PR #13 merged in
+Branch `ios/first-flight` (local when these checks ran; later pushed as PR #17,
+merged, built and signed by Xcode Cloud and installed through TestFlight, see
+[IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md)), from `origin/main` **`998b614`** with PR #13 merged in
 (`42d829e`) and the steps in [IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md). Checks
 ran on the branch's final tree. No hosted service was called; the only
 network use was npm's registry (installs, `npm view`, `npm pack`), GitHub's

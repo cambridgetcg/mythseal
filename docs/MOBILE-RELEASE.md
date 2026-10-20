@@ -27,8 +27,9 @@ build** (no accounts). They are for TestFlight and Play testing practice; see
 the [runbook](MOBILE-PUBLISHING-RUNBOOK.md). M5.1 and M5.2 acceptance is still
 outstanding.
 
-**2026-10-20 · iOS first flight** (branch `ios/first-flight`, local only: not
-pushed, merged, built with Xcode, signed or uploaded). PR #13 is merged into
+**2026-10-20 · iOS first flight** (branch `ios/first-flight`, draft PR #17, merged
+into `main` the same day; Xcode Cloud build 3 reached TestFlight internal and the
+owner's iPhone). PR #13 is merged into
 `main` there with a merge commit and fixed for a first TestFlight build;
 [IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md) lists each change, its reason and the
 rung it reached.
@@ -57,11 +58,11 @@ rung it reached.
 - **iOS project:** Capacitor 8.5.3 (SPM), iOS 16, iPhone only, portrait only,
   zh-Hant, `ITSAppUsesNonExemptEncryption` NO, arm64, an app privacy manifest
   declaring the file-timestamp API the Filesystem plugin uses.
-- **Not verified yet:** nothing has run in a WKWebView, a Simulator or on an
-  iPhone; the plugin access, the share sheet, `<input type=file>` in the app and
-  whether the Library copy survives what clears the WebView's storage are read
-  from source or simulated in desktop Chromium and WebKit with a fake bridge.
-  `Package.resolved` needs Xcode. No Xcode Cloud or Actions run has happened.
+- **Verified since:** the app runs in a real WKWebView (Simulator) and reaches
+  the Filesystem plugin; Xcode Cloud build 3 was cloud-signed and installed
+  through TestFlight on the owner's iPhone (see IOS-FIRST-FLIGHT).
+  **Not yet observed on a device:** the share sheet, `<input type=file>` in the
+  app, and whether the Library copy survives what clears the WebView's storage.
 
 ## Shared game interface for mobile
 

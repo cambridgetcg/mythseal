@@ -1,7 +1,10 @@
 # iOS first flight · branch `ios/first-flight`
 
-Status: `record · 2026-10-20`, local branch only. Nothing on it is pushed, merged,
-deployed, signed, uploaded or registered with Apple or Google.
+Status: `record · 2026-10-20`. Pushed as draft PR #17 and merged into `main` with
+a merge commit on 2026-10-20. Xcode Cloud built and signed it (build 3), App
+Store Connect processed it for internal TestFlight, and it runs on the owner's
+iPhone. Nothing was deployed to the website and nothing was submitted for
+review; the Google Play side is untouched.
 
 This branch brings open PR #13 (`mobile/cloud-pipeline`) up to `main` with a
 merge commit and fixes what stood between it and a first TestFlight build under
@@ -156,7 +159,7 @@ are also editing, so it was not done here.
   placeholder, and a link to a page that is not served. The page names
   Mindicraft as controller for the website accounts too; confirm that is right.
 - **Google Play entity.** Who holds the Play Console account is not recorded.
-- **`Package.resolved`, once Xcode is installed.** Xcode Cloud does not resolve
+- **`Package.resolved`** (done 2026-10-20, `0cb207f`). Xcode Cloud does not resolve
   Swift packages by itself, so the resolved versions must be committed at
   `ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`.
   Only Xcode can write it: open `ios/App/App.xcodeproj` and let it resolve, or
@@ -196,8 +199,8 @@ are also editing, so it was not done here.
   a range Xcode Cloud will not reach, such as `100000`, and never lower it
   afterwards (it is Android's `versionCode` too). Runbook §1 and design spec
   §4.5.
-- **Xcode on a Mac.** Installing Xcode (and its iOS platform) is the owner's
-  step; it unlocks `Package.resolved`, the simulator rung and the first Xcode
+- **Xcode on a Mac** (done 2026-10-20): Xcode 27.1 with the iOS 27.0 Simulator
+  runtime. It unlocked `Package.resolved`, the simulator rung and the first Xcode
   Cloud workflow.
 - **Still M5 work, not done here:** the Capacitor Back button wiring
   ([Back button in a native shell](MOBILE-RELEASE.md#back-button-in-a-native-shell--2026-10-12)),
@@ -206,14 +209,17 @@ are also editing, so it was not done here.
 
 ## Not verified yet
 
-- Nothing has run in a WKWebView, the iOS Simulator or an iPhone. The plugin
-  access path, the share sheet, `<input type=file>` inside the app, the Library
-  copy surviving whatever clears the WebView's storage, and the restore at
-  launch are read from source or simulated with a fake bridge in desktop
-  Chromium (Pixel 7) and Playwright's WebKit (iPhone 15).
-- No Xcode build, archive, signature, Xcode Cloud run or Actions run.
-- `ci_post_clone.sh` was checked with `sh -n` and its steps pinned by a test; it
-  has never run.
+- Run and observed: the app loads in a real WKWebView (Simulator), the page
+  reaches the Filesystem plugin through `window.Capacitor.Plugins`, the first
+  mirror write lands in `Library/mythseal/`, Xcode Cloud runs
+  `ci_post_clone.sh` end to end and signs the archive, and the build installs
+  and opens on an iPhone through TestFlight.
+- Still not observed on a device: the share sheet, `<input type=file>` inside
+  the app, the Library copy surviving whatever clears the WebView's storage,
+  the restore at launch, and the physical-phone checklist (M5.1). Those were
+  simulated with a fake bridge in desktop Chromium (Pixel 7) and Playwright's
+  WebKit (iPhone 15).
+- No GitHub Actions upload run (the backup route) has happened.
 - The privacy page is a draft.
 
 ## Known limits of the native copy
