@@ -35,4 +35,5 @@ fs.writeFileSync(file, before.replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_
 console.log(`MARKETING_VERSION = ${version}`);
 '
 
-npx cap sync ios
+# The app's own Capacitor CLI, never whatever npx might fetch.
+./node_modules/.bin/cap sync ios
