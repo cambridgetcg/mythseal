@@ -22,24 +22,32 @@ never stands in for a higher one.
 | --- | --- |
 | `web` | the web build runs and the bundle is self-contained (Node tests, build, headless browser smokes) |
 | `native-project` | the iOS project conforms: plist keys, deployment target, device family, privacy manifest, `ci_scripts` |
-| `simulator` | the app launches in an iOS Simulator (needs Xcode; not on this branch's machine) |
+| `simulator` | the app launches in an iOS Simulator (needs Xcode) |
 | `device` | it runs on a physical iPhone |
 | `signed-archive` | Apple's signing accepted a build (Xcode Cloud or the Actions backup) |
 | `testflight-internal` | App Store Connect processed the build for internal testers |
+| `testflight-external` | Beta App Review accepted the build for external TestFlight testers |
 | `review` | App Review accepted it (for the App Store) |
 
 The rungs and their wording are orchard's (`DESIGN.md` §1), so a rung means the
-same thing in both repositories. Beta App Review, which an external TestFlight
-group needs, is not `review`: it sits above `testflight-internal` and orchard's
-ladder has no rung for it yet, so it is recorded as a dated note on
-`testflight-internal` (for example "Beta App Review accepted build 3 for the
-external group, 2026-…"), never as `review`. Whether orchard adds a rung for it
-(such as `testflight-external`) is orchard's change to make, and this table
-follows it.
+same thing in both repositories. orchard added `testflight-external` on
+2026-10-20 for Beta App Review, so `review` only ever means App Review for the
+store.
 
-**This branch reaches `web` and `native-project` only.** No WKWebView, Simulator
-or device has run any of it; the headless WebKit smoke is closer to Safari than
-Chromium is, but it is not a WKWebView inside Capacitor.
+**This branch reaches `simulator` (2026-10-20, Xcode 27.1, iOS 27.0 Simulator,
+iPhone 17).** `orchard sim mythseal` at `0cb207f` built, installed and launched
+the app. On an earlier launch of the same build path (`f8a9bfd`) the Capacitor
+console showed `WebView loaded`, WebKit logged `didFinishLoadForFrame` about two
+seconds after launch, and the page made the mirror's first round trip through the
+real Filesystem plugin (`readFile` of the missing copy rejected with
+`OS-PLUG-FILE-0008`, then `writeFile` of `journey.v5.json.next`, `readdir`,
+`rename`), leaving `Library/mythseal/journey.v5.json`, localStorage and IndexedDB
+in the app's container, with no network request in the console. That proves the
+page reaches native plugins through `window.Capacitor.Plugins` in a real WKWebView.
+Not yet observed: any tap in the UI, the share sheet, a restore after cleared web
+storage, or anything on a physical iPhone (`device`) or from Apple's signing
+(`signed-archive`). The very first launch on a freshly booted simulator took more
+than 30 seconds to finish loading; the second took about two.
 
 ## Changes, in commit order
 
