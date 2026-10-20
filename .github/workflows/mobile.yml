@@ -1,8 +1,10 @@
 name: Mobile builds
 
-# Manual runs are dry by default (build and sign, keep artifacts, upload nothing).
-# A mobile-v* tag uploads. Uploads go only to TestFlight and Play internal testing;
-# reviewed tracks are promoted by hand (docs/MOBILE-PUBLISHING-RUNBOOK.md).
+# The backup release route (docs/MOBILE-RELEASE.md): iOS builds go through Xcode Cloud
+# (ios/App/ci_scripts) unless it is unavailable. Manual runs are dry by default (build and
+# sign, keep artifacts, upload nothing), and GitHub runs workflow_dispatch only once this
+# file is on the default branch. A mobile-v* tag uploads. Uploads go only to TestFlight and
+# Play internal testing; reviewed tracks are promoted by hand (docs/MOBILE-PUBLISHING-RUNBOOK.md).
 on:
   workflow_dispatch:
     inputs:
@@ -32,11 +34,21 @@ jobs:
     # Secrets are scoped to the steps that use them, so npm, tests and cap sync never see them.
     env:
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      # The image's default Xcode changes when GitHub updates the runner, which would change the
+      # SDK a release is built with between two runs of the same commit. Pin it per command
+      # (DEVELOPER_DIR, no sudo xcode-select) and move it by editing this line. 26.6 is the
+      # macos-26 image's default (image 20261013) and meets Apple's upload minimum (Xcode 26).
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # Full history, for the release fence.
+          fetch-depth: 0
+      - name: Check the release fence
+        # Q1's fence (docs/RELEASE-NEXT.md §1): a build without 7a7d03e in its history must never ship.
+        run: git merge-base --is-ancestor 7a7d03e HEAD
       - name: Set up Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
@@ -48,11 +60,10 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
-      - name: Check Xcode meets Apple's upload minimum (26)
+      - name: Check the pinned Xcode (26.6)
         run: |
           xcodebuild -version
-          major=$(xcodebuild -version | head -1 | sed -E 's/^Xcode ([0-9]+).*/\1/')
-          test "$major" -ge 26
+          test "$(xcodebuild -version | head -1)" = "Xcode 26.6"
       - name: Set up Ruby and fastlane
         uses: ruby/setup-ruby@762794c140bbeda0f1224786aa33b4b46783a6c1 # v1.326.0
         with:
@@ -109,6 +120,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # Full history, for the release fence.
+          fetch-depth: 0
+      - name: Check the release fence
+        # Q1's fence (docs/RELEASE-NEXT.md §1): a build without 7a7d03e in its history must never ship.
+        run: git merge-base --is-ancestor 7a7d03e HEAD
       - name: Set up Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:

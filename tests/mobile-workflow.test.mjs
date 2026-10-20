@@ -52,3 +52,19 @@ test('only a tag push or an explicit upload input turns uploading on', () => {
   assert.match(workflow, /\n  MOBILE_UPLOAD: \$\{\{ github\.event_name == 'push' \|\| inputs\.upload == true \}\}\n/);
   assert.equal(workflow.match(/MOBILE_UPLOAD:/g)?.length, 1, 'set once, at workflow level');
 });
+
+test('both jobs check the release fence on full history before anything is built or signed', () => {
+  for (const job of ['ios', 'android']) {
+    const body = workflow.slice(workflow.indexOf(`\n  ${job}:\n`), job === 'ios' ? workflow.indexOf('\n  android:\n') : undefined);
+    assert.match(body, /persist-credentials: false\n {10}# Full history, for the release fence\.\n {10}fetch-depth: 0\n/, `${job}: full history`);
+    const fence = body.indexOf('run: git merge-base --is-ancestor 7a7d03e HEAD');
+    assert.ok(fence > body.indexOf('Check out source') && fence < body.indexOf('preflight') && fence < body.indexOf('npm ci'), `${job}: fence right after checkout`);
+  }
+});
+
+test('iOS builds with one pinned Xcode, selected per command and asserted', () => {
+  const ios = workflow.slice(workflow.indexOf('\n  ios:\n'), workflow.indexOf('\n  android:\n'));
+  assert.match(ios, /\n {6}DEVELOPER_DIR: \/Applications\/Xcode_26\.6\.app\/Contents\/Developer\n/, 'job-level, so every step uses it');
+  assert.match(ios, /test "\$\(xcodebuild -version \| head -1\)" = "Xcode 26\.6"/, 'and the run fails if the image no longer has it');
+  assert.doesNotMatch(workflow, /^\s+(?:run: )?sudo |xcode-select -s/m, 'no machine-wide switch');
+});
