@@ -21,6 +21,12 @@ verification remains outstanding. There are no native app projects, signed mobil
 builds or store releases yet; player trading, authoritative online progression
 and collectible issuance remain separate future work.
 
+**2026-10-12:** committed Capacitor `ios/` and `android/` projects and a cloud
+pipeline (`.github/workflows/mobile.yml`) now exist for an **offline guest
+build** (no accounts). They are for TestFlight and Play testing practice; see
+the [runbook](MOBILE-PUBLISHING-RUNBOOK.md). M5.1 and M5.2 acceptance is still
+outstanding.
+
 ## Shared game interface for mobile
 
 Keep **洞府 / 遊歷 / 對弈 / 藏卡 / 市集** consistent across clients. Adapt the

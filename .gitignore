@@ -22,3 +22,15 @@ saves/
 backups/
 山海弈旅程-*.json
 萬象契旅程-*.json
+# Mobile builds (fastlane outputs; signing material is already ignored above)
+build/
+*.ipa
+*.aab
+*.apk
+*.dSYM.zip
+fastlane/report.xml
+fastlane/README.md
+fastlane/test_output/
+# Local Bundler settings and gems (CI installs its own via ruby/setup-ruby)
+.bundle/
+vendor/bundle/

@@ -139,3 +139,10 @@ export function isStandalone({ window: win = globalThis.window, navigator: nav =
   try { if (win?.matchMedia?.('(display-mode: standalone)')?.matches === true) return true; } catch {}
   try { return nav?.standalone === true; } catch { return false; }
 }
+
+/** True only inside a Capacitor native shell: its bridge defines window.Capacitor before
+ * page scripts run. Browsers, previews and Node have no bridge, so they get false. */
+export function isNativeShell(scope = globalThis) {
+  try { return scope?.Capacitor?.isNativePlatform?.() === true; }
+  catch { return false; }
+}

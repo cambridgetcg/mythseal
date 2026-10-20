@@ -1,0 +1,92 @@
+# Lanes for .github/workflows/mobile.yml. The app identity comes from capacitor.config.json
+# and everything else from the environment, so another Capacitor app can reuse this file.
+# Uploads go only to TestFlight internal testing and Play internal testing; reviewed tracks
+# are promoted by hand in the consoles (docs/MOBILE-PUBLISHING-RUNBOOK.md).
+require "json"
+
+CAPACITOR = JSON.parse(File.read(File.expand_path("../capacitor.config.json", __dir__)))
+APP_ID = CAPACITOR.fetch("appId")
+APP_NAME = CAPACITOR.fetch("appName")
+
+def upload?
+  ENV["MOBILE_UPLOAD"] == "true"
+end
+
+platform :ios do
+  def asc_key
+    app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_filepath: ENV.fetch("ASC_KEY_PATH")
+    )
+  end
+
+  # xcodebuild signs through Apple's cloud-managed certificates with the same API key.
+  def signing_flags
+    "-allowProvisioningUpdates -authenticationKeyPath #{ENV.fetch('ASC_KEY_PATH')} " \
+      "-authenticationKeyID #{ENV.fetch('ASC_KEY_ID')} -authenticationKeyIssuerID #{ENV.fetch('ASC_ISSUER_ID')}"
+  end
+
+  desc "Register the bundle ID with App Store Connect (once, before the app record is created)"
+  lane :register_bundle_id do
+    asc_key
+    if Spaceship::ConnectAPI::BundleId.find(APP_ID)
+      UI.message("#{APP_ID} is already registered")
+    else
+      Spaceship::ConnectAPI::BundleId.create(name: APP_NAME, identifier: APP_ID, platform: Spaceship::ConnectAPI::BundleIdPlatform::IOS)
+      UI.success("Registered #{APP_ID}")
+    end
+  end
+
+  desc "Archive and sign; with MOBILE_UPLOAD=true, upload to TestFlight internal testing"
+  lane :beta do
+    key = asc_key
+    build_app(
+      project: "ios/App/App.xcodeproj",
+      scheme: "App",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build/ios",
+      output_name: "#{APP_NAME}.ipa",
+      xcargs: "#{signing_flags} DEVELOPMENT_TEAM=#{ENV.fetch('APPLE_TEAM_ID')} CODE_SIGN_STYLE=Automatic " \
+              "MARKETING_VERSION=#{ENV.fetch('MOBILE_VERSION')} CURRENT_PROJECT_VERSION=#{ENV.fetch('MOBILE_BUILD_NUMBER')}",
+      export_xcargs: signing_flags,
+      export_options: { signingStyle: "automatic", teamID: ENV.fetch("APPLE_TEAM_ID") }
+    )
+    next UI.message("Dry run: signed #{APP_NAME}.ipa kept as an artifact, nothing uploaded") unless upload?
+
+    upload_to_testflight(
+      api_key: key,
+      distribute_external: false,
+      skip_waiting_for_build_processing: true
+    )
+  end
+end
+
+platform :android do
+  desc "Build the signed AAB; with MOBILE_UPLOAD=true, upload to Play internal testing"
+  lane :internal do
+    gradle(
+      project_dir: "android",
+      task: "bundle",
+      build_type: "Release",
+      properties: {
+        "mythsealVersionCode" => ENV.fetch("MOBILE_BUILD_NUMBER"),
+        "mythsealVersionName" => ENV.fetch("MOBILE_VERSION")
+      }
+    )
+    next UI.message("Dry run: signed AAB kept as an artifact, nothing uploaded") unless upload?
+
+    upload_to_play_store(
+      package_name: APP_ID,
+      track: "internal",
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      json_key_data: ENV.fetch("PLAY_SERVICE_ACCOUNT_JSON"),
+      release_status: ENV.fetch("PLAY_RELEASE_STATUS", "draft"),
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end
