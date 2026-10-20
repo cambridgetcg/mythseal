@@ -35,12 +35,12 @@ import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.m
 import { createPackOpeningController } from './pack-opening.mjs';
 import { createMapTravel } from './map-piece.mjs';
 import { createViewportController } from './viewport.mjs';
-import { prepareScene, preparePack } from './scene-adapters.mjs';
+import { prepareScene, preparePack, placeGuideHints, visibleGuideHints } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
 import { attackFormula, costVariants, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
-import { rulesStartRoute } from './first-visit.mjs';
+import { createGuideMemory, guideHints, guideScreenKey, hintMarkup, rulesStartRoute, GUIDE_DIALOG_KINDS } from './first-visit.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -445,6 +445,35 @@ function battleTableOptions(view,actionsHtml) {
 // or the mark reached and whether ② is owed) is stored, under its own device-local key: never
 // the profile, a battle snapshot or a backup.
 const coachMemory=createCoachMemory({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
+// T1 first-visit hints (docs/TUTORIAL-T1.md §2): each replaces an existing line for a newcomer,
+// is never a layer, and a visit hint is recorded under its own device-local key only once it was
+// painted where the player could read it.
+const guide=createGuideMemory({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
+// A screen placement whose recording waits for the dialog over it to close.
+let guidePending=null;
+const twoFrames=callback=>requestAnimationFrame(()=>requestAnimationFrame(callback));
+/** Places the hints of this visit in `root`; returns the recording check, to run once the
+ * viewport has laid the scene out. */
+function applyGuide(root,channel,key) {
+  if(channel==='dialog'&&!GUIDE_DIALOG_KINDS.includes(key)){guide.leave('dialog');return ()=>{};}
+  if(channel==='screen')guidePending=null;
+  const token=guide.enter(channel,key),ctx={profile,key,selectedNode,coachSeen:coachMemory.seen()};
+  const placed=placeGuideHints(root,guide.select(guideHints(ctx,channel),token).map(hint=>({hint,html:hintMarkup(hint,ctx)})));
+  if(!placed.length)return ()=>{};
+  return ()=>twoFrames(()=>{
+    if(document.visibilityState!=='visible')return;
+    if(channel==='screen'&&app.inert){guidePending={placed,token};return;}
+    guide.shown(visibleGuideHints(placed),token);
+  });
+}
+/** The pending screen placement, checked again once its dialog has closed. */
+function retryGuide() {
+  const pending=guidePending;if(!pending)return;
+  twoFrames(()=>{
+    if(guidePending!==pending||app.inert||document.visibilityState!=='visible')return;
+    guidePending=null;guide.shown(visibleGuideHints(pending.placed),pending.token);
+  });
+}
 // {step,owed} from battle-teaching.mjs, or null. ② is owed to round 2 when round 1 was
 // committed from ①; the memory keeps the state, so a reload resumes the mark it interrupted.
 let coach=null;
@@ -593,7 +622,8 @@ function render() {
   const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}${saveToolsMarkup(saves.status())}${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
   app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?((profile.wx01.receipt||profile.expansion.fireMountain.run)?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
-  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});fitAttackFormula();
+  const guideCommit=applyGuide(app,'screen',guideScreenKey(screen,bagView.tab));
+  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});guideCommit();fitAttackFormula();
   const currentMap=app.querySelector('.world-map[data-world]');
   if(currentMap){
     currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
@@ -623,7 +653,7 @@ function closeModal() {
   inheritanceView=null;
   packOpening?.destroy();packOpening=null;
   experience.finishReveal();experienceReturn=null;
-  overlay.innerHTML=''; document.body.style.overflow='';app.inert=false;modalKind=null;
+  overlay.innerHTML=''; document.body.style.overflow='';app.inert=false;modalKind=null;guide.leave('dialog');retryGuide();
   // A preparation-to-battle transition stays in the same soundscape.
   queueMicrotask(syncExperienceScene);
   if(lastFocus?.isConnected) lastFocus.focus({preventScroll:true});
@@ -658,10 +688,12 @@ function focusDialogStart() {
 function fitOverlay() {
   const dialog=overlay.querySelector('.modal');if(!dialog)return;
   dialog.classList.add('viewport-dialog');
+  const guideCommit=applyGuide(dialog,'dialog',modalKind);
   if(modalKind==='pack-receipt')preparePack(dialog);
   else prepareDialog(dialog,{kind:modalKind});
   const receiptId=dialog.querySelector('[data-receipt-id]')?.dataset.receiptId;
   viewport.refresh({key:`modal-${modalKind||'dialog'}${receiptId?`-${receiptId}`:''}`,root:overlay});
+  guideCommit();
 }
 function dismissModal() {
   const origin=experienceReturn;
@@ -692,6 +724,7 @@ function experienceSettingsModal() {
     <label class="experience-field"><span>落子音效 <output id="experience-effects-value">${Math.round(p.effects*100)}%</output></span><input id="experience-effects" aria-label="落子音效音量" type="range" min="0" max="1" step="0.05" value="${p.effects}"></label>
     <label class="experience-field"><span>動態</span><select id="experience-motion"><option value="system" ${p.motion==='system'?'selected':''}>跟隨裝置設定</option><option value="reduce" ${p.motion==='reduce'?'selected':''}>減少動態</option></select></label>
     <label class="experience-field"><span>揭曉節奏</span><select id="experience-pace"><option value="normal" ${p.pace==='normal'?'selected':''}>從容揭曉</option><option value="fast" ${p.pace==='fast'?'selected':''}>直接看結果</option></select></label>
+    ${screen==='battle'?'':`<label class="experience-field"><span>初見提點<small>初到各處時的一行說明；重新開啟會再看一次</small></span><input id="guide-hints" type="checkbox" ${guide.enabled()?'checked':''}></label>`}
     <p class="panel-footnote">設定會記在此裝置。揭曉時亦可直接跳過。</p><div class="modal-actions"><button class="primary" data-action="close-modal">${screen==='battle'?'返回對局':'返回旅途'} →</button></div>`,'experience-settings',true,'experience-settings');
 }
 function questsModal(tab=questTab) {
@@ -1529,6 +1562,9 @@ document.addEventListener('change',event=>{
   if(event.target.id==='experience-sound'){
     experience.setPreferences({sound:event.target.checked});experience.unlockAudio().then(()=>playTone('select'));return;
   }
+  // T1's switch (docs/TUTORIAL-T1.md §5.6): off removes the hint behind the dialog at once; on
+  // leaves the visits in progress quiet, so hints return from each next visit.
+  if(event.target.id==='guide-hints'){guide.setEnabled(event.target.checked);if(!event.target.checked)render();return;}
   if(event.target.id==='experience-motion'||event.target.id==='experience-pace'){
     experience.setPreferences({[event.target.id==='experience-motion'?'motion':'pace']:event.target.value});return;
   }

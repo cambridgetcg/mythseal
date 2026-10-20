@@ -1,0 +1,14 @@
+/* T1 first-visit teaching (docs/TUTORIAL-T1.md). Kept out of the scene sheets so that other
+   branches' edits there stay independent. Nothing here animates or transitions. */
+
+/* §2, §5.4 初見 hints. A hint is its slot's own element plus .guide-hint, so every breakpoint
+   rule that sizes, places or hides the slot does the same to the hint. Text is never clamped,
+   ellipsised or clipped; a copy that does not fit is written shorter. */
+.guide-hint-seal{color:var(--gold);font-size:1em;letter-spacing:0;border:1px solid currentColor;border-radius:2px;padding:0 1px;margin-right:3px}
+.guide-hint-voice{color:var(--gold);letter-spacing:0;margin-right:2px}
+/* The bag's overview is a row of stacked figures with strong child rules (backpack.css,
+   scene-content.css); the hint's single body beats them at (0,3,0). */
+.scene-surface .bag-overview.guide-hint{display:block;flex-shrink:1;min-width:0;max-width:420px}
+.bag-overview.guide-hint>.guide-hint-body{display:block;padding:0;border:0;text-align:left;font-size:11px;line-height:1.6;letter-spacing:0;color:var(--muted)}
+/* world-level replaces the node's spaced gold subtitle with a plain muted line. */
+.scene-world .destination-panel .destination-subtitle.guide-hint{letter-spacing:0;font-size:11px;line-height:1.6;color:var(--muted)}

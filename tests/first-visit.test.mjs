@@ -1,11 +1,15 @@
 // T1 first-visit teaching (docs/TUTORIAL-T1.md): the rules-first route, read on real profiles.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMatch } from '../engine.mjs';
-import { createProfile, beginBattle, finishBattle, abandonBattle } from '../progression.mjs';
+import { createMatch, RULES } from '../engine.mjs';
+import { createProfile, beginBattle, finishBattle, abandonBattle, startActivity, abandonActivity, buyPack } from '../progression.mjs';
+import { getActiveDeck, saveInstanceDeck, setInstanceXP, MAX_DECK_SLOTS } from '../collection.mjs';
 import { coachStart } from '../battle-teaching.mjs';
 import { lobbyMarkup } from '../navigation-ui.mjs';
-import { FIRST_EXPEDITION, isFirstVisit, rulesStartRoute } from '../first-visit.mjs';
+import {
+  FIRST_EXPEDITION, GUIDE_KEY, GUIDE_HINTS, GUIDE_DIALOG_KINDS, NEWCOMER_BATTLES, isFirstVisit, isNewcomer, rulesStartRoute,
+  guideScreenKey, activeDeckTopLevel, guideHints, hintMarkup, createGuideMemory,
+} from '../first-visit.mjs';
 
 const now = new Date('2026-10-20T12:00:00.000Z');
 const fresh = () => createProfile({ now });
@@ -47,4 +51,247 @@ test('the route and D3 agree: the first-visit route starts the coach at its firs
   assert.equal(coachStart({ encounter: route, played: 0, match })?.step, 'card', 'D3 coaches the battle the rules lead to');
   // And the practice route is the one D3 leaves alone.
   assert.equal(coachStart({ encounter: rulesStartRoute(finished()), played: 0, match: createMatch({ rng: () => 0.23 }) }), null);
+});
+
+// ── T1 hints (docs/TUTORIAL-T1.md §2) ─────────────────────────────────────────────
+const SCREENS = ['home', 'world', 'arena', 'bag-cards', 'bag-decks', 'market', 'collection', 'account', 'battle'];
+const holds = (profile, { selectedNode = profile.location, coachSeen = null } = {}) => [
+  ...SCREENS.flatMap(key => guideHints({ profile, key, selectedNode, coachSeen }, 'screen')),
+  ...GUIDE_DIALOG_KINDS.flatMap(key => guideHints({ profile, key, selectedNode, coachSeen }, 'dialog')),
+].map(hint => hint.id).sort();
+const won = () => finished('player');
+const tried = profile => { const run = startActivity(profile, { rng: () => 0.23, now }).profile; return abandonActivity(run, { expectedRunId: run.expansion.fireMountain.run.id, now }); };
+const withPlayed = (profile, played) => ({ ...profile, stats: { ...profile.stats, played } });
+const codePoints = text => [...text].length;
+function deepFreeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.values(value).forEach(deepFreeze); Object.freeze(value); } return value; }
+
+test('the registry: eight hints, each with a slot, a voice, a lifetime and short copy', () => {
+  assert.ok(GUIDE_HINTS.length >= 6 && GUIDE_HINTS.length <= 10, `${GUIDE_HINTS.length} hints`);
+  assert.equal(GUIDE_HINTS.length, 8);
+  assert.equal(new Set(GUIDE_HINTS.map(hint => hint.id)).size, GUIDE_HINTS.length, 'unique ids');
+  for (const hint of GUIDE_HINTS) {
+    assert.ok(['screen', 'dialog'].includes(hint.channel), hint.id);
+    assert.equal(typeof hint.scene, 'function', hint.id);
+    assert.equal(typeof hint.slot.replace, 'string', hint.id);
+    assert.ok(Array.isArray(hint.slot.remove), hint.id);
+    assert.ok(['guardian', 'narrator'].includes(hint.voice), hint.id);
+    assert.ok(['visit', 'condition'].includes(hint.lasts), hint.id);
+    for (const coachSeen of [null, 'done', 'skipped']) {
+      const copy = hint.copy({ coachSeen });
+      assert.ok(codePoints(copy) <= 40, `${hint.id}: ${codePoints(copy)} code points: ${copy}`);
+      assert.doesNotMatch(copy, /[「」]/, `${hint.id}: the quote marks are the markup's`);
+      if (hint.voice === 'guardian') assert.ok(hintMarkup(hint, { coachSeen }).includes(`守渡弈者</span>「${copy}」`), `${hint.id}: the guardian is quoted`);
+    }
+  }
+  assert.deepEqual(GUIDE_HINTS.filter(hint => hint.voice === 'guardian').map(hint => hint.id), ['home-start', 'arena-first']);
+  const dialogs = GUIDE_HINTS.filter(hint => hint.channel === 'dialog');
+  for (const hint of dialogs) assert.equal(GUIDE_DIALOG_KINDS.filter(kind => hint.scene(kind)).length, 1, `${hint.id} belongs to one dialog kind`);
+  assert.deepEqual([...GUIDE_DIALOG_KINDS].sort(), [...new Set(dialogs.flatMap(hint => GUIDE_DIALOG_KINDS.filter(kind => hint.scene(kind))))].sort());
+  assert.ok(Object.isFrozen(GUIDE_HINTS) && GUIDE_HINTS.every(hint => Object.isFrozen(hint) && Object.isFrozen(hint.slot)));
+  // bag-decks reads its numbers from the rules, never a copy of them.
+  assert.equal(GUIDE_HINTS.find(hint => hint.id === 'bag-decks').copy({}), `每套 ${RULES.deckSize} 位不同角色、總星數不超過 ${RULES.starLimit}；可存 ${MAX_DECK_SLOTS} 套，設為出戰的才上陣。`);
+});
+
+test('conditions on a fresh journey and after the first ferry win', () => {
+  const start = fresh();
+  assert.deepEqual(holds(start), ['arena-first', 'bag-copies', 'bag-decks', 'home-start', 'market-printing', 'quests-why'], 'fresh, on 霧隱渡口 (建議 Lv.1, deck Lv.1)');
+  assert.equal(activeDeckTopLevel(start), 1);
+  assert.deepEqual(holds(start, { selectedNode: 'ember-pass' }).includes('world-level'), false, 'a locked node keeps its own lines');
+  const after = won();
+  assert.deepEqual(holds(after), ['bag-copies', 'bag-decks', 'fire-mountain', 'market-printing', 'quests-why']);
+  assert.ok(holds(after, { selectedNode: 'jade-forest' }).includes('world-level'), '青玉森庭 asks Lv.2 of a Lv.1 deck');
+  const uid = getActiveDeck(after).instanceIds[0], trained = setInstanceXP(after, uid, 80);
+  assert.equal(activeDeckTopLevel(trained), 2);
+  assert.equal(holds(trained, { selectedNode: 'jade-forest' }).includes('world-level'), false, 'a Lv.2 card in the deck meets it');
+  assert.equal(holds(trained, { selectedNode: 'ember-pass' }).includes('world-level'), false, '赤燼關 is still locked');
+});
+
+test('conditions follow pending and abandoned battles, fire-mountain runs, deck slots and packs', () => {
+  assert.ok(holds(abandonBattle(begun().profile)).includes('home-start'), 'an abandoned first battle: still a first visit');
+  assert.equal(holds(begun().profile).includes('home-start'), false, 'a pending battle: no first visit');
+  const after = won();
+  const running = startActivity(after, { rng: () => 0.23, now }).profile;
+  assert.equal(holds(running).includes('fire-mountain'), false, 'a run in progress');
+  const abandoned = tried(after);
+  assert.equal(abandoned.expansion.serial, 1);
+  assert.equal(abandoned.expansion.fireMountain.lastResult, null, 'abandoned before any result');
+  assert.equal(abandoned.expansion.fireMountain.clears, 0);
+  assert.equal(holds(abandoned).includes('fire-mountain'), false, 'a run once started counts as tried');
+  const second = saveInstanceDeck(after, { slotId: 'deck-2', name: '二陣', instanceIds: getActiveDeck(after).instanceIds });
+  assert.equal(second.deckSlots.length, 2);
+  assert.equal(holds(second).includes('bag-decks'), false, 'a second deck slot');
+  const opened = buyPack(after, { set: 'wx01', rng: () => 0.23, now }).profile;
+  assert.equal(opened.wx01.opened, 1);
+  assert.equal(holds(opened).includes('market-printing'), false, 'one WX-01 pack opened');
+});
+
+test('veterans: ten finished battles see no hint, except a mountain never climbed', () => {
+  assert.equal(NEWCOMER_BATTLES, 10);
+  const after = won();
+  const veteran = withPlayed(tried(after), NEWCOMER_BATTLES);
+  assert.equal(isNewcomer(veteran), false);
+  for (const node of ['mist-gate', 'jade-forest']) assert.deepEqual(holds(veteran, { selectedNode: node }), [], `no hint anywhere (${node})`);
+  assert.deepEqual(holds(withPlayed(after, NEWCOMER_BATTLES)), ['fire-mountain'], 'only the mountain, never started');
+  assert.deepEqual(holds(withPlayed(after, NEWCOMER_BATTLES - 1)), ['bag-copies', 'bag-decks', 'fire-mountain', 'market-printing', 'quests-why'], 'nine battles: still a newcomer');
+});
+
+test('copy follows the coach: 我陪你 is promised only before the coach ends', () => {
+  const ctx = coachSeen => ({ profile: fresh(), key: 'home', selectedNode: 'mist-gate', coachSeen });
+  const home = GUIDE_HINTS.find(hint => hint.id === 'home-start'), arena = GUIDE_HINTS.find(hint => hint.id === 'arena-first');
+  assert.match(home.copy(ctx(null)), /我陪你/);
+  assert.match(arena.copy(ctx(null)), /我陪你/);
+  for (const seen of ['done', 'skipped']) {
+    assert.doesNotMatch(home.copy(ctx(seen)), /陪/);
+    assert.doesNotMatch(arena.copy(ctx(seen)), /陪/);
+  }
+});
+
+test('the screen key is the visit: the bag splits by tab, never by layout or opened character', () => {
+  assert.equal(guideScreenKey('bag', 'cards'), 'bag-cards');
+  assert.equal(guideScreenKey('bag', 'decks'), 'bag-decks');
+  assert.equal(guideScreenKey('bag', undefined), 'bag-cards');
+  for (const screen of ['home', 'world', 'arena', 'market', 'collection', 'account', 'battle']) assert.equal(guideScreenKey(screen, 'decks'), screen);
+});
+
+test('conditions and copy only read: a deep-frozen profile is neither changed nor a reason to throw', () => {
+  for (const make of [fresh, won, () => tried(won()), () => begun().profile]) {
+    const profile = deepFreeze(make()), before = JSON.stringify(profile);
+    for (const selectedNode of ['mist-gate', 'jade-forest', 'ember-pass', 'unknown-node']) {
+      for (const key of [...SCREENS, ...GUIDE_DIALOG_KINDS]) for (const hint of GUIDE_HINTS) {
+        const ctx = { profile, key, selectedNode, coachSeen: null };
+        assert.doesNotThrow(() => { hint.scene(key); hint.when(ctx); hint.copy(ctx); hintMarkup(hint, ctx); }, `${hint.id} on ${key}`);
+      }
+    }
+    assert.equal(JSON.stringify(profile), before);
+  }
+  // A malformed profile places nothing rather than throwing into render().
+  assert.deepEqual(guideHints({ profile: { stats: { played: 0 } }, key: 'activity' }, 'dialog'), []);
+});
+
+// ── shanhai.guide.v1 (§5.2) ─────────────────────────────────────────────────────
+function memoryStorage(initial = null, { throwOnGet = false, throwOnSet = false } = {}) {
+  const values = new Map(initial === null ? [] : [[GUIDE_KEY, initial]]), writes = [];
+  return {
+    values, writes,
+    getItem(key) { if (throwOnGet) throw new Error('blocked'); return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { if (throwOnSet) throw new Error('full'); writes.push(key); values.set(key, String(value)); },
+  };
+}
+const hint = id => GUIDE_HINTS.find(item => item.id === id);
+const visitHints = ['bag-copies', 'bag-decks', 'market-printing'].map(hint);
+
+test('memory: empty, corrupt, array and null records read as empty', () => {
+  for (const raw of [null, '', 'not json', '[]', 'null', '42', '"text"', '{"seen":"bag-copies"}']) {
+    const memory = createGuideMemory(memoryStorage(raw));
+    assert.equal(memory.enabled(), true, raw);
+    const token = memory.enter('screen', 'bag-cards');
+    assert.deepEqual(memory.select(visitHints, token).map(item => item.id), ['bag-copies', 'bag-decks', 'market-printing'], raw);
+  }
+  assert.equal(createGuideMemory(memoryStorage('{"off":true}')).enabled(), false);
+  assert.equal(createGuideMemory(null).enabled(), true, 'no storage at all');
+});
+
+test('memory: a visit hint shows for the whole visit it is recorded on, then never again', () => {
+  const storage = memoryStorage(), memory = createGuideMemory(storage);
+  const first = memory.enter('screen', 'bag-cards');
+  assert.deepEqual(memory.select([hint('bag-copies')], first).map(item => item.id), ['bag-copies']);
+  memory.shown(['bag-copies'], first);
+  assert.deepEqual(JSON.parse(storage.values.get(GUIDE_KEY)), { seen: ['bag-copies'] });
+  assert.equal(memory.enter('screen', 'bag-cards'), first, 'the same key is the same visit');
+  assert.deepEqual(memory.select([hint('bag-copies')], first).map(item => item.id), ['bag-copies'], 'pinned for the rest of the visit');
+  const next = memory.enter('screen', 'home'), back = memory.enter('screen', 'bag-cards');
+  assert.notEqual(next, first); assert.notEqual(back, first);
+  assert.deepEqual(memory.select([hint('bag-copies')], back), [], 'a new visit does not show it');
+  // A stale token (its channel has moved on) records nothing.
+  memory.shown(['bag-decks'], first);
+  assert.deepEqual(JSON.parse(storage.values.get(GUIDE_KEY)).seen, ['bag-copies']);
+  // The dialog channel is its own; leave() ends its visit.
+  const dialog = memory.enter('dialog', 'quests');
+  memory.shown(['quests-why'], dialog);
+  assert.deepEqual(memory.select([hint('quests-why')], dialog).map(item => item.id), ['quests-why']);
+  memory.leave('dialog');
+  assert.deepEqual(memory.select([hint('quests-why')], memory.enter('dialog', 'quests')), []);
+  // A new page (a reload) keeps the record.
+  const reloaded = createGuideMemory(storage);
+  assert.deepEqual(reloaded.select([hint('bag-copies'), hint('quests-why'), hint('bag-decks')], reloaded.enter('screen', 'bag-cards')).map(item => item.id), ['bag-decks']);
+  assert.throws(() => memory.enter('battle', 'x'), RangeError);
+});
+
+test('memory: condition hints always show and are never written; writes only on change, only to its key', () => {
+  const storage = memoryStorage(), memory = createGuideMemory(storage);
+  const token = memory.enter('screen', 'home');
+  memory.shown(['home-start', 'arena-first', 'world-level'], token);
+  assert.deepEqual(storage.writes, [], 'condition hints are never recorded');
+  memory.shown(['bag-copies'], memory.enter('screen', 'bag-cards'));
+  memory.shown(['bag-copies'], memory.enter('screen', 'bag-cards'));
+  assert.deepEqual(storage.writes, [GUIDE_KEY], 'one write, only when something changed');
+  const later = memory.enter('screen', 'home');
+  assert.deepEqual(memory.select([hint('home-start')], later).map(item => item.id), ['home-start']);
+});
+
+test('memory: unknown ids are kept, malformed ones dropped', () => {
+  const storage = memoryStorage(JSON.stringify({ seen: ['future-hint', 'BAD ID', 5, 'bag-copies', 'future-hint', 'x'.repeat(41)], extra: 1 }));
+  const memory = createGuideMemory(storage);
+  memory.shown(['market-printing'], memory.enter('screen', 'market'));
+  assert.deepEqual(JSON.parse(storage.values.get(GUIDE_KEY)), { seen: ['bag-copies', 'future-hint', 'market-printing'] });
+});
+
+test('memory: the switch turns hints off, and back on from each channel\'s next visit', () => {
+  const storage = memoryStorage(), memory = createGuideMemory(storage);
+  const bag = memory.enter('screen', 'bag-cards'), quests = memory.enter('dialog', 'quests');
+  memory.shown(['bag-copies'], bag); memory.shown(['quests-why'], quests);
+  memory.setEnabled(false);
+  assert.equal(memory.enabled(), false);
+  assert.deepEqual(JSON.parse(storage.values.get(GUIDE_KEY)), { seen: ['bag-copies', 'quests-why'], off: true });
+  assert.deepEqual(memory.select([hint('bag-copies'), hint('home-start')], bag), [], 'off shows nothing, condition hints included');
+  memory.setEnabled(true);
+  assert.equal(memory.enabled(), true);
+  assert.deepEqual(JSON.parse(storage.values.get(GUIDE_KEY)), { seen: [] }, 'on clears seen and off');
+  assert.deepEqual(memory.select([hint('bag-copies'), hint('home-start')], memory.enter('screen', 'bag-cards')), [], 'the visit in progress stays quiet');
+  assert.deepEqual(memory.select([hint('quests-why')], memory.enter('dialog', 'quests')), []);
+  memory.shown(['bag-copies'], bag);
+  assert.deepEqual(JSON.parse(storage.values.get(GUIDE_KEY)), { seen: [] }, 'a quiet visit records nothing');
+  memory.enter('screen', 'home');
+  const again = memory.enter('screen', 'bag-cards');
+  assert.deepEqual(memory.select([hint('bag-copies')], again).map(item => item.id), ['bag-copies'], 'the next visit shows it again');
+  assert.deepEqual(memory.select([hint('quests-why')], (memory.leave('dialog'), memory.enter('dialog', 'quests'))).map(item => item.id), ['quests-why']);
+});
+
+test('memory: a storage that throws costs only the record, never the page', () => {
+  for (const options of [{ throwOnGet: true, throwOnSet: true }, { throwOnGet: true }, { throwOnSet: true }]) {
+    const storage = memoryStorage(null, options), memory = createGuideMemory(storage);
+    const token = memory.enter('screen', 'bag-cards');
+    assert.doesNotThrow(() => memory.shown(['bag-copies'], token));
+    assert.deepEqual(memory.select([hint('bag-copies')], memory.enter('screen', 'home') && memory.enter('screen', 'bag-cards')), [], `${JSON.stringify(options)}: the page remembers`);
+    assert.doesNotThrow(() => memory.setEnabled(false));
+    assert.equal(memory.enabled(), false, JSON.stringify(options));
+    assert.doesNotThrow(() => memory.setEnabled(true));
+    assert.equal(memory.enabled(), true);
+    memory.enter('screen', 'home');
+    assert.deepEqual(memory.select([hint('bag-copies')], memory.enter('screen', 'bag-cards')).map(item => item.id), ['bag-copies'], `${JSON.stringify(options)}: on replays it`);
+  }
+});
+
+test('markup: one body span with the prefix, the seal or label and escaped text; no control', () => {
+  for (const item of GUIDE_HINTS) {
+    const markup = hintMarkup(item, { coachSeen: null });
+    assert.match(markup, /^<span class="guide-hint-body"><span class="sr-only">初見提點：<\/span>/);
+    assert.ok(markup.endsWith('</span>'));
+    assert.doesNotMatch(markup, /<(?:button|a|b|i|small|input)\b|tabindex|aria-live|role=/, item.id);
+    assert.match(markup, item.voice === 'guardian' ? /<span class="guide-hint-voice">守渡弈者<\/span>「/ : /<span class="guide-hint-seal" aria-hidden="true">初見<\/span>/);
+  }
+  const hostile = { ...hint('world-level'), copy: () => '<img src=x onerror=alert(1)>&"' };
+  assert.doesNotMatch(hintMarkup(hostile, {}), /<img/);
+  assert.match(hintMarkup(hostile, {}), /&lt;img src=x onerror=alert\(1\)&gt;&amp;&quot;/);
+});
+
+test('the placement adapter tolerates null nodes and stubs (render and modal under test controllers)', async () => {
+  const { placeGuideHints, visibleGuideHints } = await import('../scene-adapters.mjs');
+  const entries = GUIDE_HINTS.map(item => ({ hint: item, html: hintMarkup(item, {}) }));
+  assert.deepEqual(placeGuideHints(null, entries), []);
+  assert.deepEqual(placeGuideHints({ querySelector: () => null }, entries), [], 'no slot, nothing placed');
+  assert.deepEqual(placeGuideHints({ querySelector: () => null }, null), []);
+  assert.deepEqual(visibleGuideHints([{ id: 'bag-copies', node: { isConnected: true, closest: () => null } }]), [], 'no getClientRects: not visible');
+  assert.deepEqual(visibleGuideHints([{ id: 'bag-copies', node: null }]), []);
+  assert.deepEqual(visibleGuideHints(null), []);
 });
