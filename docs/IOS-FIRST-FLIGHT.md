@@ -223,5 +223,7 @@ and `docs/README.md`. This branch edits `app.mjs` (the account controller,
 `navigate`, the lobby strips, the export, the header, the rules link, the
 recovery export and the launch), `save-ui.mjs`, `saves.css`, `platform.mjs`,
 `bootstrap.mjs`, `docs/README.md` and the mobile documents, and PR #13 edits
-`styles.css`. Expect conflicts when either lands; resolve them with merge
+`styles.css`. The review fixes (rows 11–16) also edit `native-shell.mjs`,
+`tools/build.mjs`, `account.css` and `backpack.css` (two rules moved between
+them), `.gitignore`, `AGENTS.md` and `README.md`. Expect conflicts when either lands; resolve them with merge
 commits, keeping both sides' intent.
