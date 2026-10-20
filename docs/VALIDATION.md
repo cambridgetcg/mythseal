@@ -2,6 +2,50 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## iOS first flight · 2026-10-20
+
+Branch `ios/first-flight` (local when these checks ran; later pushed as PR #17,
+merged, built and signed by Xcode Cloud and installed through TestFlight, see
+[IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md)), from `origin/main` **`998b614`** with PR #13 merged in
+(`42d829e`) and the steps in [IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md). Checks
+ran on the branch's final tree. No hosted service was called; the only
+network use was npm's registry (installs, `npm view`, `npm pack`), GitHub's
+API read-only (TaxSorted's runbook, `ion-ios-filesystem` 2.0.1's sources) and
+Playwright's browser download into the ignored `test-results/webkit-runtime`.
+
+**Environment.** macOS 26.6.2 (Darwin 25.6.0) on an M2, Command Line Tools
+26.4 and **no Xcode** (`xcodebuild` refuses), Node 26.0.0 (CI and Xcode Cloud
+use 22 and 24), Python 3.14.6, Playwright 1.63.0 with Chromium for Testing
+153.0.8010.12 and WebKit 26.6, headless; synthetic saves only.
+
+- `npm test`: 657/657.
+- `npm run build:native`: 89 files plus `release.json`, 74,481,758 B,
+  manifest `39f79dd4…ed5a`, `target: native`, no `runtimeGatedFeatures`, no
+  `journey-archive-ui`. Absent: `account-client.mjs`, `account-ui.mjs`,
+  `account.css`, `_headers`, `privacy.html`; `dist/app.mjs` and
+  `dist/index.html` name none of them.
+- `node tools/mobile-release.mjs preflight ios` with dummy values (no real
+  secret exists): ready for a dry run, exit 0; with `MOBILE_UPLOAD=true` and
+  no `APPLE_TEAM_ID`: names it, exit 1; with `GITHUB_RUN_NUMBER=0`: exit 1.
+  `info ios` (dummy run number 7) printed the summary from the native
+  `release.json`, version 0.5.1.
+- `CI=1 npx cap sync ios` (8.5.3) without Xcode: exit 0, file writes only.
+- `sh -n ios/App/ci_scripts/ci_post_clone.sh`: OK; mode 100755 in the index.
+- `plutil -lint`: OK for `project.pbxproj`, `Info.plist`,
+  `PrivacyInfo.xcprivacy` and `IDEWorkspaceChecks.plist`.
+- `git merge-base --is-ancestor 7a7d03e HEAD`: exit 0.
+- `npm run test:native` (both halves, the native dist on one loopback server
+  and this checkout on another as `WEB_URL`): Chromium as a Pixel 7, 9 groups;
+  WebKit as an iPhone 15, 9 groups (272–276 local requests, 0 `/api`, 0
+  off-origin, no account file, none failed). A simulated Capacitor bridge in
+  desktop engines: **not** a WKWebView, Capacitor or a device.
+- Regression checks on the website (this checkout on loopback): `test:saves`
+  20 groups in Chromium and 20 in WebKit; `tools/account-smoke.mjs` in
+  Chromium (exit 0; its screenshots in `test-results/` were deleted
+  afterwards); `test:back` 21 checks in Chromium and 20 in WebKit.
+- **Not run:** any Xcode build, the iOS Simulator, a device, Xcode Cloud,
+  GitHub Actions, the other `test:browser` suites, Firefox.
+
 ## v0.6.0 integration · 2026-10-13
 
 Branch `docs/v060-integration`, from `origin/main` **`0281798`** (PR #15's

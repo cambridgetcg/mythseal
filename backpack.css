@@ -159,3 +159,6 @@
 @media(prefers-reduced-motion:reduce){.bag-group-stack>.card{transition:none}}
 body[data-motion=reduce] .bag-group-stack>.card,body[data-page-hidden=true] .bag-group-stack>.card{transition:none}
 .bag-controls select{appearance:none;-webkit-appearance:none;height:44px;min-height:44px;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4 3 3 3-3' fill='none' stroke='%23bfcaaf' stroke-width='1.2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:12px}.bag-controls input{min-height:44px}
+/* Message boxes: 旅程閣's on the website, and 出發前整備's deck warning (app.mjs preparationContent) in both builds. Moved from account.css, which the store build leaves out; this is the stylesheet index.html loads just before account.css, so the website's cascade is unchanged. */
+.account-message{padding:12px 14px;margin:0 0 17px;font-size:11px;line-height:1.85;background:#95b7840d;border:1px solid #95b7843b;color:#cad6b6;border-radius:3px}
+.account-message.is-error{color:#ecc6b6;border-color:#c58f7459;background:#ab553510}

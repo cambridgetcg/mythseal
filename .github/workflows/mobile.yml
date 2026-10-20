@@ -1,0 +1,189 @@
+name: Mobile builds
+
+# The backup release route (docs/MOBILE-RELEASE.md): iOS builds go through Xcode Cloud
+# (ios/App/ci_scripts) unless it is unavailable. Manual runs are dry by default (build and
+# sign, keep artifacts, upload nothing), and GitHub runs workflow_dispatch only once this
+# file is on the default branch. A mobile-v* tag uploads. Uploads go only to TestFlight and
+# Play internal testing; reviewed tracks are promoted by hand (docs/MOBILE-PUBLISHING-RUNBOOK.md).
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Upload to TestFlight internal and Play internal testing
+        type: boolean
+        default: false
+  push:
+    tags: ['mobile-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  MOBILE_UPLOAD: ${{ github.event_name == 'push' || inputs.upload == true }}
+  MOBILE_BUILD_OFFSET: ${{ vars.MOBILE_BUILD_OFFSET }}
+
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 45
+    environment: mobile-stores
+    # Secrets are scoped to the steps that use them, so npm, tests and cap sync never see them.
+    env:
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      # The image's default Xcode changes when GitHub updates the runner, which would change the
+      # SDK a release is built with between two runs of the same commit. Pin it per command
+      # (DEVELOPER_DIR, no sudo xcode-select) and move it by editing this line. 26.6 is the
+      # macos-26 image's default (image 20261013) and meets Apple's upload minimum (Xcode 26).
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          # Full history, for the release fence.
+          fetch-depth: 0
+      - name: Check the release fence
+        # Q1's fence (docs/RELEASE-NEXT.md §1): a build without 7a7d03e in its history must never ship.
+        run: git merge-base --is-ancestor 7a7d03e HEAD
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Check the signing secrets
+        run: node tools/mobile-release.mjs preflight ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+      - name: Check the pinned Xcode (26.6)
+        run: |
+          xcodebuild -version
+          test "$(xcodebuild -version | head -1)" = "Xcode 26.6"
+      - name: Set up Ruby and fastlane
+        uses: ruby/setup-ruby@762794c140bbeda0f1224786aa33b4b46783a6c1 # v1.326.0
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Install pinned tooling
+        run: npm ci
+      - name: Run deterministic suites
+        run: npm test
+      - name: Build the offline guest bundle
+        run: npm run build:native
+      - name: Copy it into the iOS project
+        run: npx cap sync ios
+      - name: Version and summary
+        id: release
+        run: node tools/mobile-release.mjs info ios
+      - name: Decode the App Store Connect key
+        run: |
+          key="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_KEY_P8_B64" | base64 --decode > "$key"
+          chmod 600 "$key"
+          echo "ASC_KEY_PATH=$key" >> "$GITHUB_ENV"
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+      - name: Build, sign and (if uploading) send to TestFlight
+        run: bundle exec fastlane ios beta
+        env:
+          MOBILE_VERSION: ${{ steps.release.outputs.version }}
+          MOBILE_BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      - name: Keep the signed app (dry run)
+        if: env.MOBILE_UPLOAD != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mythseal-ios-${{ steps.release.outputs.build_number }}
+          path: build/ios/*.ipa
+          retention-days: 3
+          if-no-files-found: error
+      - name: Remove the App Store Connect key
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: mobile-stores
+    # Secrets are scoped to the steps that use them, so npm, tests and cap sync never see them.
+    env:
+      PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'draft' }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          # Full history, for the release fence.
+          fetch-depth: 0
+      - name: Check the release fence
+        # Q1's fence (docs/RELEASE-NEXT.md §1): a build without 7a7d03e in its history must never ship.
+        run: git merge-base --is-ancestor 7a7d03e HEAD
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Check the signing secrets
+        run: node tools/mobile-release.mjs preflight android
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          ANDROID_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      - name: Set up Java 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Set up Ruby and fastlane
+        uses: ruby/setup-ruby@762794c140bbeda0f1224786aa33b4b46783a6c1 # v1.326.0
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Install pinned tooling
+        run: npm ci
+      - name: Run deterministic suites
+        run: npm test
+      - name: Build the offline guest bundle
+        run: npm run build:native
+      - name: Copy it into the Android project
+        run: npx cap sync android
+      - name: Version and summary
+        id: release
+        run: node tools/mobile-release.mjs info android
+      - name: Decode the upload keystore
+        run: |
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.keystore"
+          chmod 600 "$RUNNER_TEMP/upload.keystore"
+          # Only the path goes to GITHUB_ENV; Gradle reads the passwords from the job env.
+          echo "MYTHSEAL_UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.keystore" >> "$GITHUB_ENV"
+        env:
+          ANDROID_UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+      - name: Build, sign and (if uploading) send to Play internal testing
+        run: bundle exec fastlane android internal
+        env:
+          MOBILE_VERSION: ${{ steps.release.outputs.version }}
+          MOBILE_BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      - name: Keep the signed bundle (dry run)
+        if: env.MOBILE_UPLOAD != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mythseal-android-${{ steps.release.outputs.build_number }}
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 3
+          if-no-files-found: error
+      - name: Remove the upload keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.keystore"

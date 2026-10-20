@@ -16,16 +16,19 @@ import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResonanceMarkup, m
 import { createExperienceController } from './experience.mjs';
 import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConfrontationMarkup, battleLineupMarkup, revealPairMarkup, battleStatusMarkup, battleHintMarkup, battleCoachMarkup, COACH_SKIP_MARKUP, revealTipMarkup } from './battle-ui.mjs';
 import { createRoundPresentation, paintRoundResources, permittedAnnouncement, createPlanningView, createRevealView } from './battle-presentation.mjs';
-import { createAccountController } from './account-client.mjs';
+import { createAccountController as createAccountClient } from './account-client.mjs';
+import { createOfflineAccount } from './account-offline.mjs';
 import { accountMarkup, accountButtonMarkup } from './account-ui.mjs';
 import { restoreSnapshot, fingerprintProfile } from './cloud-save.mjs';
+import { isNativeShell } from './platform.mjs';
 import { createProfileStore, BATTLE_KEY, RECOVERY_KEY, PROFILE_LOCK } from './profile-store.mjs';
 import { previewCommand, commitCommand, readCommandReceipt, duplicateMessage, COMMAND_MESSAGES } from './local-commands.mjs';
 import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
-import { exportJourney, importJourney, journeySummary, isStandalone } from './platform.mjs';
+import { exportJourney, importJourney, journeySummary, isStandalone, restoreFromMirror } from './platform.mjs';
+import { saveFile, createDurableMirror, createMirrorHold, mirroredStorage } from './native-shell.mjs';
 import { createSaveStatus } from './save-status.mjs';
-import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup } from './save-ui.mjs';
+import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup, recoveryConfirmMarkup, savesButtonMarkup, savePanelMarkup, SAVE_PANEL_NAME } from './save-ui.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
@@ -44,13 +47,24 @@ const announcer = document.querySelector('#announcer');
 const viewport = createViewportController({document,window,announce});
 const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
-const profileStore=createProfileStore({storage:localStorage});
+// The store app keeps a copy of the journey in its own files (native-shell.mjs), because iOS may
+// clear a WKWebView's storage; null on the web. Every profile write reaches it, except while no
+// launch has yet decided whether to restore it (createMirrorHold, below: kept across launches).
+const mirror=createDurableMirror();
+let mirrorHold=null,mirrorNote=null,mirrorSetAside=[];
+const profileStore=createProfileStore({storage:mirror?mirroredStorage(localStorage,{key:PROFILE_KEY,mirror,held:()=>mirrorHold?.held()??true}):localStorage});
 const loadProfile=()=>profileStore.load();
 // Device-local backup status, persistence outcome and prompts; never inside the journey or a
 // backup (docs/LOCAL-COMMANDS.md §11). load() starts a new journey only when none is stored,
 // and only then does the lobby offer a restore.
 const saves=createSaveStatus({storage:localStorage});
-const freshJourney=!profileStore.hasJourney();
+let freshJourney=!profileStore.hasJourney();
+// Written before the new journey's first save, so a page that dies before launchMirror decides
+// relaunches still held. A launch that finds the marker of one that never decided treats its
+// journey as just started, as that launch would have (the restore offer shows only before a
+// first battle).
+mirrorHold=createMirrorHold({storage:localStorage,mirror,fresh:freshJourney});
+if(mirrorHold.resumed)freshJourney=true;
 // localStorage is only eventually consistent between tabs, even for the next holder of the
 // Web Lock. Each holder waits for the bytes the previous holder recorded in the IndexedDB
 // fence (docs/LOCAL-COMMANDS.md §10.1). Read at call time so a browser that loses Web Locks
@@ -85,6 +99,13 @@ let inheritanceView=null;
 // Navigation drafts never create, settle or replace a persisted encounter.
 let preparation=null, preparationReturn=null, accountReturn='home', modalKind=null, modalOrigin=null;
 const screenScroll=new Map();
+// Store builds (Capacitor) are offline guest builds: the account client's same-origin /api
+// calls cannot reach mythseal.com from the app, so it is never started or shown there. The
+// choke point is the controller itself: in a native shell it is account-offline.mjs's inert
+// one, so every path to the account (navigate, the lobby strips' 雲端旅程 and 旅程閣, a session
+// broadcast, an account action) reaches nothing, wherever it is called from.
+const NATIVE_SHELL = isNativeShell();
+const createAccountController = options => NATIVE_SHELL ? createOfflineAccount() : createAccountClient(options);
 const account = createAccountController({
   getLocalProfile: loadProfile,
   restoreLocalProfile: restoreCloudJourney,
@@ -97,7 +118,7 @@ const account = createAccountController({
   },
   notify: message => toast(message),
 });
-const accountChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('mythseal-account') : null;
+const accountChannel = !NATIVE_SHELL && typeof BroadcastChannel === 'function' ? new BroadcastChannel('mythseal-account') : null;
 accountChannel?.addEventListener('message', event => {
   const state = account.getState();
   if (event.data?.type !== 'session-changed' || (!state.initialized && !state.busy)) return;
@@ -186,9 +207,10 @@ function lobbySaveNotice() {
   if(profile.wx01.receipt||profile.expansion.fireMountain.run)return '';
   // The lobby makes no account request: it knows only what 旅程閣 looked up in this page.
   const known=account.getState();
-  if(saves.showRestoreOffer(profile))return saveNoticeMarkup('restore-offer',{cloud:Boolean(known.account)||!known.initialized||known.emailEnabled});
+  // A store build has no cloud: its strips offer the file and nothing that leads to 旅程閣.
+  if(saves.showRestoreOffer(profile))return saveNoticeMarkup('restore-offer',{cloud:!NATIVE_SHELL&&(Boolean(known.account)||!known.initialized||known.emailEnabled)});
   saveNotice??=saves.takePrompt({guest:!known.account});
-  return saveNoticeMarkup(saveNotice,{wins:profile.stats.won});
+  return saveNoticeMarkup(saveNotice,{wins:profile.stats.won,cloud:!NATIVE_SHELL});
 }
 // A cloud backup the account API confirmed saved: the last backup, and the prompt's end.
 function backupMade() {
@@ -202,13 +224,45 @@ function backupDeleted() {
 }
 // The page cannot tell whether the browser saved the file (a cancelled or blocked download
 // looks the same), so an export is recorded as started, never as a backup: it neither ends
-// nor skips a prompt. Only a file that would import is recorded.
-function exportSave() {
+// nor skips a prompt. Only a file that would import is recorded. In the store app the file goes
+// through the share sheet (native-shell.mjs): it is recorded once the sheet reports an
+// activity, still not as a backup, and a dismissed sheet records nothing.
+async function exportSave() {
   try {
-    const result=exportJourney(loadProfile(),{document});
-    if(result.importable){saves.recordExport();if(screen==='account')render();}
-    toast(result.importable?'已開始下載旅程備份；請確認檔案已儲存。':'已開始下載旅程備份；對局或活動未完時的備份未能還原，完成後請再匯出一次。');
+    const result=await exportJourney(loadProfile(),{document});
+    if(result.importable){saves.recordExport();if(screen==='account')render();else if(modalKind==='saves-panel')openSavePanel();}
+    const unfinished='對局或活動未完時的備份未能還原，完成後請再匯出一次。';
+    toast(result.via==='share'?(result.importable?'已經分享選單送出旅程備份；請確認檔案已存好。':`已送出旅程備份；${unfinished}`):result.importable?'已開始下載旅程備份；請確認檔案已儲存。':`已開始下載旅程備份；${unfinished}`);
   } catch(error) { toast(error.message||'未能匯出旅程備份。'); }
+}
+// The store app's 旅程存檔 (docs/IOS-FIRST-FLIGHT.md): 旅程閣's save tools, which the app does
+// not have, as one dialog from the header: export, D2's strict import, the status (the last
+// export and the journey's copy in the app's files) and the recovery copy's actions.
+// A copy still held after the launch was refused but could not be moved: the panel says it is
+// kept as it was and that the new journey is not written to it, rather than 等候第一次保存.
+function openSavePanel() {
+  const copy=mirror?(startupReady&&mirrorHold.held()?{state:'held',at:null,error:null}:mirror.status()):null;
+  modal(savePanelMarkup({status:saves.status(),mirror:copy,recovery:recoveryMarkup(),setAside:mirrorSetAside}),'saves-panel',true,'saves-panel');
+}
+// The store app's launch. A journey this device has just started, because no journey key
+// existed, is what iOS leaves after clearing a WKWebView's storage; if the app's file copy
+// holds a journey, restoreFromMirror checks it as an imported file is checked and restores it
+// through restoreLocalProfile, the strict path every restore shares (never a direct write). A
+// refused copy is set aside and kept. Until that is decided the copy is not written, on this
+// launch or any later one (the hold's marker); after it, the copy follows every save.
+async function launchMirror() {
+  if(mirrorHold.held()){
+    const outcome=await restoreFromMirror({mirror,restore:snapshot=>restoreLocalProfile(snapshot,fingerprintProfile(loadProfile()))});
+    if(outcome.state!=='none')mirrorNote=outcome;
+    // Refused but not movable: the copy stays as it is and the hold stays, across launches too;
+    // each later launch tries again. 旅程存檔 says so and offers the copy as a file.
+    if(outcome.state==='kept')return;
+    if(outcome.state==='restored')freshJourney=false;
+    mirror.write(localStorage.getItem(PROFILE_KEY));
+    mirrorHold.decided();
+    return;
+  }
+  mirror.write(localStorage.getItem(PROFILE_KEY));
 }
 function importBlocked(current) {
   if(economyBusy||current.pending||current.expansion.fireMountain.run)return '請先完成或放棄未完對局，再匯入旅程備份；本機旅程未有更改。';
@@ -252,7 +306,7 @@ async function reviewImport(file) {
   // Nothing is written until the confirmation; it restores only this journey, unchanged.
   importDraft={snapshot:result.snapshot,fingerprint:fingerprintProfile(current)};
   const kept=read(RECOVERY_KEY,null);
-  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null,legacy:result.legacy}),'import-modal',true,'import-review');
+  modal(importConfirmMarkup({current:journeySummary(current),backup:result.summary,fileName:file.name,recovery:kept?.snapshot?{savedAt:kept.savedAt}:null,legacy:result.legacy,place:NATIVE_SHELL?SAVE_PANEL_NAME:'旅程閣',cloud:!NATIVE_SHELL}),'import-modal',true,'import-review');
 }
 // While a confirmed restore is written its dialog cannot be dismissed: ×, Escape and the
 // backdrop are off and Back holds (BACK.HOLD re-arms its entry), since closing it could not
@@ -312,7 +366,7 @@ function cardMarkup(card, options = {}) {
 }
 
 function header() {
-  return gameHeaderMarkup({profile,screen,sound,accountButton:accountButtonMarkup(account.getState())});
+  return gameHeaderMarkup({profile,screen,sound,accountButton:NATIVE_SHELL?savesButtonMarkup():accountButtonMarkup(account.getState())});
 }
 function homeMarkup() { return `${lobbySaveNotice()}${lobbyMarkup(profile,cardMarkup,selectedNode)}`; }
 
@@ -773,6 +827,10 @@ function prepareNextEncounter({editDeck=false}={}) {
   prepareEncounter(intent.kind,intent.nodeId,route);
   if(editDeck&&modalKind==='preparation')openPreparationDeck();
 }
+// The privacy policy's public address, linked from the rules once it is live. privacy.html is a
+// draft awaiting the owner's approval and is not served yet (docs/IOS-FIRST-FLIGHT.md), so no
+// link is shown until this names the deployed page. An https link opens Safari in the app.
+const PRIVACY_URL=null;
 function rulesModal() {
   modal(`<div class="eyebrow">THE ART OF THE DUEL</div><h2>入局，先知取捨。</h2><p>每局 12 生命、12 仙丹。從八張牌中隨機抽四張，最多交手四回合。牌用過就不能再出，仙丹也要留給後面。</p>
     <div class="rules-grid"><div class="rule"><span class="rule-number">01 / 藏鋒</span><h3>力量 ×（1 ＋ 仙丹）</h3><p>加丹提高攻擊，不直接提高傷害。零丹亦有基礎攻擊，可以試探、留力，甚至以技能取勝。</p></div>
@@ -780,7 +838,7 @@ function rulesModal() {
     <div class="rule"><span class="rule-number">03 / 共鳴</span><h3>同族同行，天賦甦醒</h3><p>抽出的四張牌中，至少兩張不同角色同族，便啟動該族加成。已出過的卡仍計入共鳴。</p></div>
     <div class="rule"><span class="rule-number">04 / 破局</span><h3>明牌暗丹，交替先後</h3><p>先手先亮卡，仙丹一直保密。雙方輪換先手。怒擊另付 3 丹，贏得該回合時傷害 +2。</p></div></div>
     <div class="rules-note">第一回合：四張牌總星數較高的一方先手，相同則隨機。<br>攻擊預估只包含己方效果；對手的封鎖、減力、減攻可能改變結果。</div>
-    <div class="modal-actions"><button class="primary" data-action="${screen==='battle'?'close-modal':'rules-start'}">${screen==='battle'?'明白，返回對局':'知其道，入其局'} <span>↗</span></button></div>`);
+    ${PRIVACY_URL?`<p class="rules-privacy"><a href="${PRIVACY_URL}">私隱政策 · Privacy</a></p>`:''}<div class="modal-actions"><button class="primary" data-action="${screen==='battle'?'close-modal':'rules-start'}">${screen==='battle'?'明白，返回對局':'知其道，入其局'} <span>↗</span></button></div>`);
 }
 function detailModal(id, side='player') {
   const c=screen==='battle'?getBattleCard(match,side,id):getCard(id), f=faction(c);
@@ -1036,11 +1094,14 @@ async function resumeBattle(){
   }catch(error){pendingModal();toast(error.message);}
 }
 function requestNavigation(destination) {
+  if(NATIVE_SHELL&&destination==='account')return;
   if(screen==='battle'&&match?.status==='playing'){
     modal(`<div class="eyebrow">LEAVE THE DUEL</div><h2>暫別此局？</h2><p>可以保留對局稍後繼續，或放棄本局。放棄不會獲得獎勵；牌組與修練進度會保留。</p><div class="modal-actions"><button class="secondary" data-action="navigate-confirm" data-id="${destination}">保留並離開</button><button class="primary" data-action="abandon-navigate" data-id="${destination}" data-encounter="${encounter.id}">放棄此局</button></div>`);
   }else navigate(destination);
 }
 function navigate(destination) {
+  // 旅程閣 does not exist in a store build: no screen, no account lookup, whoever asks.
+  if(NATIVE_SHELL&&destination==='account')return;
   if(destination==='daily'){closeModal();questsModal('daily');return;}
   const originScreen=screen,originScroll=modalOrigin?.scroll??window.scrollY;
   closeModal();screenScroll.set(viewKey(),originScroll);
@@ -1174,7 +1235,7 @@ function roundHoldMarkup(){
 
 document.addEventListener('click', event=>{
   const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
-  const {action,id}=button.dataset;
+  const {action,id}=button.dataset;if(NATIVE_SHELL&&action.startsWith('account'))return;
   experience.unlockAudio().catch(()=>{});
   if(action==='activity-open'||action==='activity-route'){if(action==='activity-route')activityRoute=id==='loaner'?'loaner':'owned';return openActivity(action==='activity-route');}
   if(action==='activity-start')return launchActivity({route:id});
@@ -1258,8 +1319,18 @@ document.addEventListener('click', event=>{
   if(accountActions[action]) { Promise.resolve(accountActions[action]()).catch(error=>toast(error.message)); return; }
   if(action==='export-recovery'){
     const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
-    const url=URL.createObjectURL(new Blob([JSON.stringify(saved.snapshot.profile,null,2)],{type:'application/json'})),link=document.createElement('a');
-    link.href=url;link.download='萬象契旅程-本機回復備份.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
+    // A download on the web, the share sheet in the store app (native-shell.mjs).
+    saveFile({name:'萬象契旅程-本機回復備份.json',text:JSON.stringify(saved.snapshot.profile,null,2)}).catch(error=>toast(error.message||'未能匯出回復備份。'));return;
+  }
+  if(action==='saves-open')return openSavePanel();
+  if(action==='export-kept-copy'){
+    // A copy a launch did not restore, from 旅程存檔: one set aside (named), or one still held in
+    // place (no name). Through the share sheet, as every export in the app; the copy stays.
+    const stamp=/refused-(\d{8}T\d{9}Z)/.exec(id||'')?.[1];
+    Promise.resolve(mirror&&(id?mirror.readSetAside(id):mirror.read())).then(text=>{
+      if(typeof text!=='string')throw Error('未能讀取這份副本；副本仍原樣保留。');
+      return saveFile({name:`萬象契旅程-未能還原副本${stamp?`-${stamp}`:''}.json`,text});
+    }).then(()=>toast('已經分享選單送出副本；請確認檔案已存好。')).catch(error=>toast(error.message||'未能匯出副本。'));return;
   }
   if(action==='restore-recovery'){
     if(profile.pending||economyBusy)return toast('請先完成或放棄未完對局。');
@@ -1268,7 +1339,7 @@ document.addEventListener('click', event=>{
     // it is ignored too, not queued as a second restore that is refused after the first lands;
     // it opens held, as that restore's dialog is (holdRestore).
     if(!recoveryDraft?.restoring)recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
-    modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>','',true,'recovery-restore');
+    modal(recoveryConfirmMarkup({cloud:!NATIVE_SHELL}),'',true,'recovery-restore');
     if(recoveryDraft.restoring)holdRestore('recovery-restore',true);
     return;
   }
@@ -1518,7 +1589,18 @@ document.addEventListener('keydown',event=>{
   }
 });
 await transact(p=>p);
+if(mirror){
+  await launchMirror();
+  // What earlier launches set aside, for 旅程存檔's export; listed once, after this launch's own decision.
+  mirror.setAsideCopies().then(list=>{mirrorSetAside=list;if(modalKind==='saves-panel')openSavePanel();});
+}
 saves.launch({fresh:freshJourney,standalone:isStandalone()}).catch(()=>{});
 nav.start();
 startupReady=true;
 render();
+// A copy saved mid-battle or mid-run comes back with that battle or run given up, worded as
+// the game's own 放棄未完對局 and 放下此程 are (platform.mjs settleMirrorCopy).
+const forfeitNote={battle:'；副本中的未完對局已放棄，不會獲得對局獎勵',activity:'；副本中的火焰山三連戰已放下，所得獎勵已保留'};
+if(mirrorNote?.state==='restored')toast(`已由此裝置的保存副本還原旅程${forfeitNote[mirrorNote.forfeited]??''}。`);
+else if(mirrorNote?.state==='refused')toast('此裝置的保存副本未能還原，已另行保留，可在旅程存檔匯出；這是新的旅程。');
+else if(mirrorNote?.state==='kept')toast('此裝置的保存副本未能還原，原樣保留，新的旅程暫不寫入副本；可在旅程存檔匯出。');

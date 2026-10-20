@@ -113,12 +113,12 @@ test('D2 export then import keeps every UID, XP, deck and merchant copy, and the
   let saved = null;
   const document = { createElement: () => ({ click() { downloads.push({ href: this.href, download: this.download }); } }) };
   const urls = { createObjectURL: value => { saved = value; return 'blob:fixture'; }, revokeObjectURL: () => {} };
-  const result = exportJourney(exported, { document, URL: urls, setTimeout: () => {}, now: new Date(now) });
+  const result = await exportJourney(exported, { document, URL: urls, setTimeout: () => {}, now: new Date(now) });
   assert.deepEqual(downloads, [{ href: 'blob:fixture', download: exportFilename(exported) }]);
   assert.equal(exportFilename(exported), `萬象契旅程-${exported.daily.date}.json`);
   const text = await saved.text();
   assert.equal(text, JSON.stringify(exported, null, 2), 'unchanged export format, ledger included');
-  assert.deepEqual([result.importable, result.reason, result.bytes], [true, null, Buffer.byteLength(text)]);
+  assert.deepEqual([result.importable, result.reason, result.bytes, result.via], [true, null, Buffer.byteLength(text), 'download']);
 
   // A fresh device (cleared site data) imports it.
   const device = origin(fresh());
@@ -653,8 +653,8 @@ test('D2 app.mjs imports through restoreLocalProfile, the strict path cloud rest
   assert.match(exported, /if\(result\.importable\)\{saves\.recordExport\(\);/, 'only a file that would import is recorded');
   assert.doesNotMatch(exported, /backupMade|recordBackup|saveNotice/, 'an export never counts as a backup or ends a prompt');
   assert.match(source, /'account-upload': \(\) => account\.upload\(\)\.then\(saved => \{ if \(saved\) backupMade\(\); \}\)/, 'a cloud backup counts once the API says it saved');
-  assert.match(lobby, /saveNoticeMarkup\(saveNotice,\{wins:profile\.stats\.won\}\)/, 'the prompt copy knows the win count');
-  assert.match(lobby, /cloud:Boolean\(known\.account\)\|\|!known\.initialized\|\|known\.emailEnabled/, 'the cloud path stays while the account is unknown');
+  assert.match(lobby, /saveNoticeMarkup\(saveNotice,\{wins:profile\.stats\.won[,}]/, 'the prompt copy knows the win count');
+  assert.match(lobby, /cloud:(?:!NATIVE_SHELL&&\()?Boolean\(known\.account\)\|\|!known\.initialized\|\|known\.emailEnabled/, 'the cloud path stays while the account is unknown (on the website; a store build has none)');
   assert.doesNotMatch(lobby, /account\.init/, 'the lobby makes no account request');
   const cloud = source.slice(source.indexOf("if(action==='restore-offer-cloud')"), source.indexOf("if(action==='navigate-confirm')"));
   assert.match(cloud, /const looked=account\.init\(\);navigate\('account'\);viewport\.selectModule\(\{key:viewKey\(\),moduleId:'cloud'\}\);/, '旅程閣 looks the account up on its 雲端旅程 tab, then the confirmation opens');
@@ -718,7 +718,7 @@ test('D2 with D1 integration review: 復原上次本機旅程 is held while writ
   assert.equal(backDecision(view(true)).action, BACK.DISMISS_MODAL, 'before the confirmation, Back closes it');
   assert.equal(backDecision(view(false)).action, BACK.HOLD, 'while written, Back holds');
   const opening = source.slice(source.indexOf("if(action==='restore-recovery')"), source.indexOf("if(action==='confirm-restore-recovery')"));
-  assert.match(opening, /modal\('<div class="eyebrow">RETURN TO YOUR JOURNEY<\/div>[^\n]*','',true,'recovery-restore'\);\n    if\(recoveryDraft\.restoring\)holdRestore\('recovery-restore',true\);/, 'its own kind, and held when reopened during its restore');
+  assert.match(opening, /modal\(recoveryConfirmMarkup\(\{cloud:!NATIVE_SHELL\}\),'',true,'recovery-restore'\);\n    if\(recoveryDraft\.restoring\)holdRestore\('recovery-restore',true\);/, 'its own kind, and held when reopened during its restore');
   const confirming = source.slice(source.indexOf("if(action==='confirm-restore-recovery')"), source.indexOf("if(action==='bag-tab')"));
   assert.match(confirming, /draft\.restoring=true;holdRestore\('recovery-restore',true\);\n    restoreLocalProfile\(draft\.snapshot,draft\.fingerprint\)/);
   assert.match(confirming, /\.then\(\(\)=>\{if\(recoveryDraft===draft\)recoveryDraft=null;if\(modalKind==='recovery-restore'\)closeModal\(\);/);

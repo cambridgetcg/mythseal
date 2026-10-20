@@ -21,6 +21,49 @@ verification remains outstanding. There are no native app projects, signed mobil
 builds or store releases yet; player trading, authoritative online progression
 and collectible issuance remain separate future work.
 
+**2026-10-12:** committed Capacitor `ios/` and `android/` projects and a cloud
+pipeline (`.github/workflows/mobile.yml`) now exist for an **offline guest
+build** (no accounts). They are for TestFlight and Play testing practice; see
+the [runbook](MOBILE-PUBLISHING-RUNBOOK.md). M5.1 and M5.2 acceptance is still
+outstanding.
+
+**2026-10-20 · iOS first flight** (branch `ios/first-flight`, draft PR #17, merged
+into `main` the same day; Xcode Cloud build 3 reached TestFlight internal and the
+owner's iPhone). PR #13 is merged into
+`main` there with a merge commit and fixed for a first TestFlight build;
+[IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md) lists each change, its reason and the
+rung it reached.
+
+- **Publisher:** Mindicraft Limited (company 13782045, an organization team;
+  Team ID `ZXUWDK4J3C`). The Google Play entity is to be confirmed. The draft
+  privacy page names Mindicraft, has placeholders for unrecorded facts and is
+  off the web allowlist until the owner approves it.
+- **Route:** hybrid. Xcode Cloud builds iOS releases first
+  (`ios/App/ci_scripts/ci_post_clone.sh`, rendered from the separate public
+  orchard repository's template; Apple signs in the cloud). The GitHub Actions
+  workflow is the backup (now with the release fence and a pinned Xcode 26.6),
+  and it can be dispatched only once it is on the default branch. A local Xcode
+  serves the simulator only. This supersedes "build in the cloud, not on this
+  Mac" (2026-10-12).
+- **Offline guest build:** the store build leaves out `account-client.mjs`,
+  `account-ui.mjs` and `account.css` (App Review 2.5.19: no dormant features),
+  and every path to 旅程閣 stops at two choke points. 旅程閣's wiring inside
+  shared modules still ships, switched off and with no client to call
+  ([what, and why it cannot run](IOS-FIRST-FLIGHT.md#what-the-store-build-still-carries-of-the-account)).
+- **Saves in the app:** a header button, 旅程存檔, opens D2's export (through the
+  iOS share sheet, since a Blob download does nothing in WKWebView), D2's
+  strict import and the save status. Every save is copied to the app's Library
+  directory; if iOS clears the WebView's storage, the next launch restores the
+  copy through the same strict restore as a file import.
+- **iOS project:** Capacitor 8.5.3 (SPM), iOS 16, iPhone only, portrait only,
+  zh-Hant, `ITSAppUsesNonExemptEncryption` NO, arm64, an app privacy manifest
+  declaring the file-timestamp API the Filesystem plugin uses.
+- **Verified since:** the app runs in a real WKWebView (Simulator) and reaches
+  the Filesystem plugin; Xcode Cloud build 3 was cloud-signed and installed
+  through TestFlight on the owner's iPhone (see IOS-FIRST-FLIGHT).
+  **Not yet observed on a device:** the share sheet, `<input type=file>` in the
+  app, and whether the Library copy survives what clears the WebView's storage.
+
 ## Shared game interface for mobile
 
 Keep **洞府 / 遊歷 / 對弈 / 藏卡 / 市集** consistent across clients. Adapt the
@@ -105,7 +148,12 @@ review; this note said "once"). 旅程閣 shows the last cloud backup's date, wh
 the last export download started (a browser page cannot confirm the file was
 saved; corrected after the second D2 review) and the browser's answer; a new
 journey offers a restore, from a v0.5.1 export too. A native share sheet that
-reports a completed save could record a confirmed backup instead. A native build can replace
+reports a completed save could record a confirmed backup instead. (2026-10-20:
+on branch `ios/first-flight` the store app's adapter exists: a share-sheet
+export recorded as an export, not a backup, since the sheet reports only that
+an activity completed; D2's import from a 旅程存檔 dialog; and a copy of the
+journey in the app's files that comes back through the strict restore. See
+[IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md).) A native build can replace
 those three functions (durable native storage, a share sheet, a file picker)
 without changing the journey format. With D1 merged into the branch, the import
 dialog is one Back layer: it opens on the tap that opens the picker, Back closes
@@ -221,7 +269,7 @@ Android phone before M5.1 can close; the M5.1 row above keeps its exit evidence.
 - First launch territories and intended audience/age range.
 - Whether mobile launches entirely free, and whether any later paid product is actually needed.
 - Whether NFTs are optional collectibles or intended to carry playable access and trained-card transfer; this changes platform feasibility.
-- Developer organization, account ownership, signing/recovery responsibilities and ongoing support capacity.
+- Developer organization, account ownership, signing/recovery responsibilities and ongoing support capacity. (2026-10-20: Apple is decided, Mindicraft Limited's organization team; the Play Console entity is still to be confirmed.)
 - Physical test devices, minimum supported OS versions and measurable performance targets.
 - Server authority, migration policy for existing saves, wallet custody/recovery and chain evaluation, if the collectible phase proceeds.
 
