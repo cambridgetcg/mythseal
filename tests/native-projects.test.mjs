@@ -104,8 +104,9 @@ test('Xcode Cloud runs the rendered post-clone script: fence, Node 24, tests, th
   assert.match(execFileSync('git', ['ls-files', '--stage', path], { encoding: 'utf8' }), /^100755 /, 'committed executable');
   assert.ok(script.startsWith('#!/bin/sh\n'));
   assert.doesNotMatch(script, /\{\{/, 'fully rendered from orchard\'s template');
-  const steps = ['set -eu', 'cd "$CI_PRIMARY_REPOSITORY_PATH"', 'git fetch --unshallow', 'git merge-base --is-ancestor 7a7d03e HEAD', 'brew install node@24', 'npm ci', 'npm test', 'npm run build:native', 'ORCHARD_PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"', 'npx cap sync ios'];
+  const steps = ['set -eu', 'cd "$CI_PRIMARY_REPOSITORY_PATH"', 'git fetch --unshallow', 'git merge-base --is-ancestor 7a7d03e HEAD', 'brew install node@24', 'npm ci', 'npm test', 'npm run build:native', 'ORCHARD_PBXPROJ="ios/App/App.xcodeproj/project.pbxproj"', './node_modules/.bin/cap sync ios'];
   let at = -1;
   for (const step of steps) { const next = script.indexOf(step, at + 1); assert.ok(next > at, `${step} runs, in order`); at = next; }
+  assert.doesNotMatch(script, /\bnpx cap\b/, 'the app\'s own Capacitor CLI, never whatever npx might fetch');
   assert.doesNotMatch(script, /\$\{\{\s*secrets|ASC_|\.p8\b|\bsecurity (?:find|add)|_KEY=/, 'Apple signs in the cloud: no key or secret here');
 });
