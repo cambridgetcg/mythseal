@@ -12,3 +12,15 @@
 .bag-overview.guide-hint>.guide-hint-body{display:block;padding:0;border:0;text-align:left;font-size:11px;line-height:1.6;letter-spacing:0;color:var(--muted)}
 /* world-level replaces the node's spaced gold subtitle with a plain muted line. */
 .scene-world .destination-panel .destination-subtitle.guide-hint{letter-spacing:0;font-size:11px;line-height:1.6;color:var(--muted)}
+
+/* §3 詞彙: the rules dialog's second module. The intro now leads the 弈道 list and keeps the
+   size it had above it; each term is a list item, its definition two lines at 302 px. */
+.scene-dialog .rules-grid>p{font-size:11px;line-height:1.7}
+.scene-dialog .glossary-term h3{font:15px/1.4 var(--serif);color:var(--gold);margin:0 0 3px;letter-spacing:1px}
+.scene-dialog .glossary-term p{font-size:12px;line-height:1.7;margin:0}
+.scene-dialog .glossary-term:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* The 詞彙 tab row is the rules dialog's new cost: it sits tight on the list, and on short
+   landscape screens it takes the place of the decorative eyebrow, so the 弈道 list frame is
+   never shorter than before T1 (measured by npm run test:guide against main). */
+.scene-dialog.rules-dialog>.viewport-module-tabs{padding-bottom:0}
+@media(max-height:500px){.scene-dialog.rules-dialog:has(>.viewport-module-tabs:not([hidden]))>.eyebrow.dialog-compact-heading{display:none}}

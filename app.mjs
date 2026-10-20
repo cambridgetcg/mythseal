@@ -41,6 +41,7 @@ import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrin
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
 import { attackFormula, costVariants, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
 import { createGuideMemory, guideHints, guideScreenKey, hintMarkup, rulesStartRoute, GUIDE_DIALOG_KINDS } from './first-visit.mjs';
+import { glossaryMarkup, GLOSSARY_IDS } from './glossary.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -865,14 +866,23 @@ function prepareNextEncounter({editDeck=false}={}) {
 // draft awaiting the owner's approval and is not served yet (docs/IOS-FIRST-FLIGHT.md), so no
 // link is shown until this names the deployed page. An https link opens Safari in the app.
 const PRIVACY_URL=null;
-function rulesModal() {
-  modal(`<div class="eyebrow">THE ART OF THE DUEL</div><h2>入局，先知取捨。</h2><p>每局 12 生命、12 仙丹。從八張牌中隨機抽四張，最多交手四回合。牌用過就不能再出，仙丹也要留給後面。</p>
+/** The rules dialog: 弈道, and since T1 its second module 詞彙 (docs/TUTORIAL-T1.md §3). Opened
+ * at a term (the header resources), it opens on 詞彙 at that term, under its own heading. */
+function rulesModal({term=null}={}) {
+  const battle=screen==='battle',open=!battle&&GLOSSARY_IDS.includes(term)?term:null;
+  const [eyebrow,title]=open?['WORDS ON THE ROAD','識其名，知其用。']:['THE ART OF THE DUEL','入局，先知取捨。'];
+  const [action,label]=battle?['close-modal','明白，返回對局']:open?['close-modal','明白了']:['rules-start','知其道，入其局'];
+  // 弈道 always opens on its own first page, even if the dialog was last left on 詞彙.
+  if(!open)viewport.forget('modal-rules');
+  modal(`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>每局 12 生命、12 仙丹。從八張牌中隨機抽四張，最多交手四回合。牌用過就不能再出，仙丹也要留給後面。</p>
     <div class="rules-grid"><div class="rule"><span class="rule-number">01 / 藏鋒</span><h3>力量 ×（1 ＋ 仙丹）</h3><p>加丹提高攻擊，不直接提高傷害。零丹亦有基礎攻擊，可以試探、留力，甚至以技能取勝。</p></div>
     <div class="rule"><span class="rule-number">02 / 決勝</span><h3>高攻得勝，按傷扣血</h3><p>攻擊相同時，低星卡勝；星數亦相同，先手勝。生命歸零即結束，四回合後剩餘生命較高者勝。</p></div>
     <div class="rule"><span class="rule-number">03 / 共鳴</span><h3>同族同行，天賦甦醒</h3><p>抽出的四張牌中，至少兩張不同角色同族，便啟動該族加成。已出過的卡仍計入共鳴。</p></div>
     <div class="rule"><span class="rule-number">04 / 破局</span><h3>明牌暗丹，交替先後</h3><p>先手先亮卡，仙丹一直保密。雙方輪換先手。怒擊另付 3 丹，贏得該回合時傷害 +2。</p></div></div>
     <div class="rules-note">第一回合：四張牌總星數較高的一方先手，相同則隨機。<br>攻擊預估只包含己方效果；對手的封鎖、減力、減攻可能改變結果。</div>
-    ${PRIVACY_URL?`<p class="rules-privacy"><a href="${PRIVACY_URL}">私隱政策 · Privacy</a></p>`:''}<div class="modal-actions"><button class="primary" data-action="${screen==='battle'?'close-modal':'rules-start'}">${screen==='battle'?'明白，返回對局':'知其道，入其局'} <span>↗</span></button></div>`);
+    ${glossaryMarkup({open})}${PRIVACY_URL?`<p class="rules-privacy"><a href="${PRIVACY_URL}">私隱政策 · Privacy</a></p>`:''}<div class="modal-actions"><button class="primary" data-action="${action}">${label} <span>↗</span></button></div>`,'rules-dialog',true,'rules');
+  // After modal()'s own focusDialogStart frame: open the page that holds the term and focus it.
+  if(open)requestAnimationFrame(()=>viewport.revealElement(overlay.querySelector(`[data-glossary-term="${open}"]`),{focus:true}));
 }
 function detailModal(id, side='player') {
   const c=screen==='battle'?getBattleCard(match,side,id):getCard(id), f=faction(c);

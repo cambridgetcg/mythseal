@@ -85,9 +85,17 @@ function preparation(anchor) {
 function rules(anchor) {
   heading(anchor); fixedActions(anchor);
   const rules = anchor.querySelector('.rules-grid'), note = anchor.querySelector('.rules-note');
-  if (note) rules.append(note);
-  const module = section(anchor, 'rules', '弈道'); module.append(paged(rules, 'rules'));
-  const intro = children(anchor).filter(node => node.tagName === 'P'); if (intro.length) module.prepend(...intro);
+  // T1 (docs/TUTORIAL-T1.md §3): the intro is the list's first item, so paging absorbs the tab row.
+  const intro = children(anchor).filter(node => node.tagName === 'P' && !node.matches('.rules-privacy'));
+  rules.prepend(...intro); if (note) rules.append(note);
+  const privacy = anchor.querySelector(':scope > .rules-privacy'); if (privacy) rules.append(privacy);
+  section(anchor, 'rules', '弈道', [paged(rules, 'rules')]);
+  // The glossary is the second module; opened at a term, it is the default.
+  const glossary = anchor.querySelector(':scope > .glossary-list');
+  if (glossary) {
+    const words = section(anchor, 'glossary', '詞彙', [paged(glossary, 'glossary')]);
+    if (glossary.dataset.open === 'true') words.dataset.viewportDefault = 'true';
+  }
   finish(anchor);
 }
 function settings(anchor) {
