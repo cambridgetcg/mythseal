@@ -1705,8 +1705,9 @@ rm -rf "$K"; unset PASS
 
 (Amended 2026-10-20: fill in the `O=` entity once the owner confirms who holds
 the Play Console account. Note too that `security add-generic-password -w
-"$(…)"` puts the secret in the process list while it runs; feeding
-`add-generic-password` to `security -i` on stdin avoids that.)
+"$(…)"` and `-w "$PASS"` put the secret in the process list while they run;
+feeding `add-generic-password` to `security -i` on stdin avoids that. The same
+applies to Tasks 11 and 12 below.)
 
 Expected: one `PrivateKeyEntry` named `mythseal-upload`. Record the SHA-256
 certificate fingerprint (public) in `docs/CONNECTIONS.md`, never the password.
@@ -1743,6 +1744,22 @@ out in Step 1. They are typed at run time, not stored in the plan.
 
 Expected: `Registered com.mythseal.game` (or "already registered").
 
+(Amended 2026-10-20: the Keychain line above puts the whole base64 key, an
+Admin team key that reaches every app on the Mindicraft team, in the process
+list while it runs, and stores it under a service orchard does not read. Use
+orchard instead, in this order: run `register_bundle_id` from the downloaded
+file as above; then `orchard key import AuthKey_<KEYID>.p8 --key-id <KEYID>
+--issuer-id <ISSUERID>`, which stores it in the login Keychain over stdin and
+checks the stored bytes; then, only if the owner has said this route is to be
+used, `orchard key gh-secret mythseal --yes` for the three `ASC_*` secrets
+(orchard's `docs/KEYS.md` and its RUNBOOK step 8; orchard is local at
+`~/orchard`, to become `cambridgetcg/orchard`). That command calls `gh secret
+set` with whatever `gh` is signed in, not `sol access run github --`; to keep
+the plan's credential, use the plan's three `secret set` lines above instead
+(they already read stdin). Either way, orchard sets neither `APPLE_TEAM_ID`
+nor the bundle ID, so keep those lines, and orchard does not delete the
+downloaded file: `rm -f "$P8"` comes last, once the import has checked it.)
+
 - [ ] **Step 3: The owner creates the app record.** Apps → "+" → New App: iOS,
   name `Mythseal` (if taken: `萬象契 Mythseal`), primary language Traditional
   Chinese, bundle ID `com.mythseal.game`, SKU `mythseal-ios`, full access.
@@ -1769,6 +1786,19 @@ security add-generic-password -U -a cambridgetcg -s mythseal-play-service-accoun
 sol access run github -- secret set PLAY_SERVICE_ACCOUNT_JSON --env mobile-stores -R cambridgetcg/mythseal < "$J"
 rm -f "$J"
 ```
+
+(Amended 2026-10-20: the Keychain line above puts the base64 service-account
+JSON in the process list while it runs. Feed the command to `security -i` on
+stdin instead; `printf` is a shell builtin, so the value never becomes a
+process argument:
+`printf 'add-generic-password -U -a cambridgetcg -s mythseal-play-service-account -w %s\n' "$(base64 -i "$J" | tr -d '\n')" | security -i`.
+This line is about ten times longer than the `.p8` line orchard feeds the
+same way, and that length has not been tried, so compare the stored value with
+the file by hash, printing neither:
+`security find-generic-password -a cambridgetcg -s mythseal-play-service-account -w | tr -d '\n' | shasum -a 256`
+against `base64 -i "$J" | tr -d '\n' | shasum -a 256`, before deleting the file.
+The `secret set PLAY_SERVICE_ACCOUNT_JSON < "$J"` line already reads stdin.
+orchard does not handle Play keys.)
 
 The owner then goes to Play Console → Users and permissions → Invite new
 users, enters the printed `client_email`, and under App permissions → Mythseal
