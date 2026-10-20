@@ -31,3 +31,7 @@
 /* Lv keeps navigation.css's size, colour and display (hidden below 1,051 px). */
 .game-shell .game-header .game-player-level{min-width:44px;min-height:44px;padding:0 2px;margin:0;border:0;border-radius:3px;background:none;cursor:pointer}
 .game-shell .game-header .game-resource:focus-visible,.game-shell .game-header .game-player-level:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* On short landscape screens the cards hub tabs sit in the header row over the wallet
+   (scene-content.css); as buttons the resources there would be covered controls, so on 藏卡 and
+   圖鑑 they give way to the tabs, which already hid their text. */
+@media(max-height:500px){.shell.game-shell:has(.cards-hub-tabs) .game-header-resources{visibility:hidden}}
