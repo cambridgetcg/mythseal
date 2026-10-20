@@ -34,7 +34,7 @@ pushed, merged, built with Xcode, signed or uploaded). PR #13 is merged into
 rung it reached.
 
 - **Publisher:** Mindicraft Limited (company 13782045, an organization team;
-  Team ID not yet known). The Google Play entity is to be confirmed. The draft
+  Team ID `ZXUWDK4J3C`). The Google Play entity is to be confirmed. The draft
   privacy page names Mindicraft, has placeholders for unrecorded facts and is
   off the web allowlist until the owner approves it.
 - **Route:** hybrid. Xcode Cloud builds iOS releases first

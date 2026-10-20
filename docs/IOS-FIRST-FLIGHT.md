@@ -6,7 +6,7 @@ deployed, signed, uploaded or registered with Apple or Google.
 This branch brings open PR #13 (`mobile/cloud-pipeline`) up to `main` with a
 merge commit and fixes what stood between it and a first TestFlight build under
 the owner's 2026-10-20 decisions: **Mindicraft Limited** (company 13782045, an
-organization team; Team ID not yet known) publishes on the App Store, and
+organization team; Team ID `ZXUWDK4J3C`) publishes on the App Store, and
 release builds run in the cloud (**Xcode Cloud** first, the GitHub Actions
 workflow as backup), with a local Xcode used only for the simulator. The
 pipeline's shared templates and checks live in orchard, a separate public
@@ -87,9 +87,11 @@ source, not observed): that is why the export uses the share sheet.
   (`capacitor-swift-pm` 8.5.3, `ion-ios-filesystem` 2.0.1); the two plugins are
   local paths into `node_modules`. Regenerate and commit it after every
   Capacitor or plugin bump. `orchard doctor` reports it missing until then.
-- **Team ID.** Record Mindicraft's Team ID (Membership page) in orchard's
-  `orchard.json`, and as the `APPLE_TEAM_ID` variable only if the Actions backup
-  is set up.
+- **Team ID.** Done: the owner confirmed Mindicraft's Team ID `ZXUWDK4J3C` on
+  2026-10-20. It is set as `DEVELOPMENT_TEAM` on the App target (Xcode Cloud's
+  automatic signing needs the project's team to match) and in orchard's
+  `orchard.json`. Set it as the `APPLE_TEAM_ID` variable only if the Actions
+  backup is set up.
 - **Who owns Mythseal.** The code, art and name sit in the `cambridgetcg`
   organization; nothing here records who owns them. If that is not Mindicraft
   Limited, Mindicraft needs a licence to publish them (App Review's

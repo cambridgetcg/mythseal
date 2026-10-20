@@ -8,7 +8,7 @@ Nothing in this document has been built, signed, uploaded or registered.
 
 **Amended 2026-10-20 (publisher).** The owner decided that **Mindicraft Limited**
 (company 13782045, an organization team) publishes Mythseal on the App Store.
-Its Team ID is not yet known. The Google Play publishing entity is **to be
+Its Team ID is `ZXUWDK4J3C` (confirmed 2026-10-20). The Google Play publishing entity is **to be
 confirmed**. The 2026-10-12 statement below that both store accounts belong to
 Cambridge TCG Limited is kept as the record of that day and is superseded for
 Apple; nothing here establishes which entity holds the Play Console account.
@@ -278,7 +278,7 @@ owner's standing agreement is that approval happens in conversation.
 | Secret / variable | What it is | Notes |
 | --- | --- | --- |
 | `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_B64` | App Store Connect team API key | **Admin** role, the lowest that can use cloud-managed distribution signing. API keys can't carry App Manager's per-user "cloud-managed distribution certificate" permission (Apple developer forum thread 776036; no Apple document names the role). Recorded in `docs/CONNECTIONS.md`. |
-| `APPLE_TEAM_ID` (variable) | Mindicraft Limited's team ID (amended 2026-10-20; not yet known) | Not secret. |
+| `APPLE_TEAM_ID` (variable) | Mindicraft Limited's team ID (amended 2026-10-20: `ZXUWDK4J3C`) | Not secret. |
 | `PLAY_SERVICE_ACCOUNT_JSON` | Google Cloud service-account key | Invited in Play Console with app-level "release to testing tracks" permission only. |
 | `ANDROID_UPLOAD_KEYSTORE_B64`, `ANDROID_UPLOAD_KEYSTORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` | Upload keystore | Generated on this Mac with the Homebrew JDK 21 `keytool`. A copy is kept as a macOS keychain item `mythseal-android-upload-keystore`, and the local file is deleted after `gh secret set`. |
 
