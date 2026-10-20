@@ -26,7 +26,7 @@ import { previewCommand, commitCommand, readCommandReceipt, duplicateMessage, CO
 import { createFencedLock, createIndexedDBFence } from './profile-fence.mjs';
 import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
 import { exportJourney, importJourney, journeySummary, isStandalone, restoreFromMirror } from './platform.mjs';
-import { saveFile, createDurableMirror, mirroredStorage } from './native-shell.mjs';
+import { saveFile, createDurableMirror, createMirrorHold, mirroredStorage } from './native-shell.mjs';
 import { createSaveStatus } from './save-status.mjs';
 import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup, savesButtonMarkup, savePanelMarkup, SAVE_PANEL_NAME } from './save-ui.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
@@ -48,18 +48,23 @@ const viewport = createViewportController({document,window,announce});
 const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 // The store app keeps a copy of the journey in its own files (native-shell.mjs), because iOS may
-// clear a WKWebView's storage; null on the web. Every profile write reaches it, except while a
-// journey this device has just started waits for launchMirror to decide whether to restore it.
+// clear a WKWebView's storage; null on the web. Every profile write reaches it, except while no
+// launch has yet decided whether to restore it (createMirrorHold, below: kept across launches).
 const mirror=createDurableMirror();
-let mirrorHeld=false,mirrorNote=null;
-const profileStore=createProfileStore({storage:mirror?mirroredStorage(localStorage,{key:PROFILE_KEY,mirror,held:()=>mirrorHeld}):localStorage});
+let mirrorHold=null,mirrorNote=null;
+const profileStore=createProfileStore({storage:mirror?mirroredStorage(localStorage,{key:PROFILE_KEY,mirror,held:()=>mirrorHold?.held()??true}):localStorage});
 const loadProfile=()=>profileStore.load();
 // Device-local backup status, persistence outcome and prompts; never inside the journey or a
 // backup (docs/LOCAL-COMMANDS.md §11). load() starts a new journey only when none is stored,
 // and only then does the lobby offer a restore.
 const saves=createSaveStatus({storage:localStorage});
 let freshJourney=!profileStore.hasJourney();
-mirrorHeld=Boolean(mirror)&&freshJourney;
+// Written before the new journey's first save, so a page that dies before launchMirror decides
+// relaunches still held. A launch that finds the marker of one that never decided treats its
+// journey as just started, as that launch would have (the restore offer shows only before a
+// first battle).
+mirrorHold=createMirrorHold({storage:localStorage,mirror,fresh:freshJourney});
+if(mirrorHold.resumed)freshJourney=true;
 // localStorage is only eventually consistent between tabs, even for the next holder of the
 // Web Lock. Each holder waits for the bytes the previous holder recorded in the IndexedDB
 // fence (docs/LOCAL-COMMANDS.md §10.1). Read at call time so a browser that loses Web Locks
@@ -233,23 +238,29 @@ async function exportSave() {
 // The store app's 旅程存檔 (docs/IOS-FIRST-FLIGHT.md): 旅程閣's save tools, which the app does
 // not have, as one dialog from the header: export, D2's strict import, the status (the last
 // export and the journey's copy in the app's files) and the recovery copy's actions.
+// A copy still held after the launch was refused but could not be moved: the panel says it is
+// kept as it was and that the new journey is not written to it, rather than 等候第一次保存.
 function openSavePanel() {
-  modal(savePanelMarkup({status:saves.status(),mirror:mirror?.status()??null,recovery:recoveryMarkup()}),'saves-panel',true,'saves-panel');
+  const copy=mirror?(startupReady&&mirrorHold.held()?{state:'held',at:null,error:null}:mirror.status()):null;
+  modal(savePanelMarkup({status:saves.status(),mirror:copy,recovery:recoveryMarkup()}),'saves-panel',true,'saves-panel');
 }
 // The store app's launch. A journey this device has just started, because no journey key
 // existed, is what iOS leaves after clearing a WKWebView's storage; if the app's file copy
 // holds a journey, restoreFromMirror checks it as an imported file is checked and restores it
 // through restoreLocalProfile, the strict path every restore shares (never a direct write). A
-// refused copy is set aside and kept. Until that is decided the copy is not written; after it,
-// the copy follows every save.
+// refused copy is set aside and kept. Until that is decided the copy is not written, on this
+// launch or any later one (the hold's marker); after it, the copy follows every save.
 async function launchMirror() {
-  if(mirrorHeld){
+  if(mirrorHold.held()){
     const outcome=await restoreFromMirror({mirror,restore:snapshot=>restoreLocalProfile(snapshot,fingerprintProfile(loadProfile()))});
-    // Refused but not movable: leave the copy untouched for this launch.
+    if(outcome.state!=='none')mirrorNote=outcome;
+    // Refused but not movable: the copy stays as it is and the hold stays, across launches too;
+    // each later launch tries again. 旅程存檔 says so.
     if(outcome.state==='kept')return;
     if(outcome.state==='restored')freshJourney=false;
-    if(outcome.state!=='none')mirrorNote=outcome;
-    mirrorHeld=false;
+    mirror.write(localStorage.getItem(PROFILE_KEY));
+    mirrorHold.decided();
+    return;
   }
   mirror.write(localStorage.getItem(PROFILE_KEY));
 }
@@ -1579,3 +1590,4 @@ render();
 const forfeitNote={battle:'；副本中的未完對局已放棄，不會獲得對局獎勵',activity:'；副本中的火焰山三連戰已放下，所得獎勵已保留'};
 if(mirrorNote?.state==='restored')toast(`已由此裝置的保存副本還原旅程${forfeitNote[mirrorNote.forfeited]??''}。`);
 else if(mirrorNote?.state==='refused')toast('此裝置的保存副本未能還原，已另行保留；這是新的旅程。');
+else if(mirrorNote?.state==='kept')toast('此裝置的保存副本未能還原，原樣保留，新的旅程暫不寫入副本；詳見旅程存檔。');

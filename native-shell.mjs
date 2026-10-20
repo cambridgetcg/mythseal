@@ -125,10 +125,37 @@ export function createDurableMirror({ scope = globalThis, directory = MIRROR_DIR
   };
 }
 
+/** Whether the copy must stay as it is because no launch has yet decided what to do with it.
+ * A journey this device has just started (web storage cleared, or a first install) holds the
+ * copy until restoreFromMirror decides, and that hold must outlive the page: the game saves the
+ * new journey before the decision (the save pins the journey the restore's fingerprint is
+ * checked against), so a page that dies between that save and the decision would otherwise
+ * relaunch with a journey in storage, no hold, and write the new journey over the only copy.
+ * So a fresh launch writes `key` before the first save (localStorage keeps one origin's writes
+ * in order, so the journey is never stored without it), any launch that finds it is held too,
+ * and only `decided()` removes it, once a launch has restored, set aside or found no copy. A
+ * copy that was refused but could not be moved ('kept') leaves it in place: held across
+ * launches, never overwritten. `resumed` says this launch found an undecided marker on a
+ * journey already stored. Inert (never held) without a mirror. */
+export const MIRROR_UNDECIDED_KEY = 'mythseal.mirror.undecided';
+export function createMirrorHold({ storage, mirror, fresh, key = MIRROR_UNDECIDED_KEY, now = () => new Date() }) {
+  if (!mirror) return { held: () => false, resumed: false, decided() {} };
+  let held = Boolean(fresh), resumed = false;
+  try {
+    if (fresh) storage.setItem(key, new Date(now()).toISOString());
+    else held = resumed = storage.getItem(key) !== null;
+  } catch {}
+  return {
+    held: () => held,
+    resumed,
+    decided() { held = false; try { storage.removeItem(key); } catch {} },
+  };
+}
+
 /** localStorage, with every successful write of `key` also queued to the mirror, unless
- * `held()` says the mirror must not change yet (a journey this device just started, before the
- * launch has decided whether to restore the copy). A failed localStorage write is never
- * mirrored: it throws first, exactly as before. */
+ * `held()` says the mirror must not change yet (createMirrorHold: no launch has decided
+ * whether to restore the copy). A failed localStorage write is never mirrored: it throws
+ * first, exactly as before. */
 export function mirroredStorage(storage, { key, mirror, held = () => false }) {
   return {
     getItem: name => storage.getItem(name),

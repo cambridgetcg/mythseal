@@ -23,7 +23,9 @@ const time = value => `<time datetime="${safe(value)}">${safe(stampLabel(value))
 /** The store app's status: when the share sheet last took an export (it reports that an
  * activity completed, not where the file went, so it is still not a confirmed backup), and the
  * journey's copy in the app's files. No cloud and no browser storage request exist there. */
-const MIRROR_LABELS = Object.freeze({ idle: '等候第一次保存', saved: '已更新', error: '未能寫入（遊戲照常保存在此裝置）' });
+/** `held`: a copy the launch could neither restore nor move aside stays as it was, and the new
+ * journey is not written to it, on this launch or later ones, so it is never overwritten. */
+const MIRROR_LABELS = Object.freeze({ idle: '等候第一次保存', saved: '已更新', error: '未能寫入（遊戲照常保存在此裝置）', held: '保留著未能還原的舊副本，新的旅程暫不寫入，以免覆寫' });
 function nativeStatusMarkup({ lastExport = null, mirror = null } = {}) {
   const exported = `<span data-last-export>上次匯出：${lastExport ? `${time(lastExport.at)} · 已經分享選單送出，此頁無法確認檔案存到哪裡` : '未曾'}</span>`;
   const state = mirror?.state ?? 'idle';

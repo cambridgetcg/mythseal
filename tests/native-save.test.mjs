@@ -11,7 +11,7 @@ import { mintInstance, setInstanceXP, saveInstanceDeck, getActiveDeck } from '..
 import { fingerprintProfile } from '../cloud-save.mjs';
 import { createProfileStore, RECOVERY_KEY } from '../profile-store.mjs';
 import { createFencedLock } from '../profile-fence.mjs';
-import { isNativeShell, nativePlugins, saveFile, SaveCancelled, createDurableMirror, mirroredStorage, MIRROR_DIRECTORY, MIRROR_PATH } from '../native-shell.mjs';
+import { isNativeShell, nativePlugins, saveFile, SaveCancelled, createDurableMirror, createMirrorHold, mirroredStorage, MIRROR_DIRECTORY, MIRROR_PATH, MIRROR_UNDECIDED_KEY } from '../native-shell.mjs';
 import { exportJourney, exportText, exportFilename, restoreFromMirror, IMPORT_MESSAGES } from '../platform.mjs';
 import { saveStatusMarkup, savePanelMarkup, savesButtonMarkup, importConfirmMarkup, SAVE_PANEL_NAME } from '../save-ui.mjs';
 
@@ -146,15 +146,16 @@ test('every profile write reaches the mirror, unless held; other keys and failed
   assert.equal(storage.getItem(PROFILE_KEY), 'b');
 });
 
-/** One app install: localStorage (which iOS can clear), a strict lock and fence as app.mjs has,
- * and the mirror on the shared fake Filesystem (which survives the clearing). */
-function install(fs, { stored } = {}) {
-  const data = new Map(stored === undefined ? [] : [[PROFILE_KEY, JSON.stringify(stored)]]), writes = [];
+/** One app launch: localStorage (which iOS can clear; pass `data` to relaunch over the same
+ * storage), a strict lock and fence as app.mjs has, the mirror on the shared fake Filesystem
+ * (which survives the clearing) and app.mjs's hold on it (createMirrorHold). */
+function install(fs, { stored, data = new Map(stored === undefined ? [] : [[PROFILE_KEY, JSON.stringify(stored)]]) } = {}) {
+  const writes = [];
   const local = { getItem: key => data.get(key) ?? null, setItem(key, value) { writes.push(key); data.set(key, value); }, removeItem(key) { data.delete(key); } };
   const mirror = createDurableMirror({ scope: fs.scope, now: () => new Date(at) });
   const fresh = !createProfileStore({ storage: local }).hasJourney();
-  let held = fresh;
-  const store = createProfileStore({ storage: mirroredStorage(local, { key: PROFILE_KEY, mirror, held: () => held }), now: () => now });
+  const hold = createMirrorHold({ storage: local, mirror, fresh, now: () => new Date(at) });
+  const store = createProfileStore({ storage: mirroredStorage(local, { key: PROFILE_KEY, mirror, held: hold.held }), now: () => now });
   let record = null, tail = Promise.resolve();
   const fence = { async read() { return record && structuredClone(record); }, async write(next) { record = next && structuredClone(next); } };
   const lock = createFencedLock({ request: callback => { const run = tail.then(() => callback()); tail = run.catch(() => {}); return run; }, fence, read: () => local.getItem(PROFILE_KEY), strict: true, budget: 20 });
@@ -162,18 +163,20 @@ function install(fs, { stored } = {}) {
   store.save(store.load());
   async function launch() {
     let outcome = { state: 'none' };
-    if (held) {
+    if (hold.held()) {
       outcome = await restoreFromMirror({ mirror, now: new Date(now), restore: snapshot => {
         const expectedFingerprint = fingerprintProfile(store.load());
         return lock(() => store.restore(JSON.parse(JSON.stringify(snapshot.profile)), { expectedFingerprint, savedAt: at }));
       } });
       if (outcome.state === 'kept') return outcome;
-      held = false;
+      await mirror.write(local.getItem(PROFILE_KEY));
+      hold.decided();
+      return outcome;
     }
     await mirror.write(local.getItem(PROFILE_KEY));
     return outcome;
   }
-  return { data, writes, store, mirror, launch, fresh };
+  return { data, writes, store, mirror, launch, fresh, hold };
 }
 
 test('after iOS clears web storage, the journey comes back from the copy through the strict restore', async () => {
@@ -275,9 +278,10 @@ test('an unfinished copy that is not consistent as saved is refused and set asid
   assert.equal(fs.files.get(kept[0]), edited, 'the original text is kept, not a settled one');
 });
 
-test('a refused copy that cannot be moved is left untouched for that launch', async () => {
+test('a refused copy that cannot be moved stays held, on that launch and every later one', async () => {
   const fs = bridge();
   fs.files.set(fs.key('LIBRARY', MIRROR_PATH), '{"not":"a journey"}');
+  const rename = fs.scope.Capacitor.Plugins.Filesystem.rename;
   fs.scope.Capacitor.Plugins.Filesystem.rename = async () => { throw new Error('read-only'); };
   const device = install(fs);
   assert.deepEqual(await device.launch(), { state: 'kept', reason: IMPORT_MESSAGES['not-export'] });
@@ -285,6 +289,57 @@ test('a refused copy that cannot be moved is left untouched for that launch', as
   device.store.save(device.store.load());
   await settle();
   assert.equal(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)), '{"not":"a journey"}', 'still held: later saves do not overwrite it');
+  assert.ok(device.data.has(MIRROR_UNDECIDED_KEY), 'the marker stays');
+  // Relaunch over the same storage: the new journey is stored now, and the copy is still held.
+  const again = install(fs, { data: device.data });
+  assert.deepEqual([again.fresh, again.hold.held(), again.hold.resumed], [false, true, true]);
+  assert.deepEqual(await again.launch(), { state: 'kept', reason: IMPORT_MESSAGES['not-export'] });
+  again.store.save(again.store.load());
+  await settle();
+  assert.equal(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)), '{"not":"a journey"}', 'never overwritten across launches');
+  // A later launch that can move it decides at last: set aside, and the copy follows again.
+  fs.scope.Capacitor.Plugins.Filesystem.rename = rename;
+  const later = install(fs, { data: device.data });
+  assert.equal((await later.launch()).state, 'refused');
+  assert.equal(fs.files.get(fs.key('LIBRARY', 'mythseal/journey.v5.refused-20260921T123456789Z.json')), '{"not":"a journey"}');
+  assert.equal(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)), later.data.get(PROFILE_KEY));
+  assert.equal(later.data.has(MIRROR_UNDECIDED_KEY), false, 'decided: the marker is gone');
+});
+
+test('a launch that dies after the new journey\'s first save, before deciding, leaves the copy for the next one', async () => {
+  const fs = bridge();
+  const journey = travelled();
+  await install(fs, { stored: journey }).launch();
+  const copy = fs.files.get(fs.key('LIBRARY', MIRROR_PATH));
+  // iOS clears web storage. The fresh launch writes its marker and saves the new journey
+  // (install() runs app.mjs's transact(p=>p)), then the page dies before launchMirror decides.
+  const dying = install(fs);
+  assert.equal(dying.fresh, true);
+  assert.deepEqual(dying.writes, [MIRROR_UNDECIDED_KEY, PROFILE_KEY], 'the marker is written before the first save');
+  await settle();
+  assert.equal(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)), copy, 'the copy is untouched');
+  // The relaunch finds a journey in storage (the new one) and the marker: still held.
+  const relaunch = install(fs, { data: dying.data });
+  assert.deepEqual([relaunch.fresh, relaunch.hold.held(), relaunch.hold.resumed], [false, true, true]);
+  await settle();
+  assert.equal(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)), copy, "the relaunch's own first save did not overwrite it");
+  assert.deepEqual(await relaunch.launch(), { state: 'restored', reason: null });
+  const restored = JSON.parse(relaunch.data.get(PROFILE_KEY));
+  assert.equal(restored.coins, 4321);
+  assert.deepEqual(copies(restored), copies(journey));
+  assert.ok(JSON.parse(relaunch.data.get(RECOVERY_KEY)).snapshot, 'the new journey it replaced is the recovery copy');
+  assert.equal(relaunch.data.has(MIRROR_UNDECIDED_KEY), false, 'decided: the marker is gone');
+  assert.equal(fs.files.get(fs.key('LIBRARY', MIRROR_PATH)), relaunch.data.get(PROFILE_KEY), 'then the copy follows again');
+  // And the launch after that is an ordinary one.
+  const next = install(fs, { data: relaunch.data });
+  assert.deepEqual([next.fresh, next.hold.held()], [false, false]);
+});
+
+test('without a mirror the hold is inert and writes nothing', () => {
+  const data = new Map(), storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value), removeItem: key => data.delete(key) };
+  const hold = createMirrorHold({ storage, mirror: null, fresh: true });
+  assert.equal(hold.held(), false);
+  assert.equal(data.size, 0);
 });
 
 test('the 旅程存檔 dialog and header button carry the app\'s status and no cloud', () => {
@@ -295,6 +350,8 @@ test('the 旅程存檔 dialog and header button carry the app\'s status and no c
   assert.doesNotMatch(panel, /雲端|上次備份|長期保存|account-open/, 'no cloud backup and no browser storage request in the app');
   assert.match(saveStatusMarkup({}, { native: true }), /上次匯出：未曾.*裝置副本：等候第一次保存/);
   assert.match(saveStatusMarkup({}, { native: true, mirror: { state: 'error', at: null, error: 'x' } }), /data-mirror="error">裝置副本：未能寫入/);
+  // A copy held after a launch could neither restore nor move it: said as it is.
+  assert.match(saveStatusMarkup({}, { native: true, mirror: { state: 'held', at: null, error: null } }), /data-mirror="held">裝置副本：保留著未能還原的舊副本，新的旅程暫不寫入/);
   // The website's status line is unchanged.
   assert.match(saveStatusMarkup({}), /上次備份：未曾/);
   // The import confirmation names the app's 旅程存檔 and promises nothing about a cloud.
