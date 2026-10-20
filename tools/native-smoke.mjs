@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { createProfile, claimLogin, beginBattle, PROFILE_KEY } from '../progression.mjs';
 import { mintInstance, setInstanceXP } from '../collection.mjs';
 import { RECOVERY_KEY } from '../profile-store.mjs';
+import { clickViewportItem } from './viewport-browser-helpers.mjs';
 
 const browserName = process.env.BROWSER || 'chromium';
 if (!['chromium', 'webkit'].includes(browserName)) throw Error('BROWSER must be chromium or webkit.');
@@ -189,10 +190,11 @@ async function nativeRun() {
     // 旅程存檔 hands the set-aside copy to the share sheet, so it is never out of reach.
     await page.locator('[data-action="saves-open"]').click();
     const keptButton = page.locator('.saves-panel [data-mirror-kept] [data-action="export-kept-copy"]');
-    await keptButton.waitFor();
+    await keptButton.waitFor({ state: 'attached' });
     assert.equal(await keptButton.count(), 1, 'one set-aside copy offered');
     const sharedBefore = shares.length;
-    await keptButton.click();
+    // The dialog pages its items, so the player may page to it, as here.
+    await clickViewportItem(page, keptButton);
     await until(() => shares.length === sharedBefore + 1, 'the set-aside copy goes to the share sheet');
     const keptPath = decodeURI(shares.at(-1).files[0]).replace('file:///app/CACHE/', '');
     assert.match(keptPath, /^exports\/萬象契旅程-未能還原副本-\d{8}T\d{9}Z\.json$/);
@@ -217,12 +219,12 @@ async function nativeRun() {
 
     // 復原上次本機旅程 promises nothing about a cloud backup the app does not have.
     await page.locator('[data-action="saves-open"]').click();
-    await page.locator('.saves-panel [data-action="restore-recovery"]').click();
+    await clickViewportItem(page, page.locator('.saves-panel [data-action="restore-recovery"]'));
     const recoveryDialog = page.locator('.modal', { has: page.locator('[data-action="confirm-restore-recovery"]') });
     await recoveryDialog.waitFor();
     assert.match(await recoveryDialog.textContent(), /這會取代此裝置的進度。現在的本機旅程會成為下一份回復備份。/);
     assert.doesNotMatch(await recoveryDialog.textContent(), /雲端|旅程閣/);
-    await recoveryDialog.locator('[data-action="close-modal"]').click();
+    await recoveryDialog.locator('.modal-actions [data-action="close-modal"]').click();
     await until(async () => await page.locator('[data-action="confirm-restore-recovery"]').count() === 0, 'the dialog closes');
     passed('復原上次本機旅程 makes no cloud promise in the app');
 

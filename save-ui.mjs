@@ -72,10 +72,12 @@ function keptCopiesMarkup({ setAside = [], held = false }) {
 }
 
 /** The 旅程存檔 dialog: what keeps the journey in the app, the same export, import and status
- * as 旅程閣's tools (D2's strict import included), the copies a launch did not restore, and the
- * recovery copy's actions when one exists (`recovery` is app.mjs's markup for them). */
+ * as 旅程閣's tools (D2's strict import included), the recovery copy's actions when one exists
+ * (`recovery` is app.mjs's markup for them), then the copies a launch did not restore. The
+ * dialog pages these items (scene-dialogs.mjs), so a short screen may show the last on a
+ * later page. */
 export function savePanelMarkup({ status, mirror = null, recovery = '', setAside = [] }) {
-  return `<div class="eyebrow">KEEP YOUR JOURNEY</div><h2>${SAVE_PANEL_NAME}</h2><p class="panel-footnote">旅程保存在此裝置，遊戲亦在自己的檔案空間留一份副本。換手機或重新安裝前，請匯出旅程備份：分享選單可把檔案存到「檔案」App 或傳到別處；之後以「匯入旅程備份」還原。</p>${saveToolsMarkup(status, { native: true, mirror })}${keptCopiesMarkup({ setAside, held: mirror?.state === 'held' })}${recovery}`;
+  return `<div class="eyebrow">KEEP YOUR JOURNEY</div><h2>${SAVE_PANEL_NAME}</h2><p class="panel-footnote">旅程保存在此裝置，遊戲亦在自己的檔案空間留一份副本。換手機或重新安裝前，請匯出旅程備份：分享選單可把檔案存到「檔案」App 或傳到別處；之後以「匯入旅程備份」還原。</p>${saveToolsMarkup(status, { native: true, mirror })}${recovery}${keptCopiesMarkup({ setAside, held: mirror?.state === 'held' })}`;
 }
 
 // The latest progress, not the journey: a signed-in player's cloud backup is made only on request.
