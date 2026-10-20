@@ -23,6 +23,15 @@ owns version numbers, the secret preflight and the job summary.
 
 **Spec:** `docs/superpowers/specs/2026-10-12-mobile-cloud-pipeline-design.md`
 
+> **Amended 2026-10-20.** Mindicraft Limited (company 13782045) publishes on the
+> App Store; the Google Play entity is to be confirmed. The Cambridge TCG
+> Limited values in this plan's snippets (the privacy page copy and test in
+> Task 3, the runbook header, the upload keystore's `-dname` in Task 10) are
+> superseded: the branch `ios/first-flight` holds the current privacy draft, and
+> the keystore step below now leaves the entity open. This plan is otherwise
+> kept as written; [IOS-FIRST-FLIGHT](../../IOS-FIRST-FLIGHT.md) lists what
+> changed since.
+
 ## Global Constraints
 
 Every task's requirements implicitly include this section.
@@ -1677,7 +1686,7 @@ umask 077; K=$(mktemp -d)
 PASS=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-32)
 keytool -genkeypair -v -keystore "$K/upload.keystore" -storetype PKCS12 -alias mythseal-upload \
   -keyalg RSA -keysize 4096 -validity 10000 -storepass "$PASS" -keypass "$PASS" \
-  -dname "CN=Mythseal upload, O=Cambridge TCG Limited, C=GB"
+  -dname "CN=Mythseal upload, O=<Play publishing entity, to be confirmed>, C=GB"
 base64 -i "$K/upload.keystore" | tr -d '\n' > "$K/upload.b64"
 security add-generic-password -U -a cambridgetcg -s mythseal-android-upload-keystore -w "$(cat "$K/upload.b64")"
 security add-generic-password -U -a cambridgetcg -s mythseal-android-upload-keystore-password -w "$PASS"
@@ -1687,6 +1696,11 @@ done
 keytool -list -keystore "$K/upload.keystore" -storepass "$PASS" | grep -E "Certificate fingerprint|mythseal-upload"
 rm -rf "$K"; unset PASS
 ```
+
+(Amended 2026-10-20: fill in the `O=` entity once the owner confirms who holds
+the Play Console account. Note too that `security add-generic-password -w
+"$(…)"` puts the secret in the process list while it runs; feeding
+`add-generic-password` to `security -i` on stdin avoids that.)
 
 Expected: one `PrivateKeyEntry` named `mythseal-upload`. Record the SHA-256
 certificate fingerprint (public) in `docs/CONNECTIONS.md`, never the password.

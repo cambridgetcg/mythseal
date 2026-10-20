@@ -140,6 +140,7 @@ this index.
 | [Mobile cloud pipeline design](superpowers/specs/2026-10-12-mobile-cloud-pipeline-design.md) | Cloud iOS/Android builds (GitHub Actions + fastlane), TestFlight/Play testing stages, offline guest build, runbook and field notes | `proposal · 2026-10-12`; owner-approved design, nothing built yet |
 | [Mobile publishing runbook](MOBILE-PUBLISHING-RUNBOOK.md) | The standard publishing and review flow for any app, with Mythseal as the worked example | `current` for the pipeline; review sections fill in as Stage 2 runs |
 | [Mobile field notes](MOBILE-FIELD-NOTES.md) | Dated evidence for every mobile run, console step and review, each with a "pay attention to" lesson | `record`, dated per entry |
+| [iOS first flight](IOS-FIRST-FLIGHT.md) | Every change on the `ios/first-flight` branch (PR #13 merged and fixed for Mindicraft, Xcode Cloud and native saves), its reason and the ladder rung it reached | `record · 2026-10-20` · branch only, not merged |
 | [Content release pipeline](CONTENT-RELEASE-PIPELINE.md) | Art versions, animation budget and compatible release manifests (中文) | `proposal · 2026-09-21` |
 
 ## Retired collectible research

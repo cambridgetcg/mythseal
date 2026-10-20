@@ -6,6 +6,15 @@ resolved §9 the same day; the findings are folded into §4.3, §4.6, §4.8 and 
 The plan is `docs/superpowers/plans/2026-10-12-mobile-cloud-pipeline.md`.
 Nothing in this document has been built, signed, uploaded or registered.
 
+**Amended 2026-10-20 (publisher).** The owner decided that **Mindicraft Limited**
+(company 13782045, an organization team) publishes Mythseal on the App Store.
+Its Team ID is not yet known. The Google Play publishing entity is **to be
+confirmed**. The 2026-10-12 statement below that both store accounts belong to
+Cambridge TCG Limited is kept as the record of that day and is superseded for
+Apple; nothing here establishes which entity holds the Play Console account.
+The privacy page now names Mindicraft and is a draft awaiting the owner's
+approval ([IOS-FIRST-FLIGHT](../../IOS-FIRST-FLIGHT.md)).
+
 ## 1. Purpose
 
 The owner asked for an iOS and Android publishing pipeline that builds in the
@@ -22,7 +31,8 @@ What the owner said (2026-10-12):
 - Mythseal and TaxSorted, and possibly other Cloudflare sites.
 - Practise and standardise the route; public launch can wait.
 - Both developer accounts (Apple Developer Program and Google Play Console) are
-  registered to **Cambridge TCG Limited** and are already granted.
+  registered to **Cambridge TCG Limited** and are already granted. *(Superseded
+  2026-10-20 for Apple: Mindicraft Limited publishes; Play entity to be confirmed.)*
 - Route A was chosen: GitHub Actions + fastlane.
 - Add a second stage that goes through real store review, still not public.
 - The store builds are an **offline guest build**, with no accounts.
@@ -245,7 +255,8 @@ starts, the runbook is copied or extracted to a shared home as that spec decides
   inside the app too, so the rules dialog links it.
 
   **The owner approves the wording before deploy,** because it is published in
-  Cambridge TCG Limited's name. It is deployed through the existing
+  the publisher's name (Mindicraft Limited since 2026-10-20; it was Cambridge
+  TCG Limited in this design's first draft). It is deployed through the existing
   `docs/HOSTING.md` release procedure.
 
 ## 5. Secrets and signing
@@ -257,7 +268,7 @@ owner's standing agreement is that approval happens in conversation.
 | Secret / variable | What it is | Notes |
 | --- | --- | --- |
 | `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8_B64` | App Store Connect team API key | **Admin** role, the lowest that can use cloud-managed distribution signing. API keys can't carry App Manager's per-user "cloud-managed distribution certificate" permission (Apple developer forum thread 776036; no Apple document names the role). Recorded in `docs/CONNECTIONS.md`. |
-| `APPLE_TEAM_ID` (variable) | Cambridge TCG Limited team ID | Not secret. |
+| `APPLE_TEAM_ID` (variable) | Mindicraft Limited's team ID (amended 2026-10-20; not yet known) | Not secret. |
 | `PLAY_SERVICE_ACCOUNT_JSON` | Google Cloud service-account key | Invited in Play Console with app-level "release to testing tracks" permission only. |
 | `ANDROID_UPLOAD_KEYSTORE_B64`, `ANDROID_UPLOAD_KEYSTORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD` | Upload keystore | Generated on this Mac with the Homebrew JDK 21 `keytool`. A copy is kept as a macOS keychain item `mythseal-android-upload-keystore`, and the local file is deleted after `gh secret set`. |
 

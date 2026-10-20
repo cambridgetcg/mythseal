@@ -3,7 +3,10 @@
 Status: `current` for the pipeline in this repository; Stage 2 sections fill in
 as reviews happen. Evidence for every step is in
 [MOBILE-FIELD-NOTES.md](MOBILE-FIELD-NOTES.md). Worked example: Mythseal
-(`com.mythseal.game`, Cambridge TCG Limited's developer accounts).
+(`com.mythseal.game`). Apple: Mindicraft Limited's organization team (company
+13782045; Team ID not yet known). Google Play: the publishing entity is to be
+confirmed. (Amended 2026-10-20; the first draft named Cambridge TCG Limited for
+both stores.)
 
 ## 0. Before an app enters this pipeline
 

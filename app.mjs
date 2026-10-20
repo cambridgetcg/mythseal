@@ -777,6 +777,10 @@ function prepareNextEncounter({editDeck=false}={}) {
   prepareEncounter(intent.kind,intent.nodeId,route);
   if(editDeck&&modalKind==='preparation')openPreparationDeck();
 }
+// The privacy policy's public address, linked from the rules once it is live. privacy.html is a
+// draft awaiting the owner's approval and is not served yet (docs/IOS-FIRST-FLIGHT.md), so no
+// link is shown until this names the deployed page. An https link opens Safari in the app.
+const PRIVACY_URL=null;
 function rulesModal() {
   modal(`<div class="eyebrow">THE ART OF THE DUEL</div><h2>入局，先知取捨。</h2><p>每局 12 生命、12 仙丹。從八張牌中隨機抽四張，最多交手四回合。牌用過就不能再出，仙丹也要留給後面。</p>
     <div class="rules-grid"><div class="rule"><span class="rule-number">01 / 藏鋒</span><h3>力量 ×（1 ＋ 仙丹）</h3><p>加丹提高攻擊，不直接提高傷害。零丹亦有基礎攻擊，可以試探、留力，甚至以技能取勝。</p></div>
@@ -784,7 +788,7 @@ function rulesModal() {
     <div class="rule"><span class="rule-number">03 / 共鳴</span><h3>同族同行，天賦甦醒</h3><p>抽出的四張牌中，至少兩張不同角色同族，便啟動該族加成。已出過的卡仍計入共鳴。</p></div>
     <div class="rule"><span class="rule-number">04 / 破局</span><h3>明牌暗丹，交替先後</h3><p>先手先亮卡，仙丹一直保密。雙方輪換先手。怒擊另付 3 丹，贏得該回合時傷害 +2。</p></div></div>
     <div class="rules-note">第一回合：四張牌總星數較高的一方先手，相同則隨機。<br>攻擊預估只包含己方效果；對手的封鎖、減力、減攻可能改變結果。</div>
-    <p class="rules-privacy"><a href="privacy.html">私隱政策 · Privacy</a></p><div class="modal-actions"><button class="primary" data-action="${screen==='battle'?'close-modal':'rules-start'}">${screen==='battle'?'明白，返回對局':'知其道，入其局'} <span>↗</span></button></div>`);
+    ${PRIVACY_URL?`<p class="rules-privacy"><a href="${PRIVACY_URL}">私隱政策 · Privacy</a></p>`:''}<div class="modal-actions"><button class="primary" data-action="${screen==='battle'?'close-modal':'rules-start'}">${screen==='battle'?'明白，返回對局':'知其道，入其局'} <span>↗</span></button></div>`);
 }
 function detailModal(id, side='player') {
   const c=screen==='battle'?getBattleCard(match,side,id):getCard(id), f=faction(c);
