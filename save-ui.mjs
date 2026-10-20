@@ -57,11 +57,25 @@ export const SAVE_PANEL_NAME = '旅程存檔';
 export function savesButtonMarkup() {
   return `<button type="button" class="account-trigger saves-trigger" data-action="saves-open" aria-label="${SAVE_PANEL_NAME}：匯出、匯入與保存狀態"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h11l3 3v13H5Z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span>存檔</span></button>`;
 }
+/** Copies of the journey a launch did not restore, which stay in the app's files where the
+ * player cannot otherwise reach them: those set aside (`setAside`, [{ name, at }] from the
+ * mirror) and one still held in place (`mirror.state` 'held'). Each goes out through the share
+ * sheet, so no refused copy is out of reach; one that is itself sound (its restore was refused
+ * for a reason outside it) comes back through 匯入旅程備份. */
+function keptCopiesMarkup({ setAside = [], held = false }) {
+  if (!setAside.length && !held) return '';
+  const buttons = [
+    ...(held ? ['<button class="text-button" data-action="export-kept-copy" data-id="">匯出保留中的副本 ↗</button>'] : []),
+    ...setAside.map(copy => `<button class="text-button" data-action="export-kept-copy" data-id="${safe(copy.name)}">匯出 ${time(copy.at)} 另存的副本 ↗</button>`),
+  ];
+  return `<aside class="mirror-kept" data-mirror-kept><p>此裝置有未能自動還原的保存副本，原樣保留在遊戲的檔案空間。可匯出存到「檔案」App；若副本本身完好，可再以「匯入旅程備份」還原。</p>${buttons.join('')}</aside>`;
+}
+
 /** The 旅程存檔 dialog: what keeps the journey in the app, the same export, import and status
- * as 旅程閣's tools (D2's strict import included), and the recovery copy's actions when one
- * exists (`recovery` is app.mjs's markup for them). */
-export function savePanelMarkup({ status, mirror = null, recovery = '' }) {
-  return `<div class="eyebrow">KEEP YOUR JOURNEY</div><h2>${SAVE_PANEL_NAME}</h2><p class="panel-footnote">旅程保存在此裝置，遊戲亦在自己的檔案空間留一份副本。換手機或重新安裝前，請匯出旅程備份：分享選單可把檔案存到「檔案」App 或傳到別處；之後以「匯入旅程備份」還原。</p>${saveToolsMarkup(status, { native: true, mirror })}${recovery}`;
+ * as 旅程閣's tools (D2's strict import included), the copies a launch did not restore, and the
+ * recovery copy's actions when one exists (`recovery` is app.mjs's markup for them). */
+export function savePanelMarkup({ status, mirror = null, recovery = '', setAside = [] }) {
+  return `<div class="eyebrow">KEEP YOUR JOURNEY</div><h2>${SAVE_PANEL_NAME}</h2><p class="panel-footnote">旅程保存在此裝置，遊戲亦在自己的檔案空間留一份副本。換手機或重新安裝前，請匯出旅程備份：分享選單可把檔案存到「檔案」App 或傳到別處；之後以「匯入旅程備份」還原。</p>${saveToolsMarkup(status, { native: true, mirror })}${keptCopiesMarkup({ setAside, held: mirror?.state === 'held' })}${recovery}`;
 }
 
 // The latest progress, not the journey: a signed-in player's cloud backup is made only on request.

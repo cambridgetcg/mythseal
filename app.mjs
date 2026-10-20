@@ -51,7 +51,7 @@ const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(k
 // clear a WKWebView's storage; null on the web. Every profile write reaches it, except while no
 // launch has yet decided whether to restore it (createMirrorHold, below: kept across launches).
 const mirror=createDurableMirror();
-let mirrorHold=null,mirrorNote=null;
+let mirrorHold=null,mirrorNote=null,mirrorSetAside=[];
 const profileStore=createProfileStore({storage:mirror?mirroredStorage(localStorage,{key:PROFILE_KEY,mirror,held:()=>mirrorHold?.held()??true}):localStorage});
 const loadProfile=()=>profileStore.load();
 // Device-local backup status, persistence outcome and prompts; never inside the journey or a
@@ -242,7 +242,7 @@ async function exportSave() {
 // kept as it was and that the new journey is not written to it, rather than 等候第一次保存.
 function openSavePanel() {
   const copy=mirror?(startupReady&&mirrorHold.held()?{state:'held',at:null,error:null}:mirror.status()):null;
-  modal(savePanelMarkup({status:saves.status(),mirror:copy,recovery:recoveryMarkup()}),'saves-panel',true,'saves-panel');
+  modal(savePanelMarkup({status:saves.status(),mirror:copy,recovery:recoveryMarkup(),setAside:mirrorSetAside}),'saves-panel',true,'saves-panel');
 }
 // The store app's launch. A journey this device has just started, because no journey key
 // existed, is what iOS leaves after clearing a WKWebView's storage; if the app's file copy
@@ -255,7 +255,7 @@ async function launchMirror() {
     const outcome=await restoreFromMirror({mirror,restore:snapshot=>restoreLocalProfile(snapshot,fingerprintProfile(loadProfile()))});
     if(outcome.state!=='none')mirrorNote=outcome;
     // Refused but not movable: the copy stays as it is and the hold stays, across launches too;
-    // each later launch tries again. 旅程存檔 says so.
+    // each later launch tries again. 旅程存檔 says so and offers the copy as a file.
     if(outcome.state==='kept')return;
     if(outcome.state==='restored')freshJourney=false;
     mirror.write(localStorage.getItem(PROFILE_KEY));
@@ -1323,6 +1323,15 @@ document.addEventListener('click', event=>{
     saveFile({name:'萬象契旅程-本機回復備份.json',text:JSON.stringify(saved.snapshot.profile,null,2)}).catch(error=>toast(error.message||'未能匯出回復備份。'));return;
   }
   if(action==='saves-open')return openSavePanel();
+  if(action==='export-kept-copy'){
+    // A copy a launch did not restore, from 旅程存檔: one set aside (named), or one still held in
+    // place (no name). Through the share sheet, as every export in the app; the copy stays.
+    const stamp=/refused-(\d{8}T\d{9}Z)/.exec(id||'')?.[1];
+    Promise.resolve(mirror&&(id?mirror.readSetAside(id):mirror.read())).then(text=>{
+      if(typeof text!=='string')throw Error('未能讀取這份副本；副本仍原樣保留。');
+      return saveFile({name:`萬象契旅程-未能還原副本${stamp?`-${stamp}`:''}.json`,text});
+    }).then(()=>toast('已經分享選單送出副本；請確認檔案已存好。')).catch(error=>toast(error.message||'未能匯出副本。'));return;
+  }
   if(action==='restore-recovery'){
     if(profile.pending||economyBusy)return toast('請先完成或放棄未完對局。');
     const saved=read(RECOVERY_KEY,null);if(!saved?.snapshot)return toast('未有本機回復備份。');
@@ -1580,7 +1589,11 @@ document.addEventListener('keydown',event=>{
   }
 });
 await transact(p=>p);
-if(mirror)await launchMirror();
+if(mirror){
+  await launchMirror();
+  // What earlier launches set aside, for 旅程存檔's export; listed once, after this launch's own decision.
+  mirror.setAsideCopies().then(list=>{mirrorSetAside=list;if(modalKind==='saves-panel')openSavePanel();});
+}
 saves.launch({fresh:freshJourney,standalone:isStandalone()}).catch(()=>{});
 nav.start();
 startupReady=true;
@@ -1589,5 +1602,5 @@ render();
 // the game's own 放棄未完對局 and 放下此程 are (platform.mjs settleMirrorCopy).
 const forfeitNote={battle:'；副本中的未完對局已放棄，不會獲得對局獎勵',activity:'；副本中的火焰山三連戰已放下，所得獎勵已保留'};
 if(mirrorNote?.state==='restored')toast(`已由此裝置的保存副本還原旅程${forfeitNote[mirrorNote.forfeited]??''}。`);
-else if(mirrorNote?.state==='refused')toast('此裝置的保存副本未能還原，已另行保留；這是新的旅程。');
-else if(mirrorNote?.state==='kept')toast('此裝置的保存副本未能還原，原樣保留，新的旅程暫不寫入副本；詳見旅程存檔。');
+else if(mirrorNote?.state==='refused')toast('此裝置的保存副本未能還原，已另行保留，可在旅程存檔匯出；這是新的旅程。');
+else if(mirrorNote?.state==='kept')toast('此裝置的保存副本未能還原，原樣保留，新的旅程暫不寫入副本；可在旅程存檔匯出。');

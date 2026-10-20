@@ -9,7 +9,9 @@
  *   sheet with the same bytes the web downloads, and the panel records it;
  * - the durable copy: written to Library at launch and after each save; after site data is
  *   cleared (what iOS may do to a WKWebView) the journey comes back through the strict restore;
- *   a copy the strict checks refuse is set aside and the game starts a new journey;
+ *   a copy the strict checks refuse is set aside, the game starts a new journey, and 旅程存檔
+ *   hands the set-aside copy to the share sheet; a copy saved mid-battle comes back with that
+ *   battle given up;
  * - 旅程存檔's import: D2's file input and strict restore bring a journey file back;
  * - the network: no /api, nothing off the loopback origin, no account file, no failed request.
  * WEB_URL, when set, serves the website build or this checkout, which with no bridge still shows
@@ -19,7 +21,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createProfile, claimLogin, PROFILE_KEY } from '../progression.mjs';
+import { createProfile, claimLogin, beginBattle, PROFILE_KEY } from '../progression.mjs';
 import { mintInstance, setInstanceXP } from '../collection.mjs';
 import { RECOVERY_KEY } from '../profile-store.mjs';
 
@@ -61,13 +63,17 @@ async function nativeContext(browser, files, shares) {
       if (!files.has(from)) return { error: 'File does not exist.' };
       files.set(key(options.toDirectory, options.to), files.get(from)); files.delete(from); return {};
     }
+    if (method === 'readdir') {
+      const prefix = key(options.directory, `${options.path}/`), names = [...files.keys()].filter(name => name.startsWith(prefix)).map(name => name.slice(prefix.length)).filter(name => !name.includes('/'));
+      return names.length ? { files: names.map(name => ({ name, type: 'file' })) } : { error: 'File does not exist.' };
+    }
     if (method === 'share') { shares.push(options); return { activityType: 'com.apple.DocumentManagerUICore.SaveToFiles' }; }
     return { error: `unknown ${method}` };
   });
   await context.addInitScript(() => {
     const call = async (method, options) => { const result = await window.__mythsealNative(method, options); if (result?.error) throw new Error(result.error); return result; };
     window.Capacitor = { isNativePlatform: () => true, Plugins: {
-      Filesystem: { writeFile: options => call('writeFile', options), readFile: options => call('readFile', options), rename: options => call('rename', options) },
+      Filesystem: { writeFile: options => call('writeFile', options), readFile: options => call('readFile', options), rename: options => call('rename', options), readdir: options => call('readdir', options) },
       Share: { share: options => call('share', options) },
     } };
   });
@@ -179,6 +185,22 @@ async function nativeRun() {
     assert.equal(await page.locator('[data-save-notice="restore-offer"]').count(), 1, "D2's restore offer, without a cloud path, for the new journey");
     passed('a refused copy is set aside and kept; a new journey starts');
 
+    // 旅程存檔 hands the set-aside copy to the share sheet, so it is never out of reach.
+    await page.locator('[data-action="saves-open"]').click();
+    const keptButton = page.locator('.saves-panel [data-mirror-kept] [data-action="export-kept-copy"]');
+    await keptButton.waitFor();
+    assert.equal(await keptButton.count(), 1, 'one set-aside copy offered');
+    const sharedBefore = shares.length;
+    await keptButton.click();
+    await until(() => shares.length === sharedBefore + 1, 'the set-aside copy goes to the share sheet');
+    const keptPath = decodeURI(shares.at(-1).files[0]).replace('file:///app/CACHE/', '');
+    assert.match(keptPath, /^exports\/萬象契旅程-未能還原副本-\d{8}T\d{9}Z\.json$/);
+    assert.equal(files.get(`CACHE:${keptPath}`), JSON.stringify(tampered), 'the copy exactly as it was kept');
+    assert.ok(files.has(kept[0]), 'and it stays in Library');
+    await page.goBack();
+    await until(async () => await page.locator('.saves-panel').count() === 0, 'Back closes 旅程存檔');
+    passed('旅程存檔 exports the set-aside copy through the share sheet');
+
     // 旅程存檔's import: D2's file picker and strict restore, with no account anywhere.
     await page.locator('[data-action="saves-open"]').click();
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('.saves-panel [data-action="import-save"]').click()]);
@@ -191,6 +213,17 @@ async function nativeRun() {
     await until(async () => JSON.parse(await stored(page)).coins === 4321, 'the import restores the journey');
     await until(async () => files.get(MIRROR) === await stored(page), 'and the copy follows it');
     passed('import from 旅程存檔: picker, comparison, strict restore; the copy follows');
+
+    // A copy saved mid-battle comes back with that battle given up, as 放棄此局 would.
+    files.set(MIRROR, JSON.stringify(beginBattle(JSON.parse(await stored(page)), { kind: 'practice' }).profile));
+    await clearSiteData(page);
+    await page.reload(); await page.locator('.game-lobby').waitFor();
+    assert.match(await toastText(page), /已由此裝置的保存副本還原旅程；副本中的未完對局已放棄/);
+    const settled = JSON.parse(await stored(page));
+    assert.equal(settled.pending, null, 'the battle is given up');
+    assert.equal(settled.coins, 4321, 'the journey is kept');
+    await until(async () => files.get(MIRROR) === await stored(page), 'and the copy follows it');
+    passed('a copy saved mid-battle returns with that battle given up');
 
     await context.close();
     assert.deepEqual(network.requests.filter(url => url.pathname.startsWith('/api/')).map(String), [], 'never calls /api');

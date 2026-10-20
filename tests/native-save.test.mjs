@@ -52,6 +52,13 @@ function bridge({ share = 'complete', failWrite = false } = {}) {
       if (!files.has(from)) throw new Error('File does not exist.');
       files.set(key(options.toDirectory, options.to), files.get(from)); files.delete(from);
     },
+    async readdir(options) {
+      calls.push(['readdir', options]);
+      const prefix = key(options.directory, `${options.path}/`);
+      const names = [...files.keys()].filter(name => name.startsWith(prefix)).map(name => name.slice(prefix.length)).filter(name => !name.includes('/'));
+      if (!names.length) throw new Error('File does not exist.');
+      return { files: names.map(name => ({ name, type: 'file' })) };
+    },
   };
   const Share = {
     async share(options) {
@@ -340,6 +347,40 @@ test('without a mirror the hold is inert and writes nothing', () => {
   const hold = createMirrorHold({ storage, mirror: null, fresh: true });
   assert.equal(hold.held(), false);
   assert.equal(data.size, 0);
+});
+
+test('copies a launch set aside are listed newest first and read back by name only', async () => {
+  const fs = bridge();
+  const mirror = createDurableMirror({ scope: fs.scope, now: () => new Date(at) });
+  assert.deepEqual(await mirror.setAsideCopies(), [], 'none yet (the folder does not exist)');
+  await mirror.write('current');
+  fs.files.set(fs.key('LIBRARY', 'mythseal/journey.v5.refused-20260920T010203004Z.json'), 'older');
+  fs.files.set(fs.key('LIBRARY', 'mythseal/journey.v5.refused-20260921T123456789Z.json'), 'newer');
+  fs.files.set(fs.key('LIBRARY', 'mythseal/notes.txt'), 'not a copy');
+  assert.deepEqual(await mirror.setAsideCopies(), [
+    { name: 'journey.v5.refused-20260921T123456789Z.json', at: '2026-09-21T12:34:56.789Z' },
+    { name: 'journey.v5.refused-20260920T010203004Z.json', at: '2026-09-20T01:02:03.004Z' },
+  ]);
+  assert.equal(await mirror.readSetAside('journey.v5.refused-20260920T010203004Z.json'), 'older');
+  for (const name of ['journey.v5.json', 'notes.txt', '../mythseal/journey.v5.refused-20260921T123456789Z.json', 'journey.v5.refused-x.json']) assert.equal(await mirror.readSetAside(name), null, name);
+  // What setAside itself writes is what the list finds.
+  fs.files.clear(); await mirror.write('refused one'); await mirror.setAside();
+  assert.deepEqual((await mirror.setAsideCopies()).map(copy => copy.at), [at]);
+  // A bridge without readdir lists nothing rather than failing.
+  delete fs.scope.Capacitor.Plugins.Filesystem.readdir;
+  assert.deepEqual(await createDurableMirror({ scope: fs.scope }).setAsideCopies(), []);
+});
+
+test('旅程存檔 offers every copy a launch did not restore as a file', () => {
+  const status = { lastExport: null, lastBackup: null, persistence: null };
+  assert.doesNotMatch(savePanelMarkup({ status, mirror: { state: 'saved', at } }), /data-mirror-kept/, 'nothing to offer');
+  const panel = savePanelMarkup({ status, mirror: { state: 'saved', at }, setAside: [{ name: 'journey.v5.refused-20260921T123456789Z.json', at }] });
+  assert.match(panel, /data-mirror-kept/);
+  assert.match(panel, /data-action="export-kept-copy" data-id="journey\.v5\.refused-20260921T123456789Z\.json">匯出 <time datetime="2026-09-21T12:34:56\.789Z">/);
+  assert.match(panel, /匯入旅程備份」還原/);
+  const held = savePanelMarkup({ status, mirror: { state: 'held', at: null, error: null } });
+  assert.match(held, /data-action="export-kept-copy" data-id="">匯出保留中的副本/, 'a copy still held in place too');
+  assert.doesNotMatch(held + panel, /雲端/);
 });
 
 test('the 旅程存檔 dialog and header button carry the app\'s status and no cloud', () => {

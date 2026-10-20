@@ -80,6 +80,15 @@ export function createDurableMirror({ scope = globalThis, directory = MIRROR_DIR
   const fs = nativePlugins(scope)?.Filesystem;
   if (typeof fs?.writeFile !== 'function') return null;
   const next = `${path}.next`;
+  const slash = path.lastIndexOf('/'), folder = slash < 0 ? '' : path.slice(0, slash);
+  // setAside's names: <copy's name>.refused-<UTC stamp, digits only>.json, in the copy's folder.
+  const keptPattern = new RegExp(`^${path.slice(slash + 1).replace(/\.json$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.refused-(\\d{8})T(\\d{6})(\\d{3})Z\\.json$`);
+  const keptCopy = name => {
+    const match = typeof name === 'string' ? keptPattern.exec(name) : null;
+    if (!match) return null;
+    const [, date, clock, ms] = match;
+    return { name, at: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6)}T${clock.slice(0, 2)}:${clock.slice(2, 4)}:${clock.slice(4)}.${ms}Z` };
+  };
   let pending = null, running = null, status = { state: 'idle', at: null, error: null };
   async function drain() {
     while (pending !== null) {
@@ -120,6 +129,25 @@ export function createDurableMirror({ scope = globalThis, directory = MIRROR_DIR
       try { await fs.rename({ from: path, to: kept, directory, toDirectory: directory }); }
       catch { await fs.rename({ from: next, to: kept, directory, toDirectory: directory }); }
       return kept;
+    },
+    /** The copies earlier launches set aside, newest first, as [{ name, at }] (`name` is the
+     * file's name in the copy's folder), so 旅程存檔 can hand each one to the player. [] when
+     * there are none or the folder cannot be listed (the Filesystem plugin's readdir). Never rejects. */
+    async setAsideCopies() {
+      if (typeof fs.readdir !== 'function') return [];
+      try {
+        const { files } = await fs.readdir({ path: folder, directory });
+        return (Array.isArray(files) ? files : []).map(file => keptCopy(typeof file === 'string' ? file : file?.name))
+          .filter(Boolean).sort((a, b) => b.at.localeCompare(a.at));
+      } catch { return []; }
+    },
+    /** The text of a set-aside copy setAsideCopies() named, or null. Only those names are read. Never rejects. */
+    async readSetAside(name) {
+      if (!keptCopy(name)) return null;
+      try {
+        const { data } = await fs.readFile({ path: folder ? `${folder}/${name}` : name, directory, encoding: 'utf8' });
+        return typeof data === 'string' && data ? data : null;
+      } catch { return null; }
     },
     status: () => ({ ...status }),
   };
