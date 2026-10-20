@@ -27,7 +27,8 @@ remaining prerequisites.
 
 ## Run locally
 
-Clone the private repository with an authorized GitHub account:
+Clone the repository (GitHub lists it as public; whether it stays public is the
+owner's decision, see [AGENTS.md](AGENTS.md)):
 
 ```sh
 gh repo clone cambridgetcg/mythseal

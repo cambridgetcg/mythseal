@@ -141,6 +141,15 @@ are also editing, so it was not done here.
   0.6.0 bump.
 - **A licence for a public repository.** The repository is public, and
   [AGENTS.md](../AGENTS.md) still says no open-source licence has been chosen.
+- **Public or private?** GitHub lists `cambridgetcg/mythseal` as public,
+  apparently since its creation on 2026-09-21. AGENTS.md and the README now
+  state that fact and leave the intent to the owner. Other documents still
+  describe it as private, and are left as they are until the owner decides:
+  `CONTRIBUTING.md` (line 113), `ROADMAP.md` (line 3), `docs/HANDOVER.md`
+  (lines 36, 43, 1369), `docs/BACKEND-STACK.md` (line 3), the pipeline spec's
+  macOS-minutes note (§9, "10× on private repos") and
+  `MOBILE-FIELD-NOTES.md`'s template; `tools/connections.mjs` reports
+  `unexpected_visibility` for a public repository by design.
 - **Build numbers on two routes.** Xcode Cloud numbers its builds from 1; the
   Actions backup uses its run number plus `MOBILE_BUILD_OFFSET` (`0` when unset;
   its current value was not read for this record). App Store Connect refuses a build number already used for the same
