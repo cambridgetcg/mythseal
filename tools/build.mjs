@@ -21,11 +21,15 @@ async function readRegular(root, relative) {
 
 export const BUILD_TARGETS = Object.freeze(['web', 'native']);
 
-/** What the store build leaves out (docs/IOS-FIRST-FLIGHT.md): the account client, its markup
- * and its styles. A store build is an offline guest build, and App Review 2.5.19 does not accept
- * hidden or dormant features, so the code is not shipped at all rather than shipped switched
- * off. cloud-save.mjs stays: despite its name it is the local journey's validator, which
- * profile-store.mjs, local-commands.mjs and D2's file import use, and it makes no request. */
+/** What the store build leaves out (docs/IOS-FIRST-FLIGHT.md): the account client (the only
+ * code that calls /api), 旅程閣's markup and its styles, as files. A store build is an offline
+ * guest build, and App Review 2.5.19 does not accept hidden or dormant features, so the part
+ * that could reach an account is not shipped at all. What stays is 旅程閣's wiring inside
+ * shared modules (app.mjs's account screen, actions and sign-in form handler; save-ui.mjs's and
+ * scene-adapters.mjs's cloud copy), switched off by NATIVE_SHELL and the inert controller, with
+ * no client left to call: the record says what, and why it cannot run. cloud-save.mjs stays:
+ * despite its name it is the local journey's validator, which profile-store.mjs,
+ * local-commands.mjs and D2's file import use, and it makes no request. */
 export const NATIVE_EXCLUDED = Object.freeze(['account-client.mjs', 'account-ui.mjs', 'account.css']);
 /** The only edits the store build makes, so nothing it ships points at an excluded file. Each
  * must match exactly once, or the build stops: a silent miss would ship a broken import.
@@ -131,7 +135,7 @@ export async function build(root = fileURLToPath(new URL('../', import.meta.url)
     schemaVersion: 1, name: 'mythseal', ...(target === 'native' ? { target } : {}), clientVersion: version, gitCommit: commit,
     assetsManifestSHA256: sha256(JSON.stringify(assets)), assets,
     hostingHeadersSHA256: headers ? sha256(headers) : null, contractRefs: [],
-    // 旅程閣 (journey-archive-ui) is the website's; the store build ships no account code.
+    // 旅程閣 (journey-archive-ui) is the website's; the store build ships no account client and never shows it.
     enabledFeatures: ['offline-game', 'local-backpack', 'npc-market', ...(target === 'web' ? ['journey-archive-ui'] : [])],
     // Store builds start no account client (account-offline.mjs); only the website gates these at runtime.
     runtimeGatedFeatures: target === 'web' ? ['email-login', 'private-journey-backup'] : [],

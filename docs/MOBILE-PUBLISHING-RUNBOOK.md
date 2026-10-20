@@ -26,8 +26,11 @@ still uses the GitHub Actions workflow below.
       such as financial services must be submitted by the providing entity).
 - [ ] Accounts: if the app lets people create one, it must offer in-app account
       deletion (Apple 5.1.1(v)); otherwise ship a guest build.
-- [ ] No hidden or dormant features (Apple 2.5.19): code the app does not use
-      is left out of the native bundle, not shipped switched off.
+- [ ] No hidden or dormant features (Apple 2.5.19): nothing in the bundle can
+      reach a server or turn a feature on after review. Leave a feature's code
+      out of the native bundle where the build can (whole files), and record
+      what still ships switched off and why it cannot run (Mythseal's record:
+      [IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md#what-the-store-build-still-carries-of-the-account)).
 - [ ] Network: list every request the bundle makes; that list *is* the privacy answer.
 - [ ] Saves: a WKWebView's localStorage and IndexedDB can be cleared by iOS, and
       a Blob download does nothing in it. Keep a durable copy and an export

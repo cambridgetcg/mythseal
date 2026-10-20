@@ -46,7 +46,9 @@ rung it reached.
   Mac" (2026-10-12).
 - **Offline guest build:** the store build leaves out `account-client.mjs`,
   `account-ui.mjs` and `account.css` (App Review 2.5.19: no dormant features),
-  and every path to 旅程閣 stops at two choke points.
+  and every path to 旅程閣 stops at two choke points. 旅程閣's wiring inside
+  shared modules still ships, switched off and with no client to call
+  ([what, and why it cannot run](IOS-FIRST-FLIGHT.md#what-the-store-build-still-carries-of-the-account)).
 - **Saves in the app:** a header button, 旅程存檔, opens D2's export (through the
   iOS share sheet, since a Blob download does nothing in WKWebView), D2's
   strict import and the save status. Every save is copied to the app's Library
