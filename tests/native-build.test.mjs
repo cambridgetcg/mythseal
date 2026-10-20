@@ -165,4 +165,7 @@ test('the real native bundle: no account file, and every import and asset refere
   }
   assert.deepEqual(broken, [], 'every local reference reachable from index.html is in the bundle');
   for (const module of ['bootstrap.mjs', 'app.mjs', 'account-offline.mjs', 'platform.mjs', 'cloud-save.mjs']) assert.ok(seen.has(module), `${module} is reached`);
+  // 出發前整備's deck warning (.account-message.is-error) keeps its styling without account.css.
+  const styles = await Promise.all([...shipped].filter(path => path.endsWith('.css') && seen.has(path)).map(path => readFile(join(root, 'dist', path), 'utf8')));
+  for (const rule of ['.account-message{', '.account-message.is-error{']) assert.ok(styles.some(text => text.includes(rule)), `${rule} ships in a stylesheet the app loads`);
 });

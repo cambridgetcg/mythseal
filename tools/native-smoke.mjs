@@ -12,7 +12,8 @@
  *   a copy the strict checks refuse is set aside, the game starts a new journey, and 旅程存檔
  *   hands the set-aside copy to the share sheet; a copy saved mid-battle comes back with that
  *   battle given up;
- * - 旅程存檔's import: D2's file input and strict restore bring a journey file back;
+ * - 旅程存檔's import: D2's file input and strict restore bring a journey file back, and
+ *   復原上次本機旅程's confirmation promises no cloud backup;
  * - the network: no /api, nothing off the loopback origin, no account file, no failed request.
  * WEB_URL, when set, serves the website build or this checkout, which with no bridge still shows
  * the account entry. BROWSER=webkit runs Playwright's WebKit as an iPhone 15, closer to Safari
@@ -213,6 +214,17 @@ async function nativeRun() {
     await until(async () => JSON.parse(await stored(page)).coins === 4321, 'the import restores the journey');
     await until(async () => files.get(MIRROR) === await stored(page), 'and the copy follows it');
     passed('import from 旅程存檔: picker, comparison, strict restore; the copy follows');
+
+    // 復原上次本機旅程 promises nothing about a cloud backup the app does not have.
+    await page.locator('[data-action="saves-open"]').click();
+    await page.locator('.saves-panel [data-action="restore-recovery"]').click();
+    const recoveryDialog = page.locator('.modal', { has: page.locator('[data-action="confirm-restore-recovery"]') });
+    await recoveryDialog.waitFor();
+    assert.match(await recoveryDialog.textContent(), /這會取代此裝置的進度。現在的本機旅程會成為下一份回復備份。/);
+    assert.doesNotMatch(await recoveryDialog.textContent(), /雲端|旅程閣/);
+    await recoveryDialog.locator('[data-action="close-modal"]').click();
+    await until(async () => await page.locator('[data-action="confirm-restore-recovery"]').count() === 0, 'the dialog closes');
+    passed('復原上次本機旅程 makes no cloud promise in the app');
 
     // A copy saved mid-battle comes back with that battle given up, as 放棄此局 would.
     files.set(MIRROR, JSON.stringify(beginBattle(JSON.parse(await stored(page)), { kind: 'practice' }).profile));

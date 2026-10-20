@@ -718,7 +718,7 @@ test('D2 with D1 integration review: 復原上次本機旅程 is held while writ
   assert.equal(backDecision(view(true)).action, BACK.DISMISS_MODAL, 'before the confirmation, Back closes it');
   assert.equal(backDecision(view(false)).action, BACK.HOLD, 'while written, Back holds');
   const opening = source.slice(source.indexOf("if(action==='restore-recovery')"), source.indexOf("if(action==='confirm-restore-recovery')"));
-  assert.match(opening, /modal\('<div class="eyebrow">RETURN TO YOUR JOURNEY<\/div>[^\n]*','',true,'recovery-restore'\);\n    if\(recoveryDraft\.restoring\)holdRestore\('recovery-restore',true\);/, 'its own kind, and held when reopened during its restore');
+  assert.match(opening, /modal\(recoveryConfirmMarkup\(\{cloud:!NATIVE_SHELL\}\),'',true,'recovery-restore'\);\n    if\(recoveryDraft\.restoring\)holdRestore\('recovery-restore',true\);/, 'its own kind, and held when reopened during its restore');
   const confirming = source.slice(source.indexOf("if(action==='confirm-restore-recovery')"), source.indexOf("if(action==='bag-tab')"));
   assert.match(confirming, /draft\.restoring=true;holdRestore\('recovery-restore',true\);\n    restoreLocalProfile\(draft\.snapshot,draft\.fingerprint\)/);
   assert.match(confirming, /\.then\(\(\)=>\{if\(recoveryDraft===draft\)recoveryDraft=null;if\(modalKind==='recovery-restore'\)closeModal\(\);/);

@@ -28,7 +28,7 @@ import { commandLedgerJSON, assertLedgerUnchanged } from './command-ledger.mjs';
 import { exportJourney, importJourney, journeySummary, isStandalone, restoreFromMirror } from './platform.mjs';
 import { saveFile, createDurableMirror, createMirrorHold, mirroredStorage } from './native-shell.mjs';
 import { createSaveStatus } from './save-status.mjs';
-import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup, savesButtonMarkup, savePanelMarkup, SAVE_PANEL_NAME } from './save-ui.mjs';
+import { saveToolsMarkup, saveNoticeMarkup, importPickMarkup, importConfirmMarkup, recoveryConfirmMarkup, savesButtonMarkup, savePanelMarkup, SAVE_PANEL_NAME } from './save-ui.mjs';
 import { cardPresentation, printFrameMarkup, printLabel } from './card-presentation.mjs';
 import { WX01_PRINTINGS } from './printing-catalogue.mjs';
 import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.mjs';
@@ -1339,7 +1339,7 @@ document.addEventListener('click', event=>{
     // it is ignored too, not queued as a second restore that is refused after the first lands;
     // it opens held, as that restore's dialog is (holdRestore).
     if(!recoveryDraft?.restoring)recoveryDraft={snapshot:saved.snapshot,savedAt:saved.savedAt,fingerprint:fingerprintProfile(loadProfile())};
-    modal('<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>','',true,'recovery-restore');
+    modal(recoveryConfirmMarkup({cloud:!NATIVE_SHELL}),'',true,'recovery-restore');
     if(recoveryDraft.restoring)holdRestore('recovery-restore',true);
     return;
   }

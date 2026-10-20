@@ -52,8 +52,7 @@
 .account-shell button:focus-visible,.account-trigger:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .account-fine-print,.account-save-time{font-size:10px;color:var(--muted);line-height:1.9;margin:14px 0 5px}
 .account-save-time{margin:-10px 0 22px}
-.account-message{padding:12px 14px;margin:0 0 17px;font-size:11px;line-height:1.85;background:#95b7840d;border:1px solid #95b7843b;color:#cad6b6;border-radius:3px}
-.account-message.is-error{color:#ecc6b6;border-color:#c58f7459;background:#ab553510}
+/* .account-message and .account-message.is-error live in backpack.css: 出發前整備 uses them too, in the store build, which has no account.css. */
 .account-message.is-conflict{color:#e2cf9f;border-color:#d8bd834f;background:#d8bd8309}
 .account-local-note+.account-message{margin-top:20px;margin-bottom:0}
 .account-empty,.account-welcome{text-align:center;padding:23px 9px 26px}

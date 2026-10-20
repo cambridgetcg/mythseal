@@ -13,7 +13,7 @@ import { createProfileStore, RECOVERY_KEY } from '../profile-store.mjs';
 import { createFencedLock } from '../profile-fence.mjs';
 import { isNativeShell, nativePlugins, saveFile, SaveCancelled, createDurableMirror, createMirrorHold, mirroredStorage, MIRROR_DIRECTORY, MIRROR_PATH, MIRROR_UNDECIDED_KEY } from '../native-shell.mjs';
 import { exportJourney, exportText, exportFilename, restoreFromMirror, IMPORT_MESSAGES } from '../platform.mjs';
-import { saveStatusMarkup, savePanelMarkup, savesButtonMarkup, importConfirmMarkup, SAVE_PANEL_NAME } from '../save-ui.mjs';
+import { saveStatusMarkup, savePanelMarkup, savesButtonMarkup, importConfirmMarkup, recoveryConfirmMarkup, SAVE_PANEL_NAME } from '../save-ui.mjs';
 
 const now = '2026-09-21T12:00:00.000Z';
 const at = '2026-09-21T12:34:56.789Z';
@@ -401,4 +401,8 @@ test('the 旅程存檔 dialog and header button carry the app\'s status and no c
   assert.match(confirm, /可在旅程存檔「復原上次本機旅程」取回/);
   assert.match(confirm, /請先在旅程存檔「下載本機回復備份」/);
   assert.doesNotMatch(confirm, /旅程閣|雲端/);
+  // 復原上次本機旅程's confirmation: no cloud promise in the app; the website's text as it was.
+  assert.match(recoveryConfirmMarkup({ cloud: false }), /<p>這會取代此裝置的進度。現在的本機旅程會成為下一份回復備份。<\/p>/);
+  assert.doesNotMatch(recoveryConfirmMarkup({ cloud: false }), /雲端|旅程閣/);
+  assert.equal(recoveryConfirmMarkup(), '<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度；雲端備份不會改變。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>');
 });
