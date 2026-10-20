@@ -190,6 +190,16 @@ build tooling, kept apart from the dependency-free browser runtime.
   therefore share a number.
 - Recovery: if a renamed or recreated workflow ever restarts numbering, a repo
   variable `MOBILE_BUILD_OFFSET` (default `0`) is added to the run number.
+- *Amended 2026-10-20 (hybrid route).* Two counters now number iOS builds:
+  Xcode Cloud numbers its own builds 1, 2, 3, … and App Store Connect uses that
+  number, while this workflow uses the run number plus the offset. For iOS,
+  App Store Connect requires each pair of marketing version and build number
+  to be unique (Apple, "Setting the next build number for Xcode Cloud
+  builds"), so the backup must not land on a number Xcode Cloud has used or
+  will use for the same version. Before the first iOS upload from this
+  workflow, set `MOBILE_BUILD_OFFSET` to a range Xcode Cloud will not reach,
+  for example `100000`. The same number is Android's `versionCode`, which Play
+  requires to increase, so the offset may be raised but never lowered.
 
 ### 4.6 Same game on both platforms
 

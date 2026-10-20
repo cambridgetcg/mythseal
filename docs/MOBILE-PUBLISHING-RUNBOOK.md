@@ -60,6 +60,12 @@ still uses the GitHub Actions workflow below.
 1. GitHub environment `mobile-stores` (branch `main`, tags `mobile-v*`), its
    variables and secrets (table in the design spec §5). The App Store Connect
    team key is needed only for this route; create it only if the route is used.
+   Build numbers: Xcode Cloud numbers its builds 1, 2, 3, …, and App Store
+   Connect refuses a build number already used for the same version. Before
+   the first iOS upload from this route, set the repository variable
+   `MOBILE_BUILD_OFFSET` to a range Xcode Cloud will not reach (for example
+   `100000`; design spec §4.5). It is also Android's `versionCode`, which must
+   keep rising, so raise it if needed but never lower it.
 2. Android upload keystore: generate, back up in the keychain, set the secrets,
    delete the file.
 3. App Store Connect: Admin team API key → secrets; `bundle exec fastlane ios
@@ -78,7 +84,8 @@ still uses the GitHub Actions workflow below.
   to TestFlight internal testing. Install from TestFlight; open once in
   airplane mode.
 - **Stage 1, backup or Android:** Actions → Mobile builds → Run with `upload`
-  off; check both summaries show the same build number and manifest; run again
+  off (for an iOS upload, first check `MOBILE_BUILD_OFFSET` is set as in §1);
+  check both summaries show the same build number and manifest; run again
   with `upload` on (or push `mobile-v<version>-<n>`). GitHub offers Run only
   once the workflow file is on the default branch. Install from TestFlight and
   the Play internal link; open once in airplane mode.

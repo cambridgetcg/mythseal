@@ -141,6 +141,13 @@ are also editing, so it was not done here.
   0.6.0 bump.
 - **A licence for a public repository.** The repository is public, and
   [AGENTS.md](../AGENTS.md) still says no open-source licence has been chosen.
+- **Build numbers on two routes.** Xcode Cloud numbers its builds from 1; the
+  Actions backup uses its run number plus `MOBILE_BUILD_OFFSET` (`0` when unset;
+  its current value was not read for this record). App Store Connect refuses a build number already used for the same
+  version, so before the first iOS upload from the backup set the variable to
+  a range Xcode Cloud will not reach, such as `100000`, and never lower it
+  afterwards (it is Android's `versionCode` too). Runbook §1 and design spec
+  §4.5.
 - **Xcode on a Mac.** Installing Xcode (and its iOS platform) is the owner's
   step; it unlocks `Package.resolved`, the simulator rung and the first Xcode
   Cloud workflow.

@@ -1679,6 +1679,12 @@ sol access run github -- variable set MOBILE_BUILD_OFFSET -R cambridgetcg/mythse
 
 (`APPLE_TEAM_ID` is set in Task 11 once the owner reads it from App Store Connect.)
 
+(Amended 2026-10-20: with Xcode Cloud as the primary iOS route, `0` is right
+only until the first iOS upload from Actions. Before that, raise
+`MOBILE_BUILD_OFFSET` to a range Xcode Cloud's own build numbers will not
+reach, for example `100000`; it is also Android's `versionCode`, so never lower
+it. Design spec §4.5.)
+
 - [ ] **Step 3: Generate the upload keystore in a private temp dir, store it, delete it**
 
 ```bash
