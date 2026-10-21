@@ -2,6 +2,93 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## T1 first-visit hints and glossary · 2026-10-21
+
+Branch `t1/first-visit-hints`, from `main` **`3f3d351`** (PR #17), with the
+spec commits `34e24e1` and `3b3a111`, then source commits `8b67a82`,
+`7bdc92e`, `584ce53`, `1513cfa`, `3271b52`, `16c51f5` and `ee56354`
+([TUTORIAL-T1](TUTORIAL-T1.md), its
+[implementation record](TUTORIAL-T1.md#implementation-record--2026-10-21));
+the documentation commit after them changes no served, test or tool file.
+Local commits only: not pushed, merged or deployed. No hosted service was
+called and no request left loopback.
+
+**Environment.** macOS 26.6.2 (Darwin 25.6.0) on an Apple M2, Node 26.0.0,
+Python 3.14.6, Playwright 1.63.0 with installed Google Chrome 155.0.8059.85
+(Chromium, Pixel 7 descriptor) and Playwright WebKit 26.6 (iPhone 15
+descriptor) from `test-results/webkit-runtime`, all headless; synthetic saves
+only. Servers, all on 127.0.0.1: `python3 tools/serve.py --port 4391` from this
+checkout, restarted after each allowlist change (`GAME_URL`); the same script
+from a `git archive` export of `3f3d351` in a scratch directory on 4392 (`main`,
+`BASELINE_URL`); and `python3 -m http.server` on 4393 serving a copy of
+`npm run build:native`'s `dist/` (`NATIVE_URL`). One browser suite ran at a
+time, and each suite's PNG screenshots were deleted from `test-results/`
+afterwards (`webkit-runtime` kept).
+
+**Checks on the final source tree (`ee56354`):**
+
+- `npm test`: exit 0, **693/693** (667 at `main`; 26 new: 18 in
+  `tests/first-visit.test.mjs`, 8 in `tests/glossary.test.mjs`).
+  `tests/privacy-page.test.mjs`'s regex was widened for `rulesModal`'s options.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries, no findings.
+- `git diff --check 3f3d351 HEAD`: exit 0.
+- `npm run build`: exit 0, **95 public files** (92 at `main`), manifest
+  `b9257615…3ec3f`. Against `main`'s build, by path and `sha256`: added
+  `first-visit.mjs`, `glossary.mjs`, `guide.css`; changed `index.html`,
+  `app.mjs`, `navigation-ui.mjs`, `scene-adapters.mjs`, `scene-dialogs.mjs`;
+  every other asset identical, and `release.json` differs only in its
+  manifest, asset list and `gitCommit` (+28,419 bytes in all).
+- `npm run build:native`: exit 0, **92 public files** (89 at `main`), manifest
+  `d9af8df2…3c0`, its reference and offline-name checks passing; the same
+  three added and five changed files, no account file.
+- `node --test tests/hosting.test.mjs tests/native-build.test.mjs`: 16/16.
+- `npm run test:guide` (new, `tools/guide-smoke.mjs`, with `BASELINE_URL` and
+  `NATIVE_URL`): Chromium **20 checks**, WebKit **20 checks**, no page or
+  console error, no failed or off-loopback request. Every hint against a
+  hints-off control at ten portrait sizes (302×640, 320×568, 360×740, 360×780,
+  393×659, 393×780, 412×790, 430×932, 412×839 with 48/34 px insets, 393×852
+  with 59/34 px): no hint taller than its slot (most equal it; for example
+  `home-start` 28.1/28.1 px at 302 px, `bag-copies` 57.2/59.8 px), no later
+  sibling or list frame lower or shorter, **no new viewport-overflow flag**,
+  the same page counts, controls and history depth. At 844×390 and 734×343 the
+  control flagged nothing, so the same checks were asserted there (the bag's
+  lead is hidden at those sizes). The rules dialog against `main`: the 弈道
+  list frame is at least `main`'s at every portrait size (302×640 419.5 against
+  399.4 px; 360×740 519.5 against 518.1) and at 852×393 with iPhone side
+  insets (177.6/171.4), 844×390 (195.6/189.4) and 734×343 (148.6/142.4, where
+  `main` flags the rules list and T1 does not); 667×375, 640×360 and 568×320
+  recorded (568×320 flags in both). The 弈道 list has one more page at
+  430×932 (2 against 1) and in landscape (6 against 5); in WebKit at 302×640
+  one fewer (2 against 3). The capped header (1,000,000,000 each) at 302 px is
+  as wide as `main`'s (361 px Chromium, 359 px WebKit; `main`'s already
+  overflows there). The store build: header with 存檔, 金幣 → 詞彙, and the
+  rules-first route from 旅程存檔 with Back twice to 洞府.
+- `npm run test:coach`: Chromium **17 checks**, WebKit **17 checks**, including
+  the new section 4b (lobby and 旅程閣 origins, 稍後出發, focus, Back, mark ①,
+  the veteran's practice) and the unchanged practice case.
+- `npm run test:shell`: exit 0 in both engines (26 PASS lines each). Run
+  against `main` the same way, the viewport controller's overflow NOTE lines
+  are **identical** (25 lines in Chromium, 27 in WebKit), so T1 adds none. The
+  first run failed at 844×390 on 藏卡 (the wallet's new buttons under the cards
+  hub tabs); `16c51f5` fixed it.
+- `npm run test:viewport`: exit 0 in both engines (23 PASS lines each; its
+  screenshots deleted).
+- Regression suites, each exit 0: `test:back` 21 checks in Chromium and 20 in
+  WebKit and `test:saves` 20 groups in each (both after `ee56354` updated their
+  coin selector; the first runs timed out on the removed `title="金幣"`);
+  `test:commands` 13 checks in each; `tools/account-smoke.mjs` 11 checks
+  (Chromium); `test:expansion` 16 checks in each; `test:native` 12 groups in
+  each, with this checkout as `WEB_URL`; `tools/navigation-smoke.mjs` 6
+  checks; `tools/smoke.mjs` (12 areas) and `tools/journey-smoke.mjs` (8);
+  `test:battle-table` 40 checks in each.
+- **Not run:** a physical phone, the iOS Simulator, Xcode, Safari itself,
+  VoiceOver, TalkBack, text scaling, Firefox, hosted CI, the other
+  `test:browser` suites (classics, backpack, immersion, battle presentation,
+  stories, WX-01, profile recovery, box, inheritance, collection display), and
+  a playtest with first-time players, which remains the real test of the
+  teaching.
+
 ## iOS first flight · 2026-10-20
 
 Branch `ios/first-flight` (local when these checks ran; later pushed as PR #17,

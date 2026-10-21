@@ -532,6 +532,25 @@ a key during the drag no longer lets it pass ② on to ③, and fitted the cost
 line in fractional pixels, so the ellipsis no longer cuts 剩 N 丹 by a
 fraction of a pixel at some widths.
 
+**First-visit hints and glossary (T1) · status 2026-10-21:** the owner's
+2026-10-20 onboarding decision, implemented on branch `t1/first-visit-hints`
+(from `main` `3f3d351`) as local commits; not pushed, merged or deployed, and
+not in the proposed v0.6.0 scope unless the owner adds it
+([TUTORIAL-T1 §8](docs/TUTORIAL-T1.md#8-open-questions-for-yu), question 9).
+The rules-first trap is fixed: on a first visit the rules dialog's 知其道，入其局
+opens the 霧隱渡口 preparation, so a player who reads the rules first still
+gets D3's coached first battle. Eight 初見 hints for newcomers (fewer than ten
+finished battles) each replace an existing line, never adding height on a
+phone; a 20-term 詞彙 is the rules dialog's second module; the header's 金幣,
+靈砂 and 執令者 Lv open it at their term. The only new stored value is the
+device-local `shanhai.guide.v1`; a switch in 聲息與節奏 turns hints off or
+replays them. [Spec and implementation record](docs/TUTORIAL-T1.md),
+[checks](docs/VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
+Open: the owner's review of the copy and voice (§8), and a playtest with
+first-time players on a phone, which automation does not replace. Later: T2's
+illustrated 入門卷 (Mythseal's own reference art, provenance recorded), and a
+guided full session only if playtests show players get lost.
+
 ### M5 · Mobile adaptation → iOS and Android closed beta
 
 **Dependencies:** the approved [M4 game shell](docs/NAVIGATION.md) is the starting point. Touch and

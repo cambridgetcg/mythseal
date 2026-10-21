@@ -1,13 +1,16 @@
 # First-visit hints and glossary · T1
 
-**Status: `proposal · 2026-10-20 · revised after review`.** This is an
-implementation spec on the branch `t1/first-visit-hints`, started from `main`
-`3f3d351`. Nothing in it is built, merged or deployed. Every file:line below
-was read at `3f3d351`. No test, build or browser ran for this document. The
+**Status: `proposal · 2026-10-20 · revised after review`; implemented on
+2026-10-21 on the same branch as local commits (not pushed, merged or
+deployed).** This is an implementation spec on the branch
+`t1/first-visit-hints`, started from `main` `3f3d351`. Every file:line below
+was read at `3f3d351`. No test, build or browser ran for the spec itself. The
 first draft (`34e24e1`) was reviewed the same day for game truth and for UX and
 architecture; this revision applies those reviews, and the
 [critique log](#critique-log) records each point and the few that were not
-taken as written.
+taken as written. The [implementation record](#implementation-record--2026-10-21)
+lists the commits and every place the build departs from this text, with the
+measurement behind it; where they differ, the record and the code are current.
 
 **Owner decisions it implements (Yu, 2026-10-20):**
 
@@ -348,6 +351,10 @@ Visual marker:
   「新手指引 n / 4：」 does (`battle-ui.mjs:86`).
 
 ### 2.3 Registry (8 hints)
+
+*Built (2026-10-21):* `home-start` keeps the lobby footnote, and the copies of
+`home-start` and `quests-why` were cut to one line; see the
+[implementation record](#implementation-record--2026-10-21).
 
 **How to read the table:**
 
@@ -1388,6 +1395,84 @@ merge points.
 
 As with D3, the real test of the teaching is a playtest with first-time
 players on a phone, and automation does not replace it.
+
+---
+
+## Implementation record · 2026-10-21
+
+Built on `t1/first-visit-hints` as local commits, one per theme (the build
+order of the instructions, which differs slightly from §9's): the rules-first
+fix `8b67a82`; the hints, their record and the switch `7bdc92e`; the 詞彙
+glossary `584ce53`; the tappable header `1513cfa`; `tools/guide-smoke.mjs`
+and `npm run test:guide` `3271b52`; a short-landscape header fix `16c51f5`
+(item 5 below); and these documents. Nothing was pushed, merged or
+deployed. The checks actually run are in
+[VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
+
+**Where the build departs from the spec, and why** (each measured by
+`npm run test:guide` against a hints-off control, or against `main` served
+from an export of `3f3d351`, in Chromium as a Pixel 7 and WebKit as an
+iPhone 15):
+
+1. **`home-start` keeps the footnote** (`slot.remove` is empty). The lobby's
+   route block is centred in the realm (`align-self:center`), so removing
+   「四回合對弈 · AI 守境人」 recentred the block and lowered 啟程遊歷 by half
+   the footnote's height (about 10.7 px) at every portrait size, which §2.1's
+   acceptance forbids. The hint replaces the subtitle alone, and
+   `requires` still keeps it out beside 先赴霧隱渡口.
+2. **Two copies were cut to one line**, as §2.1 says to do when a copy does not
+   fit its slot:
+   - `home-start`: the subtitle is one line at 302–393 px (240 px of 11 px
+     text at 302 px), and the guardian's label shares it. Built:
+     「燈在渡口等你，首局我陪你走。」 (14 code points) and, once the coach has
+     ended, 「燈在渡口等你，先落第一子。」 (13). Spec: 18 and 19.
+   - `quests-why`: the 朝露 line is one line of about 191 px at 12 px in a
+     centred column, so the spec's 26 code points took two lines and lowered
+     the reward and button by about 11 px. Built: 「朝露與功課，助你開匣修練。」
+     (13). It no longer names 金幣 and 靈砂; the reward figure right below it
+     shows both.
+   Every other copy is the spec's. The 「初見」 seal is 1 px narrower on each
+   side (padding 0 1px, margin 3 px) so the 13-character line fits in WebKit.
+3. **The rules dialog's tab row.** Moving the intro into the list did not pay
+   for the 詞彙 tab row: the 弈道 list frame was 5 px shorter than `main`'s at
+   360×740 and 430×932, and 23 px shorter at 844×390. In the rules dialog the
+   tab row now has no bottom padding, and on screens 500 px tall or less it
+   takes the place of the decorative eyebrow (THE ART OF THE DUEL, or WORDS ON
+   THE ROAD in term mode; the `h2` stays). The frame is now at least `main`'s
+   at every size measured; 734×343 loses `main`'s overflow flag, and 568×320
+   keeps it. Because the intro is now a list item, the 弈道 list has one more
+   page where it was already full: 430×932 (1 → 2) and the landscape sizes
+   (5 → 6). The intro keeps its 11 px size inside the list.
+4. **Header buttons have no padding** (spec: `0 2px`). With it the header was
+   8 px wider than `main`'s at 302 px with 999,999 coins; without it the widths
+   are equal there and at the cap. At the cap `main`'s header already
+   overflows at 302 px (☷ off screen); that is unchanged and pre-existing.
+5. **Short landscape: the wallet gives way to the cards hub tabs.** On screens
+   500 px tall or less, 藏卡 and 圖鑑 put their hub tabs in the header row over
+   the wallet (`scene-content.css`); on `main` the tabs already cover the
+   wallet's text there. As buttons the resources became covered controls, and
+   `test:shell`'s header check failed at 844×390, so there the wallet is now
+   `visibility:hidden` (§4 did not foresee this).
+6. **`GUIDE_DIALOG_KINDS`** is a literal `['quests', 'activity']`; a test ties it
+   to the registry.
+7. **A dialog of another kind ends the dialog visit** (`guide.leave('dialog')`
+   in `applyGuide`), so a hint dialog reopened after another dialog replaced
+   it counts as a new visit.
+8. **The switch** landed with the hints, and `tools/guide-smoke.mjs` as its own
+   commit. guide-smoke compares the rules dialog and the header with `main`
+   when `BASELINE_URL` names a loopback server for `main`'s checkout, and
+   checks the store build when `NATIVE_URL` serves `npm run build:native`'s
+   `dist/`; without them it records NOTE lines instead. `GUIDE_SIZE`,
+   `GUIDE_AUDIT=1` and `GUIDE_LAYOUT_ONLY=1` narrow or audit a run.
+9. **Glossary test:** `PRINT_TREATMENTS` names are checked; the codes (BASE,
+   AA, …) are not, because the 畫作 entry shows none.
+10. **`tests/privacy-page.test.mjs`**' static guard now accepts
+   `rulesModal`'s options argument (`function rulesModal\([^)]*\)`).
+
+**Copy questions added for Yu** (beside §8): the three cut copies in item 2;
+whether hiding the eyebrow on short landscape screens is acceptable, or the
+tab row should move into the heading row there instead; and whether 弈道's
+extra page at 430×932 matters.
 
 ---
 

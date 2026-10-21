@@ -186,6 +186,34 @@ location, and the final location offers a revisit. Arena/practice offer another
 match in the same mode. Adjusting the deck keeps this next-encounter intent.
 Navigation never settles or pays for a completed match a second time.
 
+### The rules dialog's two routes · T1 (2026-10-21)
+
+The rules dialog's 知其道，入其局 (`rules-start`) decides its route when tapped,
+from a fresh read of the profile ([TUTORIAL-T1 §1](TUTORIAL-T1.md#1-the-rules-first-fix)):
+on a **first visit** (the lobby's own predicate: no battle finished, none in
+progress) it closes the dialog, goes to 遊歷 with 霧隱渡口 selected and opens
+its preparation, as 先赴霧隱渡口 does, so a player who reads the rules first
+still meets D3's coached first battle; **otherwise** it opens the 自由切磋
+preparation, as before. The arena page's 開始練習 still opens practice. The
+same route applies from all three origins outside battle: the lobby's
+「初次落子？讀懂弈道」, web 旅程閣's tools row and the store build's
+旅程存檔 panel (both 「弈道 · 遊戲規則」). In battle the dialog keeps
+明白，返回對局.
+
+Back from the ferry preparation: the tap leaves `destination:world>modal:preparation`
+(depth 2). From the lobby or 旅程存檔 the tap pushes one history entry; from
+旅程閣 (`sub-view:account>modal:rules`, also depth 2) it replaces it. Either way
+Back closes the preparation, and the next Back goes home. 稍後出發 leaves the
+player on 遊歷 with focus on the dock's 遊歷 button, and nothing is written
+until 踏上渡口.
+
+The dialog has its own kind and Back signature, `modal:rules`, and since T1 two
+modules: 弈道 and 詞彙. Opened from a header resource (金幣, 靈砂, or 執令者 Lv
+on screens 1,051 px and wider), it opens on 詞彙 at that term, focused, under
+WORDS ON THE ROAD / 識其名，知其用。 with 明白了; Back closes it and focus
+returns to the resource. Switching tabs is not a layer. The 初見 hints are page
+text in their slot's place, never a dialog, focus target or Back layer.
+
 ## Implementation boundaries
 
 - `navigation-ui.mjs` provides pure shell/lobby markup; `navigation.css` styles it
@@ -616,6 +644,9 @@ Run `npm test`, `python3 -m unittest discover -s tests -p '*_test.py'`, and
 `GAME_URL=http://127.0.0.1:4177 npm run test:browser` and `npm run test:viewport`.
 The latter runs the six-size viewport matrix in Chrome and WebKit.
 `npm run test:shell` runs the mobile-shell checks above in both engines.
+`npm run test:guide` runs T1's hint, 詞彙, header and store-build checks
+([TUTORIAL-T1 §7.2](TUTORIAL-T1.md#72-browser)); `npm run test:coach` covers the
+rules-first route.
 
 The added `tools/navigation-smoke.mjs` exercises preparation without mutations,
 exact-copy deck changes and return, pending-match continuity, card detail
