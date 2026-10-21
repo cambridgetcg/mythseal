@@ -637,6 +637,13 @@ plan is preserved for understanding, not as an active issuance objective. If the
 owner reopens collectibles, restart from that plan's dependencies rather than
 from this roadmap.
 
+**Trading-route investigation reopened · 2026-10-21:** the owner reopened
+investigation of a trading / NFT / trading-card route, explicitly without forced
+monetization. [TRADING-ROUTE-2026-10.md](docs/TRADING-ROUTE-2026-10.md) is a dated
+proposal that restarts from the implementation plan's dependencies and lists the
+owner decisions; nothing is chosen, deployed or minted. The 2026-09-23 retirement
+text above stays as history until the owner decides.
+
 ### M7 · iOS / Android store release (optional, separately chosen)
 
 **Dependencies:** M5 and review of the selected store flow. This track is a

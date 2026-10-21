@@ -154,6 +154,7 @@ explain the earlier thinking; none is an instruction to mint or sell.
 | [Limited cards and on-chain identity](BLOCKCHAIN-DESIGN.md) | Draft supply caps, per-copy XP and transfer semantics (中文) | `retired · 2026-09-23`; draft dated 2026-09-21 |
 | [NFT, wallet and archive stack](NFT-STACK.md) | Base Sepolia, ERC-721 and IPFS candidate stack (中文) | `retired · 2026-09-23`; research dated 2026-09-21 |
 | [Blockchain implementation plan](BLOCKCHAIN-IMPLEMENTATION-PLAN.md) | Base recommendation and contract packets; superseded that evening by the retirement | `retired · 2026-09-23` |
+| [Trading route, 2026-10](TRADING-ROUTE-2026-10.md) | Reopened investigation of trading, NFTs and collectible cards without forced monetization: gameplay integration, web and iOS auth flows, gas strategy, chain costs, store rules, UK/EU/TW/HK law, ethics, a T0–T3 path and owner decisions (中文) | `proposal · 2026-10-21`; nothing chosen, deployed or minted; the retirement stays until the owner decides |
 | [Pre-retirement roadmap](history/retired-commercial-direction-2026-09-23/ROADMAP.md.txt) | The roadmap as it stood before the retirement, unchanged | `retired · 2026-09-23` |
 | [Pre-retirement technical plan](history/retired-commercial-direction-2026-09-23/docs__TECHNICAL-PLAN.md.txt) | The technical plan as it stood before the retirement, unchanged | `retired · 2026-09-23` |
 
