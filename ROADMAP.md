@@ -325,6 +325,9 @@ is proven. Do not promote local AI-arena points into a human competitive rating.
 ### M4 · Grow the game, presentation and competitive play
 
 **Dependencies:** content/onboarding work can start now. Server competitive play depends on M2; valuable trading/rewards depend on M3.
+For onboarding, [BENCHMARKS-HABBY-SUPERCELL](docs/BENCHMARKS-HABBY-SUPERCELL.md)
+(research 2026-10-21) compares Habby's and Supercell's first sessions with
+Mythseal's principles and proposes candidate packets O1–O7 for owner choice.
 
 **Local presentation slice (2026-09-22):** the five-destination game lobby,
 unified cards/deck/codex hub, quest overlay and encounter preparation/next-match
@@ -493,7 +496,19 @@ human standard-mode playtests before selecting balance changes.
 Advanced difficulty, event-specific art and seasonal rules remain planned;
 real PvP/ranked stays on the M2/M3 authority track.
 
-- Improve onboarding, explain four-round decisions and exact-card growth, and organize Traditional Chinese/English text without changing save identities. Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
+**M4.7 · Languages and text (proposal 2026-10-21):** at the owner's request,
+[I18N-PLAN](docs/I18N-PLAN.md) proposes multi-language support with Traditional
+Chinese as the source, referencing Habby's and Supercell's language sets. L0
+moves the UI text into a string catalogue with no visible change; L1 adds locale
+selection on web and native, `<html lang>` per locale and per-locale font
+stacks; then English, Simplified Chinese, Japanese and Korean, each with layout
+runs of the existing viewport smokes, a translation provenance record and
+native-speaker LQA. Two saved identities are display text today (the 聽見萬聲
+and 借得東風 titles, and default deck names); the plan keeps them stable. Not in
+the v0.6.0 scope; L0 is best started after T1 merges. Store languages tie into
+M5.3 and M7. Nothing is implemented; the owner decisions are in its §9.
+
+- Improve onboarding (benchmarks and candidate packets: [BENCHMARKS-HABBY-SUPERCELL](docs/BENCHMARKS-HABBY-SUPERCELL.md)), explain four-round decisions and exact-card growth, and move text into a string catalogue without changing save identities (M4.7 above). Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
 - Add new classical characters through explicit rules/content versions. Build per-card artwork manifests/derivatives with provenance; trial one card's CSS/Web Animations effects with reduced-motion, skip and background/resume support before scaling the art pipeline.
 - If PvP is selected, add matchmaking and a server-owned arena ladder as a separate slice. Specify simultaneous hidden moves, timeout/abandonment, reconnection and match outcomes before ranking or seasonal rewards.
 
@@ -544,7 +559,7 @@ M2–M3 contracts. Mobile adaptation does not depend on the collectible phases.
 | --- | --- | --- |
 | **M5.1 · Phone gameplay** | Adapt the lobby, five labelled destinations, quest panel, exact-card decks, preparation and results for portrait phones. Check safe areas, thumb reach, readable cards, text scaling, keyboard/input and consistent Back/close behaviour. Retain the responsive browser layout. | A new player completes lobby → prepare/edit deck → battle → rewards → next encounter on a physical iPhone and Android phone. Record screen sizes and accessibility/performance observations. |
 | **M5.2 · Native build trial** | Finish the native toolchain/signing setup and trial the existing Capacitor direction with only allowlisted bundled assets. Add durable storage/migration, Android back handling, lifecycle and audio recovery. | Development builds on both platforms preserve exact UIDs, XP and pending matches through cold starts, upgrades, backgrounding and process termination; no duplicate payouts. Decide whether the shared UI meets measured device targets before considering a rewrite. |
-| **M5.3 · Closed beta** | Produce iOS TestFlight and Google Play testing builds for the selected ordinary-card feature set. Adapt the existing email-code/explicit backup journey if accounts are included. Prepare onboarding, support/privacy information, account lifecycle, ratings, accessibility and release-specific data/plugin disclosures. | Signed beta builds pass the physical-device matrix, poor-network/offline and recovery checks. Record tester feedback and resolve blocking gameplay, save and usability issues. |
+| **M5.3 · Closed beta** | Produce iOS TestFlight and Google Play testing builds for the selected ordinary-card feature set. Adapt the existing email-code/explicit backup journey if accounts are included. Prepare onboarding, support/privacy information, account lifecycle, ratings, accessibility and release-specific data/plugin disclosures. Include any languages selected under M4.7 if the beta invites players who don't read Chinese. | Signed beta builds pass the physical-device matrix, poor-network/offline and recovery checks. Record tester feedback and resolve blocking gameplay, save and usability issues. |
 
 **Acceptance:** signed builds pass the agreed physical-device matrix, recover after interruption without losing cards or duplicating payouts, and meet measured performance targets. Record actual closed-beta/store review outcomes. NFT ownership granting playable rights on native remains a separate product decision, not an implied feature of the beta.
 
@@ -642,7 +657,7 @@ from this roadmap.
 **Dependencies:** M5 and review of the selected store flow. This track is a
 freely chosen option after M5, without a date, quota or growth target.
 
-- Graduate the tested builds to **Apple App Store and Google Play** submissions. Confirm launch territories, audience, minimum OS/device support, account ownership, the chosen feature set and current submission requirements. Prepare store screenshots/listings, support and release recovery; record each platform's review and rollout separately. Simultaneous launch is not assumed.
+- Graduate the tested builds to **Apple App Store and Google Play** submissions. Confirm launch territories, audience, minimum OS/device support, account ownership, the chosen feature set and current submission requirements. Prepare store screenshots/listings, support and release recovery; for each store language chosen before submission, finish its M4.7 phase, `.lproj`/`values-*` resources, metadata and per-language screenshots ([I18N-PLAN §5](docs/I18N-PLAN.md#5-app-store-與-google-play-本地化)); record each platform's review and rollout separately. Simultaneous launch is not assumed.
 - Release only the accepted mobile feature set, with staged rollout and version compatibility. Monitor game balance, service health and support capacity.
 
 **Acceptance:** actual store receipts, recovery evidence and operational ownership are recorded. A plan or passing emulator suite alone does not satisfy release readiness.
@@ -663,6 +678,7 @@ These are bounded starting points, not instructions to start every phase at once
 | Campaign/activity playtest | Build on recorded automated viewport/browser acceptance; play all six volumes and compare owned/loaner 火焰山 difficulty, supply choices and reward pace. | M4.6 local implementation; record human evidence separately from the 16/200 mirrored-AI probe. Preserve saved seeds, old grants and once-only settlement. |
 | Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
 | Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
+| String-catalogue audit (M4.7 L0 survey) | A per-module list of user-facing strings, error messages, aria labels and test selectors that pin Chinese text, with the display-text save identities, as the input to L0. | After T1 merges; read-only; follow [I18N-PLAN](docs/I18N-PLAN.md) §2–§3. No visible change and no save change. |
 
 For the experience work, Q0 and Q4's registry and audit are merged (PRs #5 and
 #9), and Q1 by PR #10; their [status lines](#experience-quality-track) say what
@@ -696,6 +712,7 @@ The server records append-only XP against a stable card identity. A collectible 
 | Online economy entry | Fresh server-issued inventory; offline journeys remain preserved and editable. | M2 starter grant and progression contract. |
 | Infrastructure/operations | Existing Workers + Supabase; one transactional command authority; expand services only from measured need. | Authoritative alpha rollout and any paid resource. |
 | Audience and native product | iOS App Store and Android Google Play remain the selected native direction (2026-09-22), now an optional undated release; use the shared game shell and a Capacitor trial. Supported regions/ages and devices remain open; no paid scope is planned. | Closed beta/store disclosures. |
+| Languages | Traditional Chinese source; proposed order English → Simplified Chinese → Japanese → Korean ([I18N-PLAN](docs/I18N-PLAN.md)). Which languages ship before 上架, the translation route and mainland China distribution remain open; a language is not a launch territory. | M4.7 L0; the first store submission with more than one language. |
 | Wallet and chain research | Retained as optional technical research; no active issuance objective. | Any new explicitly selected experiment. |
 | Commercial editions | Retired delivery objective; old supply drafts create no entitlement. | No sale or marketplace is planned by this roadmap. |
 | Name, artwork and source licensing | 萬象契 / Mythseal selected; original art with provenance; no open-source license selected. | Public licensing/commercial release; domain ownership does not establish trademark clearance. |

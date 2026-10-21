@@ -15,7 +15,9 @@ the merges of PRs #5 and #9 and to PR #10, which merges that branch. On
 release plan, the validation log, the handover, the roadmap, navigation, the
 battle table, the local-commands contract, the mobile plan, accounts and
 hosting were brought up to D1, N1, D2 and D3 (PRs #11, #12, #14 and #15); the
-document count is unchanged.
+document count is unchanged. On 2026-10-21, on `research/onboarding-i18n` from
+`main` `3f3d351`, the Habby and Supercell onboarding benchmarks and the i18n plan
+gained rows.
 
 ## Status vocabulary
 
@@ -49,6 +51,8 @@ contract.
 | Which checks actually ran, and on what? | [VALIDATION.md](VALIDATION.md) |
 | Which save and backup formats does `main` use? | [Guarded saves](HANDOVER.md#playable-local-wx-01-and-guarded-saves) and the [save and settlement contract](CAMPAIGN-AND-EVENTS.md#save-and-settlement-contract) |
 | Who owns which source file? | [Code ownership map](HANDOVER.md#code-ownership-map) |
+| Which languages, in what order, and how? | [I18N-PLAN](I18N-PLAN.md), a proposal (M4.7) |
+| What do Habby and Supercell do in a first session? | [BENCHMARKS-HABBY-SUPERCELL](BENCHMARKS-HABBY-SUPERCELL.md) |
 
 ## Start here
 
@@ -142,6 +146,7 @@ this index.
 | [Mobile field notes](MOBILE-FIELD-NOTES.md) | Dated evidence for every mobile run, console step and review, each with a "pay attention to" lesson | `record`, dated per entry |
 | [iOS first flight](IOS-FIRST-FLIGHT.md) | Every change on the `ios/first-flight` branch (PR #13 merged and fixed for Mindicraft, Xcode Cloud and native saves), its reason and the ladder rung it reached | `record · 2026-10-20` · branch only, not merged |
 | [Content release pipeline](CONTENT-RELEASE-PIPELINE.md) | Art versions, animation budget and compatible release manifests (中文) | `proposal · 2026-09-21` |
+| [Multi-language plan](I18N-PLAN.md) | Languages and order from the Habby/Supercell language tables, string catalogue, locale selection, `<html lang>`, fonts, per-locale layout budgets, stable save identities, translation pipeline, store localization, phases L0–L5, costs, risks and owner decisions (中文) | `proposal · 2026-10-21`; not in v0.6.0; nothing implemented |
 
 ## Retired collectible research
 
@@ -177,6 +182,7 @@ explain the earlier thinking; none is an instruction to mint or sell.
 | [Classical source notes](CLASSICAL-SOURCES.md) | Primary-text anchors behind the classical characters (中文) | `record · 2026-09-21` |
 | [Naming decision and history](NAMING.md) | Why 萬象契 / Mythseal, and the earlier shortlist | `record · 2026-09-21` |
 | [Domain-check snapshot](DOMAIN-CHECKS.json) | Registry lookups behind the naming shortlist; not current availability | `record · 2026-09-21` |
+| [Habby and Supercell onboarding benchmarks](BENCHMARKS-HABBY-SUPERCELL.md) | First sessions, unlock pacing and in-game design at both companies, the monetization-pressure patterns named as such, where Clash Royale's analogy breaks, what fits Mythseal, candidate onboarding packets O1–O7 and owner decisions (中文) | `record · 2026-10-21` for the research; its Mythseal judgments and packets are `proposal · 2026-10-21` |
 
 ## Keeping the library useful
 
