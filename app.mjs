@@ -725,7 +725,7 @@ function experienceSettingsModal() {
     <label class="experience-field"><span>落子音效 <output id="experience-effects-value">${Math.round(p.effects*100)}%</output></span><input id="experience-effects" aria-label="落子音效音量" type="range" min="0" max="1" step="0.05" value="${p.effects}"></label>
     <label class="experience-field"><span>動態</span><select id="experience-motion"><option value="system" ${p.motion==='system'?'selected':''}>跟隨裝置設定</option><option value="reduce" ${p.motion==='reduce'?'selected':''}>減少動態</option></select></label>
     <label class="experience-field"><span>揭曉節奏</span><select id="experience-pace"><option value="normal" ${p.pace==='normal'?'selected':''}>從容揭曉</option><option value="fast" ${p.pace==='fast'?'selected':''}>直接看結果</option></select></label>
-    ${screen==='battle'?'':`<label class="experience-field"><span>初見提點<small>初到各處時的一行說明；重新開啟會再看一次</small></span><input id="guide-hints" type="checkbox" ${guide.enabled()?'checked':''}></label>`}
+    ${screen==='battle'?'':`<label class="experience-field"><span>初見提點<small>入門期間，重開可再看</small></span><input id="guide-hints" type="checkbox" ${guide.enabled()?'checked':''}></label>`}
     <p class="panel-footnote">設定會記在此裝置。揭曉時亦可直接跳過。</p><div class="modal-actions"><button class="primary" data-action="close-modal">${screen==='battle'?'返回對局':'返回旅途'} →</button></div>`,'experience-settings',true,'experience-settings');
 }
 function questsModal(tab=questTab) {
