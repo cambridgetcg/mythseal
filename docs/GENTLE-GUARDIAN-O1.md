@@ -1,12 +1,12 @@
 # O1 · The gentle first guardian (緩渡)
 
-**Status: `proposal · revised 2026-10-21 after review round 1 (§12)`.** Code
-references are to `main` `3f3d351` unless a file is named on this branch;
-`t1:` means the branch `t1/first-visit-hints` (draft PR #18) at `cce9c2c`.
-The candidate packet O1 is in `docs/BENCHMARKS-HABBY-SUPERCELL.md` §7 on
-`research/onboarding-i18n` (PR #20). The engine option (§3.1), the style
-module and the simulation tool (§3.2, §11) are on this branch already, because
-the revised tables in §1 come from that tool.
+**Status: `proposal · 2026-10-21`, revised after review round 1 (§12);
+implemented 2026-10-21 on the branch `o1/gentle-guardian` as local commits,
+not pushed, merged or deployed (§13).** Code references are to `main`
+`3f3d351` unless a file is named on this branch; `t1:` means the branch
+`t1/first-visit-hints` (draft PR #18) at `cce9c2c`. The candidate packet O1
+is in `docs/BENCHMARKS-HABBY-SUPERCELL.md` §7 on `research/onboarding-i18n`
+(PR #20).
 
 **Why now.** ROADMAP's *First battle teaching (D3)* status lists capping the
 AI's round-1 spend as an owner fallback after D3's playtest. On 2026-10-21 the
@@ -666,3 +666,21 @@ part, with the reason.
 | 8 (low) | `seed ^ 0x9e3779b9` is negative, so the text as written throws | **Accepted**, and taken further: both streams' seeds are hashed, because raw consecutive seeds made the random policies sensitive to the stream (§1.1, §1.3); every table was regenerated |
 | 9 (low) | §9 out of date: T1.1 already routes 今日落子 to 霧隱渡口 | **Accepted.** T1 re-pinned at `cce9c2c` (later than the `7443926` the review read) and §9 updated |
 | 10 (low) | Verified: game truth, call sites, public-only AI, fair modes, reload; the packet's 「引擎與公平模式不變」 needs acknowledging | **Accepted.** §3.1 says what changes in `engine.mjs` and what does not |
+
+## 13. Implementation record · 2026-10-21
+
+On the branch `o1/gentle-guardian`, from `main` `3f3d351`, as local commits:
+`9abe311` (the engine option and its tests), `fb61473` (`guardian-style.mjs`,
+allowlisted for the public build, `tools/guardian-sim.mjs` and their tests),
+`665352b` (this spec, revised after review round 1), `3c98e60` (the style
+decided at the start and kept in the snapshot, the three AI calls, the
+disclosure and the 緩渡 loss advice), `cabb2a5` (the *capped* reveal tip) and
+`dea40b6` (`tools/coach-smoke.mjs` sections 8 and 8b), then the documents. The
+build follows §3–§7; nothing departs from them. Checks:
+[VALIDATION](VALIDATION.md#o1-gentle-first-guardian--2026-10-21).
+
+Seen while measuring, not changed by O1: after a 霧隱渡口 loss, 勝負已定's
+first page holds only THE DUEL IS COMPLETE and 悟 at 302 and 320 px, and adds
+the heading at 393×659 in WebKit; the advice is on its second page there, with
+or without 緩渡. D3's check of the advice is an arena loss, where it is on
+the first page.

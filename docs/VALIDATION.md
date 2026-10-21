@@ -46,6 +46,81 @@ use 22 and 24), Python 3.14.6, Playwright 1.63.0 with Chromium for Testing
 - **Not run:** any Xcode build, the iOS Simulator, a device, Xcode Cloud,
   GitHub Actions, the other `test:browser` suites, Firefox.
 
+## O1 gentle first guardian · 2026-10-21
+
+Branch `o1/gentle-guardian`, from `main` **`3f3d351`**; packet O1, which the
+owner asked on 2026-10-21 to have prepared as a reviewable fallback for D3.
+Source commits `9abe311`, `fb61473`, `3c98e60`, `cabb2a5` and `dea40b6`; the
+spec revision `665352b` and the documentation commit after them change no
+served, test or tool file. Not pushed, merged or deployed; no network
+request beyond the loopback server. Design:
+[GENTLE-GUARDIAN-O1](GENTLE-GUARDIAN-O1.md).
+
+**Environment.** macOS 26.6.2 (Darwin 25.6.0) on arm64, Node 26.0.0, Python
+3.14.6, Playwright 1.63.0, installed Google Chrome 155.0.8059.85 for Chromium
+and Playwright WebKit 26.6 (its runtime borrowed from another local
+checkout's ignored `test-results/webkit-runtime` through
+`PLAYWRIGHT_BROWSERS_PATH`), all headless. `python3 tools/serve.py --port
+4691` from the worktree, `GAME_URL=http://127.0.0.1:4691` for every browser
+suite; the browsers ran one at a time. Synthetic saves only.
+
+**Checks on the tree of `dea40b6`:**
+
+- `npm test`: exit 0, **676/676** (667 at `3f3d351`): three in
+  `tests/engine.test.mjs` (the same seeded games with no option, `{}`,
+  `Infinity` and 12 in expedition, arena and practice give the same moves;
+  the cap holds leading and following in rounds 1–4, never Fury below its
+  cost, and invalid caps throw; a capped AI is seeded and reads only public
+  fields) and six in the new `tests/guardian-style.test.mjs` (where the style
+  applies, tied to `coachStart`; no option for returning players and fair
+  modes; `styleById`; the seeded bands on seeds 100001–100200; the copy; the
+  *capped* tip).
+- One-off digest, not a test: SHA-256 over 1,381 AI moves (seeds 1–200 × two
+  policies) is `b11fd3b6…ce1e` for no option, `{}`, `{ spendCap: Infinity }`
+  and `{ spendCap: 12 }`, as on `3f3d351`.
+- `node tools/guardian-sim.mjs` with the commands in the spec: the §1.2,
+  §1.3 and deck-check tables (seeds 1–1,000 and 100001–102000).
+- `npm run build`: exit 0, **93 public files** (`main`'s allowlist has 92;
+  `guardian-style.mjs` is the new one), manifest `811c48c4…7f17`.
+  `npm run build:native`: exit 0, **90 public files**, manifest
+  `1b475651…6968`. `dist/` was deleted afterwards.
+- `npm run test:coach` (Chromium as a Pixel 7, then WebKit as an iPhone 15):
+  exit 0, **19/19 checks in each engine** (16 before O1), 84 s for both.
+  Section 8: on a fresh journey the preparation showed the arrival line
+  「初渡之局，我出手放輕，你放膽試。」 and the rule line; the
+  snapshot named `gentle-crossing` from the start; in round 2 the guardian
+  led, his saved commitment cost at most 2 and was the same after a reload;
+  the battle's commitments were 2, 2, 1, 2; after six pills in round 1 the tip
+  was *capped* (then even, even, final; never *rich*); the battle was lost,
+  the final table still named 緩渡, the advice was ②'s sentence and the
+  result note today's; the second crossing showed no rule line and
+  「不必急着渡河，先看清手中的牌。」 and started without a style. A first
+  battle saved before O1 resumed without the style. Section 8b, against a
+  veteran's battle at the same size: at 302×640 the rule line took 2 lines
+  and at 320×568, 393×852 and 1280×720 one; the preparation kept its page
+  count and size; the status row stayed 45.0 px and the heading kept its
+  height; at the three phone sizes the reveal footer was 92.0 px with the
+  *capped* tip and with 「提防對手重注」; at 1280×720 the label showed on one
+  line, 16.5 px tall as without the style.
+- `npm run test:battle-table`: exit 0, **40/40 in Chromium and 40/40 in
+  WebKit** (4 min 9 s). Its Mist Gate fixture is a first battle saved with no
+  style, so it keeps today's AI and shows no 緩渡.
+- `npm run test:viewport`: exit 0, **23/23 in Chromium and 23/23 in WebKit**
+  (9 min 15 s).
+- Their 318 screenshots and four JSON reports in `test-results/` were
+  deleted afterwards.
+
+**Scratch evidence (not committed).** A loopback probe played a 0-pill
+霧隱渡口 battle to a loss with and without 緩渡 at 302×640, 320×568 and
+393×852 in both engines: the match result's page split was the same with
+either advice (at 393×852 every outcome item fits one page, the advice on
+one line). It also showed that at 302 and 320 px, and at 393×659 in WebKit,
+the advice sits on 勝負已定's second page with or without 緩渡, which O1 does
+not change.
+
+**Not run:** the other `test:*` browser suites, Firefox, a physical phone,
+VoiceOver or TalkBack, a human player, any hosted service.
+
 ## v0.6.0 integration · 2026-10-13
 
 Branch `docs/v060-integration`, from `origin/main` **`0281798`** (PR #15's

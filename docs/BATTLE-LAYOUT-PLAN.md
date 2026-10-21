@@ -525,7 +525,9 @@ after the round's spending and refunds, as the table already shows them, and
 the rounds left. It never reads a bid, Fury or the next AI move. The view holds
 none, and a unit test records every field the tip reads. The hints are
 此局已定 (match over), 對手丹藥已盡 (0 left), 提防對手重注 (the opponent has
-at least 4 more than the player), 對手丹藥將盡 (fewer than two per remaining
+at least 4 more than the player; in a battle with a disclosed spend cap that
+holds his stake below his reserve, O1's 緩渡, 對手每回合至多出 N 丹 instead,
+on the branch `o1/gentle-guardian`, [O1 §3.5](GENTLE-GUARDIAN-O1.md#35-d3s-reveal-tip-states-the-cap)), 對手丹藥將盡 (fewer than two per remaining
 round, for example 4 after round 1), 你丹較多，可後發制人 (the player has at
 least 4 more), otherwise 雙方丹藥相近.
 
