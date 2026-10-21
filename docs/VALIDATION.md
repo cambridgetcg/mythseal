@@ -89,6 +89,70 @@ afterwards (`webkit-runtime` kept).
   a playtest with first-time players, which remains the real test of the
   teaching.
 
+**Review fixes, checks on `93ff4f6`.** A review of `263ebac` confirmed nine
+findings, fixed in `f08b0bb` (the switch's caption), `1399923` (詞彙 and the
+`fire-mountain` hint, with `progression.mjs`'s new `ACTIVITY_PILL_FLOOR`),
+`742e07c` (the wallet under n2's header rule) and `93ff4f6` (test:guide); see
+TUTORIAL-T1's [review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21). Same
+environment; servers on 127.0.0.1: this checkout (`tools/serve.py`, 4491), a
+fresh `git archive` export of `3f3d351` (4492, `BASELINE_URL`) and a copy of
+the store build's `dist/` (4493, `NATIVE_URL`). One browser suite at a time;
+every screenshot deleted from `test-results/` afterwards (`webkit-runtime`
+kept).
+
+- `npm test`: exit 0, **694/694** (one new: the `fire-mountain` copy against
+  a settled win in `tests/first-visit.test.mjs`; `tests/glossary.test.mjs`
+  gained assertions, not tests).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+  `npm run audit:content`: exit 0, no findings. `git diff --check 3f3d351
+  HEAD`: exit 0.
+- `npm run build`: exit 0, **95 public files**, manifest `f85aa428…4ff4`.
+  Against `main`'s build from the export, by path and `sha256`: added
+  `first-visit.mjs`, `glossary.mjs`, `guide.css`; changed `index.html`,
+  `app.mjs`, `navigation-ui.mjs`, `scene-adapters.mjs`, `scene-dialogs.mjs`
+  and now `progression.mjs` (the one export), plus `release.json`; every
+  other asset identical.
+- `npm run build:native`: exit 0, **92 public files**, manifest
+  `88e2f87f…873a`, its reference and offline-name checks passing; the same
+  added and changed files.
+- `npm run test:guide` with `BASELINE_URL` and `NATIVE_URL`: Chromium **21
+  checks**, WebKit **21 checks** (one more than before: 聲息與節奏 against
+  `main`), no page or console error, no failed or off-loopback request.
+  - 聲息與節奏, from the lobby: the 初見提點 row is 71.0 px, equal to `main`'s
+    tallest setting, at all 16 sizes; page 1 holds as many items as
+    `main`'s at every size (430×932: all 8 against `main`'s 7); the page
+    count is one more than `main`'s at
+    360×780, 393×780 and 412×790 (2 against 1) and at 734×343, 640×360 and
+    568×320 (8 against 7), equal elsewhere.
+  - 詞彙: every title one line and every definition two at 302 px; pages:
+    4 at 302×640, 5 at 320×568, 3 at 412×790 and 430×932, 4 at the other
+    portrait sizes, in both engines.
+  - `fire-mountain`: no taller than its slot at any size (59.4/59.4 px,
+    three lines, at 302×640 and 320×568; 39.6/39.6 px, two lines,
+    elsewhere); every other hint as before.
+  - The veteran journey: the caption reads 入門期間… in one line, and after
+    off then on there is still no hint on 藏卡, 市集, 遊歷, 對弈 or 洞府.
+- `npm run test:shell`: exit 0 in both engines (26 PASS lines each); the
+  overflow NOTE lines are identical to `main`'s and to the earlier T1 run's.
+  `npm run test:viewport`: exit 0 (23 PASS lines each). `npm run
+  test:expansion`: exit 0 (16 checks each).
+- **With n2** (scratch trees only; n2's worktree was not touched): exports of
+  `93ff4f6` and of `3f3d351`, each with n2's tracked changes to
+  `expansion.css`, `scene-navigation.css`, `tools/shell-smoke.mjs` and
+  `tests/mobile-shell.test.mjs` applied from the review's saved diff, and
+  n2's `tools/landscape-smoke.mjs` with line 394 selecting
+  `.game-header button:visible`, served on 4494 and 4495.
+  `node tools/landscape-smoke.mjs`: Chromium, T1 + n2 passes the same 11
+  sizes as the review's `main` + n2 run and fails only n2's own
+  568×276-with-insets case (`wx01-odds` outside the safe viewport); WebKit,
+  T1 + n2 and `main` + n2 give identical output (11 PASS lines, then n2's
+  own 568×276-with-insets failure on 對弈's 切磋 module).
+- **Not run** after the fixes: `test:coach`, `test:back`, `test:saves`,
+  `test:commands`, `test:native` and the other regression suites listed
+  above (no code they exercise changed besides `progression.mjs`'s
+  constant, which `npm test` and `test:expansion` cover), and everything in
+  the list above.
+
 ## iOS first flight · 2026-10-20
 
 Branch `ios/first-flight` (local when these checks ran; later pushed as PR #17,

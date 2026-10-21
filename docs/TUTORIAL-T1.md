@@ -11,6 +11,9 @@ architecture; this revision applies those reviews, and the
 taken as written. The [implementation record](#implementation-record--2026-10-21)
 lists the commits and every place the build departs from this text, with the
 measurement behind it; where they differ, the record and the code are current.
+A review of the build the same day led to the
+[review fixes](#review-fixes--2026-10-21); the sections above already carry
+them.
 
 **Owner decisions it implements (Yu, 2026-10-20):**
 
@@ -266,7 +269,9 @@ node and T1's route ever disagree.
    inside a one- or two-line footnote slot without growing it.
    - Hints therefore retire on their own (the "Lasts" column below), and
      one switch in 聲息與節奏 turns them all off, or back on to see them again
-     (§5.6).
+     for a newcomer (within the first `NEWCOMER_BATTLES` battles; `bag-decks`
+     and `market-printing` only while their own signals still hold; item 5,
+     §5.6).
    - Whether Yu wants a per-hint 知道了 anyway is open question 5.
 3. **Inline, `role="note"`, never a Back layer.** A hint is page text in
    reading order.
@@ -380,7 +385,7 @@ Visual marker:
 | 5 | `bag-decks` · 藏卡 三套牌組 (`bag-decks`) | the same `.bag-overview` (the lead also shows on 三套牌組). The full rule now sits only on the last tab, 編組說明 (`backpack-ui.mjs:85`, moved by `scene-adapters.mjs:29,36`) | `isNewcomer(profile)` and one deck slot (`deckSlots.length === 1`) | narrator | 「每套 8 位不同角色、總星數不超過 25；可存 3 套，設為出戰的才上陣。」 (37). The three numbers are rendered from `RULES.deckSize`, `RULES.starLimit` and `MAX_DECK_SLOTS` | visit |
 | 6 | `market-printing` · 市集, 秘匣 module, WX-01 offer (`market`) | `adventure-ui.mjs:62` → `.scene-wx01-offer .scene-pack-copy > p` (「16 位同行者，29 種版本。本畫、異畫與領契，記下不同瞬間。」). The slot exists only while 西行秘匣 is selected (the default); the classic packs keep their own description. The eyebrow, 西行秘匣 and 「每匣 3 張 · 至少一張靈品或神品」 stay | `isNewcomer(profile)` and no WX-01 pack opened yet (`wx01.opened === 0`) | narrator | 「凡、靈、神品是品階，本畫、異畫是畫作；皆不改變星數與能力。」 (29) | visit |
 | 7 | `quests-why` · 任務手札, 朝露 module (dialog `quests`) | `adventure-ui.mjs:51` → `.daily-gift > p` (「每日上線，收一份遠方捎來的心意。」), the only description of the 朝露 gift: `.daily-gift .eyebrow` is hidden there (`navigation.css:137`). The copy therefore names the daily gift as well as the tasks | `isNewcomer(profile)` | narrator | 「每日贈禮與功課所得的金幣、靈砂，正是開匣與修練所需。」 (26) | visit |
-| 8 | `fire-mountain` · 火焰山三連戰, 山行 module (dialog `activity`) | `expansion-ui.mjs:44` → `.activity-arrival > p` (`FIRE_MOUNTAIN.description`, about 45 characters) | `getExpansionSummary(profile).activity`: `unlocked` and no `run`; and `profile.expansion.serial === 0`, which `startActivity` increments on every run start (`progression.mjs:737`), so a run abandoned before its first result also counts as tried | narrator | 「三戰相連：生命與仙丹帶到下一戰，戰間可選一項補給；敗或和即止，所得仍在。」 (36) | visit · or the first run started |
+| 8 | `fire-mountain` · 火焰山三連戰, 山行 module (dialog `activity`) | `expansion-ui.mjs:44` → `.activity-arrival > p` (`FIRE_MOUNTAIN.description`, about 45 characters) | `getExpansionSummary(profile).activity`: `unlocked` and no `run`; and `profile.expansion.serial === 0`, which `startActivity` increments on every run start (`progression.mjs:737`), so a run abandoned before its first result also counts as tried | narrator | 「三戰相連：生命與仙丹帶到下一戰，勝後生命 +2、仙丹至少補至 8，再選一項補給。」 (40; the 8 is `ACTIVITY_PILL_FLOOR`). The loss rule is not repeated: the overview's own line below, 「不收門票，不限次數。每戰四回合；輸或和局結束本次山行。」, already gives it | visit · or the first run started |
 
 The first draft's ninth hint, `arena-modes`, is dropped: the arena page
 already states both of its rules in place (統一基礎能力 on 問道, 「不獲金幣或卡牌
@@ -424,11 +429,16 @@ exact card-EXP line for the arena.
   are the only source.
 - `fire-mountain`:
   - Life and pills carry over, with recovery after a win (`settleActivity`,
-    `progression.mjs:764-796`; rules at `expansion-ui.mjs:47`).
+    `progression.mjs:764-796`; rules at `expansion-ui.mjs:47`): life
+    `min(12, hp + 2)` and pills `max(8, pills)` (`progression.mjs:791` at
+    `3f3d351`; the 8 is now `ACTIVITY_PILL_FLOOR`, which the copy reads).
+    `tests/first-visit.test.mjs` settles a win at 9 life and 1 pill and gets
+    11 and 8.
   - Between battles the player may choose one supply; with both full, the
     run goes straight on (`expansion-ui.mjs:48`).
   - A loss or draw ends the run, and banked rewards stay
-    (`expansion-ui.mjs:49`; `progression.mjs:793`).
+    (`expansion-ui.mjs:49`; `progression.mjs:793`). The copy leaves this to
+    the overview's own line (`expansion-ui.mjs:44`).
 
 ### 2.4 Height budgets
 
@@ -444,7 +454,7 @@ width is cut shorter (§2.1), never allowed to grow the scene.
 | `bag-*` | the overview's figure row, about 37 px | 2 lines at 11 px / 1.6 (`guide.css`), about 35 px |
 | `market-printing` | the WX-01 copy column, about 141 px wide (offer padding 12 px, grid `91px minmax(0,1fr)` with a 14 px gap, `scene-navigation.css:114`), p at 11 px / 1.7, about 12 characters a line: 3 lines | 29 code points, 3 lines |
 | `quests-why` | `.daily-gift > p` at 10 px in the quests dialog (`navigation.css:139`), 1–2 lines beside the reward figure | 26 code points, 2 lines |
-| `fire-mountain` | 3–4 lines at 11 px (`expansion.css:96`) | 36 code points, ≤ 3 lines |
+| `fire-mountain` | 3–4 lines at 11 px (`expansion.css:96`) | 40 code points (37.5 display units: `+2` and `8` are ASCII), ≤ 3 lines; the slot's own description is 42 code points |
 
 The 9 px `!important` rule for `.destination-panel .panel-footnote` on phones
 (`adventure.css:202`) no longer matters: no hint uses that footnote.
@@ -568,16 +578,16 @@ come from constants or data where they exist (§5.3). The sources are at
 | `xp` | 修為 | 執令者的旅途閱歷，又稱旅途歷練；遊歷、擂台、火焰山勝與任務手札可得。 | `addReward` `progression.mjs:266-268`. Expedition win or not (`:646`), arena win or not (`:670`), fire-mountain wins (`:769`), gift, tasks and chest (`:73-84`). Used only by `getHeroLevel` (`:839-841`). Shown as 「旅途歷練」 in 旅程閣 (`account-ui.mjs:13`) and in the import comparison (`save-ui.mjs:119`). Not 歷練 alone, which the game uses for card EXP (`backpack-ui.mjs:28,112`). See open question 4 |
 | `hero-level` | 執令者 Lv | 由修為而定：滿 100 為 Lv.2、400 為 Lv.3、900 為 Lv.4，如此類推；不加戰力。 | `getHeroLevel` = 1 + ⌊√(修為/100)⌋, `progression.mjs:839-841`, no cap; nothing in battle reads it |
 | `cache` | 秘藏 | 主線與故事各境，每日首勝另得一份秘藏：金幣、靈砂與修為；續卷沒有。 | `progression.mjs:660-664` (`!node.campaign`, once per node per day); `dailyReward` `:71`, `stories.mjs:51`; 續卷 nodes have none (`campaign-content.mjs:114`) |
-| `stars` | 星數 | 角色 2–5 星；一套牌組合計不超過 25 星。首回合星數高者先手；同攻時低星勝。 | Range from `CARDS` (2–5 at `3f3d351`, rendered from data); `RULES.starLimit` `engine.mjs:12`; first player `:177-179`; attack tie `:256-259`; rule 02 `app.mjs:837` |
-| `card-level` | 修練（戰卡 Lv） | Lv.1–5：歷練夠即升級，或在 Lv.L 付 120×L 金幣、6×L 靈砂修練；加成只在遊歷。 | `XP_THRESHOLDS` level up automatically (`collection.mjs:9,87-92`); `getUpgradeCost` uses the current level: Lv.1→2 costs 120 and 6 (`progression.mjs:533-538`); `LEVEL_BONUSES` `engine.mjs:88`, applied only in expeditions (`:115-121`) |
+| `stars` | 星數 | 角色 2–5 星；每套合計不超過 25 星。首回合手上四張星多者先手；同攻時低星勝。 | Range from `CARDS` (2–5 at `3f3d351`, rendered from data); `RULES.starLimit` `engine.mjs:12`; first player `:177-179`, comparing the two drawn hands of `RULES.rounds` cards (`drawHand` `:143-151`), not the decks' totals; attack tie `:256-259`; rule 02 `app.mjs:837` |
+| `card-level` | 修練（戰卡 Lv） | Lv.1–5：歷練夠即升級；或修練，付現有等級 ×120 金幣、×6 靈砂；加成只在遊歷。 | `XP_THRESHOLDS` level up automatically (`collection.mjs:9,87-92`); `getUpgradeCost` uses the current level: Lv.1→2 costs 120 and 6 (`progression.mjs:533-538`); `LEVEL_BONUSES` `engine.mjs:88`, applied only in expeditions (`:115-121`) |
 | `card-exp` | 歷練（卡牌 EXP） | 出過牌的自有卡得：遊歷勝 20、和或敗 12，擂台、火焰山 12／8；同名傳承亦可灌注。 | `progression.mjs:683-688`; `awardInstanceXP` `collection.mjs:325-339`. Practice gives 0; borrowed decks give none (`expansion-ui.mjs:50`). 同名傳承 gives the target 80 plus each material's EXP (`inheritance.mjs:6,71,88`; `backpack-ui.mjs:109`) |
 | `journal` | 同行記 | 每張卡的履歷：編號、畫作、相逢緣由、對弈記錄與歷練；藏卡中展開角色，點卡面即見。 | `instanceMarkup` `backpack-ui.mjs:112` (卡牌編號, 畫作版本, 入藏日期, 相逢緣由, 對弈記錄). In the default grouped layout a card opens its character (`bag-open-group`), whose cards open the passport (`instance-inspect`) |
 | `rarity` | 品階 · 凡品／靈品／神品 | 收藏稀有度：影響開匣機率與商旅價錢，不改變星數、力量與傷害。 | `RARITIES` (weight, buy and sell prices) and the comment at `progression.mjs:35-40` |
-| `printing` | 畫作 · 本畫／異畫／領契／墨卷／天工 | 同一角色的不同畫作，只改外觀，不改星數、能力與品階；領契可作洞府肖像。 | `PRINT_TREATMENTS` `card-presentation.mjs:6-12`; `pack-ui.mjs:32`; leader portrait `backpack-ui.mjs:110` |
+| `printing` | 畫作 · 本畫／異畫等 | 同一角色的不同畫作，只改外觀，不改星數、能力與品階；領契可作洞府肖像。 | `PRINT_TREATMENTS` `card-presentation.mjs:6-12` (the title names the first two, as the `market-printing` hint does, so it stays one line at 302 px; §3.3); `pack-ui.mjs:32`; leader portrait `backpack-ui.mjs:110` |
 | `seals` | 西行印 | 每開一匣西行秘匣得 1 印，七日弈緣另得 5 印；可換指定特別畫作，不過期。 | +1 per pack, box pack and ticket: `progression.mjs:344,391,821`. Weekly `:81,311`. Costs `wx01-pack.mjs:7`. 「保留的印不會到期」 `pack-ui.mjs:32` |
 | `tickets` | 西行秘匣券 · 秘券 | 免金幣開一匣西行秘匣。續卷每卷終章首勝、火焰山每週第 1 與第 3 次全通各贈一張。 | Each of the six volume finals (`volumeFinal: order === 7`, `campaign-content.mjs:115`), first clear: `progression.mjs:699`. Fire mountain weekly: `:786`. Opening: `:811-822`. The game's own line: 「續卷每卷終章贈一券」 `expansion-ui.mjs:73`; 「券不過期」 `:73` |
-| `initiative` | 先手 | 首回合總星數高者先手，同則隨機，其後輪換。先手先亮卡；攻擊、星數皆同時先手勝。 | `engine.mjs:176-179` (equal sums: random), `:254-262,304`; rules note 「相同則隨機」 `app.mjs:840`; rule 04 `:839` |
-| `pills` | 仙丹 | 每局 12 顆，暗中分配給四回合；攻擊＝力量 ×（1＋所用仙丹）。火焰山沿用到下一戰。 | `RULES.pills` `engine.mjs:12`; attack `:235`; rule 01 `app.mjs:836`; fire mountain carries pills (at least 8 after a win) `progression.mjs:791`, `expansion-ui.mjs:47`. 怒擊's 「丹」 is this |
+| `initiative` | 先手 | 首回合四張星數合計高者先手，同則隨機，其後輪換。先手先亮卡；攻、星皆同則先手勝。 | `engine.mjs:176-179` (the two drawn hands of `RULES.rounds` cards, `drawHand` `:143-151`; equal sums: random), `:254-262,304`; rules note 「相同則隨機」 `app.mjs:840`; rule 04 `:839` |
+| `pills` | 仙丹 | 每局 12 顆，暗中分給四回合；攻擊＝力量 ×（1＋所用仙丹）。火焰山勝後至少補至 8。 | `RULES.pills` `engine.mjs:12`; attack `:235`; rule 01 `app.mjs:836`; after a fire-mountain win the run's pills are `max(8, pills)` (`progression.mjs:791` at `3f3d351`, now `ACTIVITY_PILL_FLOOR`; `expansion-ui.mjs:47`), so 「沿用」 alone would have hidden the top-up. 怒擊's 「丹」 is this |
 | `resonance` | 共鳴（同族共鳴） | 抽出的四張中，有兩位不同的同族角色，該族加成便啟動；出過的卡仍計。 | `hasFactionBonus` `engine.mjs:193-198` (the hand includes used cards); rule 03 `app.mjs:838` |
 | `fury` | 怒擊 | 另付 3 丹；贏得該回合時傷害 +2。不加攻擊。 | `RULES.furyCost` and `furyDamage` `engine.mjs:12`, applied at `:236` |
 | `block` | 封鎖 | 令對手的角色技能失效，不影響同族共鳴；雙方都封鎖時一同生效。 | `engine.mjs:231-233`; ability text `:28,40,50` |
@@ -624,8 +634,12 @@ these nested paragraphs, and `.rule h3`/`.rule p` do not match them):
 - `.scene-dialog .glossary-term p{font-size:12px;line-height:1.7;margin:0}`
 - `.scene-dialog .glossary-term:focus-visible{outline:2px solid var(--gold);outline-offset:2px}`
 
-A long title (畫作's five names) may wrap to a second line; the 2-line limit
-is the definition's.
+Every title fits one line at 302 px, and every definition two. The pager
+sizes every row by its tallest item (`viewport.mjs` `measurePageCapacity`),
+so one two-line title costs every page of 詞彙 a term: with all five of
+畫作's names the title wrapped at 302 and 320 px and 詞彙 took 7 pages there
+instead of 4 and 5. The 畫作 title therefore names 本畫 and 異畫 and ends in
+等; §7.2 measures both limits.
 
 ---
 
@@ -780,10 +794,12 @@ export function glossaryMarkup({ open = null } = {}) { … }  // §3.3; an unkno
 
 **Numbers that come from constants or data:**
 
-- 怒擊 uses `RULES.furyCost` and `RULES.furyDamage`; 仙丹 uses `RULES.pills`;
-  星數 uses `RULES.starLimit` and the star range of `CARDS`.
+- 怒擊 uses `RULES.furyCost` and `RULES.furyDamage`; 仙丹 uses `RULES.pills`,
+  `RULES.rounds` and `ACTIVITY_PILL_FLOOR`; 星數 uses `RULES.starLimit` and
+  the star range of `CARDS`; 星數 and 先手 name the hand as
+  `RULES.rounds` cards (四張).
 - 品階 names use `RARITIES[*].name`.
-- 畫作 names use `PRINT_TREATMENTS[*].name`.
+- 畫作 names use the first two `PRINT_TREATMENTS[*].name`.
 - 執令者 Lv thresholds are `100 × (Lv − 1)²` for Lv.2–4, the inverse of
   `getHeroLevel`.
 
@@ -904,6 +920,9 @@ guide-smoke checks the computed result (§7.2).
     `battle-teaching.css`.
   - `hosting/public-assets.json`: three entries.
   - `package.json`: a `test:guide` script right after `test:coach`.
+  - `progression.mjs` (review fixes): one export, `ACTIVITY_PILL_FLOOR`,
+    which `settleActivity` uses in place of its literal 8 and 仙丹 and the
+    `fire-mountain` hint read. No profile, schema or rule change.
   - `tools/coach-smoke.mjs` (§1.5) and the documents in §1.5 and §9.
 
 ### 5.6 The switch in 聲息與節奏
@@ -911,10 +930,19 @@ guide-smoke checks the computed result (§7.2).
 The switch is the only control T1 adds besides the header buttons.
 
 - **Row.** After 揭曉節奏 in `experienceSettingsModal()`, outside battle only:
-  `<label class="experience-field"><span>初見提點<small>初到各處時的一行說明；重新開啟會再看一次</small></span><input id="guide-hints" type="checkbox" ${guide.enabled()?'checked':''}></label>`.
+  `<label class="experience-field"><span>初見提點<small>入門期間，重開可再看</small></span><input id="guide-hints" type="checkbox" ${guide.enabled()?'checked':''}></label>`.
   In battle (☷ in the battle header, `navigation-ui.mjs:23`, and over the
   reveal) no hint can show, so the row is left out and nothing about hints is
   written there.
+- **Caption.** It names the bound the switch works within, because turning
+  it back on clears `seen` but does not lift §2.1 item 5: hints return only
+  for a newcomer (the first `NEWCOMER_BATTLES` battles; `bag-decks` and
+  `market-printing` only while their own signals hold; `fire-mountain` until
+  a run is started). 「可再看」 rather than 「會再看一次」, since not every
+  hint comes back, and no 「一行」, since some hints take three lines. A
+  save past the bound sees none after switching back on; guide-smoke's
+  veteran journey asserts the caption and that. Offering the row only while
+  a hint could still apply would change behaviour: open question 10.
 - **Turning it off:** `guide.setEnabled(false)`, then `render()`. The scene
   behind the dialog loses its hint at once; `refreshOverlay` ignores
   `experience-settings`.
@@ -922,15 +950,26 @@ The switch is the only control T1 adds besides the header buttons.
   progress stay quiet (§5.2), so no hint appears in the scene behind the
   dialog, now or on a later render of the same visit. Hints show again from
   each channel's next visit, for a newcomer (§2.1 item 5).
-- The dialog is a paged list (`scene-dialogs.mjs` `settings()`), so one more
-  row only adds a page item. Its 「設定會記在此裝置」 footnote stays true.
+- **Height.** The dialog is a paged list (`scene-dialogs.mjs` `settings()`)
+  whose pager sizes every row by its tallest item (`viewport.mjs`
+  `measurePageCapacity`). The row must therefore be no taller than 開啟聲音
+  (71 px), so its caption is one line at every size: the first build's
+  two-line caption made it 83 px, which cost every page a row (the review
+  measured 430×932 going from one page to two). With one line, page 1 holds
+  as many items as `main`'s at every size measured, and 430×932 is one page
+  again. As the eighth item the row still adds a page where `main`'s seven
+  just filled one: 360×780, 393×780 and 412×790 (2 against 1), and 734×343,
+  640×360 and 568×320 (8 against 7). guide-smoke records the page counts
+  against `main`. Its 「設定會記在此裝置」 footnote stays true.
 - The checkbox's computed font size must stay ≥ 16 px, as N1 requires of
   every input. `tools/shell-smoke.mjs`'s `INPUT_IDS` should gain
   `'guide-hints'` once n2 has landed, since n2 edits that file (§9);
   until then guide-smoke checks it.
 - For playtests: a fresh install per tester also starts with an empty
   `shanhai.guide.v1`, and turning the switch off and on replays the hints on
-  one device.
+  one device for a journey still within the newcomer bound (§2.1 item 5).
+  A save past `NEWCOMER_BATTLES` battles, such as a long TestFlight save,
+  sees none except `fire-mountain` while no run has been started.
 
 ---
 
@@ -1095,7 +1134,13 @@ with the term read first, under VoiceOver and under TalkBack.
     pays 5 seals;
   - a non-campaign node's first win of the day adds `dailyReward`
     (`reward.dailyCache`), a 續卷 node's does not;
-  - `RARITIES` names, and `PRINT_TREATMENTS` names and codes, appear;
+  - `RARITIES` names appear; 畫作's title is the first two
+    `PRINT_TREATMENTS` names and 等, the two the `market-printing` hint
+    names;
+  - a fire-mountain win settled at 9 life and 1 pill leaves the run at 11
+    and `ACTIVITY_PILL_FLOOR`, and a leftover above the floor stays, as
+    仙丹 and the `fire-mountain` hint say;
+  - 先手 and 星數 name 四張, and a drawn hand is `RULES.rounds` cards;
   - `hasFactionBonus`:
     - two different same-faction names: true;
     - one: false;
@@ -1177,7 +1222,9 @@ in installed Chrome, then WebKit as an iPhone 15):
     the row is absent in battle; the checkbox's font is ≥ 16 px;
   - **veteran:** a 12-battle journey with a fire-mountain run tried shows no
     `[data-guide-hint]` on any scene or dialog, and `shanhai.guide.v1` is
-    never written;
+    never written; its switch's caption starts 入門期間 and is one line, and
+    after off then on it still sees no hint on 藏卡, 市集, 遊歷, 對弈 or
+    洞府;
   - while browsing, only `shanhai.guide.v1` is written and the profile
     bytes never change;
   - no hint ever appears on the battle screen, and no write happens there.
@@ -1191,12 +1238,18 @@ in installed Chrome, then WebKit as an iPhone 15):
   - Back closes the dialog and focus returns to the button.
   - The lobby's 弈道 link opens on 弈道 page 1, with the intro as its first
     item, even after the dialog was last left on 詞彙.
-  - Each definition fits 2 lines at 302 px.
+  - Each definition fits 2 lines, and each title 1 line, at 302 px; the
+    glossary's page count is recorded at every size.
   - **The rules dialog against `main`:** at every portrait size above and at
     852×393 (with shell-smoke's iPhone side insets), 844×390 and 734×343,
     and, once n2 has landed, 667×375, 640×360 and 568×320: the `rules`
     module and list gain no `data-viewport-overflow="true"` that `main`
     does not have, and its list frame is not shorter than `main`'s.
+  - **聲息與節奏 against `main`**, opened from the lobby at the same sizes:
+    the 初見提點 row is no taller than `main`'s tallest setting, page 1 holds
+    at least as many items as `main`'s, and the page counts are recorded.
+    Without `main`, the row is still checked to be no taller than the
+    tallest other setting.
 - **Header:**
   - every header control is ≥ 44 × 44;
   - no two overlap, and taps across each one's width land on it (the same
@@ -1302,7 +1355,10 @@ in installed Chrome, then WebKit as an iPhone 15):
    fixed scope), or v0.6.1? The rules-first fix (§1) is small and could land
    on its own before D3's playtest, so careful newcomers reach the coach.
 10. **The switch.** Is 聲息與節奏 the right place, and 「初見提點」 the
-    right name?
+    right name? Its caption now says 「入門期間，重開可再看」 (§5.6). Should
+    the row be offered only while a hint could still apply (a newcomer, or
+    `fire-mountain` not yet tried)? For a veteran it does nothing, but
+    hiding it is a behaviour change, so it was not made.
 11. **Newcomer gate.** Visit hints stop after 10 finished battles
     (`NEWCOMER_BATTLES`). Is 10 right? Playtests may move it.
 12. **Old saves.** A v2–v4 save with cleared nodes but `played === 0` counts
@@ -1357,6 +1413,26 @@ in installed Chrome, then WebKit as an iPhone 15):
   `(orientation:landscape)`, which restyles `.lobby-route>p`,
   `.scene-pack-copy p` and `.arena-fairness` on 568–700 px landscapes: two
   of T1's slots. After rebasing onto n2, re-run guide-smoke's measurements.
+  - Its `expansion.css` rule for short landscape screens (max-height 500 px,
+    landscape, min-width 460 px) moves the resume strip into the header row
+    and stacks `.game-header-resources` in a column, written for text spans.
+    With T1's 44 px resource buttons that is an 88 px column in a 46 px
+    header: 金幣 half above the viewport and 靈砂 over the scene, on 洞府,
+    遊歷, 對弈 and 市集 whenever a resume strip shows. `guide.css` now keeps
+    the wallet a row there, and lets it give way (`display:none`) when both
+    resume actions show (`742e07c`). With that rule, n2's
+    `tools/landscape-smoke.mjs` gives the same result on T1 + n2 as on
+    `main` + n2 in both engines: only n2's own failure at 568×276 with
+    insets.
+  - n2's `tools/landscape-smoke.mjs:394` selects every `.game-header
+    button`. It must select `.game-header button:visible`, because 執令者 Lv
+    is now a button that is `display:none` below 1,051 px (and n2's own
+    resume rule hides it too).
+  - For Yu: the give-way hides 金幣 and 靈砂 whenever the WX-01 receipt and a
+    pending battle or run show together on a short landscape screen, on
+    市集 too, and also without n2. Keeping the wallet as a row alone failed
+    only 568×320 with 47 px insets; a give-way limited to the narrowest
+    widths would keep the wallet elsewhere but needs its own check.
 - Both r1 and n2 start from `998b614`.
 
 T1 overlaps them only at:
@@ -1366,7 +1442,9 @@ T1 overlaps them only at:
 - one script line in `package.json` (`test:guide` right after `test:coach`;
   PR #17's `test:native` and n2's `test:landscape` both edit the end of the
   list);
-- deferred, `INPUT_IDS` in `shell-smoke.mjs`.
+- deferred, `INPUT_IDS` in `shell-smoke.mjs`;
+- `guide.css`'s short-landscape wallet rules against n2's `expansion.css`
+  header rule, and `landscape-smoke.mjs:394` (above).
 
 T1 avoids `scene-navigation.css` by keeping all its CSS in `guide.css`. If
 r1 and n2 land first, T1 rebases onto them. If not, those lines are the
@@ -1474,6 +1552,52 @@ whether hiding the eyebrow on short landscape screens is acceptable, or the
 tab row should move into the heading row there instead; and whether 弈道's
 extra page at 430×932 matters.
 
+### Review fixes · 2026-10-21
+
+A review of `263ebac` (game truth, state logic, layout and accessibility,
+and regression against r1 and n2) confirmed nine findings. Each was fixed as
+a local commit on this branch, and the sections above were updated to match:
+
+1. **The switch's caption** (`f08b0bb`; three findings). The old caption,
+   「初到各處時的一行說明；重新開啟會再看一次」, promised a replay to every
+   player, but switching back on only clears `seen`, so a save past
+   `NEWCOMER_BATTLES` battles saw nothing. Its two lines also made the row 83 px, the tallest settings
+   item, and the pager sizes every row by the tallest, so 聲息與節奏 lost a
+   row on every page. Now 「入門期間，重開可再看」: one line, 71 px like
+   開啟聲音, and it names the bound (§5.6). Behaviour is unchanged; hiding
+   the row for veterans is open question 10.
+2. **仙丹** (`1399923`). 「火焰山沿用到下一戰」 hid the top-up after a win.
+   Now 「火焰山勝後至少補至 8」, with the 8 read from `ACTIVITY_PILL_FLOOR`, a
+   new export that `settleActivity` itself uses (`progression.mjs`; the only
+   change there).
+3. **`fire-mountain` hint** (`1399923`). It repeated the loss rule the
+   overview's own line gives and left out the recovery. Now
+   「三戰相連：生命與仙丹帶到下一戰，勝後生命 +2、仙丹至少補至 8，再選一項補給。」
+   (40 code points), no taller than its slot at any tested size (59.4 px,
+   three lines, at 302 and 320 px).
+4. **先手 and 星數** (`1399923`). Both now say initiative compares the two
+   drawn hands of four (四張), not the decks, and 「攻、星皆同則先手勝」 no
+   longer reads as 同時.
+5. **修練** (`1399923`). 「在 Lv.L 付 120×L…」 used a letter the game never
+   introduces; now 「付現有等級 ×120 金幣、×6 靈砂」. 減力 and 減攻 keep their
+   「−N」: their named examples make it recoverable, and a wording such as
+   「技能所示數值」 would be wrong for 月蝕, a 共鳴 effect.
+6. **畫作's title** (`1399923`). With five names it wrapped at 302 and
+   320 px; one two-line title costs every 詞彙 page a term, so 詞彙 took 7
+   pages there. Now 「畫作 · 本畫／異畫等」: 4 and 5 pages (§3.3).
+7. **n2's stacked wallet** (`742e07c`). See §9: two `guide.css` rules for
+   short landscape screens, the `landscape-smoke.mjs:394` change n2 needs,
+   and the trade-off for Yu.
+8. **Checks** (`93ff4f6`). test:guide now compares 聲息與節奏 with `main`
+   (row height and page 1), checks the switch's caption on the veteran
+   journey and that off then on still shows nothing there, checks every
+   詞彙 title is one line at 302 px, and records 詞彙's page counts. The
+   unit tests settle a fire-mountain win at 9 life and 1 pill, tie 四張 to
+   the engine's hand, and tie 畫作's two names to the market hint.
+
+The checks run after these fixes are in
+[VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
+
 ---
 
 ## Appendix: facts checked in code
@@ -1565,7 +1689,7 @@ point was checked against the code for this revision.
 | 4 | Tickets per volume final | Applied |
 | 5 | Initiative tie | Applied |
 | 6 | Currency sources | Applied per currency |
-| 7 | 靈砂 cost level | Applied in `card-level` (「在 Lv.L 付…6×L」); `dust` points to it |
+| 7 | 靈砂 cost level | Applied in `card-level` (「在 Lv.L 付…6×L」), since reworded without the letter (「付現有等級 ×120 金幣、×6 靈砂」, [review fixes](#review-fixes--2026-10-21)); `dust` points to it |
 | 8 | Returning players | Applied: newcomer gate plus per-hint signals (§2.1 item 5), veteran fixtures in §7.1 and §7.2 |
 | 9 | Other rules origins | Applied: §1.1–1.3, test 1b and the native pass |
 | 10 | Bag CSS specificity | Applied: single wrapper child, (0,3,0) rules (§5.4) |

@@ -56,7 +56,10 @@ on the branch **`t1/first-visit-hints`**, started from `main` **`3f3d351`**
 **`584ce53`** (the 詞彙 glossary), **`1513cfa`** (the tappable header),
 **`3271b52`** (`tools/guide-smoke.mjs`, `npm run test:guide`), **`16c51f5`**
 (the wallet gives way to the cards hub tabs on short landscape screens), and
-these documents.
+these documents; then the review fixes **`f08b0bb`** (the switch's caption),
+**`1399923`** (詞彙 and the `fire-mountain` hint), **`742e07c`** (the wallet
+under n2's header rule), **`93ff4f6`** (more test:guide checks) and their
+documents ([review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21)).
 **Status:** not pushed, merged or deployed; no hosted service was called.
 
 - **Changed:** on a first visit the rules dialog's 知其道，入其局 opens the
@@ -93,16 +96,33 @@ these documents.
   `glossary` branch beside `rules`, and `start`/`rules-start` split; the
   `guide-hints` branch in the `change` listener. Other source:
   `navigation-ui.mjs` (header buttons, `isFirstVisit`), `scene-dialogs.mjs`
-  (`rules()`), `scene-adapters.mjs` (two exports), `index.html`,
+  (`rules()`), `scene-adapters.mjs` (two exports), `progression.mjs` (one
+  export, `ACTIVITY_PILL_FLOOR`, used by `settleActivity`), `index.html`,
   `hosting/public-assets.json`, `package.json` (`test:guide` after
   `test:coach`; n2 and PR #17 edit the end of the list). `tools/shell-smoke.mjs`
   is untouched (n2 edits it); add `'guide-hints'` to its `INPUT_IDS` after n2
   lands.
+- **Merging with n2** (`~/Games/mythseal-landscape`, uncommitted), beyond
+  `package.json` and `INPUT_IDS`:
+  - n2's `expansion.css` stacks `.game-header-resources` in a column when
+    its short-landscape rule moves the resume strip into the header row.
+    With T1's 44 px resource buttons that is an 88 px column in a 46 px
+    header. `guide.css` (`742e07c`) keeps the wallet a row there, and hides
+    it when both resume actions show; with it, n2's landscape smoke on T1 +
+    n2 matches `main` + n2 in both engines (n2's own 568×276-with-insets
+    failure only). Keep those two rules when merging.
+  - n2's `tools/landscape-smoke.mjs:394` must select
+    `.game-header button:visible`: 執令者 Lv is a `display:none` button below
+    1,051 px.
 - **Checked:** see [VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
 - **Open:** the owner's review of the copy and voice (TUTORIAL-T1 §8 and the
-  implementation record's added questions); a playtest with first-time
-  players on a phone; physical iOS/Android, VoiceOver, TalkBack and text
-  scaling (two new M5.1 rows); the release track (§8 question 9).
+  implementation record's added questions); whether the 初見提點 row should
+  show only while a hint can still apply (§8 question 10); whether the
+  wallet may give way whenever both resume actions show on short landscape
+  screens, also on 市集 and also without n2 (TUTORIAL-T1 §9); a playtest
+  with first-time players on a phone; physical iOS/Android, VoiceOver,
+  TalkBack and text scaling (two new M5.1 rows); the release track (§8
+  question 9).
 
 ## v0.6.0 integration checkpoint · 2026-10-13 (local only)
 
