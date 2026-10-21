@@ -9,9 +9,12 @@ export const GENTLE_GUARDIAN = Object.freeze({ id: 'gentle-crossing', name: '緩
 
 /** The style for a battle about to start, or null. D3's coach condition (battle-teaching.mjs
  * coachStart) read from the save alone, without the device-local coach record, so a save plays
- * the same guardian on every device and skipping the coach marks does not change him. */
-export function guardianStyle({ encounter = null, played = 0 } = {}) {
-  return encounter?.kind === 'expedition' && encounter.nodeId === GENTLE_GUARDIAN.nodeId && played === 0 ? GENTLE_GUARDIAN : null;
+ * the same guardian on every device and skipping the coach marks does not change him. A save
+ * that has cleared his ferry has finished a battle even when its `played` count was lost (an
+ * old, imported or recovered save hydrates missing stats as 0), so `cleared` rules it out too. */
+export function guardianStyle({ encounter = null, played = 0, cleared = [] } = {}) {
+  return encounter?.kind === 'expedition' && encounter.nodeId === GENTLE_GUARDIAN.nodeId && played === 0
+    && !cleared.includes(GENTLE_GUARDIAN.nodeId) ? GENTLE_GUARDIAN : null;
 }
 
 /** The style a battle snapshot names; a snapshot without one (or from before O1) plays today's AI. */

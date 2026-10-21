@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RULES, createMatch } from '../engine.mjs';
+import { createProfile, hydrateProfile } from '../progression.mjs';
 import { GENTLE_GUARDIAN, guardianStyle, styleById, aiOptions } from '../guardian-style.mjs';
 import { coachStart, revealTip } from '../battle-teaching.mjs';
 import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResultMarkup, mistGateRuleMarkup, GENTLE_ARRIVAL_QUOTE } from '../mist-gate-ui.mjs';
@@ -27,6 +28,25 @@ test('O1 緩渡 applies exactly to a first battle at 霧隱渡口, the same batt
     assert.equal(style !== null, coachStart({ seen: null, encounter, played, match: fresh }) !== null, `${JSON.stringify(encounter)}, played ${played}: the same battle as D3's coach`);
   }
   assert.equal(guardianStyle(), null);
+});
+
+test('O1 a save that has cleared 霧隱渡口 is not on its first crossing, even when its stats were lost', () => {
+  // An old, imported or recovered save without valid stats hydrates `played` as 0 but keeps its clears.
+  const raw = JSON.parse(JSON.stringify(createProfile()));
+  raw.cleared = ['mist-gate', 'jade-forest'];
+  delete raw.stats;
+  const profile = hydrateProfile(raw), mist = { kind: 'expedition', nodeId: 'mist-gate' };
+  assert.equal(profile.stats.played, 0);
+  assert.ok(profile.cleared.includes('mist-gate'));
+  const style = guardianStyle({ encounter: mist, played: profile.stats.played, cleared: profile.cleared });
+  assert.equal(style, null);
+  assert.deepEqual(aiOptions(style), {});
+  // The preparation screen, as app.mjs composes it, greets a returning player.
+  assert.match(mistGateArrivalMarkup({ returning: profile.cleared.includes('mist-gate'), guardian: style }), /「燈還亮着。這一程，你想怎樣走？」/);
+  assert.equal(mistGateRuleMarkup(style), '');
+  // The same lost-stats save with nothing cleared is a newcomer, and gets 緩渡.
+  const newcomer = hydrateProfile({ ...raw, cleared: [] });
+  assert.equal(guardianStyle({ encounter: mist, played: newcomer.stats.played, cleared: newcomer.cleared }), GENTLE_GUARDIAN);
 });
 
 test('O1 a returning player and every fair mode keep today\'s AI: no style means no option', () => {
@@ -58,7 +78,6 @@ test('O1 disclosure copy: the guardian hints in his voice, the plain line states
   assert.ok(codePoints >= 13 && codePoints <= 30, `arrival line: ${codePoints} code points`);
   assert.doesNotMatch(GENTLE_ARRIVAL_QUOTE, /\d|[一二兩三四五六七八九十]丹|怒擊/, 'no number or mechanic in his quoted voice (T1 §2.2)');
   assert.match(mistGateArrivalMarkup({ guardian: GENTLE_GUARDIAN }), new RegExp(`「${GENTLE_ARRIVAL_QUOTE}」`));
-  assert.match(mistGateArrivalMarkup({ guardian: GENTLE_GUARDIAN, returning: true }), new RegExp(`「${GENTLE_ARRIVAL_QUOTE}」`));
   assert.equal(mistGateRuleMarkup(GENTLE_GUARDIAN), '<span class="mist-guardian-rule" data-guardian-style="gentle-crossing">緩渡 · 本局守渡弈者每回合至多出 2 丹，不用怒擊</span>');
   assert.equal(mistGateRuleMarkup(null), '');
   const table = mistGateBattleMarkup({ round: 2, initiative: 'opponent', guardian: GENTLE_GUARDIAN });

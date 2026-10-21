@@ -99,7 +99,11 @@ function beforeO1() {
   match.initiative = 'player';
   return { profile: JSON.stringify(started.profile), battle: JSON.stringify({ match, encounter: started.encounter, selected: match.player.hand[0], pills: 0, fury: false, aiMove: null, revealPending: false, recorded: false, lastReward: null }) };
 }
-const FIXTURES = { fresh: { profile: null, battle: null }, veteran: { profile: JSON.stringify(veteran()), battle: null }, final: finalArena(), beforeO1: beforeO1() };
+function clearedUncounted() {
+  // 霧隱渡口 cleared but no battle counted, as an old, imported or recovered save can be: not a first crossing.
+  return { ...createProfile({ now }), cleared: ['mist-gate'] };
+}
+const FIXTURES = { fresh: { profile: null, battle: null }, veteran: { profile: JSON.stringify(veteran()), battle: null }, final: finalArena(), beforeO1: beforeO1(), clearedUncounted: { profile: JSON.stringify(clearedUncounted()), battle: null } };
 
 // ── Pages ───────────────────────────────────────────────────────────────────────
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
@@ -993,6 +997,21 @@ try {
     assert.equal(JSON.parse(await stored(old, battleKey)).guardian, null, 'and keeps naming none');
     passed('a first battle saved before O1 resumes without the style, and its snapshot keeps naming none');
     await release(old);
+    // A save that has cleared the ferry but counts no finished battle is a returning player.
+    const back = await open('clearedUncounted');
+    assert.equal(JSON.parse(await stored(back, PROFILE_KEY)).stats.played, 0);
+    await tap(back, '.game-dock [data-action="world"]');
+    const ferry = back.locator('#app [data-action="travel"][data-id="mist-gate"]');
+    await revealViewportItem(back, ferry); await ferry.tap(); await viewportFrames(back);
+    await back.locator('#overlay-root .encounter-prep.is-mist-prep [data-action="confirm-start"]').waitFor();
+    assert.equal(await back.locator('#overlay-root [data-guardian-style]').count(), 0, 'no rule line for a save that has cleared the ferry');
+    assert.equal(await back.locator('#overlay-root .mist-arrival blockquote').textContent(), '守渡弈者「燈還亮着。這一程，你想怎樣走？」');
+    await tap(back, '#overlay-root [data-action="confirm-start"]');
+    await planning(back);
+    assert.equal(JSON.parse(await stored(back, battleKey)).guardian, null, 'its battle names no style');
+    assert.equal(await back.locator('#app .mist-battle-heading').getAttribute('aria-label'), '霧隱渡口，守渡弈者');
+    passed('a save that has cleared 霧隱渡口 with no battle counted gets today\'s returning line, no rule line and no style');
+    await release(back);
   }
   // ── 8b. O1's disclosure on phones and a roomy screen: nothing grows ─────────────────
   {

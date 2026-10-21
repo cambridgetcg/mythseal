@@ -785,7 +785,7 @@ async function launchActivity({route, supply, expectedRunId, expectedStage}={}) 
 }
 function enterStartedBattle(result) {
   encounter=result.encounter;match=result.nextMatch;recorded=false;lastReward=null;
-  guardian=guardianStyle({encounter,played:profile.stats.played});
+  guardian=guardianStyle({encounter,played:profile.stats.played,cleared:profile.cleared});
   closeModal();preparation=null;preparationReturn=null;screen='battle';prepareRound();startCoach({fresh:true});battleEntering=true;render();window.scrollTo({top:0,behavior:'instant'});announce('對局開始。選一張戰卡，再分配仙丹。');playTone('select');
 }
 function preparationContent() {
@@ -793,7 +793,7 @@ function preparationContent() {
   const loaner=preparation.route==='loaner'&&node?.loanerDeck;
   const valid=loaner?validateDeck(loaner).valid:validateInstanceDeck(profile,deck?.instanceIds).valid;
   const cards=loaner?loaner.map(cardId=>({cardId,level:1,printId:undefined})):(deck?.instanceIds||[]).map(uid=>profile.instances.find(i=>i.uid===uid)).filter(Boolean);
-  const mist=isMistGate(preparation),style=guardianStyle({encounter:preparation,played:profile.stats.played});
+  const mist=isMistGate(preparation),style=guardianStyle({encounter:preparation,played:profile.stats.played,cleared:profile.cleared});
   return `${storyArrivalMarkup(node)||(mist?mistGateArrivalMarkup({returning:profile.cleared.includes(node.id),guardian:style}):`<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2>`)}<p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${style?`${mistGateRuleMarkup(style)}<br>`:''}${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`${mist||node.worldId!=='shanhai'?'':`<p>${safe(node.description)}</p>`}<p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(loaner?'借用同行牌組':deck?.name||'尚未選擇牌組')}</h3>${loaner?`<button class="text-button" data-action="travel" data-id="${node.id}">改用自家牌組 →</button>`:'<button class="text-button" data-action="prep-deck">更換／整備牌組 →</button>'}</div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId),{printId:i.printId})}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${loaner?'借牌固定 Lv.1；戰卡不入藏，亦不獲卡牌 EXP。':kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>${mist?'踏上渡口':'進入對局'} →</button></div>${mist?'<button class="text-button" data-action="experience-settings">聲息與節奏 · 設定</button>':''}`;
 }
 function prepareEncounter(kind='practice',nodeId=null,route='owned') {
