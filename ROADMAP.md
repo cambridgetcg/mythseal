@@ -510,8 +510,9 @@ translation provenance record and, as its exit evidence, a fluent reader's LQA,
 because players cannot tell which lines nobody has read. Claude drafts the
 translations, recording model, date and a hash of each source string, so the
 drafts need no outsourcing budget; the owner reviews English and Simplified
-Chinese and does their LQA (owner, 2026-10-21; I18N-PLAN §4.4). The first store
-submission preferably carries English, Traditional and Simplified Chinese; the
+Chinese, as the reader in their LQA (owner, 2026-10-21; I18N-PLAN §4.4). In the
+agent's reading of the owner's answer, the first store submission preferably
+carries English, Traditional and Simplified Chinese (I18N-PLAN §9 item 3); the
 mainland China store is excluded until it is researched separately. The language
 preference stays on the device, and fonts stay system fonts. One saved identity
 is display text today, the 聽見萬聲 and 借得東風 titles; the plan keeps them as frozen
@@ -727,7 +728,7 @@ The server records append-only XP against a stable card identity. A collectible 
 | Online economy entry | Fresh server-issued inventory; offline journeys remain preserved and editable. | M2 starter grant and progression contract. |
 | Infrastructure/operations | Existing Workers + Supabase; one transactional command authority; expand services only from measured need. | Authoritative alpha rollout and any paid resource. |
 | Audience and native product | iOS App Store and Android Google Play remain the selected native direction (2026-09-22), now an optional undated release; use the shared game shell and a Capacitor trial. Supported regions/ages and devices remain open; no paid scope is planned. | Closed beta/store disclosures. |
-| Languages | Traditional Chinese source; first wave English and Simplified Chinese, then more by language popularity (owner, 2026-10-21; [I18N-PLAN](docs/I18N-PLAN.md) §9). The first store submission preferably carries all three. Claude drafts translations with provenance and the owner reviews English and Simplified Chinese (owner, 2026-10-21; I18N-PLAN §4.4). The mainland China store is excluded until researched separately; a language is not a launch territory. | M4.7 L0; the first store submission with more than one language. |
+| Languages | Traditional Chinese source; first wave English and Simplified Chinese, then more by language popularity (owner, 2026-10-21; [I18N-PLAN](docs/I18N-PLAN.md) §9). The first store submission preferably carries all three (the agent's reading of the owner's answer; I18N-PLAN §9 item 3). Claude drafts translations with provenance and the owner reviews English and Simplified Chinese (owner, 2026-10-21; I18N-PLAN §4.4). The mainland China store is excluded until researched separately; a language is not a launch territory. | M4.7 L0; the first store submission with more than one language. |
 | Wallet and chain research | Retained as optional technical research; no active issuance objective. | Any new explicitly selected experiment. |
 | Commercial editions | Retired delivery objective; old supply drafts create no entitlement. | No sale or marketplace is planned by this roadmap. |
 | Name, artwork and source licensing | 萬象契 / Mythseal selected; original art with provenance; no open-source license selected. | Public licensing/commercial release; domain ownership does not establish trademark clearance. |
