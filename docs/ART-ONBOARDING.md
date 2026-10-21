@@ -1,7 +1,8 @@
 # Onboarding, tutorial and key art — provenance record
 
-Status: `proposal · 2026-10-20`. Nothing listed here has been briefed,
-generated or committed. This file names the planned onboarding, tutorial and
+Status: `proposal · 2026-10-20`; the ArtCraft store gate was
+[decided on 2026-10-21](#artcraft-what-is-known-and-what-is-pending). Nothing
+listed here has been briefed, generated or committed. This file names the planned onboarding, tutorial and
 key art, sets out the fields each selected image fills in, and records what is
 known about the planned tool's terms. When an image is selected, its block
 under [Selected images](#selected-images) becomes a dated record.
@@ -124,19 +125,21 @@ signed in to or generated for this record.
   stays yours"; neither is a service agreement. The terms of the model
   providers behind ArtCraft (OpenAI, Google, Black Forest Labs, ByteDance) have
   not been checked one by one.
-- **Pending, and a gate before any store build.** Mindicraft Limited is the App
-  Store publisher ([IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md)). No ArtCraft output
-  ships in a store build until Storyteller confirms in writing that Mindicraft
-  may use the outputs commercially. That confirmation has not been requested or
+- **Written confirmation before 上架 · decided 2026-10-21.** Mindicraft
+  Limited is the App Store publisher ([IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md)).
+  The owner decided on 2026-10-21 that no ArtCraft output goes 上架, meaning
+  it ships in a store build or appears in a store listing, until Storyteller
+  confirms in writing that Mindicraft may use the outputs commercially.
+  Committing an output to this repository before then is allowed. The reason:
+  the confirmation is about Mindicraft's commercial use, and a store build or
+  listing is where that use begins. The confirmation has not been requested or
   received; the same request can ask whether uploads and outputs are kept
-  private. Separately open: how
-  Mindicraft holds the rights to Mythseal's art at all (App Review Guideline
-  5.2.1).
+  private. Separately open: how Mindicraft holds the rights to Mythseal's art
+  at all (App Review Guideline 5.2.1).
 - **Committing is publishing.** The repository is public
-  ([AGENTS.md](../AGENTS.md)), so a committed output is published at once. The
-  gate above was set for store builds; whether it should also come before
-  committing an output, or before serving one on `mythseal.com`, is the
-  owner's call and is not decided here.
+  ([AGENTS.md](../AGENTS.md)), so a committed output is published at once,
+  which the decision above allows. Not yet asked: whether serving an output on
+  `mythseal.com` counts as 上架.
 - **ArtCraft's built-in library is third-party material.** Its 3D kits,
   characters, skyboxes and sounds include items whose rights are unclear (the
   NOTICE file on its main branch lists third-party material). Under the

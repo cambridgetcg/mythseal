@@ -171,7 +171,7 @@ explain the earlier thinking; none is an instruction to mint or sell.
 | [西行 special-print studies](ART-EXPANSION.md) | Three Wukong studies (異畫, 墨卷, 天工) shown in `atelier.html`, also reused unchanged for the WX-01 Wukong AA, INK and TR printings | `record · 2026-09-22` |
 | [HL-01 art studies](ART-HL01.md) | Prompts and integrity notes for the 紅樓 preview art | `record · 2026-09-23` |
 | [LZ-01 art studies](ART-LZ01.md) | Prompts for the 聊齋 preview art, the briefs for its six later special prints and their provenance; all seven specials are bound | `record · 2026-09-23`; briefs 2026-10-10; specials generated and bound 2026-10-11 (merged in PR #8, `daf18ed`; preview allowlist only) |
-| [Onboarding, tutorial and key art](ART-ONBOARDING.md) | Planned key art (K-01), the 守渡弈者 guide figure (T-01, not the playable 渡影), the 霧隱渡口 scene (T-02), rule-tile vignettes (T-07) and a 洞府 backdrop (G-01); the provenance fields each selected image fills; what is known about ArtCraft and its terms, and the written commercial-use confirmation that gates a store build | `proposal · 2026-10-20`; nothing briefed, generated or committed |
+| [Onboarding, tutorial and key art](ART-ONBOARDING.md) | Planned key art (K-01), the 守渡弈者 guide figure (T-01, not the playable 渡影), the 霧隱渡口 scene (T-02), rule-tile vignettes (T-07) and a 洞府 backdrop (G-01); the provenance fields each selected image fills; what is known about ArtCraft and its terms, and the written commercial-use confirmation needed before an output ships in a store build or listing | `proposal · 2026-10-20`; store gate decided 2026-10-21; nothing briefed, generated or committed |
 
 ## Research and naming
 
