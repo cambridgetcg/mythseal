@@ -253,3 +253,19 @@ test('header: the resources and 執令者 Lv open their 詞彙 entries, named by
   assert.doesNotMatch(battle, /data-action="glossary"/);
   assert.match(battle, /<button type="button" data-action="rules">弈道<\/button>/);
 });
+
+test('names: 修為 is the 執令者\'s journey experience and 歷練 a card\'s EXP, one name each', async () => {
+  // Each word belongs to its own group: 修為 to 旅途 (it sets 執令者 Lv), 歷練 to 卡牌.
+  for (const entry of GLOSSARY) {
+    const words = `${entry.term}${entry.text}`;
+    if (words.includes('修為')) assert.equal(entry.group, '旅途', `${entry.id}: 修為 is the journey's`);
+    if (words.includes('歷練')) assert.equal(entry.group, '卡牌', `${entry.id}: 歷練 is a card's`);
+  }
+  // The two places that show the 修為 total, 旅程閣 and the import comparison, call it by the glossary's name.
+  const { accountMarkup } = await import('../account-ui.mjs');
+  const { importConfirmMarkup } = await import('../save-ui.mjs');
+  const account = accountMarkup({ initialized: true, emailEnabled: false }, { ...createProfile({ now }), xp: 4321 });
+  assert.equal(account.match(/<dt>([^<]*)<\/dt><dd>4,321<\/dd>/)?.[1], term('xp'));
+  const summary = { cards: 1, coins: 1, dust: 1, xp: 1, decks: 1, played: 0, date: '2026-09-22' };
+  assert.equal(importConfirmMarkup({ current: summary, backup: summary }).match(/<dt>([^<]*)<\/dt><dd data-summary="xp">/)?.[1], term('xp'));
+});
