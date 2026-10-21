@@ -548,7 +548,7 @@ export function getTrainingCost(profile, id, now = new Date()) {
 export function upgradeCard(profile, id) {
   const cost = getUpgradeCost(profile, id);
   if (cost.blockedReason) throw new RangeError(cost.blockedReason);
-  if (cost.maxed) throw new RangeError('這張卡牌已達最高修為。');
+  if (cost.maxed) throw new RangeError('這張卡牌已達最高等級。');
   const next = syncCollection(profile);
   spend(next, cost);
   return setInstanceXP(next, cost.instanceId, getXPThreshold(cost.nextLevel));
@@ -558,7 +558,7 @@ export function trainCard(profile, id, now = new Date()) {
   const cost = getTrainingCost(next, id, now);
   if (cost.blockedReason) throw new RangeError(cost.blockedReason);
   if (cost.used) throw new RangeError('今日半價修行已使用。');
-  if (cost.maxed) throw new RangeError('這張卡牌已達最高修為。');
+  if (cost.maxed) throw new RangeError('這張卡牌已達最高等級。');
   spend(next, cost);
   next.daily.trainingUsed = true;
   return setInstanceXP(next, cost.instanceId, getXPThreshold(cost.nextLevel));

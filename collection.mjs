@@ -80,12 +80,12 @@ function maximumSerial(profile) {
 }
 
 export function getXPThreshold(level) {
-  if (!Number.isInteger(level) || level < 1 || level > XP_THRESHOLDS.length) throw new RangeError('修為等級須為 1 至 5。');
+  if (!Number.isInteger(level) || level < 1 || level > XP_THRESHOLDS.length) throw new RangeError('卡牌等級須為 1 至 5。');
   return XP_THRESHOLDS[level - 1];
 }
 
 export function getInstanceLevel(xp) {
-  if (!Number.isSafeInteger(xp) || xp < 0) throw new RangeError('卡牌經驗須為非負整數。');
+  if (!Number.isSafeInteger(xp) || xp < 0) throw new RangeError('卡牌歷練須為非負整數。');
   let level = 1;
   while (level < XP_THRESHOLDS.length && xp >= XP_THRESHOLDS[level]) level++;
   return level;
@@ -315,7 +315,7 @@ export function setInstanceXP(profile, uid, xp) {
   const instance = ownedInstance(profile, uid);
   if (isInstanceInJourney(profile, uid)) throw new RangeError('此卡正在未完對局或活動旅程中，完成或放棄旅程後才可修練。');
   const target = Math.min(MAX_CARD_XP, xp);
-  if (target < instance.xp) throw new RangeError('不能降低已獲得的卡牌經驗。');
+  if (target < instance.xp) throw new RangeError('不能降低已獲得的卡牌歷練。');
   const next = copy(profile), selected = ownedInstance(next, uid);
   selected.xp = target;
   selected.level = getInstanceLevel(target);
@@ -324,7 +324,7 @@ export function setInstanceXP(profile, uid, xp) {
 
 export function awardInstanceXP(profile, uids, amount, { win = false } = {}) {
   if (!Array.isArray(uids) || new Set(uids).size !== uids.length) throw new RangeError('出戰卡牌編號不能重複。');
-  if (!Number.isSafeInteger(amount) || amount < 0) throw new RangeError('獲得經驗須為非負整數。');
+  if (!Number.isSafeInteger(amount) || amount < 0) throw new RangeError('獲得歷練須為非負整數。');
   if (typeof win !== 'boolean') throw new TypeError('勝負標記須為布林值。');
   uids.forEach(uid => ownedInstance(profile, uid));
   const next = copy(profile), changes = [];

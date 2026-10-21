@@ -20,7 +20,7 @@ const treatments = Object.values(PRINT_TREATMENTS).map(treatment => treatment.na
 export const GLOSSARY = Object.freeze([
   ['coins', '金幣', '旅途', '開秘匣、購卡與修練所用；遊歷、擂台、火焰山勝、任務手札與寄售可得，切磋不得。'],
   ['dust', '靈砂', '旅途', '修練戰卡所需，與金幣同付（見「修練」）；遊歷勝、擂台、火焰山勝與任務手札可得。'],
-  ['xp', '修為', '旅途', '執令者的旅途閱歷，又稱旅途歷練；遊歷、擂台、火焰山勝與任務手札可得。'],
+  ['xp', '修為', '旅途', '執令者的旅途閱歷，累積決定其 Lv；遊歷、擂台、火焰山勝與任務手札可得。'],
   ['hero-level', '執令者 Lv', '旅途', `由修為而定：滿 ${heroThreshold(2)} 為 Lv.2、${heroThreshold(3)} 為 Lv.3、${heroThreshold(4)} 為 Lv.4，如此類推；不加戰力。`],
   ['cache', '秘藏', '旅途', '主線與故事各境，每日首勝另得一份秘藏：金幣、靈砂與修為；續卷沒有。'],
   ['stars', '星數', '卡牌', `角色 ${Math.min(...stars)}–${Math.max(...stars)} 星；每套合計不超過 ${RULES.starLimit} 星。首回合手上${hand}星多者先手；同攻時低星勝。`],

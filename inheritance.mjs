@@ -36,7 +36,7 @@ function checkedInstance(profile, uid, index = indexInstances(profile)) {
   if (typeof instance.printId !== 'string' || record.count !== 1 || index.vault.has(uid)) throw new RangeError('卡牌身份或版本記錄無效，未有進行傳承。');
   getPrintForCard(instance.cardId, instance.printId);
   if (!Number.isSafeInteger(instance.xp) || instance.xp < 0 || instance.xp > MAX_CARD_XP
-    || instance.level !== getInstanceLevel(instance.xp)) throw new RangeError('卡牌修為記錄無效，未有進行傳承。');
+    || instance.level !== getInstanceLevel(instance.xp)) throw new RangeError('卡牌歷練記錄無效，未有進行傳承。');
   return frozenCopy(instance);
 }
 function targetReason(profile, target) {

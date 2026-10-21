@@ -10,7 +10,7 @@ function localSummary(profile) {
 }
 
 function statsMarkup(summary) {
-  return `<dl class="account-stats">${[['cards', '卡牌'], ['coins', '金幣'], ['dust', '靈砂'], ['xp', '旅途歷練'], ['decks', '牌組'], ['played', '完成對局']].map(([key, label]) => `<div><dt>${label}</dt><dd>${number(summary[key])}</dd></div>`).join('')}</dl>`;
+  return `<dl class="account-stats">${[['cards', '卡牌'], ['coins', '金幣'], ['dust', '靈砂'], ['xp', '修為'], ['decks', '牌組'], ['played', '完成對局']].map(([key, label]) => `<div><dt>${label}</dt><dd>${number(summary[key])}</dd></div>`).join('')}</dl>`;
 }
 
 function updatedLabel(value) {

@@ -111,7 +111,7 @@ test('N2 preview blockers carry the existing rule text and never offer a request
   assert.equal(between.pending, null); assert.equal(isInstanceInJourney(between, runner), true);
   check(blocked(between, runner), 'in-journey', '這張卡牌正在出戰，完成旅程後才可修練。');
   const maxed = blocked(setInstanceXP(base, uid, 700), uid);
-  check(maxed, 'maxed', '這張卡牌已達最高修為。');
+  check(maxed, 'maxed', '這張卡牌已達最高等級。');
   assert.equal(maxed.costs, null); assert.equal(maxed.effects, null);
   check(blocked({ ...copy(base), coins: 119 }, uid), 'coins', '金幣不足。');
   check(blocked({ ...copy(base), dust: 5 }, uid), 'dust', '靈砂不足。');
