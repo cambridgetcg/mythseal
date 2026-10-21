@@ -54,6 +54,8 @@ import { RULES, createMatch, resolveRound } from '../engine.mjs';
 import { createProfile, beginBattle, PROFILE_KEY } from '../progression.mjs';
 import { NAV_STATE_KEY } from '../nav-stack.mjs';
 import { COACH_KEY } from '../battle-teaching.mjs';
+import { GENTLE_GUARDIAN } from '../guardian-style.mjs';
+import { GENTLE_ARRIVAL_QUOTE } from '../mist-gate-ui.mjs';
 
 const browserName = process.env.BROWSER || 'chromium';
 if (!['chromium', 'webkit'].includes(browserName)) throw Error('BROWSER must be chromium or webkit.');
@@ -90,7 +92,14 @@ function finalArena() {
     battle: JSON.stringify({ match, encounter: started.encounter, selected: killing.cardId, pills: killing.pills, fury: killing.fury, aiMove: opener, revealPending: false, recorded: false, lastReward: null }),
   };
 }
-const FIXTURES = { fresh: { profile: null, battle: null }, veteran: { profile: JSON.stringify(veteran()), battle: null }, final: finalArena() };
+function beforeO1() {
+  // A first battle at 霧隱渡口 saved before O1: its snapshot names no style, so it plays today's AI.
+  const started = beginBattle(createProfile({ now }), { kind: 'expedition', nodeId: 'mist-gate', now });
+  const match = createMatch({ mode: 'expedition', rng: () => 0.23, opponentName: '守渡弈者' });
+  match.initiative = 'player';
+  return { profile: JSON.stringify(started.profile), battle: JSON.stringify({ match, encounter: started.encounter, selected: match.player.hand[0], pills: 0, fury: false, aiMove: null, revealPending: false, recorded: false, lastReward: null }) };
+}
+const FIXTURES = { fresh: { profile: null, battle: null }, veteran: { profile: JSON.stringify(veteran()), battle: null }, final: finalArena(), beforeO1: beforeO1() };
 
 // ── Pages ───────────────────────────────────────────────────────────────────────
 const browser = await engines[browserName].launch({ headless: true, ...(browserName === 'chromium' && existsSync(chrome) ? { executablePath: chrome } : {}) });
@@ -885,6 +894,177 @@ try {
     await settleDepth(control, 3, 'the reveal and its now visible mark');
     passed('with full motion, Back while the round-1 reveal animates holds the result and skips no mark; mark ④ then shows, and the next Back closes it');
     await release(control);
+  }
+  // ── 8. O1 緩渡 (docs/GENTLE-GUARDIAN-O1.md): disclosed before the first move, held for the battle ──
+  // The preparation shows the guardian's line and the exact rule; the snapshot keeps the style from
+  // the start, also across a reload; every AI commitment costs at most 2, also the final round's; the
+  // tip states the cap where it would have said 提防對手重注; the table keeps the style after the last
+  // reveal; a 緩渡 loss gives ②'s advice; the second crossing shows no rule and plays today's AI; a
+  // snapshot from before O1 keeps today's AI. Then the disclosure is measured: at 302×640, 320×568 and
+  // 393×852 the preparation keeps its pages, the status row its height and the reveal footer its
+  // height; at 1280×720 the table's label shows on one line, as tall as without the style.
+  {
+    const page = await open('fresh');
+    await tap(page, '.game-lobby [data-action="continue-journey"]');
+    await page.locator('#overlay-root .encounter-prep [data-action="confirm-start"]').waitFor();
+    assert.equal(await page.locator('#overlay-root .mist-arrival blockquote').textContent(), `守渡弈者「${GENTLE_ARRIVAL_QUOTE}」`, 'the guardian hints at his restraint in his own voice');
+    assert.equal(await page.locator('#overlay-root [data-guardian-style="gentle-crossing"]').textContent(), '緩渡 · 本局守渡弈者每回合至多出 2 丹，不用怒擊', 'the plain line states the rule');
+    await tap(page, '#overlay-root [data-action="confirm-start"]');
+    await planning(page);
+    assert.equal(JSON.parse(await stored(page, battleKey)).guardian, GENTLE_GUARDIAN.id, 'the battle snapshot keeps the style from the start');
+    assert.equal(await page.locator('#app .mist-battle-heading').getAttribute('aria-label'), '霧隱渡口，守渡弈者，緩渡');
+    await tap(page, '#app [data-action="coach-skip"]');
+    // Every battle snapshot written from here on, so the final round's commitment can be read too
+    // (the snapshot is cleared once the result is saved).
+    const capture = () => page.evaluate(key => {
+      if (window.o1Snapshots) return;
+      window.o1Snapshots = [];
+      const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(name, value) { set.call(this, name, value); if (this === localStorage && name === key) window.o1Snapshots.push(value); };
+    }, battleKey);
+    const tips = [];
+    let reloaded = false, finished = false;
+    for (let round = 1; round <= RULES.rounds && !finished; round++) {
+      let saved = JSON.parse(await stored(page, battleKey));
+      assert.equal(saved.match.round, round);
+      if (saved.match.initiative === 'opponent' && !reloaded) {
+        const lead = saved.aiMove;
+        assert.ok(lead.pills + (lead.fury ? RULES.furyCost : 0) <= GENTLE_GUARDIAN.spendCap, `the leading commitment costs at most ${GENTLE_GUARDIAN.spendCap} (${JSON.stringify(lead)})`);
+        await page.reload(); await page.locator('.game-lobby').waitFor();
+        await tap(page, '.game-lobby [data-action="resume"]');
+        await planning(page);
+        saved = JSON.parse(await stored(page, battleKey));
+        assert.deepEqual(saved.aiMove, lead, 'a reload keeps the leading commitment');
+        assert.equal(saved.guardian, GENTLE_GUARDIAN.id, 'a reload keeps the style');
+        reloaded = true;
+      }
+      await capture();
+      // Six pills in round 1 leave the guardian four or more ahead: the tip's 重注 case.
+      if (round === 1) { await page.locator('#pill-slider').fill('6'); await viewportFrames(page); }
+      await tap(page, '.move-panel [data-action="commit"]');
+      await page.locator('#overlay-root .battle-reveal[data-reveal-state="complete"]').waitFor();
+      const tip = page.locator('#overlay-root [data-reveal-tip]');
+      tips.push({ kind: await tip.getAttribute('data-tip-kind'), text: await tip.locator('.battle-reveal-tip-text').textContent() });
+      finished = JSON.parse(await page.evaluate(() => window.o1Snapshots.at(-1))).match.status === 'finished';
+      await tap(page, '#overlay-root [data-action="next-round"]');
+      if (!finished) await planning(page);
+    }
+    assert.ok(reloaded, 'the guardian led a round');
+    assert.equal(tips[0].kind, 'capped', `after six pills the tip states the cap (${tips[0].text})`);
+    assert.match(tips[0].text, /· 對手每回合至多出 2 丹$/);
+    assert.ok(tips.every(tip => tip.kind !== 'rich'), `no 提防對手重注 under 緩渡 (${tips.map(tip => tip.kind).join(', ')})`);
+    const last = JSON.parse(await page.evaluate(() => window.o1Snapshots.at(-1)));
+    assert.equal(last.guardian, GENTLE_GUARDIAN.id, 'the style holds to the final round');
+    assert.ok(last.match.history.every(item => item.opponent.cost <= GENTLE_GUARDIAN.spendCap), `every commitment costs at most 2 (${last.match.history.map(item => item.opponent.cost).join(', ')})`);
+    // The result: the table behind it still names the style; ②'s advice after a loss; today's note.
+    await page.locator('#overlay-root .modal .match-score').waitFor({ state: 'attached' });
+    assert.equal(await page.locator('#app .mist-battle-heading').getAttribute('aria-label'), '霧隱渡口，守渡弈者，緩渡', 'the final table keeps the style');
+    const winner = last.match.winner, advice = { opponent: '十二丹撐四回合，莫一次押盡。下一次，換你掌握勝負。', player: '藏鋒有時，出手有度。這一場，是你的傳說。', draw: '棋逢對手，何妨再弈。' }[winner];
+    // On some phones the advice is on 勝負已定's second page, with or without the style; it is checked as text.
+    assert.equal(await page.locator('#overlay-root .modal p', { hasText: advice }).count(), 1, `the ${winner} advice: ${advice}`);
+    assert.equal(await page.locator('#overlay-root .modal p', { hasText: '記住對手的出丹節奏' }).count(), 0, 'no advice to remember a rhythm the next crossing will not repeat');
+    const note = await page.locator('#overlay-root .mist-result-note p').textContent();
+    assert.equal(note, { opponent: '「霧未散，船也還在。歇一息，再來。」', player: '「這一子，我記下了。前面的路，燈會替你照着。」', draw: '「水映兩岸，這一局，各有所得。」' }[winner], 'the guardian\'s result line is today\'s');
+    assert.equal(JSON.parse(await stored(page, PROFILE_KEY)).stats.played, 1);
+    // The second crossing: no rule line, today's arrival line, no style in the battle.
+    if (winner === 'player') {
+      await tap(page, '#overlay-root [data-action="end-home"]'); await page.locator('.game-lobby').waitFor();
+      await tap(page, '.game-dock [data-action="world"]');
+      const travel = page.locator('#app [data-action="travel"][data-id="mist-gate"]');
+      await revealViewportItem(page, travel); await travel.tap(); await viewportFrames(page);
+    } else await tap(page, '#overlay-root [data-action="next-encounter"]');
+    await page.locator('#overlay-root .encounter-prep.is-mist-prep [data-action="confirm-start"]').waitFor();
+    assert.equal(await page.locator('#overlay-root [data-guardian-style]').count(), 0, 'no rule line on the second crossing');
+    assert.equal(await page.locator('#overlay-root .mist-arrival blockquote').textContent(), `守渡弈者「${winner === 'player' ? '燈還亮着。這一程，你想怎樣走？' : '不必急着渡河，先看清手中的牌。'}」`);
+    await tap(page, '#overlay-root [data-action="confirm-start"]');
+    await planning(page);
+    assert.equal(JSON.parse(await stored(page, battleKey)).guardian, null, 'the second battle names no style');
+    assert.equal(await page.locator('#app .mist-battle-heading').getAttribute('aria-label'), '霧隱渡口，守渡弈者');
+    passed(`緩渡 on the first battle: the guardian's line and the rule before play; the style kept from the start, across a reload and to the final table; AI commitments ${last.match.history.map(item => item.opponent.cost).join(', ')} (each ≤ 2); the tip states the cap (${tips.map(tip => tip.kind).join(', ')}); ${winner} result with today's note; the second crossing has no rule and no style`);
+    await release(page);
+    // A first battle saved before O1 resumes with today's AI: no style, no label.
+    const old = await open('beforeO1');
+    await tap(old, '.game-lobby [data-action="resume"]');
+    await planning(old);
+    assert.equal(await old.locator('#app .mist-battle-heading').getAttribute('aria-label'), '霧隱渡口，守渡弈者', 'a pre-O1 snapshot shows no style');
+    await tap(old, '#app [data-action="coach-skip"]');
+    await tap(old, '.move-panel [data-action="commit"]');
+    await old.locator('#overlay-root .battle-reveal[data-reveal-state="complete"]').waitFor();
+    assert.equal(JSON.parse(await stored(old, battleKey)).guardian, null, 'and keeps naming none');
+    passed('a first battle saved before O1 resumes without the style, and its snapshot keeps naming none');
+    await release(old);
+  }
+  // ── 8b. O1's disclosure on phones and a roomy screen: nothing grows ─────────────────
+  {
+    const o1Prep = page => page.evaluate(() => {
+      const dialog = document.querySelector('#overlay-root .modal'), rule = dialog.querySelector('[data-guardian-style]');
+      const rect = rule?.getBoundingClientRect(), box = dialog.getBoundingClientRect(), range = document.createRange();
+      if (rule) range.selectNodeContents(rule);
+      const lines = rule ? new Set([...range.getClientRects()].map(item => Math.round(item.top))).size : 0;
+      return { pages: document.querySelector('#overlay-root [data-viewport-status], #overlay-root .viewport-page-status')?.textContent ?? null,
+        rule: rule ? { visible: rule.getClientRects().length > 0 && !rule.closest('[hidden]'), lines, inside: rect.left >= box.left && rect.right <= box.right && rect.top >= box.top && rect.bottom <= box.bottom } : null,
+        overflow: document.documentElement.scrollWidth > innerWidth + 1, dialog: { width: box.width, height: box.height } };
+    });
+    const o1Table = async page => { await settled(page); return page.evaluate(() => {
+      const heading = document.querySelector('#app .battle-status .mist-battle-heading'), label = heading.querySelector('.mist-battle-place small');
+      const shown = label.getClientRects().length > 0 && getComputedStyle(label).display !== 'none';
+      return { label: label.textContent.replace(/\s+/g, ' ').trim(), shown, labelHeight: shown ? label.getBoundingClientRect().height : 0, labelWidth: shown ? label.scrollWidth - label.clientWidth : 0,
+        heading: heading.getBoundingClientRect().height, status: document.querySelector('#app .battle-status').getBoundingClientRect().height, overflow: document.documentElement.scrollWidth > innerWidth + 1 };
+    }); };
+    const measured = [];
+    for (const size of [{ width: 302, height: 640 }, { width: 320, height: 568 }, { width: 393, height: 852 }, { width: 1280, height: 720 }]) {
+      const at = `${size.width}x${size.height}`, roomy = size.width >= 960, views = {};
+      for (const name of ['veteran', 'fresh']) {
+        const page = await open(name, { size });
+        await tap(page, '.game-lobby [data-action="continue-journey"]');
+        await page.locator('#overlay-root .encounter-prep [data-action="confirm-start"]').waitFor();
+        await viewportFrames(page);
+        const prep = await o1Prep(page);
+        await tap(page, '#overlay-root [data-action="confirm-start"]');
+        await planning(page);
+        if (name === 'fresh') await tap(page, '#app [data-action="coach-skip"]');
+        const table = await o1Table(page);
+        let footer = null;
+        if (name === 'fresh' && !roomy) {
+          // The reveal footer with the tip's 'rich' sentence (as without the style) and with 'capped'.
+          await page.locator('#pill-slider').fill('6'); await viewportFrames(page);
+          await tap(page, '.move-panel [data-action="commit"]');
+          await page.locator('#overlay-root .battle-reveal[data-reveal-state="complete"]').waitFor();
+          await viewportFrames(page);
+          footer = await page.evaluate(() => {
+            const tip = document.querySelector('#overlay-root [data-reveal-tip]'), text = tip.querySelector('.battle-reveal-tip-text'), shown = text.textContent;
+            const footer = document.querySelector('#overlay-root .battle-reveal-footer'), measure = () => ({ footer: footer.getBoundingClientRect().height, clipped: tip.scrollHeight > tip.clientHeight + 1 || tip.scrollWidth > tip.clientWidth + 1 });
+            const capped = measure();
+            text.textContent = shown.replace(/對手每回合至多出 \d+ 丹$/, '提防對手重注');
+            const rich = measure();
+            text.textContent = shown;
+            return { kind: tip.dataset.tipKind, shown, capped, rich };
+          });
+        }
+        views[name] = { prep, table, footer };
+        await release(page);
+      }
+      const { veteran: before, fresh: gentle } = views;
+      assert.equal(before.prep.rule, null, `${at}: no rule line without the style`);
+      assert.ok(gentle.prep.rule?.visible && gentle.prep.rule.inside, `${at}: the rule line shows inside the preparation (${JSON.stringify(gentle.prep)})`);
+      assert.ok(gentle.prep.rule.lines <= 2, `${at}: the rule line takes at most two lines (${gentle.prep.rule.lines})`);
+      assert.equal(gentle.prep.pages, before.prep.pages, `${at}: the preparation keeps its pages (${gentle.prep.pages})`);
+      assert.deepEqual(gentle.prep.dialog, before.prep.dialog, `${at}: the preparation dialog keeps its size`);
+      assert.equal(gentle.prep.overflow || gentle.table.overflow, false, `${at}: no horizontal overflow`);
+      assert.equal(gentle.table.label, '守渡弈者 · 緩渡 · AI 對弈');
+      assert.equal(before.table.label, '守渡弈者 · AI 對弈');
+      assert.ok(Math.abs(gentle.table.status - before.table.status) <= 0.5, `${at}: the status row keeps its height (${gentle.table.status} against ${before.table.status})`);
+      assert.ok(Math.abs(gentle.table.heading - before.table.heading) <= 0.5, `${at}: the heading keeps its height (${gentle.table.heading} against ${before.table.heading})`);
+      assert.equal(gentle.table.shown, roomy, `${at}: the label is ${roomy ? 'shown' : 'hidden with the rest of the heading text, as today'}`);
+      if (roomy) {
+        assert.ok(Math.abs(gentle.table.labelHeight - before.table.labelHeight) <= 0.5 && gentle.table.labelWidth <= 0, `${at}: the label stays on one line (${JSON.stringify(gentle.table)} against ${JSON.stringify(before.table)})`);
+      } else {
+        assert.equal(gentle.footer.kind, 'capped', `${at}: ${gentle.footer.shown}`);
+        assert.ok(!gentle.footer.capped.clipped && gentle.footer.capped.footer <= gentle.footer.rich.footer + 0.5, `${at}: the capped tip shows whole and the footer is no taller than with 提防對手重注 (${JSON.stringify(gentle.footer)})`);
+      }
+      measured.push(`${at} prep +${gentle.prep.rule.lines} line(s), status ${gentle.table.status.toFixed(1)}${gentle.footer ? `, footer ${gentle.footer.capped.footer.toFixed(1)}/${gentle.footer.rich.footer.toFixed(1)}` : `, label ${gentle.table.labelHeight.toFixed(1)} px`}`);
+    }
+    passed(`O1's disclosure grows nothing: ${measured.join('; ')}`);
   }
   assert.deepEqual(errors, [], 'no page errors, console errors, failed responses or unexpected network');
 } finally {
