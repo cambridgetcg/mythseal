@@ -511,3 +511,74 @@ test('an all-classic deck can include two five-star cards within the cap and com
   assert.ok(['player', 'opponent', 'draw'].includes(state.winner));
   assert.ok(state.history.every((round) => round.player.card.artSet === 'classics' && round.opponent.card.artSet === 'classics'));
 });
+
+// ── O1 · spendCap (docs/GENTLE-GUARDIAN-O1.md §3.1) ──────────────────────────────
+const unusedCards = (side) => side.hand.filter((id) => !side.used.includes(id));
+/** A whole seeded match: the leading AI chooses before the player, the following AI sees only the card. */
+function playWith(seed, mode, playerMove, options) {
+  const rng = seeded(seed), choose = (state, revealed) => (options === undefined ? chooseAIMove(state, rng, revealed) : chooseAIMove(state, rng, revealed, options));
+  let state = createMatch({ rng, mode });
+  const moves = [];
+  while (state.status === 'playing') {
+    const player = playerMove(state), ai = choose(state, state.initiative === 'player' ? player.cardId : null);
+    moves.push(ai);
+    state = resolveRound(state, player, ai);
+  }
+  return { moves, winner: state.winner };
+}
+
+test('O1 spendCap: with no option, {}, Infinity or any cap of 12 or more, the AI makes the same moves in every mode', () => {
+  const players = [
+    (state) => move(unusedCards(state.player)[0]),
+    (state) => move(unusedCards(state.player)[0], Math.floor(state.player.pills / (RULES.rounds - state.round + 1))),
+  ];
+  let calls = 0;
+  for (let seed = 1; seed <= 20; seed++) for (const mode of ['expedition', 'arena', 'practice']) for (const player of players) {
+    const today = playWith(seed, mode, player);
+    calls += today.moves.length;
+    for (const options of [{}, { spendCap: Infinity }, { spendCap: RULES.pills }]) {
+      assert.deepEqual(playWith(seed, mode, player, options), today, `seed ${seed}, ${mode}, ${JSON.stringify(options)}`);
+    }
+  }
+  assert.ok(calls > 400, `paired AI calls: ${calls}`);
+});
+
+test('O1 spendCap: every move costs at most the cap and the reserve, leading or following; below Fury\'s cost there is no Fury', () => {
+  let checked = 0;
+  for (let seed = 0; seed < 50; seed++) {
+    const rng = seeded(seed);
+    let state = createMatch({ rng, mode: 'expedition' });
+    while (state.status === 'playing') {
+      for (const spendCap of [0, 1, 2, 3, 5]) for (const revealed of [null, unusedCards(state.player)[0]]) {
+        const ai = chooseAIMove(state, seeded(seed * 31 + spendCap), revealed, { spendCap });
+        assert.ok(ai.pills + (ai.fury ? RULES.furyCost : 0) <= Math.min(spendCap, state.opponent.pills), `seed ${seed}, round ${state.round}, cap ${spendCap}: ${JSON.stringify(ai)}`);
+        if (spendCap < RULES.furyCost) assert.equal(ai.fury, false);
+        checked++;
+      }
+      // Legal random moves on both sides reach rounds 2–4 with uneven reserves.
+      const random = (side) => {
+        const fury = state[side].pills >= RULES.furyCost && rng() < 0.2;
+        return move(unusedCards(state[side])[Math.floor(rng() * unusedCards(state[side]).length)], Math.floor(rng() * (state[side].pills - (fury ? RULES.furyCost : 0) + 1)), fury);
+      };
+      state = resolveRound(state, random('player'), random('opponent'));
+    }
+  }
+  assert.ok(checked > 1500, `capped choices checked: ${checked}`);
+  const state = fixture();
+  for (const spendCap of [-1, 1.5, NaN, -Infinity, '2', null]) {
+    assert.throws(() => chooseAIMove(state, seeded(1), null, { spendCap }), RangeError, `spendCap ${String(spendCap)}`);
+  }
+});
+
+test('O1 spendCap: a capped AI is still seeded and reads only public fields', () => {
+  const state = fixture();
+  const expected = chooseAIMove(state, seeded(77), null, { spendCap: 2 });
+  assert.deepEqual(chooseAIMove(state, seeded(77), null, { spendCap: 2 }), expected, 'the same seed, state and cap give the same move');
+  for (const object of [state, state.player, state.opponent]) {
+    for (const key of ['selection', 'selectedCard', 'pendingMove', 'playerMove', 'fury', 'bid']) {
+      Object.defineProperty(object, key, { get() { throw new Error(`Hidden ${key} was read`); } });
+    }
+  }
+  assert.deepEqual(chooseAIMove(state, seeded(77), null, { spendCap: 2 }), expected);
+  assert.deepEqual(chooseAIMove(state, seeded(6), 'chiling', { spendCap: 2 }), chooseAIMove(fixture(['chiling']), seeded(6), null, { spendCap: 2 }), 'following, it learns only the revealed card');
+});

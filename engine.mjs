@@ -318,8 +318,12 @@ function publicPosition(state) {
   };
 }
 
-/** Commit once: before a player choice when leading, or after only their card is revealed when following. */
-export function chooseAIMove(state, rng = Math.random, revealedPlayerCardId = null) {
+/** Commit once: before a player choice when leading, or after only their card is revealed when following.
+ * `spendCap` is the most one commitment may cost (pills, plus Fury's cost): a constant the caller
+ * fixes and discloses before the battle (docs/GENTLE-GUARDIAN-O1.md), never read from the state.
+ * It only narrows the candidates; omitted or Infinity, the AI is unchanged. */
+export function chooseAIMove(state, rng = Math.random, revealedPlayerCardId = null, { spendCap = Infinity } = {}) {
+  if (spendCap !== Infinity && !(Number.isInteger(spendCap) && spendCap >= 0)) throw new RangeError('spendCap must be Infinity or a non-negative integer.');
   const position = publicPosition(state);
   if (position.status !== 'playing') throw new RangeError('The match is already finished.');
   const remaining = RULES.rounds - position.round + 1;
@@ -348,7 +352,7 @@ export function chooseAIMove(state, rng = Math.random, revealedPlayerCardId = nu
   for (const cardId of possibleAICards) {
     for (let pills = 0; pills <= position.opponent.pills; pills++) {
       for (const fury of [false, true]) {
-        if (pills + (fury ? RULES.furyCost : 0) > position.opponent.pills) continue;
+        if (pills + (fury ? RULES.furyCost : 0) > Math.min(position.opponent.pills, spendCap)) continue;
         const move = { cardId, pills, fury };
         let score = 0;
         for (const hypothesis of hypotheses) {
