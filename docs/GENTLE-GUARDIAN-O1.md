@@ -15,8 +15,10 @@ packet to review. The game's direction stays away from pressure to pay, so the
 first battle should be winnable by learning, not by buying.
 
 **In one paragraph.** A cap on round 1 alone, the fallback as worded (and the
-O1 packet's example, 「首回合出丹有上限」), makes the first battle *harder* for
-a newcomer who follows the coach. The current AI spends 8 or more pills in
+O1 packet's example, 「首回合出丹有上限」), does not reliably help and mostly
+makes the first battle *harder*: only a cap of 2 lifts a newcomer who follows
+the coach (about 64 % to 78 %), caps of 3 or more push them down, and a player
+who holds back in round 1 falls from about 80 % to 9 % even at 2 (§1.2). The current AI spends 8 or more pills in
 round 1 in 98.7 % of games and then has almost nothing for rounds 2–4. A
 player who spreads pills, as coach mark ② says, beats it in rounds 2–4. If
 round 1 is capped, the AI keeps those pills for the later rounds. This spec
@@ -608,10 +610,13 @@ engines. All are on this branch.
   `ensureLeadingCommitment`, `resumeBattle`, `commitMove` and `matchEndModal`,
   and its import change is in a different block. It does not edit
   `mist-gate-ui.mjs`, `engine.mjs` or `battle-teaching.mjs`. Both branches
-  add to `tools/coach-smoke.mjs` (T1 a section 4b and header lines, O1
+  add to `tools/coach-smoke.mjs` (T1 sections 4b and 4c and header lines, O1
   sections 8 and 8b before the final error check) and to
   `hosting/public-assets.json` (T1 after `battle-teaching.css`, O1 after
-  `mist-gate-ui.mjs`), in different places. Either can merge first.
+  `mist-gate-ui.mjs`), in different places. Either can merge first. The one
+  text conflict is `docs/README.md`, where O1's row sits right below two rows
+  T1 rewrites: keep T1's two rows, then O1's row (a trial merge in either
+  order gave the same tree and 708 passing tests).
 - **The practice bypass (O2) narrows.** T1.1 routes the 任務手札 tasks to the
   ferry. A player can still reach 切磋 or 擂台 first through 對弈 (the dock, or
   問道五弈's 前往); that player has `played` 1 at the ferry and gets neither
