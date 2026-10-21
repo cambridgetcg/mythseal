@@ -1,6 +1,6 @@
 # 多語言支援計劃 · I18N plan
 
-**狀態：`proposal · 2026-10-21`。** 這是建議，不是實作紀錄。沒有抽出任何字串、加入任何語言或改動商店資料。它**不在 v0.6.0 範圍內**（[RELEASE-NEXT](RELEASE-NEXT.md) 的範圍是 Q1 與 D1、N1、D2、D3）。程式碼引用以 `main` `3f3d351` 為準；`t1:` 開頭的引用指 `t1/first-visit-hints`（draft PR #18）。外部來源全部於 2026-10-21 讀取，並經第二輪覆核；只採用覆核確認或更正後的說法。
+**狀態：`proposal · 2026-10-21`。** 這是建議，不是實作紀錄。沒有抽出任何字串、加入任何語言或改動商店資料。它**不在 v0.6.0 範圍內**（[RELEASE-NEXT](RELEASE-NEXT.md) 的範圍是 Q1 與 D1、N1、D2、D3）。程式碼引用以 `main` `3f3d351` 為準；`t1:` 開頭的引用指 `t1/first-visit-hints`（draft PR #18）已推送的 `0675b08`。本分支自己也改了 ROADMAP，所以 ROADMAP 引用用章節錨點與段落名，而不用行號。外部來源全部於 2026-10-21 讀取，並經第二輪覆核；只採用覆核確認或更正後的說法。
 
 Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby 與 Supercell。兩家的 onboarding 與局內設計見 [BENCHMARKS-HABBY-SUPERCELL.md](BENCHMARKS-HABBY-SUPERCELL.md)。
 
@@ -21,19 +21,22 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 | Brawl Stars | Supercell | 22 | 同 CoC + 希伯來文 |
 | Squad Busters | Supercell | 18 | 同 CoC 減 MS、NB、VI（2026-12-01 下架，不是長期參照） |
 | mo.co | Supercell | 17 | 同 CoC 減 FI、PL、TH、VI |
+| Hay Day | Supercell | 22 | 同 CoC 減 PL，加 DA、SV |
+| Boom Beach | Supercell | 20 | 同 CoC 減 PL |
 
-來源：各作 App Store 頁面與 [iTunes Lookup API](https://itunes.apple.com/lookup?id=1422308796&entity=software&country=us)。把簡中、繁中分開計，十一款旗艦作的交集是 5 種（EN、JA、KO、簡中、繁中），聯集 25 種；七款 Supercell 作品共有 15 種（那 5 種加 FR、DE、ES、PT、RU、ID、IT、TR、AR、NL）。
+來源：各作 App Store 頁面與 iTunes Lookup API（[Habby](https://itunes.apple.com/lookup?id=1422308796&entity=software&country=us)、[Supercell](https://itunes.apple.com/lookup?id=488106216&entity=software&country=us)），2026-10-21。把簡中、繁中分開計，表中十四款作品的交集是 5 種（EN、JA、KO、簡中、繁中），聯集 25 種：CoC 的 21 種，加 CR 的波斯文、BS 的希伯來文、Hay Day 的丹麥文與瑞典文；Habby 與 Penguin Isle 的語言全在 CoC 的清單內。Supercell 七款作品共有 15 種（那 5 種加 FR、DE、ES、PT、RU、ID、IT、TR、AR、NL）；只算 CoC、CR、BS、Squad Busters、mo.co 五款，共有的也是這 15 種。
 
-**這個欄位不等於遊戲內語言。** Apple DTS 工程師於 2025-01 說明，App Store 的 Languages 欄由提交的 bundle 內 `.lproj` 資料夾決定；`CFBundleLocalizations` 只在 app 沒有 `.lproj` 時才被用來推斷（[Apple 論壇](https://developer.apple.com/forums/thread/771741)）。兩家的遊戲文字都在引擎內，所以這張表是「bundle 宣告的語言」。Archero 的更新記錄顯示 2019 年加入了阿拉伯文、越南文、泰文（1.1.2）、意大利文（1.1.4）與土耳其文（1.2.2）（[APKMirror 轉載](https://www.apkmirror.com/apk/habby/archero/archero-1-1-2-release/)），但它們不在現時的 App Store 清單；這些語言 2026 年是否仍在遊戲內未經證實。
+**這個欄位不等於遊戲內語言。** Apple DTS 工程師於 2025-01 說明，App Store 的 Languages 欄由提交的 bundle 內 `.lproj` 資料夾決定；`CFBundleLocalizations` 只在 app 沒有 `.lproj` 時才被用來推斷（[Apple 論壇](https://developer.apple.com/forums/thread/771741)）。兩家的遊戲文字都在引擎內，所以這張表是「bundle 宣告的語言」。Archero 的更新記錄顯示 2019 年加入了阿拉伯文、越南文、泰文（1.1.2，[APKMirror 轉載](https://www.apkmirror.com/apk/habby/archero/archero-1-1-2-release/)）、意大利文（1.1.4）與土耳其文（1.2.1，iOS 2019-08-30）（三者均見 [Archero wiki 版本史](https://archero.fandom.com/wiki/Version_History)，玩家 wiki），但它們不在現時的 App Store 清單；這些語言 2026 年是否仍在遊戲內未經證實。
 
 ### 1.2 時序與做法
 
 | 觀察 | 來源與日期 | 層級 |
 | --- | --- | --- |
-| Clash Royale 2016-01 以英文軟啟動；2016-02-29 的 v1.2 加入 14 種語言（FR、DE、ES、IT、NL、NO、PT、RU、TR、繁中、簡中、JA、KO、AR）；當時計劃 2016-03 全球上線 | [GamesBeat，2016-02-08](https://gamesbeat.com/supercell-announces-clash-royale-will-launch-globally-in-march/)；[CR 版本史 2016](https://clashroyale.fandom.com/wiki/Version_History/2016) | 媒體＋wiki |
+| Clash Royale 2016-01 初軟啟動；2016-02-29 的 v1.2 加入 14 種語言（FR、DE、ES、IT、NL、NO、PT、RU、TR、繁中、簡中、JA、KO、AR）；當時計劃 2016-03 全球上線。軟啟動是否只有英文，GamesBeat 沒有說，是從 v1.2 才加入其他語言推論 | [GamesBeat，2016-02-08](https://gamesbeat.com/supercell-announces-clash-royale-will-launch-globally-in-march/)（只說一月初）；[CR 版本史 2016](https://clashroyale.fandom.com/wiki/Version_History/2016) | 媒體＋wiki；「只有英文」屬推論 |
 | Clash of Clans 於 2015-07-01 同時加入阿拉伯文與繁體中文 | [CoC 版本史 2015](https://clashofclans.fandom.com/wiki/Version_History/2015) | wiki |
 | Habby 早期作品本地化不細，PunBall 起按地區調整；現在包括翻譯、跨文化溝通與社群營運 | [白鯨出海，2023-07-28](https://www.baijing.cn/article/45250) | 媒體轉述 CEO |
-| Habby 的營收估計集中在亞洲：Capybara Go! 約韓 31%、台 25%；Archero 2 約台 46%、韓 28%、港 11% | [白鯨出海，2025-01-14](https://www.baijing.cn/article/51409)（引點點數據，第三方估計） | 媒體 |
+| 亞洲先行期的營收估計集中在亞洲：Archero 2 約台 46%、韓 28%、港 11%，是截至 2025-01-10、約五個月測試期的累計數字，而它 2025-01-08 才在美、日、歐上架（白鯨出海；iTunes 美區記 01-07），所以這是只在亞洲上架時的分布，不代表玩家在哪裡花錢；Capybara Go! 約韓 31%、台 25%，文中沒有注明截止日期。兩款都沒有日本的佔比 | [白鯨出海，2025-01-14](https://www.baijing.cn/article/51409)（引點點數據，第三方估計） | 媒體 |
+| Archero 2 美日歐上架後首月（2025-01-08 至 02-07）的全球營收：美國約 30%、日本約 22% | [Sensor Tower 日本，2025-03](https://sensortower.com/ja/blog/archero2-good-start-in-japan)（第三方估計） | 分析 |
 | 亞洲先行：Capybara Go! 台日韓 2024-10-22 上架、美國 2024-11-19；Archero 2 韓台港 2024-11-19、美日 2025-01-07 | iTunes Lookup（us/tw/jp/kr/hk），2026-10-21 | 第一方 |
 | 店名按市場重新創作，但不是全部：噠噠特攻／ダダサバイバー／탕탕특공대（Survivor!.io）；破壞突擊隊（繁）對 爆裂小队（簡）（Squad Busters）；而 Archero 的 弓箭傳說、Capybara Go! 的 卡皮巴拉 Go! 則近乎直譯 | iTunes Lookup 與 Google Play 各區頁面，2026-10-21 | 第一方 |
 | Habby 的中國大陸版本由另一個賣家 Shanghai Lezuan Technology 以 HABBY GAMES 名義發行；Supercell 的中國大陸版本由深圳騰訊天游發行，是另一條版本線 | iTunes Lookup／Search（country=cn），2026-10-21 | 第一方 |
@@ -41,7 +44,7 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 | 廠商自述：Keywords 為每種語言設專屬團隊做翻譯與 LQA；CaptionHub 稱 Supercell 用 Phrase（即 2022 年改名前的 Memsource）做術語庫與翻譯記憶，此案例是影片字幕流程 | [Keywords](https://www.keywordsstudios.com/en/project-spotlights/keywords-studios-and-supercell-total-integration-for-global-success/)；[CaptionHub](https://www.captionhub.com/supercell)，均未注日期 | 廠商行銷 |
 | Supercell 為 Clash Royale 的中文市場請漢儀設計了配合拉丁字體 Supercell-Magic 的中文字體 | [Fonts In Use，2025-03-17](https://fontsinuse.com/uses/66357/clash-royale-mobile-game)，由漢儀自行提交 | 廠商自述 |
 | 2015 年 Paananen 對東洋經濟說：遊戲核心全球一致，表現與服務按市場調整；日本玩家對品質要求屬世界最高之列 | [東洋經濟，2015-10-30](https://toyokeizai.net/articles/-/90481) | 第一方（受訪） |
-| 俄羅斯區 App Store：只查到 Archero 與 Archero 2；Survivor!.io、Capybara Go! 與所有 Supercell 作品都不在 | iTunes Lookup（country=ru），2026-10-21 | 第一方 |
+| 俄羅斯區 App Store：Habby 的 Survivor!.io、Capybara Go! 與 Dicero! 不在，Archero、Archero 2、Wittle Defender、Penguin Isle 等其餘作品在；Supercell 的七款遊戲都不在（只有貼圖等附屬 app） | iTunes Lookup 按開發者列出（country=ru），2026-10-21 | 第一方 |
 
 ## 2. 現況盤點
 
@@ -64,8 +67,8 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 ### 2.3 字體
 
 - **只用系統字體，沒有 `@font-face`，下載 0 位元組。** `--serif` 依次是 Songti TC、Songti SC、Noto Serif TC、STSong；`--sans` 以 PingFang TC 與 Microsoft JhengHei 為中文（`styles.css:2`）。
-- `writing-mode: vertical-rl` 用了 6 次：戰鬥槽標籤（`scene-content.css:226`）、地圖題字（`adventure.css:42`）、英雄印（`styles.css:7`）。拉丁文字放進去會被轉 90 度。
-- CSS 有 111 個 `nowrap`、18 個 `ellipsis`、786 個 `letter-spacing`，都是為中文調的。
+- `writing-mode: vertical-rl` 在遊戲內用了 3 次：戰鬥槽標籤（`scene-content.css:226`）、地圖題字（`adventure.css:42`）、英雄印（`styles.css:7`）。拉丁文字放進去會被轉 90 度。另外 3 次在遊戲外的預覽頁（`atelier.css`、`honglou.css`、`liaozhai.css`），不算入遊戲的工作量。
+- 遊戲 CSS 有 94 個 `white-space: nowrap`、18 個 `text-overflow: ellipsis`、511 個 `letter-spacing`，都是為中文調的；預覽頁另有 17 個 `nowrap` 與 275 個 `letter-spacing`。
 - 美術按政策不含文字（[ART-CLASSICS](ART-CLASSICS.md) 第 28 行；[ART-LZ01](ART-LZ01.md) 第 259 行），沒有燒入圖片的字要換。
 
 ### 2.4 由測試釘住的版面預算
@@ -79,16 +82,19 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 | T1 提示 ≤ 40 個碼位，且不高於被取代的那一行 | `t1:tests/first-visit.test.mjs:65,81` | 多數位置只有 1–3 行，字級 10–11 px |
 | 詞彙定義 ≤ 40 顯示單位（ASCII 算 0.5） | `t1:tests/glossary.test.mjs:20,35` | 分頁以最高的條目定行高 |
 | 戰鬥桌：≤ 50 px 的卡面上四字名會被截；剩 N 丹 要放得下；coach mark ② 在 2–3 行內 | [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md) 第 397–405、449 行；`tools/coach-smoke.mjs:802` | Sun Wukong、Zhuge Liang；仙丹行 |
-| 約 741–797 px 高的直式手機已經溢出 | ROADMAP 第 580–586 行 | 任何更長的文字都令它更差 |
+| 約 741–797 px 高的直式手機已經溢出 | [ROADMAP M5](../ROADMAP.md#m5--mobile-adaptation--ios-and-android-closed-beta) 的 N1 mobile shell 段；[RELEASE-NEXT §12](RELEASE-NEXT.md#12-owner-decisions-needed) 第 18 項 | 任何更長的文字都令它更差 |
+
+表中 `expansion.css`、`scene-navigation.css` 的行號以 `main` `3f3d351` 為準。v0.6.0 若修 RELEASE-NEXT §12 第 17 項（701 px 以下的橫向手機），這些規則會改，L0 開始前要重新量（見 §7）。
 
 參考數字：W3C 把每個中、韓文字按兩個英文字寬計算（[W3C](https://www.w3.org/International/articles/article-text-size)）；本地化商 Alconost 的粗略估計是繁體中文比英文短約 30%，德文長約 30%（[WN Hub，2020-05-14](https://wnhub.io/news/localization/item-17011)）。W3C 引 IBM 的 200–300% 膨脹率只適用於由英文譯成歐洲語言的短字串，不適用於中日韓。對 Mythseal 而言，風險在於**由中文源文譯成英文時變長**，以及預算以字數而非寬度計算。
 
 ### 2.5 存檔身份
 
-大部分存檔身份是 ASCII，翻譯不會碰到：`shanhai.*` 儲存鍵、拼音卡牌 id、節點 id、印刷 id、牌組槽 `deck-1..3`、收據欄位。**兩個例外**：
+大部分存檔身份是 ASCII，翻譯不會碰到：`shanhai.*` 儲存鍵、拼音卡牌 id、節點 id、印刷 id、牌組槽 `deck-1..3`、收據欄位。**有三處把中文顯示文字寫進儲存，只有第一處是身份**：
 
 1. **稱號以中文名稱儲存。** `profile.expansion.titles` 存的是「聽見萬聲」與「借得東風」（`expansion-state.mjs:9-10`；`progression.mjs:700-701,788`），驗證時逐字比較（`expansion-state.mjs:101,105`）；戰役稱號其實有一個沒被使用的 ASCII id `heard-all-voices`（`campaign-content.mjs:120`）。**若翻譯這兩個常數，現有存檔會驗證失敗。**
-2. **牌組預設名稱寫入存檔。** 「山海初陣」、「牌組 N」、「初陣」在建立時寫進存檔（`collection.mjs:167,188`；`progression.mjs:837`），雲端快照也帶著它們。玩家可以改名，所以它們是玩家資料。
+2. **牌組預設名稱寫入存檔。** 「山海初陣」、「牌組 N」、「初陣」在建立時寫進存檔（`collection.mjs:167,188`；`progression.mjs:837`），雲端快照也帶著它們。玩家可以改名，所以它們是玩家資料，不是身份。
+3. **進行中對局的快照帶著組好的中文。** 引擎每回合的結果有中文 `notes`（`${card.ability.label}（被封鎖）`、「怒擊 · 額外消耗 3 丹，傷害 +2」、陣營加成名稱、回復生命與獲得仙丹的句子；`engine.mjs:238-243,291,297`）與完整的卡牌物件，存在 `match.history` 與 `lastResult`；`persistBattle` 把它們寫進 `localStorage` 的 `BATTLE_KEY`（`app.mjs:340`）。它們不是身份，驗證不比較這些文字，所以不會失敗；但對局中途換語言或升級後續玩，已揭曉的回合仍以舊語言顯示。
 
 ### 2.6 原生與後端
 
@@ -107,6 +113,7 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 - **每個語言一個 ES module**，例如 `strings/zh-Hant.mjs`、`strings/en.mjs`；鍵為穩定的 ASCII，按模組分命名空間（`lobby.start`、`glossary.coins.text`）。缺鍵時退回 `zh-Hant`，因為源語言永遠完整；Android 亦要求完整的預設資源，否則在未支援的語系可能無法執行（[Android](https://developer.android.com/guide/topics/resources/localization)）。
 - **整句翻譯，不拼接。** 需要變數的字串寫成函數，數量變化用 `Intl.PluralRules`（自 2019-09 起各主要瀏覽器都支援，[MDN](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/PluralRules)）。中日韓只有 `other` 一類，英文有 `one`／`other`，阿拉伯文有六類（[CLDR](https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html)）。ICU 的建議是把 `select`／`plural` 放在最外層、不要拼接片段（[ICU](https://unicode-org.github.io/icu/userguide/format_parse/messages/)）。MessageFormat 2 雖在 CLDR 47 定為 Stable，ICU 的實作在 2025 年仍是預覽或草稿，所以這裡不引入 MF2 程式庫。
 - **錯誤用碼。** 規則層拋出帶 `code` 的錯誤，UI 把碼對應到目錄裡的句子，沿用帳號 API 已有的做法。測試改為比對碼。
+- **規則結果也用碼。** `engine.mjs` 的回合 `notes` 改為碼加參數（例如被封鎖的能力記卡牌 id），由 UI 經目錄繪製；卡名與能力名也在繪製時按 id 查目錄，不讀快照裡卡牌物件的中文。這樣對局快照（2.5 第 3 點）換語言後也跟著換。L0 之前寫下的快照仍帶中文 `notes`，原樣顯示即可，不必遷移。
 - **中文數字表** 變成每個語言自己的數字詞函數。
 - **內容目錄與 UI 目錄分開。** 卡牌、節點、故事等內容約 9,900 個漢字，按卡牌 id、節點 id 存放，隨內容版本一起發佈；[CONTENT-RELEASE-PIPELINE](CONTENT-RELEASE-PIPELINE.md) 的 manifest 要加一個語言欄位，這樣一次內容發佈能說明它帶了哪些語言。
 - **格式化集中一處。** 9 個 `toLocaleString('zh-Hant')` helper、日期與 `localeCompare` 改用同一個以目前語言為參數的模組；日鍵（`en-CA`、倫敦時間）不變。
@@ -134,10 +141,10 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 
 ### 3.5 每個語言的版面預算，連到現有 smoke
 
-- **讓現有 smoke 能指定語言。** `test:viewport`、`test:shell`、`test:coach`，以及 T1 合併後的 `test:guide`，加一個 `LOCALE` 環境變數，每種已出貨的語言都在現有尺寸跑一次（`viewport-smoke` 的 1440×900、1280×720、390×844、360×740、360×640、844×390；`shell-smoke` 的 302–734 px 寬與 Safari 橫向）。現有的門檻（無橫向溢出、控件 ≥ 43.5 px、提示不加高）全部照用。
+- **讓現有 smoke 能指定語言。** `test:viewport`、`test:shell`、`test:coach`，以及 T1 合併後的 `test:guide`，加一個 `LOCALE` 環境變數（v0.6.0 若為 RELEASE-NEXT §12 第 17 項加入橫向 smoke，也放進這張清單），每種已出貨的語言都在現有尺寸跑一次（`viewport-smoke` 的 1440×900、1280×720、390×844、360×740、360×640、844×390；`shell-smoke` 的 302–734 px 寬與 Safari 橫向）。現有的門檻（無橫向溢出、控件 ≥ 43.5 px、提示不加高）全部照用。
 - **以顯示寬度而非字數定預算。** T1 詞彙已把 ASCII 算 0.5 個單位；把同一個量法推廣到提示與標籤，並為每個語言定上限。
 - **L0 先用一個不出貨的「加長偽語言」。** 把源字串加長並包上標記，用來找出寫死的字串與溢出位置，Android 的 `en-XA` 偽語系就是這個用途（[Android](https://developer.android.com/guide/topics/resources/pseudolocales)）。
-- **已知熱點：** dock 的兩字標籤（英文要改成短詞或圖示加短詞）、市集 7 個分頁、6 處直排文字（非中日文改為橫排）、786 個為中文調的 `letter-spacing`（在 `:lang(en)` 下重設）、≤ 50 px 卡面上的英文名、T1 提示與 coach mark ② 的行數。
+- **已知熱點：** dock 的兩字標籤（英文要改成短詞或圖示加短詞）、市集 7 個分頁、遊戲內 3 處直排文字（非中日文改為橫排）、遊戲 CSS 中 511 個為中文調的 `letter-spacing`（在 `:lang(en)` 下重設；預覽頁的 275 個不屬遊戲）、≤ 50 px 卡面上的英文名、T1 提示與 coach mark ② 的行數。
 - 版面修改屬每個語言階段的一部分，不在 L0 做，L0 只確保量得到。
 
 ### 3.6 存檔身份永不從顯示文字推導
@@ -173,7 +180,7 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 
 ### 4.5 文學名稱與文化審閱
 
-- **日文** 有成熟的讀法：孫悟空 Son Gokū、豬八戒 Cho Hakkai、沙悟淨 Sa Gojō；賈寶玉 Ka Hōgyoku、林黛玉 Rin Taigyoku（[ja.wikipedia 紅楼夢](https://ja.wikipedia.org/wiki/紅楼夢)）。日本常把沙悟淨畫成河童，原著並無此設定；豬八戒的「猪」字常令日本讀者混淆（[HugKum，2024-09-11](https://hugkum.sho.jp/640161)）。OpenCC 的 `t2jp` 只供研究，不建議用於正式產品，且會把 豬八戒 原樣保留，而日文慣用 猪八戒。聊齋志異於 1768 年傳入日本（[Fleming，2013](https://chinajapan.org/pages/20.0-strange-tales-from-edo.html)），芥川龍之介、太宰治與手塚治虫都改編過。
+- **日文** 有成熟的讀法：孫悟空 Son Gokū、豬八戒 Cho Hakkai、沙悟淨 Sa Gojō；賈寶玉 Ka Hōgyoku、林黛玉 Rin Taigyoku（[ja.wikipedia 紅楼夢](https://ja.wikipedia.org/wiki/紅楼夢)）。日本常把沙悟淨畫成河童，原著並無此設定；豬八戒的「猪」字常令日本讀者混淆（[HugKum，2024-09-11](https://hugkum.sho.jp/640161)）。OpenCC 的 `t2jp` 只供研究，不建議用於正式產品，且會把 豬八戒 原樣保留，而日文慣用 猪八戒。聊齋志異於 1768 年傳入日本，江戶時代已有森島中良的翻案（[Fleming，2013](https://chinajapan.org/pages/20.0-strange-tales-from-edo.html)）。近代的例子：芥川龍之介〈酒虫〉（1916）翻案自卷五〈酒蟲〉；太宰治〈清貧譚〉、〈竹青〉受田中貢太郎的譯本啟發；手塚治虫以「新・聊斎志異」為題畫過漫畫（1971–1987）（[ja.wikipedia 聊斎志異](https://ja.wikipedia.org/wiki/聊斎志異)，wiki）。
 - **韓文** 用漢字音：손오공、저팔계、사오정、삼장법사；가보옥、임대옥、설보채、왕희봉（[ko.wikipedia 서유기](https://ko.wikipedia.org/wiki/서유기)、[홍루몽](https://ko.wikipedia.org/wiki/홍루몽)）。
 - **英文** 要先定政策：拼音（Sun Wukong）、意譯（Monkey King）或兩者並列。黑神話：悟空 由開發方訂下 loong、yaoguai 等詞（[Altagram 案例](https://altagram.com/case-studies/black-myth-wukong-a-localization-journey-with-altagram-and-game-science/)），主創亦承認低估了 11 種語言所需的時間，上市時部分內容未翻譯（[The World of Chinese，2024-10-09](https://www.theworldofchinese.com/2024/10/lost-in-translation-localization-challenge-black-myth-wukong/)）。
 - **宗教與神話內容：** IGDA 把歷史、宗教信仰、族群與地緣政治列為四大文化風險，建議按與現實信仰的距離判斷並記錄決定。Kakuto Chojin（2002）因音效含古蘭經吟誦而在沙特等國被禁並全球回收（[Edwards，TRANS 15，2011](https://hispadoc.es/descarga/articulo/4133907.pdf)）。每個語言的 LQA 要有一行文化審閱，看佛、道神祇與孔子等人物的呈現。中國大陸對神怪題材的內容規定本次沒有研究。
@@ -220,7 +227,7 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 
 ### 5.5 語言不等於地區
 
-上架地區仍是開放決定（[MOBILE-RELEASE](MOBILE-RELEASE.md) 第 269 行；ROADMAP Decisions 表）。加一種語言不代表在講該語言的地區上架；反之亦然。例子：Habby 四款作品在 Google Play 越南區回傳 404（原因未研究）；俄羅斯區 App Store 查不到 Supercell 的作品。
+上架地區仍是開放決定（[MOBILE-RELEASE](MOBILE-RELEASE.md) 第 269 行；ROADMAP Decisions 表）。加一種語言不代表在講該語言的地區上架；反之亦然。例子：Habby 四款作品在 Google Play 越南區回傳 404（原因未研究）；俄羅斯區 App Store 查不到 Supercell 的七款遊戲，也查不到 Habby 的 Survivor!.io、Capybara Go! 與 Dicero!，同一公司的其他作品則在（1.2）。
 
 ## 6. 分階段
 
@@ -228,7 +235,7 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 
 | 階段 | 內容 | 出口證據 |
 | --- | --- | --- |
-| **L0 · 抽出字串，畫面不變** | 建立 `zh-Hant` 目錄並把 UI 字串移入；錯誤改用碼；格式化集中；稱號當作凍結 id；`<html lang>` 由目錄設定；smoke 改以 `data-action` 與碼定位，而非可見中文；一個不出貨的加長偽語言 | 現有尺寸的 viewport、shell、coach（與 guide）截圖逐像素相同；`npm test` 全過；建置的允許清單只多了目錄檔；UI 程式碼中的中文字數降到只剩目錄與內容資料 |
+| **L0 · 抽出字串，畫面不變** | 建立 `zh-Hant` 目錄並把 UI 字串移入；錯誤與引擎回合 `notes` 改用碼；格式化集中；稱號當作凍結 id；`<html lang>` 由目錄設定；smoke 改以 `data-action` 與碼定位，而非可見中文；一個不出貨的加長偽語言；一個前後擷取比對步驟：`viewport-smoke` 本來就存截圖，`shell-smoke` 只在失敗時存，`coach-smoke` 與 T1 的 `guide-smoke` 不存，所以 L0 要在搬字串前後，以現有尺寸、Chromium 與 WebKit 擷取這三個 smoke 走到的畫面 | `npm test` 與現有 smoke（含 `test:viewport`、`test:shell`、`test:coach`、`test:guide`）在兩個引擎全過；`viewport-smoke` 的截圖與 L0 的前後擷取逐像素相同；建置的允許清單只多了目錄檔；UI 程式碼中的中文字數降到只剩目錄與內容資料 |
 | **L1 · 語言選擇與管線** | 網頁偵測與遊戲內選擇（例如放在 聲息與節奏，T1 的開關也在那裡）；iOS 與 Android 的原生橋接；`:lang()` 字體堆疊；`LOCALE` 參數接上 smoke | 仍只出 `zh-Hant`；偽語言在網頁、iOS 與 Android 都能切換並通過 smoke |
 | **L2 · English** | 先譯術語庫與卡名政策；再譯 UI、詞彙、卡牌與首局（霧隱渡口）；之後是戰役與活動；故事散文最後。處理 dock、分頁、直排與 `letter-spacing`。`en.lproj`、`values-en`、商店資料與截圖 | 英文在所有現有尺寸通過 smoke；母語者 LQA 首局紀錄；每個詞彙與卡名都有術語條目與理由 |
 | **L3 · 简体中文** | 字典轉換打底，術語庫覆蓋名稱，母語者審校語氣與用詞；`zh-Hans.lproj`、`values-b+zh+Hans` 與商店資料；中國大陸商店除外 | 同 L2 |
@@ -239,13 +246,13 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 **次序的理由：**
 - **英文先於其他語言：** 現有介面已有約 26 個英文小標（例如 THE ART OF THE DUEL）、品牌是 萬象契 + MYTHSEAL、`privacy.html` 是唯一的中英對照頁；NAMING 要求與英語玩家測試名稱並以兩種語言檢查排版。英文也是版面最難的情況（由中文變長），先做能讓 L0 的預算真正被測試。
 - **簡中第二：** 字典轉換加術語庫令成本最低，但名稱與用詞仍需母語審校。
-- **日、韓第三、第四：** 兩家共有的五語言核心包括日、韓；Habby 的營收集中在韓、台、日；兩種語言都有成熟的西遊、紅樓譯名傳統，這降低命名風險，但提高讀者對譯名的期望。日韓的先後由 owner 決定。
+- **日、韓第三、第四：** 兩家共有的五語言核心包括日、韓；Archero 2 在美日歐上架後首月，日本是第二大營收市場（約 22%，Sensor Tower），韓國在亞洲先行期的估計中約佔三成（1.2）；兩種語言都有成熟的西遊、紅樓譯名傳統，這降低命名風險，但提高讀者對譯名的期望。日韓的先後由 owner 決定。
 - **繁中已是源語言**，所以兩家共有的核心五語言做到 L5 即齊。
 
 ## 7. 與 v0.6.0、M5、M7 的關係
 
 - **不在 v0.6.0：** v0.6.0 的範圍已定；L0 會碰到大量檔案與測試，混入發佈會重開範圍。
-- **與 T1 的次序：** T1 新增約 890 個漢字、`glossary.mjs`、`first-visit.mjs` 與 `guide-smoke`。L0 最好在 T1 合併之後開始，免得同一批檔案有兩位作者（[AGENTS.md](../AGENTS.md)：每個檔案一位作者）。
+- **與 T1 及 v0.6.0 的次序：** T1 新增約 890 個漢字、`glossary.mjs`、`first-visit.mjs` 與 `guide-smoke`。v0.6.0 也還有未合併的工作落在 L0 要改的檔案上：[RELEASE-NEXT §12](RELEASE-NEXT.md#12-owner-decisions-needed) 第 17 項（701 px 以下的橫向手機）與第 18 項（直式手機的垂直空間）仍待 owner 決定，修正屬新的 CSS 工作；這些版面修正與 v0.6.0 的 review 修正會改 `app.mjs`（2,806 個漢字，最大的 UI 字串檔）、`expansion.css`、`scene-navigation.css`、`tools/shell-smoke.mjs` 與 `tools/save-durability-smoke.mjs`，並可能加一個橫向 smoke。L0 正要搬走 `app.mjs` 的字串，並把每個 smoke 的定位由可見中文改成 `data-action`。所以 L0 應在 T1 合併、**並且** v0.6.0 候選版建好（[RELEASE-NEXT §5 Phase A](RELEASE-NEXT.md#phase-a--build-the-release-candidate-agent-no-hosted-access)）之後才開始；最少也要等第 17、18 項有決定、修正（如有）已合入。否則同一批檔案會有兩位作者（[AGENTS.md](../AGENTS.md)：每個檔案一位作者）。2.4 的版面熱點行號要在那時重新量；新加的橫向 smoke 放進 3.5 的 `LOCALE` 清單。
 - **M5（行動版與封測）：** M5.3 準備 onboarding、支援、私隱、分級與披露資料。若封測要邀請非中文玩家，L0–L2 要在封測版本之前完成；否則封測可以只用 `zh-Hant`。
 - **M7（商店上架）：** M7 要準備商店截圖與資料。哪些語言要在**上架之前**完成，是 owner 決定：Clash Royale 在全球上線前已加入 14 種語言；Habby 早期作品則先上架、後本地化。若某語言要出現在首次上架的商店頁，它的 L 階段、`.lproj`、商店資料與截圖都要在提交前完成，並且截圖中的 ArtCraft 圖要先有書面確認。
 
@@ -254,7 +261,7 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 ### 8.1 成本
 
 - **工程：** L0 是最大的一筆：約 67 個檔案、約 1,350 行源碼、938 行測試要改動，且要保證畫面不變。每個語言之後的版面工作集中在 dock、分頁、戰鬥桌與直排文字。
-- **翻譯量：** 執行期約 26,000 個漢字（UI 約 16,200 加內容約 9,900，不計預覽頁）。中文字數換算英文字數因文體而異，本計劃不作估算；外包報價需要 L0 匯出的實際字串清單。Google 列出的每字 0.07 美元是商店頁翻譯，不是遊戲文字的報價。
+- **翻譯量：** 執行期約 26,600 個漢字（UI 約 16,700 加內容約 9,900，不計預覽頁；與 2.1 一致）。中文字數換算英文字數因文體而異，本計劃不作估算；外包報價需要 L0 匯出的實際字串清單。Google 列出的每字 0.07 美元是商店頁翻譯，不是遊戲文字的報價。
 - **持續成本：** 每個新字串都要每個已出貨語言跟上；IGDA 把每次更新視為一次小型本地化循環。這會拖慢 LZ-01、HL-01 等內容的發佈節奏。這是免費遊戲，沒有預算承諾；任何付費外包都要 owner 另行授權。
 
 ### 8.2 風險
@@ -262,7 +269,7 @@ Owner 於 2026-10-21 要求把多語言支援放上路線圖，並參照 Habby �
 | 風險 | 緩解 |
 | --- | --- |
 | 翻譯了被當作存檔身份的中文常數，舊存檔驗證失敗 | 3.6：稱號當作凍結 id；新身份一律 ASCII |
-| L0 的大量改動與 T1、其他分支衝突 | T1 合併後才開始；一個檔案一位作者；L0 可按模組分批 |
+| L0 的大量改動與 T1、v0.6.0 仍在進行的版面與 review 修正衝突 | T1 合併、v0.6.0 候選版建好後才開始（§7）；一個檔案一位作者；L0 可按模組分批 |
 | 測試大量以中文定位，改動時漏掉 | 先把定位改為 `data-action` 與錯誤碼，再搬字串 |
 | 302 px 與直排位置的版面倒退 | 每個語言在現有尺寸跑 smoke；偽語言先找熱點 |
 | 漢字字形用錯（`lang` 不對） | 首次繪製前設 `<html lang>`；`:lang()` 字體堆疊；混排標 `lang` |

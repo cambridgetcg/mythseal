@@ -499,14 +499,17 @@ real PvP/ranked stays on the M2/M3 authority track.
 **M4.7 · Languages and text (proposal 2026-10-21):** at the owner's request,
 [I18N-PLAN](docs/I18N-PLAN.md) proposes multi-language support with Traditional
 Chinese as the source, referencing Habby's and Supercell's language sets. L0
-moves the UI text into a string catalogue with no visible change; L1 adds locale
-selection on web and native, `<html lang>` per locale and per-locale font
-stacks; then English, Simplified Chinese, Japanese and Korean, each with layout
-runs of the existing viewport smokes, a translation provenance record and
-native-speaker LQA. Two saved identities are display text today (the 聽見萬聲
-and 借得東風 titles, and default deck names); the plan keeps them stable. Not in
-the v0.6.0 scope; L0 is best started after T1 merges. Store languages tie into
-M5.3 and M7. Nothing is implemented; the owner decisions are in its §9.
+moves the UI text into a string catalogue with no visible change and sets
+`<html lang>` from it; L1 adds locale selection on web and native and per-locale
+font stacks; then English, Simplified Chinese, Japanese and Korean, each with
+layout runs of the existing viewport smokes, a translation provenance record and
+native-speaker LQA. One saved identity is display text today, the 聽見萬聲 and
+借得東風 titles; the plan keeps them as frozen ids. Default deck names are also
+written into saves, but they are player data and are shown as saved. Not in the
+v0.6.0 scope; L0 is best started after T1 merges and the v0.6.0 candidate is
+built, because v0.6.0's open layout and review fixes touch the same files
+(I18N-PLAN §7). Store languages tie into M5.3 and M7. Nothing is implemented;
+the owner decisions are in its §9.
 
 - Improve onboarding (benchmarks and candidate packets: [BENCHMARKS-HABBY-SUPERCELL](docs/BENCHMARKS-HABBY-SUPERCELL.md)), explain four-round decisions and exact-card growth, and move text into a string catalogue without changing save identities (M4.7 above). Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
 - Add new classical characters through explicit rules/content versions. Build per-card artwork manifests/derivatives with provenance; trial one card's CSS/Web Animations effects with reduced-motion, skip and background/resume support before scaling the art pipeline.
@@ -678,7 +681,7 @@ These are bounded starting points, not instructions to start every phase at once
 | Campaign/activity playtest | Build on recorded automated viewport/browser acceptance; play all six volumes and compare owned/loaner 火焰山 difficulty, supply choices and reward pace. | M4.6 local implementation; record human evidence separately from the 16/200 mirrored-AI probe. Preserve saved seeds, old grants and once-only settlement. |
 | Phone gameplay validation | Run the approved lobby → deck → battle → rewards loop on physical iPhone/Android devices; record safe-area, Back, keyboard, text-scale and touch issues with screenshots. | M5.1; builds on the completed local navigation slice. |
 | Mobile readiness report | Missing toolchain/signing prerequisites, Capacitor packaging experiment and an agreed physical-device/storage test matrix. | M5.2; preserve browser saves and distinguish packaged-build evidence from browser emulation. |
-| String-catalogue audit (M4.7 L0 survey) | A per-module list of user-facing strings, error messages, aria labels and test selectors that pin Chinese text, with the display-text save identities, as the input to L0. | After T1 merges; read-only; follow [I18N-PLAN](docs/I18N-PLAN.md) §2–§3. No visible change and no save change. |
+| String-catalogue audit (M4.7 L0 survey) | A per-module list of user-facing strings, error messages, aria labels and test selectors that pin Chinese text, with the display-text save identities, as the input to L0. | Just before L0, after T1 merges and the v0.6.0 candidate is built ([I18N-PLAN](docs/I18N-PLAN.md) §7), so the list matches the files L0 will change; read-only; follow I18N-PLAN §2–§3. No visible change and no save change. |
 
 For the experience work, Q0 and Q4's registry and audit are merged (PRs #5 and
 #9), and Q1 by PR #10; their [status lines](#experience-quality-track) say what

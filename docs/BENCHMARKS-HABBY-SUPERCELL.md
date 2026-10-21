@@ -1,6 +1,6 @@
 # Habby 與 Supercell：新手流程與遊戲設計對照 · 2026-10-21
 
-**狀態：** 第 1–5 節是 `record · 2026-10-21`（公開資料考據，所有來源均於 2026-10-21 讀取）；第 6–8 節的 Mythseal 判斷與候選工作包是 `proposal · 2026-10-21`。沒有實作、合併或部署任何東西。Mythseal 程式碼引用以 `main` `3f3d351` 為準；`t1:` 開頭的引用指 `t1/first-visit-hints`（draft PR #18）上的檔案。
+**狀態：** 第 1–5 節是 `record · 2026-10-21`（公開資料考據，所有來源均於 2026-10-21 讀取）；第 6–8 節的 Mythseal 判斷與候選工作包是 `proposal · 2026-10-21`。沒有實作、合併或部署任何東西。Mythseal 程式碼引用以 `main` `3f3d351` 為準；`t1:` 開頭的引用指 `t1/first-visit-hints`（draft PR #18）已推送的 `0675b08` 上的檔案。本分支自己也改了 ROADMAP，所以 ROADMAP 引用用章節錨點與段落名，而不用行號：行號在合併時會再移動。
 
 Owner 於 2026-10-21 提出：研究 Habby 與 Supercell 的 onboarding 流程與局內設計，並以這兩家公司為參照，把多語言支援列入路線圖。多語言部分另見 [I18N-PLAN.md](I18N-PLAN.md)；本文只在第 4 節第 10 點提及兩家的上架語言時序。
 
@@ -23,8 +23,8 @@ Owner 於 2026-10-21 提出：研究 Habby 與 Supercell 的 onboarding 流程�
 | --- | --- | --- |
 | 免費遊戲，沒有營收、獲客、留存、產出或學習指標；商業化已退役 | [ROADMAP](../ROADMAP.md#freely-chosen-game-direction) 第 7–13 行；[AGENTS.md](../AGENTS.md) | 為留存或付費而設計的節奏（多日解鎖序列、首購禮包）沒有存在理由 |
 | 沒有 IAP、廣告、體力；卡包只用賺得的金幣；包率在遊戲內公開 | `adventure-ui.mjs:63`；`progression.mjs:56`；[PROGRESSION](PROGRESSION.md) 第 72 行；[CAMPAIGN-AND-EVENTS](CAMPAIGN-AND-EVENTS.md) 第 107 行 | 兩家的營利壓力手法逐項點名，但不建議採用 |
-| 不做倒數、near-miss、稀缺倒計時 | [WX01-DROP-RATES](WX01-DROP-RATES.md) 第 320–322 行；ROADMAP 第 439 行 | 同上 |
-| 沒有遙測：手機版私隱頁草稿寫明沒有帳號、廣告、分析或追蹤 | `privacy.html:31,39` | 兩家用 A/B 測試與留存數據調 onboarding；Mythseal 的評估途徑是真人試玩（ROADMAP 第 500、513–515 行） |
+| 不做倒數、near-miss、稀缺倒計時 | [WX01-DROP-RATES](WX01-DROP-RATES.md) 第 320–322 行；[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 LZ-E 項 | 同上 |
+| 沒有遙測：手機版私隱頁草稿寫明沒有帳號、廣告、分析或追蹤 | `privacy.html:31,39` | 兩家用 A/B 測試與留存數據調 onboarding；Mythseal 的評估途徑是真人試玩（[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 Acceptance 段與 First battle teaching (D3) status 段） |
 | 新內容提供不同的抉擇或故事，而不是另一張每日必做清單（DN6）；探索要誠實（DN7）；跳過不改獎勵（DN2） | [EXPERIENCE-LESSONS](EXPERIENCE-LESSONS.md#player-facing-design-notes) | 判斷「合用與否」的主要尺 |
 | AI 只用公開資訊；公平模式用基礎數值 | [DESIGN](DESIGN.md) 第 94、100–121 行 | 調低首戰難度只能改 AI 的出手方式，不能讓它偷看 |
 
@@ -73,7 +73,7 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 | 先快速變強，再撞進度牆，牆前賣便宜禮包 | Survivor!.io、Archero（Mobilegamer.biz，2022-10-21） | 人為設計的牆 |
 | 死亡時提供付費或看廣告復活 | Archero（DoF 2019；wiki 版本史）；Archero 2 Boss 戰廣告復活（[Pocket Gamer 指南，2025-08-29](https://www.pocketgamer.com/archero-2/guide/)） | 在失去的一刻要求付出 |
 | 體力上限，以廣告或寶石補充 | Archero：每 12 分鐘 1 點、上限 20、每日最多 4 次廣告各 5 點（[wiki Energy](https://archero.fandom.com/wiki/Energy)，最後修訂 2026-03-10，不證明數值仍有效）；Capybara Go! 每章 5 體力 | 用等待或廣告限制遊玩 |
-| 寶箱、抽獎；機率公開程度不明 | Apple「Contains」欄列 Loot Boxes：Archero、Archero 2、Capybara Go!；Google IARC 列 Includes Random Items 的作品則不同（2026-10-21 讀取） | 兩間商店的披露彼此不一致；Survivor!.io 在兩邊都沒有購買相關標示 |
+| 寶箱、抽獎；機率公開程度不明 | Apple「Contains」欄列 Loot Boxes：Archero、Archero 2、Capybara Go!；Google IARC 列 Includes Random Items 的作品則不同（2026-10-21 讀取） | 兩間商店的披露彼此不一致；Survivor!.io 在 Google Play 頁首仍標「Contains ads · In-app purchases」，但分級欄沒有 IARC 的 In-Game Purchases (Includes Random Items) 描述，Apple 的「Contains」欄也沒有 Loot Boxes（[Google Play 美區](https://play.google.com/store/apps/details?id=com.dxx.firenow&hl=en_US&gl=US)、[App Store 美區](https://apps.apple.com/us/app/id1528941310)，2026-10-21） |
 | 付費去廣告 | Archero 2 永久卡含去廣告與每日 800 鑽（軟啟動拆解） | 以煩擾換付費 |
 
 相反方向的公開承諾：CEO 表示不設硬付費牆，免費玩家能靠廣告或等待推進（白鯨出海 2023-07-28；屬自述，未經稽核）。
@@ -121,10 +121,10 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 | Brawl Stars 早期保護 | 2025-10 配對加入整體技術考量，避免新玩家太早遇上高手；2026-02-25 起 bot 對局只在 2,000 獎盃以下（原為 800）；GM 說早期成長加成對早期留存有很正面的效果 | [版本史 2025](https://brawlstars.fandom.com/wiki/Version_History/2025)；[Trophies wiki](https://brawlstars.fandom.com/wiki/Trophies)；[2025 回顧，2026-03-07](https://supercell.com/en/games/brawlstars/blog/community/2025-in-review-franks-blog-post) · 第一方 |
 | Brawl Stars 由抽變選 | 2026-09 以 Brawler Blast 取代 Starr Road：射擊遊戲廊永遠有 10 個標靶，按稀有度順序解鎖，50% 機會在 2–4 個角色中自選 | [2026-09-01 公告](https://supercell.com/en/games/brawlstars/blog/release-notes/release-notes-august-2026) · 第一方 |
 | Brawl Stars 的戰利品箱教訓 | 2022-12 移除戰利品箱改為線性 Starr Road，2023-06 以「贏來、不可購買」的隨機 Starr Drops 帶回隨機獎勵；GDC 2024 報道稱 2023-06 至 2024-02 收入升 8.8 倍 | [Mobilegamer.biz，2024-03-26](https://mobilegamer.biz/supercell-explains-brawl-stars-big-comeback-from-an-all-time-low-to-8-8x-revenue/)；[DoF](https://deconstructoroffun.com/blog/why-removing-loot-boxes-in-brawlstars-failed) · 媒體／分析 |
-| **Clash of Clans** | 教學要求建一座加農炮；六隻哥布林直撲加農炮；Goblin King 以對話帶領；第二座建築工小屋在教學中購買；wiki 說新玩家起始 250 寶石，被提示時會花掉一部分（2019 年攻略則說教學後 500，衝突未解） | [Cannon wiki](https://clashofclans.fandom.com/wiki/Cannon/Home_Village)；[Gems wiki](https://clashofclans.fandom.com/wiki/Gems)；[clash.ninja，2019-02-11](https://www.clash.ninja/guides/new-player-guide) |
+| **Clash of Clans** | 一位 Villager 以對話帶領教學，教建造與進攻；Goblin King 是教學中的進攻者，玩家要守住村莊。教學要求建一座加農炮；教學生成的六隻哥布林不理金礦、直撲加農炮；第二座建築工小屋在教學中購買；wiki 說新玩家起始 250 寶石，被提示時會花掉一部分（2019 年攻略則說教學後 500，衝突未解） | [Villager wiki](https://clashofclans.fandom.com/wiki/Villager)（帶領、對白、第二位建築工）；[Goblin King wiki](https://clashofclans.fandom.com/wiki/Goblin_King)；[Cannon wiki](https://clashofclans.fandom.com/wiki/Cannon/Home_Village)；[Goblin wiki](https://clashofclans.fandom.com/wiki/Goblin)（六隻哥布林）；[Gems wiki](https://clashofclans.fandom.com/wiki/Gems)；均未注日期，2026-10-21 讀取 · wiki；[clash.ninja，2019-02-11](https://www.clash.ninja/guides/new-player-guide) |
 | Clash of Clans 新手支援 | 2021-04-08 為 TH2–6 加入 Starter Challenges；TH2 升級時間減 60%；1–4 級收集器容量加倍 | [第一方，2021-04-08](https://supercell.com/en/games/clashofclans/blog/game-updates/spring-update-sp2) |
 | **Squad Busters** | 教學由 Mrs. S 帶領；2.0（2025-05-13）重做教學，英雄與隊員分批給，能力先以小而封閉的一組介紹；2025-10-30 停止開發與內購，伺服器 2026-12-14 關閉 | [Sportskeeda，2025-05-13](https://www.sportskeeda.com/mobile-games/news-we-need-make-sure-feels-like-valuable-use-time-jonathan-rowlands-talks-aspects-squad-busters-2-0-update)（開發者受訪）；[第一方，2025-10-30](https://supercell.com/en/news/squad-development-ending/)；[PocketGamer.biz，2026-10-14](https://www.pocketgamer.biz/supercell-set-to-shut-down-squad-busters-on-december-14th/) |
-| **mo.co** | 2025 版首局：開場動畫 → 創辦人 Luna 以手機聊天介面傳訊 → 立即戰鬥（獵 50 隻怪、救 3 人）→ 之後才自拍與取名。此流程屬歷史，Missions 已於 2026-05-20 移除。2025-03-18 以邀請制全球上線，2025-07-02 開放所有人 | [Welcome2moco wiki](https://mo-co.fandom.com/wiki/Welcome2moco)；[第一方，2025-03-18](https://supercell.com/en/news/moco-launch/)、[2025-07-02](https://supercell.com/en/news/exciting-update-from-moco-cofounder-luna/) |
+| **mo.co** | 2025 版首局：開場動畫 → 創辦人 Luna 以手機聊天介面傳訊 → 立即戰鬥（獵 50 隻怪、救 3 人）→ 之後才自拍與取名。此流程屬歷史，Missions 已於 2026-05-20 移除。2025-03-18 以邀請制全球上線，2025-07-02 開放所有人 | [Welcome2moco wiki](https://mo-co.fandom.com/wiki/Welcome2moco)（首局流程）；[Missions wiki](https://mo-co.fandom.com/wiki/Missions)（2026-05-20 移除）；[第一方，2025-03-18](https://supercell.com/en/news/moco-launch/)、[2025-07-02](https://supercell.com/en/news/exciting-update-from-moco-cofounder-luna/) |
 
 ### 3.5 營利壓力手法（點名，不建議）
 
@@ -150,7 +150,7 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 | 7 | **簡化新玩家面對的系統** | Archero 2 起始主畫面很空 | CR 2025 移除寶箱計時、Season Shop、Events 分頁；Supercell 自己說簡化本身不會即時見效 |
 | 8 | **新手配對保護** | — | BS 配對考量整體技術；bot 只在低獎盃 |
 | 9 | **營利壓力** | 2.4 表 | 3.5 表；Supercell 2025–2026 移除了其中幾項 |
-| 10 | **上架語言** | Gorilla Games 作品在 App Store 只宣告 EN/JA/KO/簡/繁 五種（Archero 2 另加泰文，Wittle Defender 另加越南文）；營收集中於韓、台、日 | CR 2016-01 以英文軟啟動，2016-02-29 的 v1.2 加入 14 種語言（含簡、繁、阿拉伯文），當時計劃 2016-03 全球上線；五款作品共有 15 種語言 |
+| 10 | **上架語言** | Gorilla Games 作品在 App Store 只宣告 EN/JA/KO/簡/繁 五種（Archero 2 另加泰文，Wittle Defender 另加越南文）；亞洲先上架，所以早期營收估計集中在亞洲（Archero 2 截至 2025-01-10 台、韓、港合佔約 85%，那時美日歐剛上架兩天），美日歐上架後首月美國約 30%、日本約 22% | CR 2016-01 初軟啟動（是否只有英文屬推論），2016-02-29 的 v1.2 加入 14 種語言（含簡、繁、阿拉伯文），當時計劃 2016-03 全球上線；Supercell 七款作品（含 Hay Day、Boom Beach）在 App Store 共有 15 種語言 |
 
 第 10 點的細節與限制在 [I18N-PLAN §1](I18N-PLAN.md#1-兩家公司的語言做法)。
 
@@ -174,7 +174,7 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 
 | 模式 | 判斷 | 理由 |
 | --- | --- | --- |
-| 1 先玩後選單 | **合用，已大致做到** | 洞府的 啟程遊歷 直達霧隱渡口準備；T1 修好了「先讀規則就被送去切磋」的陷阱。仍有一條旁路：今日落子 的 前往 通往 對弈，若先完成一場練習，coach marks 便永遠錯過（`adventure-ui.mjs:38`；`t1:docs/TUTORIAL-T1.md` 第 47–70 行）。見 O2 |
+| 1 先玩後選單 | **合用，已大致做到** | 洞府的 啟程遊歷 直達霧隱渡口準備；T1 修好了「先讀規則就被送去切磋」的陷阱。仍有一條旁路：今日落子 的 前往 通往 對弈，若先完成一場練習，coach marks 便永遠錯過（`adventure-ui.mjs:38`；`t1:docs/TUTORIAL-T1.md` §1.1 末段，第 77–79 行）。見 O2 |
 | 2 第一戰低風險 | **改用** | AI 首回合大量出丹令首戰對完全新手很硬。CR 的做法是公開地削弱訓練師；Mythseal 可以給首戰守衛一種有名字、會在畫面說明的保守出手風格，而不是暗中放水，保持 DN7 與「AI 只用公開資訊」。見 O1 |
 | 3 功能多日逐步出現 | **不採用其時間表；保留「按成就呈現」的可能** | Habby 的多日序列服務留存與營利系統的排序，Mythseal 沒有這些目標，DN6 亦反對加每日清單。但「一次過看到五個目的地、七個市集分頁、約八種計數」確是迷路風險。見 O4 |
 | 4 一次強制的成長動作 | **改為指路，不強制** | CR 強制開箱升級。Mythseal 的修練要花金幣與靈砂，DN4 把花費許可與方便分開，所以只在首勝後指向 同行記／修練，不替玩家花錢。見 O3 |
@@ -193,7 +193,7 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 這些只是候選，不是工作指令。每一項都要 owner 選定後才開始，並遵守一個檔案一位作者。
 
 **O1 · 首戰守衛的開局（AI 首回合仙丹問題）**
-- 關係：D3 的出口是至少三位新玩家的試玩；ROADMAP 第 515 行把限制 AI 首回合出丹列為試玩後的 owner 後備選項。
+- 關係：D3 的出口是至少三位新玩家的試玩；[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 First battle teaching (D3) status 段把限制 AI 首回合出丹列為試玩後的 owner 後備選項。
 - 建議：維持「先試玩」的次序，但把後備方案準備成一個可審閱的小包：只在霧隱渡口的首次遠征（`stats.played === 0`）讓守渡弈者用一種具名的保守出手（例如首回合出丹有上限），並在準備畫面或守衛台詞中說明。引擎與公平模式不變；AI 仍只用公開資訊。
 - 出口證據：種子模擬顯示按 coach 建議分配仙丹的玩家能贏；三位新玩家試玩記錄；同一存檔重載不會改變結算。
 
@@ -211,7 +211,7 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 - 建議：先 (A)，並在 D3／T1 試玩中記錄新玩家首勝前有沒有走進 市集、山行 而迷路；若有，採 (B)。(C) 要新的存檔狀態，舊存檔不能因此被鎖回去，回訪玩家也不應被擋（IMMERSION 第 186 行），成本最高。任何漸進只按遊戲內成就，不按日數或時鐘。
 
 **O5 · T2 圖文入門卷**
-- 關係：T1 之後的下一步（`t1:docs/TUTORIAL-T1.md` 第 26 行）；美術計劃在 `art/own-reference-policy` 分支的 ART-ONBOARDING（K-01 主視覺、T-01 守渡弈者、T-07 四張規則插圖：藏鋒、決勝、共鳴、破局）。
+- 關係：T1 之後的下一步（`t1:docs/TUTORIAL-T1.md` 第 25–28 行）；美術計劃在 `art/own-reference-policy` 分支的 ART-ONBOARDING（K-01 主視覺、T-01 守渡弈者、T-07 四張規則插圖：藏鋒、決勝、共鳴、破局）。
 - 參照：兩家都主要靠遊玩教，而不是手冊；Survivor!.io 的不足是目標與貨幣。
 - 建議：入門卷作為可隨時打開的參考，從 弈道 與 詞彙 進入，四章對應四張規則插圖；不擋在首戰之前。文字由程式排版、不燒入圖片，日後可翻譯（[I18N-PLAN §3.1](I18N-PLAN.md#31-字串目錄)）。ArtCraft 圖要等書面確認才可上架。
 
@@ -220,7 +220,7 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 - 建議：列出首勝前新玩家會看到的每個計數、它首次出現的畫面與必要性；只出表，不改規則。結果交 O4 決定。
 
 **O7 · 試玩紀錄格式**
-- 關係：D3 出口與 M4 驗收（ROADMAP 第 500 行）都靠真人試玩。
+- 關係：D3 出口與 M4 驗收（[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 Acceptance 段）都靠真人試玩。
 - 建議：一頁表格，記錄到第一個結果的時間、在哪裡停下或迷路、能否解釋一次揭曉、能否指出哪張卡得到歷練，並在可能時觀察第二次遊玩。不加遙測。
 
 ## 8. Owner 決定
