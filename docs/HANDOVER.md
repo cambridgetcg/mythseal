@@ -135,6 +135,29 @@ page's list and the Latin 「EXP」 are left to the owner (§8).
   TalkBack and text scaling (two new M5.1 rows); the release track (§8
   question 9).
 
+### T1.1 · 2026-10-21 (local only)
+
+Two follow-ups from the onboarding research (packets O2 and O3 on
+`research/onboarding-i18n`), on the same branch after `ae96aa2`: **`6697c05`**,
+**`ba3f1cb`**, **`7443926`**, **`e532631`** and their documents
+([TUTORIAL-T1, T1.1](TUTORIAL-T1.md#t11--2026-10-21)). Not pushed, merged or
+deployed.
+
+- **Changed:** on a first visit, 任務手札's 前往 for 今日落子 and 七日弈緣
+  opens the 霧隱渡口 preparation instead of 對弈, by the rules route's own
+  path; a ninth hint, `home-next`, shows on 洞府 after the first and second
+  results: 「功課在任務手札，修練在同行記。」. D3's result page is unchanged.
+- **Saves and allowlist:** unchanged. No new key or file; `home-next` is a
+  condition hint and is never written to `shanhai.guide.v1`.
+- **`app.mjs` touch points:** `questGoRoute` on the `first-visit.mjs` import
+  line; `openFirstExpedition()` after `prepareEncounter()`, now also called by
+  `rules-start`; the dispatcher's `quest-go` branch. Other source:
+  `first-visit.mjs` (`ANY_BATTLE_TASK_FIELD`, `questGoRoute`, `home-next`)
+  and `adventure-ui.mjs` (`data-field` on 前往).
+- **Checked:** see [VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
+- **Open:** `home-next`'s copy (a primary and an alternative are in
+  TUTORIAL-T1), and whether 七日弈緣 should follow 今日落子.
+
 ## v0.6.0 integration checkpoint · 2026-10-13 (local only)
 
 Documentation integration on the branch **`docs/v060-integration`**, from

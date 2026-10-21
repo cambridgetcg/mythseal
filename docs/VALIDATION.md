@@ -217,6 +217,55 @@ from `test-results/` afterwards (`webkit-runtime` kept).
 - **Not run** for these changes: `test:guide` and the other suites (no
   string they measure changed), and WebKit for the four smokes above.
 
+**T1.1, checks on `e532631`.** `6697c05` (on a first visit 任務手札's 前往
+for 今日落子 and 七日弈緣 opens the 霧隱渡口 preparation), `ba3f1cb`
+(coach-smoke section 4c), `7443926` (the `home-next` hint) and `e532631`
+(guide-smoke); see [TUTORIAL-T1, T1.1](TUTORIAL-T1.md#t11--2026-10-21). Same
+environment. Servers on 127.0.0.1: this checkout (`tools/serve.py`, 4591), a
+fresh `git archive` export of `3f3d351` (4592, `BASELINE_URL`) and a copy of
+the store build's `dist/` (4593, `NATIVE_URL`). One browser suite at a time;
+every screenshot deleted from `test-results/` afterwards (`webkit-runtime`
+kept).
+
+- `npm test`: exit 0, **698/698** (three new in
+  `tests/first-visit.test.mjs`: the 前往 routes as 任務手札 renders them, the
+  counter the ferry battle adds to with D3's coach, and `home-next`'s
+  condition). The first full run failed once in
+  `tests/profile-fence.test.mjs` (N31, a timing test of a writer's wait
+  budget; T1.1 does not touch the fence); that file then passed three times
+  alone, and the whole suite in each of three later runs.
+  `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+  `npm run audit:content`: no findings. `git diff --check ae96aa2`: exit 0.
+  `node --test tests/hosting.test.mjs tests/native-build.test.mjs`: 16/16.
+- `npm run build`: exit 0, 95 public files, manifest `2eb08dee…38c5b`.
+  Against `ae96aa2`'s build, by path and `sha256`: changed `app.mjs`,
+  `adventure-ui.mjs` and `first-visit.mjs`; every other asset identical.
+  `npm run build:native`: exit 0, 92 public files, manifest
+  `cb2e2ce0…6ef263`; the same three changed. (Both builds ran before
+  `e532631`, which changes only `tools/guide-smoke.mjs`.)
+- `npm run test:guide` with `BASELINE_URL` and `NATIVE_URL`: Chromium **22
+  checks**, WebKit **22 checks** (one more: `home-next` beside a battle in
+  progress), no page or console error, no failed or off-loopback request.
+  `home-next` is one line no taller than the line it replaces, on the first
+  won journey's 洞府 (青玉森庭's line, the shortest a lobby shows), in both
+  engines: 28.1/28.1 px at 302×640, 320×568 and 393×659 (11 px text), and
+  38.6/38.6 px at the other seven portrait sizes; 繼續遊歷, the companions
+  and the ledger are no lower and stay above the dock; asserted at 844×390 and
+  734×343. Every other hint, 詞彙's pages, the rules dialog and 聲息與節奏
+  against `main`, the capped header (361 px Chromium, 359 px WebKit, as
+  `main`) and the store build measure as in the runs above.
+- `npm run test:coach`: Chromium **18 checks**, WebKit **18 checks**, with
+  the new section 4c: from 洞府 and from 對弈, a first visit's 今日落子 and
+  七日弈緣 前往 open the ferry preparation on 遊歷, 稍後出發 writes no profile
+  byte or coach record and returns focus to 遊歷, Back reaches 洞府 (one
+  entry pushed from 洞府, replaced from 對弈), and boarding shows mark ①;
+  問道五弈's and a veteran's 今日落子 前往 still open 對弈.
+- `tools/navigation-smoke.mjs` (Chromium; it plays a battle and returns to
+  洞府): 6 checks, no browser errors.
+- **Not run** for T1.1: `test:shell`, `test:viewport`, `test:back`,
+  `test:saves`, `test:commands`, `test:native`, `test:expansion` and the
+  other regression suites, and everything in the first list's "Not run".
+
 ## iOS first flight · 2026-10-20
 
 Branch `ios/first-flight` (local when these checks ran; later pushed as PR #17,
