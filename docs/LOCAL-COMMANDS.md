@@ -164,7 +164,7 @@ const writerLock = () => fencedLock(false);   // transact
 | --- | --- |
 | `missing` | 背包中找不到這張卡牌實體。 (also covers a copy held in the merchant vault) |
 | `in-journey` | 這張卡牌正在出戰，完成旅程後才可修練。 |
-| `maxed` | 這張卡牌已達最高修為。 |
+| `maxed` | 這張卡牌已達最高等級。 |
 | `coins` | 金幣不足。 |
 | `dust` | 靈砂不足。 |
 
