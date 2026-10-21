@@ -116,7 +116,7 @@ export function recoveryConfirmMarkup({ cloud = true } = {}) {
   return `<div class="eyebrow">RETURN TO YOUR JOURNEY</div><h2>復原上次本機旅程？</h2><p>這會取代此裝置的進度${cloud ? '；雲端備份不會改變' : ''}。現在的本機旅程會成為下一份回復備份。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">保留現在進度</button><button class="primary" data-action="confirm-restore-recovery">復原本機旅程</button></div>`;
 }
 
-const rows = [['cards', '卡牌'], ['coins', '金幣'], ['dust', '靈砂'], ['xp', '旅途歷練'], ['decks', '牌組'], ['played', '完成對局']];
+const rows = [['cards', '卡牌'], ['coins', '金幣'], ['dust', '靈砂'], ['xp', '修為'], ['decks', '牌組'], ['played', '完成對局']];
 function summaryMarkup(title, summary) {
   return `<section class="import-side"><h3>${title}</h3><dl>${rows.map(([key, label]) => `<div><dt>${label}</dt><dd data-summary="${key}">${number(summary[key])}</dd></div>`).join('')}</dl><p>旅程日期 ${safe(summary.date)}${summary.vault ? ` · 商旅保管 ${number(summary.vault)} 張` : ''}</p></section>`;
 }

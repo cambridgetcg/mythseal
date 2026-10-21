@@ -1,0 +1,47 @@
+/* T1 first-visit teaching (docs/TUTORIAL-T1.md). Kept out of the scene sheets so that other
+   branches' edits there stay independent. Nothing here animates or transitions. */
+
+/* §2, §5.4 初見 hints. A hint is its slot's own element plus .guide-hint, so every breakpoint
+   rule that sizes, places or hides the slot does the same to the hint. Text is never clamped,
+   ellipsised or clipped; a copy that does not fit is written shorter. */
+.guide-hint-seal{color:var(--gold);font-size:1em;letter-spacing:0;border:1px solid currentColor;border-radius:2px;padding:0 1px;margin-right:3px}
+.guide-hint-voice{color:var(--gold);letter-spacing:0;margin-right:2px}
+/* The bag's overview is a row of stacked figures with strong child rules (backpack.css,
+   scene-content.css); the hint's single body beats them at (0,3,0). */
+.scene-surface .bag-overview.guide-hint{display:block;flex-shrink:1;min-width:0;max-width:420px}
+.bag-overview.guide-hint>.guide-hint-body{display:block;padding:0;border:0;text-align:left;font-size:11px;line-height:1.6;letter-spacing:0;color:var(--muted)}
+/* world-level replaces the node's spaced gold subtitle with a plain muted line. */
+.scene-world .destination-panel .destination-subtitle.guide-hint{letter-spacing:0;font-size:11px;line-height:1.6;color:var(--muted)}
+
+/* §3 詞彙: the rules dialog's second module. The intro now leads the 弈道 list and keeps the
+   size it had above it; each term is a list item, its definition two lines at 302 px. */
+.scene-dialog .rules-grid>p{font-size:11px;line-height:1.7}
+.scene-dialog .glossary-term h3{font:15px/1.4 var(--serif);color:var(--gold);margin:0 0 3px;letter-spacing:1px}
+.scene-dialog .glossary-term p{font-size:12px;line-height:1.7;margin:0}
+.scene-dialog .glossary-term:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* The 詞彙 tab row is the rules dialog's new cost: it sits tight on the list, and on short
+   landscape screens it takes the place of the decorative eyebrow, so the 弈道 list frame is
+   never shorter than before T1 (measured by npm run test:guide against main). */
+.scene-dialog.rules-dialog>.viewport-module-tabs{padding-bottom:0}
+@media(max-height:500px){.scene-dialog.rules-dialog:has(>.viewport-module-tabs:not([hidden]))>.eyebrow.dialog-compact-heading{display:none}}
+
+/* §4 Tappable header resources: 44 px targets that keep the wallet's look; Lv stays hidden
+   below 1,051 px (navigation.css), where 詞彙's 旅途 group reaches it. */
+.game-shell .game-header .game-resource{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:inherit;padding:0;margin:0;border:0;border-radius:3px;background:none;color:inherit;font:inherit;letter-spacing:inherit;cursor:pointer}
+/* Lv keeps navigation.css's size, colour and display (hidden below 1,051 px). */
+.game-shell .game-header .game-player-level{min-width:44px;min-height:44px;padding:0 2px;margin:0;border:0;border-radius:3px;background:none;cursor:pointer}
+.game-shell .game-header .game-resource:focus-visible,.game-shell .game-header .game-player-level:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* On short landscape screens the cards hub tabs sit in the header row over the wallet
+   (scene-content.css); as buttons the resources there would be covered controls, so on 藏卡 and
+   圖鑑 they give way to the tabs, which already hid their text. */
+@media(max-height:500px){.shell.game-shell:has(.cards-hub-tabs) .game-header-resources{visibility:hidden}}
+/* For n2 (the landscape branch, not yet landed): on short landscape screens n2 moves the resume
+   strip into the header row and stacks the wallet in a column, which turns these 44 px buttons
+   into an 88 px column in a 46 px header. Keep them in one row; when both resume actions show,
+   the wallet gives way (display:none, since visibility:hidden still takes the width). (0,5,0)
+   beats n2's (0,4,0) in either load order. Without n2 the first rule only narrows the gap and
+   the second still hides the wallet in that two-action state (docs/TUTORIAL-T1.md §9). */
+@media(max-height:500px) and (orientation:landscape) and (min-width:460px){
+ .game-shell:is(.screen-home,.screen-world,.screen-arena,.screen-market):has(.scene-resume-strip) .game-header .game-header-resources{flex-direction:row;gap:2px}
+ .game-shell:is(.screen-home,.screen-world,.screen-arena,.screen-market):has(.scene-resume-strip>div>button+button) .game-header .game-header-resources{display:none}
+}

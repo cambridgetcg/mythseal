@@ -41,7 +41,9 @@ test('no signing material or copied web bundle is tracked', () => {
 
 test('the App scheme is shared, so xcodebuild -scheme App works on a fresh runner', () => {
   const scheme = read('ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme');
-  assert.match(scheme, /BuildableName = "App\.app"/);
+  // Xcode rewrites the scheme's product reference to follow PRODUCT_NAME.
+  const product = read('ios/App/App.xcodeproj/project.pbxproj').match(/PRODUCT_NAME = (\w+);/)[1];
+  assert.match(scheme, new RegExp(`BuildableName = "${product}\\.app"`));
   assert.match(scheme, /<ArchiveAction\s+buildConfiguration = "Release"/);
 });
 

@@ -7,7 +7,9 @@ and Q1 checkpoints and the LZ-01 special-art addenda (under
 model, D2 save-durability and D3 first-battle teaching checkpoints
 (**2026-10-12**), and the
 [v0.6.0 integration checkpoint](#v060-integration-checkpoint--2026-10-13-local-only)
-(**2026-10-13**). Q0 and Q4 merged into `main` in PRs #5 and #9, Q1 by PR #10,
+(**2026-10-13**), and the
+[T1 first-visit teaching checkpoint](#t1-first-visit-teaching-checkpoint--2026-10-21-local-only)
+(**2026-10-21**, branch only). Q0 and Q4 merged into `main` in PRs #5 and #9, Q1 by PR #10,
 D1 by PR #11, N1 by PR #12, D2 by PR #14 and D3 by PR #15 (`main` `0281798`).
 None of them is deployed. The last recorded
 public release is **v0.5.1**; this handover does not claim a fresh hosted check. Read
@@ -44,6 +46,117 @@ A private repository still serves its approved JavaScript and artwork publicly.
 Keep the repository private; this handover grants no new collaborator access and
 contains no credentials. Resource identities and deployment receipts live in
 [CONNECTIONS.md](CONNECTIONS.md) and [HOSTING.md](HOSTING.md).
+
+## T1 first-visit teaching checkpoint · 2026-10-21 (local only)
+
+The owner's 2026-10-20 onboarding decision (tutorial packet T1) is implemented
+on the branch **`t1/first-visit-hints`**, started from `main` **`3f3d351`**
+(PR #17 merged), as local commits: **`8b67a82`** (the rules-first fix),
+**`7bdc92e`** (the 初見 hints, `shanhai.guide.v1` and the switch),
+**`584ce53`** (the 詞彙 glossary), **`1513cfa`** (the tappable header),
+**`3271b52`** (`tools/guide-smoke.mjs`, `npm run test:guide`), **`16c51f5`**
+(the wallet gives way to the cards hub tabs on short landscape screens), and
+these documents; then the review fixes **`f08b0bb`** (the switch's caption),
+**`1399923`** (詞彙 and the `fire-mountain` hint), **`742e07c`** (the wallet
+under n2's header rule), **`93ff4f6`** (more test:guide checks) and their
+documents ([review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21)); then
+the owner's 2026-10-21 decisions, **`ac61074`** (修為 names only the
+執令者's journey experience and 歷練 only a card's EXP in the UI copy),
+**`eba3c2f`** (its test) and **`60194b1`** (the `world-level` line), and
+their documents ([TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-the-owner));
+then, from a review of those, **`c77d5df`** (two card-EXP strings still said
+經驗, and 旅程閣's copy said 歷練 for the 修為 total) and **`559c680`** (the
+glossary test no longer ties each word to one 詞彙 group). The draft privacy
+page's list and the Latin 「EXP」 are left to the owner (§8).
+**Status:** not pushed, merged or deployed; no hosted service was called.
+
+- **Changed:** on a first visit the rules dialog's 知其道，入其局 opens the
+  霧隱渡口 preparation instead of 自由切磋, from the lobby, 旅程閣 and the store
+  build's 旅程存檔 alike, so D3's coach marks are not lost by reading the rules
+  first (the owner approved this change to D3's route; the rest of D3 and
+  `shanhai.coach.v1` are unchanged). Eight hints for newcomers (fewer than ten
+  finished battles) each replace an existing line; the rules dialog has a second
+  module, 詞彙 (20 terms); the header's 金幣, 靈砂 and 執令者 Lv open it at their
+  term; 聲息與節奏 has a 初見提點 switch outside battle. Spec, open questions and
+  the [implementation record](TUTORIAL-T1.md#implementation-record--2026-10-21)
+  (where the build departs from the spec) are in [TUTORIAL-T1](TUTORIAL-T1.md);
+  routes and Back in [NAVIGATION](NAVIGATION.md#the-rules-dialogs-two-routes--t1-2026-10-21).
+- **Saves:** the only new stored value is the device-local `shanhai.guide.v1`
+  (`{"seen":[…]}`, plus `"off":true` while hints are off), beside
+  `shanhai.coach.v1`. It is never in the profile, `PROFILE_VERSION`, a battle
+  snapshot, an export, a cloud backup or the native mirror; it is written only
+  when a hint has been painted and could be read, or when the switch changes,
+  never in battle. A storage that throws or a corrupt record reads as empty.
+- **Allowlist:** `first-visit.mjs`, `glossary.mjs` and `guide.css` (95 public
+  files on the web, 92 in the store build). Restart a `tools/serve.py` started
+  before this branch. No new runtime dependency.
+- **`app.mjs` touch points** (the likely merge points with r1, which edits
+  `modal()`, `closeModal()`, `render()` and the dispatcher): two one-line
+  imports after the `battle-teaching.mjs` one (`first-visit.mjs`,
+  `glossary.mjs`) and `placeGuideHints, visibleGuideHints` on the
+  `scene-adapters.mjs` line; `guide`, `guidePending`, `applyGuide()` and
+  `retryGuide()` after `coachMemory`; in `render()`, `applyGuide` between
+  `app.innerHTML=…` and `prepareScene`, and `guideCommit()` right after
+  `viewport.refresh`; in `closeModal()`, `guide.leave('dialog');retryGuide();`
+  beside `modalKind=null`; in `fitOverlay()`, `applyGuide` before
+  `prepareDialog` and its commit after `viewport.refresh`; one row in
+  `experienceSettingsModal()`; `rulesModal({term})`; the dispatcher's
+  `glossary` branch beside `rules`, and `start`/`rules-start` split; the
+  `guide-hints` branch in the `change` listener. Other source:
+  `navigation-ui.mjs` (header buttons, `isFirstVisit`), `scene-dialogs.mjs`
+  (`rules()`), `scene-adapters.mjs` (two exports), `progression.mjs` (one
+  export, `ACTIVITY_PILL_FLOOR`, used by `settleActivity`), `index.html`,
+  `hosting/public-assets.json`, `package.json` (`test:guide` after
+  `test:coach`; n2 and PR #17 edit the end of the list). `tools/shell-smoke.mjs`
+  is untouched (n2 edits it); add `'guide-hints'` to its `INPUT_IDS` after n2
+  lands.
+- **Merging with n2** (uncommitted), beyond
+  `package.json` and `INPUT_IDS`:
+  - n2's `expansion.css` stacks `.game-header-resources` in a column when
+    its short-landscape rule moves the resume strip into the header row.
+    With T1's 44 px resource buttons that is an 88 px column in a 46 px
+    header. `guide.css` (`742e07c`) keeps the wallet a row there, and hides
+    it when both resume actions show; with it, n2's landscape smoke on T1 +
+    n2 matches `main` + n2 in both engines (n2's own 568×276-with-insets
+    failure only). Keep those two rules when merging.
+  - n2's `tools/landscape-smoke.mjs:394` must select
+    `.game-header button:visible`: 執令者 Lv is a `display:none` button below
+    1,051 px.
+- **Checked:** see [VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
+- **Open:** the rest of the owner's copy review (TUTORIAL-T1 §8 and the
+  implementation record's added questions; the guardian's tone, 修為/歷練,
+  the portrait page counts and the `world-level` line were answered on
+  2026-10-21, and the guardian/narrator split and the landscape page counts
+  were not asked); whether the 初見提點 row should
+  show only while a hint can still apply (§8 question 10); whether the
+  wallet may give way whenever both resume actions show on short landscape
+  screens, also on 市集 and also without n2 (TUTORIAL-T1 §9); a playtest
+  with first-time players on a phone; physical iOS/Android, VoiceOver,
+  TalkBack and text scaling (two new M5.1 rows); the release track (§8
+  question 9).
+
+### T1.1 · 2026-10-21 (local only)
+
+Two follow-ups from the onboarding research (packets O2 and O3 on
+`research/onboarding-i18n`), on the same branch after `ae96aa2`: **`6697c05`**,
+**`ba3f1cb`**, **`7443926`**, **`e532631`** and their documents
+([TUTORIAL-T1, T1.1](TUTORIAL-T1.md#t11--2026-10-21)). Not pushed, merged or
+deployed.
+
+- **Changed:** on a first visit, 任務手札's 前往 for 今日落子 and 七日弈緣
+  opens the 霧隱渡口 preparation instead of 對弈, by the rules route's own
+  path; a ninth hint, `home-next`, shows on 洞府 after the first and second
+  results: 「功課在任務手札，修練在同行記。」. D3's result page is unchanged.
+- **Saves and allowlist:** unchanged. No new key or file; `home-next` is a
+  condition hint and is never written to `shanhai.guide.v1`.
+- **`app.mjs` touch points:** `questGoRoute` on the `first-visit.mjs` import
+  line; `openFirstExpedition()` after `prepareEncounter()`, now also called by
+  `rules-start`; the dispatcher's `quest-go` branch. Other source:
+  `first-visit.mjs` (`ANY_BATTLE_TASK_FIELD`, `questGoRoute`, `home-next`)
+  and `adventure-ui.mjs` (`data-field` on 前往).
+- **Checked:** see [VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
+- **Open:** `home-next`'s copy (a primary and an alternative are in
+  TUTORIAL-T1), and whether 七日弈緣 should follow 今日落子.
 
 ## v0.6.0 integration checkpoint · 2026-10-13 (local only)
 
@@ -1489,6 +1602,7 @@ APIs, so they do not verify hosted login or send real email. The older manual
 | Battle table / battle UI (Q0, PR #5) | `node --test tests/battle-table-view.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:battle-table`; `tools/battle-presentation-smoke.mjs` and `npm run test:viewport`. `tools/battle-measure.mjs` is a measurement receipt, not a pass/fail test |
 | Back model / history entries (D1) | `node --test tests/nav-stack.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:back` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor); `tools/navigation-smoke.mjs` for in-app close and return paths |
 | First-battle teaching (D3) | `node --test tests/battle-teaching.test.mjs tests/battle-table-view.test.mjs tests/nav-stack.test.mjs tests/viewport.test.mjs`; `GAME_URL=… npm run test:coach` (Chrome with the Pixel 7 descriptor, then WebKit with the iPhone 15 descriptor), with `npm run test:battle-table` and `npm run test:back` for the table and Back around it |
+| First-visit hints, 詞彙, header resources (T1) | `node --test tests/first-visit.test.mjs tests/glossary.test.mjs tests/hosting.test.mjs tests/native-build.test.mjs`; `GAME_URL=… npm run test:guide` (Chrome as a Pixel 7, then WebKit as an iPhone 15), with `BASELINE_URL` serving `main`'s checkout and `NATIVE_URL` serving `npm run build:native`'s `dist/` for the full set; `npm run test:coach` for the rules-first route |
 | Mobile shell / safe areas / touch (N1) | `node --test tests/mobile-shell.test.mjs`; `GAME_URL=… npm run test:shell` (Chromium as a Pixel 7, then WebKit as an iPhone 15); `npm run test:viewport` and `npm run test:expansion` for scene layout. Desktop changes need a before/after screenshot comparison; emulation is not a physical-phone check |
 | Local commands / profile fence (Q1, PR #10) | `node --test tests/command-ledger.test.mjs tests/local-commands.test.mjs tests/profile-fence.test.mjs tests/profile-store.test.mjs tests/cloud-save.test.mjs tests/account-client.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:commands` (Chromium, then WebKit); `tools/backpack-smoke.mjs` for the card page, `tools/account-smoke.mjs` for cloud and local recovery restore, and `tools/profile-recovery-smoke.mjs` for startup recovery and locked pack races |
 | Save durability: export, file import, save status, persistence (D2) | `node --test tests/save-durability.test.mjs tests/profile-store.test.mjs tests/profile-fence.test.mjs tests/hosting.test.mjs`; `GAME_URL=… npm run test:saves` (Chromium, then WebKit); `tools/account-smoke.mjs` for cloud and local recovery restore, which share `store.restore` |

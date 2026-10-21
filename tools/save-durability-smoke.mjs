@@ -749,7 +749,7 @@ try {
       const page = await pageIn(await contextFor({ api, width: 390 }));
       await notice(page).waitFor();
       const started = await read(page), before = await raw(page);
-      const coins = () => page.locator('.game-header [title="金幣"] b').textContent().then(text => Number(text.replace(/\D/g, '')));
+      const coins = () => page.locator('.game-header [data-action="glossary"][data-id="coins"] b').textContent().then(text => Number(text.replace(/\D/g, '')));
       assert.equal(await coins(), started.coins); assert.notEqual(backup.coins, started.coins);
       await notice(page).locator('[data-action="restore-offer-cloud"]').click();
       await page.locator('.account-confirmation').waitFor();

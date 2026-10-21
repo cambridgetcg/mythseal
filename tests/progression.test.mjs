@@ -368,7 +368,7 @@ test('upgrades spend coins and dust without consuming cards, cap at level five',
     assert.equal(profile.inventory.qingxiao, 1);
   }
   assert.equal(getUpgradeCost(profile, 'qingxiao').maxed, true);
-  assert.throws(() => upgradeCard(profile, 'qingxiao'), /最高修為/);
+  assert.throws(() => upgradeCard(profile, 'qingxiao'), /最高等級/);
 });
 
 test('unaffordable upgrade does not consume coins or dust', () => {

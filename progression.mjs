@@ -26,6 +26,9 @@ export const LEGACY_PROFILE_KEY = 'shanhai.profile.v4';
 export const PACK_PRICE = 300;
 export const MAX_CARD_LEVEL = 5;
 export const COLLECTION_EXPANSION = 2;
+/** 火焰山: after a won battle the run's pills are topped up to at least this (rules text
+ * expansion-ui.mjs; the 詞彙 仙丹 entry and the fire-mountain hint read it). */
+export const ACTIVITY_PILL_FLOOR = 8;
 export const WELCOME_CARD_IDS = freeze(['wukong', 'guanyu', 'lindaiyu', 'kongzi']);
 export const PACK_SETS = freeze({
   all: { name: '萬象秘匣', description: '原創山海與古典群英，二十四位角色皆可相逢。', cardIds: [...LEGACY_CARD_IDS] },
@@ -545,7 +548,7 @@ export function getTrainingCost(profile, id, now = new Date()) {
 export function upgradeCard(profile, id) {
   const cost = getUpgradeCost(profile, id);
   if (cost.blockedReason) throw new RangeError(cost.blockedReason);
-  if (cost.maxed) throw new RangeError('這張卡牌已達最高修為。');
+  if (cost.maxed) throw new RangeError('這張卡牌已達最高等級。');
   const next = syncCollection(profile);
   spend(next, cost);
   return setInstanceXP(next, cost.instanceId, getXPThreshold(cost.nextLevel));
@@ -555,7 +558,7 @@ export function trainCard(profile, id, now = new Date()) {
   const cost = getTrainingCost(next, id, now);
   if (cost.blockedReason) throw new RangeError(cost.blockedReason);
   if (cost.used) throw new RangeError('今日半價修行已使用。');
-  if (cost.maxed) throw new RangeError('這張卡牌已達最高修為。');
+  if (cost.maxed) throw new RangeError('這張卡牌已達最高等級。');
   spend(next, cost);
   next.daily.trainingUsed = true;
   return setInstanceXP(next, cost.instanceId, getXPThreshold(cost.nextLevel));
@@ -788,7 +791,7 @@ function settleActivity(profile, { encounter, winner, finalResources, reward }) 
       if (family.clears >= 5 && !profile.expansion.titles.includes(ACTIVITY_TITLE)) profile.expansion.titles.push(ACTIVITY_TITLE);
       family.run = null;
     } else {
-      run.hp = Math.min(12, finalResources.hp + 2); run.pills = Math.max(8, finalResources.pills); run.phase = 'supply';
+      run.hp = Math.min(12, finalResources.hp + 2); run.pills = Math.max(ACTIVITY_PILL_FLOOR, finalResources.pills); run.phase = 'supply';
     }
   } else family.run = null;
   family.lastResult = { runId: run.id, stage: run.stage, winner, loot, hp: finalResources.hp, pills: finalResources.pills };

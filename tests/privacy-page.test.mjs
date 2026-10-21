@@ -39,7 +39,7 @@ test('a page with placeholders is not served, and the app links only a served pa
   const app = read('app.mjs');
   const url = app.match(/^const PRIVACY_URL=(null|'[^']*');$/m);
   assert.ok(url, 'app.mjs names the privacy address in one place');
-  assert.match(app, /function rulesModal\(\)[\s\S]*?\$\{PRIVACY_URL\?`<p class="rules-privacy"><a href="\$\{PRIVACY_URL\}">/, 'the rules dialog links that address');
+  assert.match(app, /function rulesModal\([^)]*\)[\s\S]*?\$\{PRIVACY_URL\?`<p class="rules-privacy"><a href="\$\{PRIVACY_URL\}">/, 'the rules dialog links that address');
   if (url[1] !== 'null') {
     assert.match(url[1], /^'https:\/\/mythseal\.com\/privacy\.html'$/, 'the deployed page, over https');
     assert.ok(served, 'a linked page must be in the allowlist');

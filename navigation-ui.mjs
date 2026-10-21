@@ -4,6 +4,7 @@ import { getActiveDeck, getInstance } from './collection.mjs';
 import { NODES, getHeroLevel, getArenaRank, getDailyTasks, getWeeklyTasks, isNodeUnlocked } from './progression.mjs';
 import { getWorldForNode } from './stories.mjs';
 import { cardArtStyle, cardPresentation, leaderInstance, leaderPortraitMarkup } from './card-presentation.mjs';
+import { isFirstVisit } from './first-visit.mjs';
 
 const safe = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 const number = value => Number(value || 0).toLocaleString('zh-Hant');
@@ -17,14 +18,18 @@ const paths = {
 };
 const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths[name] || paths.home}</svg>`;
 
+/** T1 (docs/TUTORIAL-T1.md §4): each resource opens its 詞彙 entry. The span keeps the wallet's
+ * breakpoints; the button's name starts with its visible text. */
+const resourceButton = (id, mark, value, name) => `<span><button type="button" class="game-resource" data-action="glossary" data-id="${id}" aria-label="${number(value)} ${name}，查看說明"><span aria-hidden="true">${mark}</span> <b>${number(value)}</b><small>${name}</small></button></span>`;
+
 export function gameHeaderMarkup({ profile, screen, sound, accountButton }) {
   const battle = screen === 'battle';
   const brand = `<img src="assets/mark.svg" alt=""><span><span class="brand-name">萬象契</span><span class="brand-en">MYTHSEAL</span></span>`;
   if (battle) return `<header class="game-header is-battle"><div class="game-brand">${brand}</div><div class="game-utilities"><button type="button" data-action="rules">弈道</button><button type="button" class="game-experience" data-action="experience-settings" aria-label="聲息與節奏">☷</button><button type="button" class="game-menu-button" data-action="battle-menu" aria-label="對局選單">☰ <span>對局選單</span></button></div></header>`;
   return `<header class="game-header">
     <button type="button" class="game-brand" data-action="home" aria-label="萬象契 · 返回洞府">${brand}</button>
-    <div class="game-header-resources wallet" aria-label="旅途所得"><span title="金幣"><span aria-hidden="true">◈</span> <b>${number(profile.coins)}</b><small>金幣</small></span><span title="靈砂"><span aria-hidden="true">✧</span> <b>${number(profile.dust)}</b><small>靈砂</small></span></div>
-    <div class="game-player">${accountButton}<span class="game-player-level">執令者 · Lv.${getHeroLevel(profile)}</span></div>
+    <div class="game-header-resources wallet" role="group" aria-label="旅途所得">${resourceButton('coins', '◈', profile.coins, '金幣')}${resourceButton('dust', '✧', profile.dust, '靈砂')}</div>
+    <div class="game-player">${accountButton}<button type="button" class="game-player-level" data-action="glossary" data-id="hero-level" aria-label="執令者 · Lv.${getHeroLevel(profile)}，查看說明">執令者 · Lv.${getHeroLevel(profile)}</button></div>
     <button type="button" class="icon-button game-sound game-experience" data-action="experience-settings" aria-label="聲息與節奏" title="聲息與節奏">☷</button>
   </header>`;
 }
@@ -54,7 +59,7 @@ export function lobbyMarkup(profile, cardMarkup, selectedNode = profile.location
   const claimable = Number(!profile.daily.loginClaimed) + [...tasks, ...weekly].filter(task => !task.claimed && task.progress >= task.target).length
     + Number(!profile.daily.arenaChestClaimed && profile.daily.arenaMatches >= 3);
   const ownedRoles = CARDS.filter(card => profile.inventory[card.id] > 0).length;
-  const firstVisit = profile.stats.played === 0 && !profile.pending;
+  const firstVisit = isFirstVisit(profile);
   const pendingKind = { arena: '問道擂台', practice: '自由切磋' }[profile.pending?.kind];
   const title = pendingKind || node.name;
   const blocked = !profile.pending && !isNodeUnlocked(profile, node.id);

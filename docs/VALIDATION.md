@@ -2,6 +2,270 @@
 
 v0.5.0 implements 旅程閣, player-session handling and account-private backups of editable offline journeys. Gameplay remains local; no authoritative economy, blockchain or player-to-player trading is implemented. SMTP is configured and the owner confirmed mailbox delivery/local-pilot login. v0.5.1 is deployed with public OTP enabled; real HTTPS OTP/session/logout checks passed with fixture cleanup verified. Public deployment and its exact release evidence belong in [HOSTING.md](HOSTING.md); local or hosted-database checks below do not establish that a new website version is live.
 
+## T1 first-visit hints and glossary · 2026-10-21
+
+Branch `t1/first-visit-hints`, from `main` **`3f3d351`** (PR #17), with the
+spec commits `34e24e1` and `3b3a111`, then source commits `8b67a82`,
+`7bdc92e`, `584ce53`, `1513cfa`, `3271b52`, `16c51f5` and `ee56354`
+([TUTORIAL-T1](TUTORIAL-T1.md), its
+[implementation record](TUTORIAL-T1.md#implementation-record--2026-10-21));
+the documentation commit after them changes no served, test or tool file.
+Local commits only: not pushed, merged or deployed. No hosted service was
+called and no request left loopback.
+
+**Environment.** macOS 26.6.2 (Darwin 25.6.0) on an Apple M2, Node 26.0.0,
+Python 3.14.6, Playwright 1.63.0 with installed Google Chrome 155.0.8059.85
+(Chromium, Pixel 7 descriptor) and Playwright WebKit 26.6 (iPhone 15
+descriptor) from `test-results/webkit-runtime`, all headless; synthetic saves
+only. Servers, all on 127.0.0.1: `python3 tools/serve.py --port 4391` from this
+checkout, restarted after each allowlist change (`GAME_URL`); the same script
+from a `git archive` export of `3f3d351` in a scratch directory on 4392 (`main`,
+`BASELINE_URL`); and `python3 -m http.server` on 4393 serving a copy of
+`npm run build:native`'s `dist/` (`NATIVE_URL`). One browser suite ran at a
+time, and each suite's PNG screenshots were deleted from `test-results/`
+afterwards (`webkit-runtime` kept).
+
+**Checks on the final source tree (`ee56354`):**
+
+- `npm test`: exit 0, **693/693** (667 at `main`; 26 new: 18 in
+  `tests/first-visit.test.mjs`, 8 in `tests/glossary.test.mjs`).
+  `tests/privacy-page.test.mjs`'s regex was widened for `rulesModal`'s options.
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+- `npm run audit:content`: exit 0, 150 entries, no findings.
+- `git diff --check 3f3d351 HEAD`: exit 0.
+- `npm run build`: exit 0, **95 public files** (92 at `main`), manifest
+  `b9257615…3ec3f`. Against `main`'s build, by path and `sha256`: added
+  `first-visit.mjs`, `glossary.mjs`, `guide.css`; changed `index.html`,
+  `app.mjs`, `navigation-ui.mjs`, `scene-adapters.mjs`, `scene-dialogs.mjs`;
+  every other asset identical, and `release.json` differs only in its
+  manifest, asset list and `gitCommit` (+28,419 bytes in all).
+- `npm run build:native`: exit 0, **92 public files** (89 at `main`), manifest
+  `d9af8df2…3c0`, its reference and offline-name checks passing; the same
+  three added and five changed files, no account file.
+- `node --test tests/hosting.test.mjs tests/native-build.test.mjs`: 16/16.
+- `npm run test:guide` (new, `tools/guide-smoke.mjs`, with `BASELINE_URL` and
+  `NATIVE_URL`): Chromium **20 checks**, WebKit **20 checks**, no page or
+  console error, no failed or off-loopback request. Every hint against a
+  hints-off control at ten portrait sizes (302×640, 320×568, 360×740, 360×780,
+  393×659, 393×780, 412×790, 430×932, 412×839 with 48/34 px insets, 393×852
+  with 59/34 px): no hint taller than its slot (most equal it; for example
+  `home-start` 28.1/28.1 px at 302 px, `bag-copies` 57.2/59.8 px), no later
+  sibling or list frame lower or shorter, **no new viewport-overflow flag**,
+  the same page counts, controls and history depth. At 844×390 and 734×343 the
+  control flagged nothing, so the same checks were asserted there (the bag's
+  lead is hidden at those sizes). The rules dialog against `main`: the 弈道
+  list frame is at least `main`'s at every portrait size (302×640 419.5 against
+  399.4 px; 360×740 519.5 against 518.1) and at 852×393 with iPhone side
+  insets (177.6/171.4), 844×390 (195.6/189.4) and 734×343 (148.6/142.4, where
+  `main` flags the rules list and T1 does not); 667×375, 640×360 and 568×320
+  recorded (568×320 flags in both). The 弈道 list has one more page at
+  430×932 (2 against 1) and in landscape (6 against 5); in WebKit at 302×640
+  one fewer (2 against 3). The capped header (1,000,000,000 each) at 302 px is
+  as wide as `main`'s (361 px Chromium, 359 px WebKit; `main`'s already
+  overflows there). The store build: header with 存檔, 金幣 → 詞彙, and the
+  rules-first route from 旅程存檔 with Back twice to 洞府.
+- `npm run test:coach`: Chromium **17 checks**, WebKit **17 checks**, including
+  the new section 4b (lobby and 旅程閣 origins, 稍後出發, focus, Back, mark ①,
+  the veteran's practice) and the unchanged practice case.
+- `npm run test:shell`: exit 0 in both engines (26 PASS lines each). Run
+  against `main` the same way, the viewport controller's overflow NOTE lines
+  are **identical** (25 lines in Chromium, 27 in WebKit), so T1 adds none. The
+  first run failed at 844×390 on 藏卡 (the wallet's new buttons under the cards
+  hub tabs); `16c51f5` fixed it.
+- `npm run test:viewport`: exit 0 in both engines (23 PASS lines each; its
+  screenshots deleted).
+- Regression suites, each exit 0: `test:back` 21 checks in Chromium and 20 in
+  WebKit and `test:saves` 20 groups in each (both after `ee56354` updated their
+  coin selector; the first runs timed out on the removed `title="金幣"`);
+  `test:commands` 13 checks in each; `tools/account-smoke.mjs` 11 checks
+  (Chromium); `test:expansion` 16 checks in each; `test:native` 12 groups in
+  each, with this checkout as `WEB_URL`; `tools/navigation-smoke.mjs` 6
+  checks; `tools/smoke.mjs` (12 areas) and `tools/journey-smoke.mjs` (8);
+  `test:battle-table` 40 checks in each.
+- **Not run:** a physical phone, the iOS Simulator, Xcode, Safari itself,
+  VoiceOver, TalkBack, text scaling, Firefox, hosted CI, the other
+  `test:browser` suites (classics, backpack, immersion, battle presentation,
+  stories, WX-01, profile recovery, box, inheritance, collection display), and
+  a playtest with first-time players, which remains the real test of the
+  teaching.
+
+**Review fixes, checks on `93ff4f6`.** A review of `263ebac` confirmed nine
+findings, fixed in `f08b0bb` (the switch's caption), `1399923` (詞彙 and the
+`fire-mountain` hint, with `progression.mjs`'s new `ACTIVITY_PILL_FLOOR`),
+`742e07c` (the wallet under n2's header rule) and `93ff4f6` (test:guide); see
+TUTORIAL-T1's [review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21). Same
+environment; servers on 127.0.0.1: this checkout (`tools/serve.py`, 4491), a
+fresh `git archive` export of `3f3d351` (4492, `BASELINE_URL`) and a copy of
+the store build's `dist/` (4493, `NATIVE_URL`). One browser suite at a time;
+every screenshot deleted from `test-results/` afterwards (`webkit-runtime`
+kept).
+
+- `npm test`: exit 0, **694/694** (one new: the `fire-mountain` copy against
+  a settled win in `tests/first-visit.test.mjs`; `tests/glossary.test.mjs`
+  gained assertions, not tests).
+- `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+  `npm run audit:content`: exit 0, no findings. `git diff --check 3f3d351
+  HEAD`: exit 0.
+- `npm run build`: exit 0, **95 public files**, manifest `f85aa428…4ff4`.
+  Against `main`'s build from the export, by path and `sha256`: added
+  `first-visit.mjs`, `glossary.mjs`, `guide.css`; changed `index.html`,
+  `app.mjs`, `navigation-ui.mjs`, `scene-adapters.mjs`, `scene-dialogs.mjs`
+  and now `progression.mjs` (the one export), plus `release.json`; every
+  other asset identical.
+- `npm run build:native`: exit 0, **92 public files**, manifest
+  `88e2f87f…873a`, its reference and offline-name checks passing; the same
+  added and changed files.
+- `npm run test:guide` with `BASELINE_URL` and `NATIVE_URL`: Chromium **21
+  checks**, WebKit **21 checks** (one more than before: 聲息與節奏 against
+  `main`), no page or console error, no failed or off-loopback request.
+  - 聲息與節奏, from the lobby: the 初見提點 row is 71.0 px, equal to `main`'s
+    tallest setting, at all 16 sizes; page 1 holds as many items as
+    `main`'s at every size (430×932: all 8 against `main`'s 7); the page
+    count is one more than `main`'s at
+    360×780, 393×780 and 412×790 (2 against 1) and at 734×343, 640×360 and
+    568×320 (8 against 7), equal elsewhere.
+  - 詞彙: every title one line and every definition two at 302 px; pages:
+    4 at 302×640, 5 at 320×568, 3 at 412×790 and 430×932, 4 at the other
+    portrait sizes, in both engines.
+  - `fire-mountain`: no taller than its slot at any size (59.4/59.4 px,
+    three lines, at 302×640 and 320×568; 39.6/39.6 px, two lines,
+    elsewhere); every other hint as before.
+  - The veteran journey: the caption reads 入門期間… in one line, and after
+    off then on there is still no hint on 藏卡, 市集, 遊歷, 對弈 or 洞府.
+- `npm run test:shell`: exit 0 in both engines (26 PASS lines each); the
+  overflow NOTE lines are identical to `main`'s and to the earlier T1 run's.
+  `npm run test:viewport`: exit 0 (23 PASS lines each). `npm run
+  test:expansion`: exit 0 (16 checks each).
+- **With n2** (scratch trees only; n2's worktree was not touched): exports of
+  `93ff4f6` and of `3f3d351`, each with n2's tracked changes to
+  `expansion.css`, `scene-navigation.css`, `tools/shell-smoke.mjs` and
+  `tests/mobile-shell.test.mjs` applied from the review's saved diff, and
+  n2's `tools/landscape-smoke.mjs` with line 394 selecting
+  `.game-header button:visible`, served on 4494 and 4495.
+  `node tools/landscape-smoke.mjs`: Chromium, T1 + n2 passes the same 11
+  sizes as the review's `main` + n2 run and fails only n2's own
+  568×276-with-insets case (`wx01-odds` outside the safe viewport); WebKit,
+  T1 + n2 and `main` + n2 give identical output (11 PASS lines, then n2's
+  own 568×276-with-insets failure on 對弈's 切磋 module).
+- **Not run** after the fixes: `test:coach`, `test:back`, `test:saves`,
+  `test:commands`, `test:native` and the other regression suites listed
+  above (no code they exercise changed besides `progression.mjs`'s
+  constant, which `npm test` and `test:expansion` cover), and everything in
+  the list above.
+
+**Owner decisions of 2026-10-21, checks on `60194b1`.** `ac61074` (修為
+names only the 執令者's journey experience and 歷練 only a card's EXP in the
+UI copy; two 經驗 strings it missed are fixed in `c77d5df`, below), `eba3c2f`
+(a glossary test for that) and `60194b1` (the
+`world-level` line); see [TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-the-owner).
+Same environment; servers on 127.0.0.1: this checkout (`tools/serve.py`,
+4591), a fresh `git archive` export of `3f3d351` (4592, `BASELINE_URL`) and a
+copy of the store build's `dist/` (4593, `NATIVE_URL`). One browser suite at a
+time; every screenshot deleted from `test-results/` afterwards
+(`webkit-runtime` kept).
+
+- `npm test`: exit 0, **695/695** (one new, in `tests/glossary.test.mjs`).
+  `npm run audit:content`: exit 0, no findings. `git diff --check 0675b08`:
+  exit 0.
+- `npm run build`: exit 0, 95 public files, manifest `cde0b88d…fa07a`.
+  Against `0675b08`'s build, by path and `sha256`: changed `account-ui.mjs`,
+  `collection.mjs`, `first-visit.mjs`, `glossary.mjs`, `inheritance.mjs`,
+  `inheritance-ui.mjs`, `local-commands.mjs`, `progression.mjs` and
+  `save-ui.mjs`; every other asset identical. `npm run build:native`: exit 0,
+  92 public files, manifest `1fb47c3e…8593e`; the same changes without
+  `account-ui.mjs`, which the store build does not ship.
+- `npm run test:guide` with `BASELINE_URL` and `NATIVE_URL`: Chromium **21
+  checks**, WebKit **21 checks**, no page or console error. `world-level`'s
+  new line is one line, 17.6 px against its slot's 18.1, at all ten portrait
+  sizes in both engines (302×640 and 320×568 included), and is asserted at
+  844×390 and 734×343. Every other hint, 詞彙's pages, the rules dialog and
+  聲息與節奏 against `main` measure as in the review-fix run above.
+- `npm run test:saves` (the import comparison's 修為 label): 20 groups in
+  each engine. `tools/account-smoke.mjs` (旅程閣's label): 11 checks,
+  Chromium. `tools/inheritance-smoke.mjs` (the 同名傳承 result): 9 PASS lines
+  in each engine. `npm run test:commands` (the `maxed` blocker): 13 checks in
+  each. No smoke asserts the changed strings; `tests/progression.test.mjs`
+  and `tests/local-commands.test.mjs` do, and were updated.
+- **Not run** for these changes: `test:coach`, `test:back`, `test:shell`,
+  `test:viewport`, `test:expansion`, `test:native` and the other regression
+  suites (only strings changed in code they exercise), and everything in the
+  first list's "Not run".
+
+**Review fixes to the owner decisions, checks on `559c680`.** `c77d5df`
+(the sell dialog and the battle result's card block say 歷練 instead of
+經驗; 旅程閣's copy says 修為 for the total it backs up, where it said 歷練)
+and `559c680` (the glossary test no longer ties 修為 to 旅途 entries and
+歷練 to 卡牌 ones; its check that 旅程閣 and the import comparison label the
+total with `term('xp')` stays). Same environment; this checkout served by
+`tools/serve.py` on 4591, one browser at a time, every screenshot deleted
+from `test-results/` afterwards (`webkit-runtime` kept).
+
+- `npm test`: exit 0, **695/695**. `npm run audit:content`: exit 0, no
+  findings. `git diff --check`: exit 0.
+- `npm run build`: exit 0, 95 public files, manifest `85fca4e3…ae636`.
+  Against `60194b1`'s build, by path and `sha256`: changed `app.mjs` and
+  `account-ui.mjs`; every other asset identical. `npm run build:native`:
+  exit 0, 92 public files, manifest `60597fd9…0dfd2`; only `app.mjs`
+  changed.
+- Chromium smokes that open the changed views: `tools/journey-smoke.mjs`
+  (sells a copy through the sell dialog), `tools/backpack-smoke.mjs` (the
+  sell dialog), `tools/immersion-smoke.mjs` (battle results with the card
+  block and its 同行記 links) and `tools/account-smoke.mjs` (旅程閣, 11
+  checks, including the unavailable notice and no horizontal overflow at
+  390 px): each exit 0, no browser errors. No smoke asserts the changed
+  strings, and every string keeps its length.
+- **Not run** for these changes: `test:guide` and the other suites (no
+  string they measure changed), and WebKit for the four smokes above.
+
+**T1.1, checks on `e532631`.** `6697c05` (on a first visit 任務手札's 前往
+for 今日落子 and 七日弈緣 opens the 霧隱渡口 preparation), `ba3f1cb`
+(coach-smoke section 4c), `7443926` (the `home-next` hint) and `e532631`
+(guide-smoke); see [TUTORIAL-T1, T1.1](TUTORIAL-T1.md#t11--2026-10-21). Same
+environment. Servers on 127.0.0.1: this checkout (`tools/serve.py`, 4591), a
+fresh `git archive` export of `3f3d351` (4592, `BASELINE_URL`) and a copy of
+the store build's `dist/` (4593, `NATIVE_URL`). One browser suite at a time;
+every screenshot deleted from `test-results/` afterwards (`webkit-runtime`
+kept).
+
+- `npm test`: exit 0, **698/698** (three new in
+  `tests/first-visit.test.mjs`: the 前往 routes as 任務手札 renders them, the
+  counter the ferry battle adds to with D3's coach, and `home-next`'s
+  condition). The first full run failed once in
+  `tests/profile-fence.test.mjs` (N31, a timing test of a writer's wait
+  budget; T1.1 does not touch the fence); that file then passed three times
+  alone, and the whole suite in each of three later runs.
+  `python3 -m unittest discover -s tests -p '*_test.py'`: 9 tests OK.
+  `npm run audit:content`: no findings. `git diff --check ae96aa2`: exit 0.
+  `node --test tests/hosting.test.mjs tests/native-build.test.mjs`: 16/16.
+- `npm run build`: exit 0, 95 public files, manifest `2eb08dee…38c5b`.
+  Against `ae96aa2`'s build, by path and `sha256`: changed `app.mjs`,
+  `adventure-ui.mjs` and `first-visit.mjs`; every other asset identical.
+  `npm run build:native`: exit 0, 92 public files, manifest
+  `cb2e2ce0…6ef263`; the same three changed. (Both builds ran before
+  `e532631`, which changes only `tools/guide-smoke.mjs`.)
+- `npm run test:guide` with `BASELINE_URL` and `NATIVE_URL`: Chromium **22
+  checks**, WebKit **22 checks** (one more: `home-next` beside a battle in
+  progress), no page or console error, no failed or off-loopback request.
+  `home-next` is one line no taller than the line it replaces, on the first
+  won journey's 洞府 (青玉森庭's line, the shortest a lobby shows), in both
+  engines: 28.1/28.1 px at 302×640, 320×568 and 393×659 (11 px text), and
+  38.6/38.6 px at the other seven portrait sizes; 繼續遊歷, the companions
+  and the ledger are no lower and stay above the dock; asserted at 844×390 and
+  734×343. Every other hint, 詞彙's pages, the rules dialog and 聲息與節奏
+  against `main`, the capped header (361 px Chromium, 359 px WebKit, as
+  `main`) and the store build measure as in the runs above.
+- `npm run test:coach`: Chromium **18 checks**, WebKit **18 checks**, with
+  the new section 4c: from 洞府 and from 對弈, a first visit's 今日落子 and
+  七日弈緣 前往 open the ferry preparation on 遊歷, 稍後出發 writes no profile
+  byte or coach record and returns focus to 遊歷, Back reaches 洞府 (one
+  entry pushed from 洞府, replaced from 對弈), and boarding shows mark ①;
+  問道五弈's and a veteran's 今日落子 前往 still open 對弈.
+- `tools/navigation-smoke.mjs` (Chromium; it plays a battle and returns to
+  洞府): 6 checks, no browser errors.
+- **Not run** for T1.1: `test:shell`, `test:viewport`, `test:back`,
+  `test:saves`, `test:commands`, `test:native`, `test:expansion` and the
+  other regression suites, and everything in the first list's "Not run".
+
 ## iOS first flight · 2026-10-20
 
 Branch `ios/first-flight` (local when these checks ran; later pushed as PR #17,

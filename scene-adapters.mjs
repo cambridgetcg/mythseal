@@ -113,3 +113,34 @@ export function preparePack(dialog) {
     module(overview, 'summary', '整盒收穫', [one(overview, '.box-overview-heading'), one(overview, '.box-hit-counts')]);
   }
 }
+
+/** T1 (docs/TUTORIAL-T1.md §2): each hint replaces its slot with an element of the same tag and
+ * classes, plus `guide-hint`, role="note" and data-guide-hint; the slot's sibling nodes named by
+ * `remove` are removed. Idempotent: a hint already in `root` counts as placed. A missing slot, or
+ * a `requires` that does not match, places nothing, and a re-render restores the slot. Tolerates
+ * null nodes and stubs. `entries` is [{ hint, html }]; returns [{ id, node }] for the hints placed. */
+export function placeGuideHints(root, entries = []) {
+  const placed = [];
+  if (typeof root?.querySelector !== 'function') return placed;
+  for (const { hint, html } of entries ?? []) {
+    const existing = root.querySelector(`[data-guide-hint="${hint.id}"]`);
+    if (existing) { placed.push({ id: hint.id, node: existing }); continue; }
+    const { replace, remove = [], requires = null } = hint.slot;
+    if (requires && !root.querySelector(requires)) continue;
+    const slot = root.querySelector(`${replace}:not([data-guide-hint])`), parent = slot?.parentElement;
+    if (!slot || !parent) continue;
+    const node = slot.ownerDocument.createElement(slot.tagName.toLowerCase());
+    node.className = slot.className; node.classList.add('guide-hint');
+    node.setAttribute('role', 'note'); node.dataset.guideHint = hint.id; node.innerHTML = html;
+    slot.replaceWith(node);
+    for (const extra of [...parent.children].filter(child => remove.some(selector => child.matches(selector)))) extra.remove();
+    placed.push({ id: hint.id, node });
+  }
+  return placed;
+}
+/** The ids among `placed` that can be seen now: connected, not inside [hidden], with client
+ * rects. A node without getClientRects (a test stub) counts as not visible. */
+export function visibleGuideHints(placed = []) {
+  return (placed ?? []).filter(({ node }) => node?.isConnected && !node.closest?.('[hidden]')
+    && typeof node.getClientRects === 'function' && node.getClientRects().length > 0).map(({ id }) => id);
+}

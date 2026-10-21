@@ -35,11 +35,13 @@ import { wx01OddsMarkup, wx01RedeemMarkup, packReceiptMarkup } from './pack-ui.m
 import { createPackOpeningController } from './pack-opening.mjs';
 import { createMapTravel } from './map-piece.mjs';
 import { createViewportController } from './viewport.mjs';
-import { prepareScene, preparePack } from './scene-adapters.mjs';
+import { prepareScene, preparePack, placeGuideHints, visibleGuideHints } from './scene-adapters.mjs';
 import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
 import { attackFormula, costVariants, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
+import { createGuideMemory, guideHints, guideScreenKey, hintMarkup, rulesStartRoute, questGoRoute, GUIDE_DIALOG_KINDS } from './first-visit.mjs';
+import { glossaryMarkup, GLOSSARY_IDS } from './glossary.mjs';
 
 const app = document.querySelector('#app');
 const overlay = document.querySelector('#overlay-root');
@@ -444,6 +446,35 @@ function battleTableOptions(view,actionsHtml) {
 // or the mark reached and whether ② is owed) is stored, under its own device-local key: never
 // the profile, a battle snapshot or a backup.
 const coachMemory=createCoachMemory({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
+// T1 first-visit hints (docs/TUTORIAL-T1.md §2): each replaces an existing line for a newcomer,
+// is never a layer, and a visit hint is recorded under its own device-local key only once it was
+// painted where the player could read it.
+const guide=createGuideMemory({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
+// A screen placement whose recording waits for the dialog over it to close.
+let guidePending=null;
+const twoFrames=callback=>requestAnimationFrame(()=>requestAnimationFrame(callback));
+/** Places the hints of this visit in `root`; returns the recording check, to run once the
+ * viewport has laid the scene out. */
+function applyGuide(root,channel,key) {
+  if(channel==='dialog'&&!GUIDE_DIALOG_KINDS.includes(key)){guide.leave('dialog');return ()=>{};}
+  if(channel==='screen')guidePending=null;
+  const token=guide.enter(channel,key),ctx={profile,key,selectedNode,coachSeen:coachMemory.seen()};
+  const placed=placeGuideHints(root,guide.select(guideHints(ctx,channel),token).map(hint=>({hint,html:hintMarkup(hint,ctx)})));
+  if(!placed.length)return ()=>{};
+  return ()=>twoFrames(()=>{
+    if(document.visibilityState!=='visible')return;
+    if(channel==='screen'&&app.inert){guidePending={placed,token};return;}
+    guide.shown(visibleGuideHints(placed),token);
+  });
+}
+/** The pending screen placement, checked again once its dialog has closed. */
+function retryGuide() {
+  const pending=guidePending;if(!pending)return;
+  twoFrames(()=>{
+    if(guidePending!==pending||app.inert||document.visibilityState!=='visible')return;
+    guidePending=null;guide.shown(visibleGuideHints(pending.placed),pending.token);
+  });
+}
 // {step,owed} from battle-teaching.mjs, or null. ② is owed to round 2 when round 1 was
 // committed from ①; the memory keeps the state, so a reload resumes the mark it interrupted.
 let coach=null;
@@ -592,7 +623,8 @@ function render() {
   const pages={home:homeMarkup,collection:collectionMarkup,battle:()=>revealPending||match.status==='finished'?roundHoldMarkup():battleMarkup(),world:()=>worldMarkup(profile,selectedNode,{pieceId:worldPieces.get(getWorldForNode(selectedNode).id)}),market:()=>marketMarkup(profile,cardMarkup,selectedPack),arena:()=>arenaMarkup(profile),bag:()=>backpackMarkup(profile,bagView,cardMarkup,{showTabs:false}),account:()=>`<main><button class="text-button game-back" data-action="account-back">← 返回旅途</button>${accountMarkup(account.getState(),profile)}${saveToolsMarkup(saves.status())}${recoveryMarkup()}</main>`};
   const cardsScreen=['bag','collection'].includes(screen);
   app.innerHTML=`<div class="shell game-shell screen-${screen}${screen==='battle'&&isMistGate()?' is-mist-gate':''}">${header()}${screen==='battle'?'':screen==='home'?((profile.wx01.receipt||profile.expansion.fireMountain.run)?pendingBanner():''):pendingBanner()}${cardsScreen?cardsHubTabs():''}${(pages[screen]||homeMarkup)()}${gameDockMarkup(screen)}</div>`;
-  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});fitAttackFormula();
+  const guideCommit=applyGuide(app,'screen',guideScreenKey(screen,bagView.tab));
+  prepareScene(app,{screen});viewport.refresh({key:viewKey(),root:app});guideCommit();fitAttackFormula();
   const currentMap=app.querySelector('.world-map[data-world]');
   if(currentMap){
     currentMap.parentElement.scrollLeft=worldScrollPositions.get(currentMap.dataset.world)||0;
@@ -622,7 +654,7 @@ function closeModal() {
   inheritanceView=null;
   packOpening?.destroy();packOpening=null;
   experience.finishReveal();experienceReturn=null;
-  overlay.innerHTML=''; document.body.style.overflow='';app.inert=false;modalKind=null;
+  overlay.innerHTML=''; document.body.style.overflow='';app.inert=false;modalKind=null;guide.leave('dialog');retryGuide();
   // A preparation-to-battle transition stays in the same soundscape.
   queueMicrotask(syncExperienceScene);
   if(lastFocus?.isConnected) lastFocus.focus({preventScroll:true});
@@ -657,10 +689,12 @@ function focusDialogStart() {
 function fitOverlay() {
   const dialog=overlay.querySelector('.modal');if(!dialog)return;
   dialog.classList.add('viewport-dialog');
+  const guideCommit=applyGuide(dialog,'dialog',modalKind);
   if(modalKind==='pack-receipt')preparePack(dialog);
   else prepareDialog(dialog,{kind:modalKind});
   const receiptId=dialog.querySelector('[data-receipt-id]')?.dataset.receiptId;
   viewport.refresh({key:`modal-${modalKind||'dialog'}${receiptId?`-${receiptId}`:''}`,root:overlay});
+  guideCommit();
 }
 function dismissModal() {
   const origin=experienceReturn;
@@ -691,6 +725,7 @@ function experienceSettingsModal() {
     <label class="experience-field"><span>落子音效 <output id="experience-effects-value">${Math.round(p.effects*100)}%</output></span><input id="experience-effects" aria-label="落子音效音量" type="range" min="0" max="1" step="0.05" value="${p.effects}"></label>
     <label class="experience-field"><span>動態</span><select id="experience-motion"><option value="system" ${p.motion==='system'?'selected':''}>跟隨裝置設定</option><option value="reduce" ${p.motion==='reduce'?'selected':''}>減少動態</option></select></label>
     <label class="experience-field"><span>揭曉節奏</span><select id="experience-pace"><option value="normal" ${p.pace==='normal'?'selected':''}>從容揭曉</option><option value="fast" ${p.pace==='fast'?'selected':''}>直接看結果</option></select></label>
+    ${screen==='battle'?'':`<label class="experience-field"><span>初見提點<small>入門期間，重開可再看</small></span><input id="guide-hints" type="checkbox" ${guide.enabled()?'checked':''}></label>`}
     <p class="panel-footnote">設定會記在此裝置。揭曉時亦可直接跳過。</p><div class="modal-actions"><button class="primary" data-action="close-modal">${screen==='battle'?'返回對局':'返回旅途'} →</button></div>`,'experience-settings',true,'experience-settings');
 }
 function questsModal(tab=questTab) {
@@ -800,6 +835,15 @@ function prepareEncounter(kind='practice',nodeId=null,route='owned') {
   preparation={kind,nodeId,route};
   modal(`<div class="prep-content">${preparationContent()}</div>`,`encounter-prep${isMistGate(preparation)?' is-mist-prep':''}`,true,'preparation');
 }
+/** T1 and T1.1 (docs/TUTORIAL-T1.md §1, T1.1): a first visit's rules or 任務手札 lead to 霧隱渡口's
+ * preparation on 遊歷. navigate() removes the control that was tapped, so focus moves to the
+ * dock's 遊歷 first, and cancelling the preparation returns it there; nothing is written until
+ * 踏上渡口. */
+function openFirstExpedition(nodeId) {
+  selectedNode=nodeId;navigate('world');
+  app.querySelector('.game-dock [data-action="world"]')?.focus({preventScroll:true});
+  return prepareEncounter('expedition',nodeId);
+}
 function openPreparationDeck() {
   if(!preparation)return;
   const origin={screen,scroll:modalOrigin?.scroll??window.scrollY,focus:modalOrigin?.focus||captureFocus(app)};
@@ -831,14 +875,23 @@ function prepareNextEncounter({editDeck=false}={}) {
 // draft awaiting the owner's approval and is not served yet (docs/IOS-FIRST-FLIGHT.md), so no
 // link is shown until this names the deployed page. An https link opens Safari in the app.
 const PRIVACY_URL=null;
-function rulesModal() {
-  modal(`<div class="eyebrow">THE ART OF THE DUEL</div><h2>入局，先知取捨。</h2><p>每局 12 生命、12 仙丹。從八張牌中隨機抽四張，最多交手四回合。牌用過就不能再出，仙丹也要留給後面。</p>
+/** The rules dialog: 弈道, and since T1 its second module 詞彙 (docs/TUTORIAL-T1.md §3). Opened
+ * at a term (the header resources), it opens on 詞彙 at that term, under its own heading. */
+function rulesModal({term=null}={}) {
+  const battle=screen==='battle',open=!battle&&GLOSSARY_IDS.includes(term)?term:null;
+  const [eyebrow,title]=open?['WORDS ON THE ROAD','識其名，知其用。']:['THE ART OF THE DUEL','入局，先知取捨。'];
+  const [action,label]=battle?['close-modal','明白，返回對局']:open?['close-modal','明白了']:['rules-start','知其道，入其局'];
+  // 弈道 always opens on its own first page, even if the dialog was last left on 詞彙.
+  if(!open)viewport.forget('modal-rules');
+  modal(`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>每局 12 生命、12 仙丹。從八張牌中隨機抽四張，最多交手四回合。牌用過就不能再出，仙丹也要留給後面。</p>
     <div class="rules-grid"><div class="rule"><span class="rule-number">01 / 藏鋒</span><h3>力量 ×（1 ＋ 仙丹）</h3><p>加丹提高攻擊，不直接提高傷害。零丹亦有基礎攻擊，可以試探、留力，甚至以技能取勝。</p></div>
     <div class="rule"><span class="rule-number">02 / 決勝</span><h3>高攻得勝，按傷扣血</h3><p>攻擊相同時，低星卡勝；星數亦相同，先手勝。生命歸零即結束，四回合後剩餘生命較高者勝。</p></div>
     <div class="rule"><span class="rule-number">03 / 共鳴</span><h3>同族同行，天賦甦醒</h3><p>抽出的四張牌中，至少兩張不同角色同族，便啟動該族加成。已出過的卡仍計入共鳴。</p></div>
     <div class="rule"><span class="rule-number">04 / 破局</span><h3>明牌暗丹，交替先後</h3><p>先手先亮卡，仙丹一直保密。雙方輪換先手。怒擊另付 3 丹，贏得該回合時傷害 +2。</p></div></div>
     <div class="rules-note">第一回合：四張牌總星數較高的一方先手，相同則隨機。<br>攻擊預估只包含己方效果；對手的封鎖、減力、減攻可能改變結果。</div>
-    ${PRIVACY_URL?`<p class="rules-privacy"><a href="${PRIVACY_URL}">私隱政策 · Privacy</a></p>`:''}<div class="modal-actions"><button class="primary" data-action="${screen==='battle'?'close-modal':'rules-start'}">${screen==='battle'?'明白，返回對局':'知其道，入其局'} <span>↗</span></button></div>`);
+    ${glossaryMarkup({open})}${PRIVACY_URL?`<p class="rules-privacy"><a href="${PRIVACY_URL}">私隱政策 · Privacy</a></p>`:''}<div class="modal-actions"><button class="primary" data-action="${action}">${label} <span>↗</span></button></div>`,'rules-dialog',true,'rules');
+  // After modal()'s own focusDialogStart frame: open the page that holds the term and focus it.
+  if(open)requestAnimationFrame(()=>viewport.revealElement(overlay.querySelector(`[data-glossary-term="${open}"]`),{focus:true}));
 }
 function detailModal(id, side='player') {
   const c=screen==='battle'?getBattleCard(match,side,id):getCard(id), f=faction(c);
@@ -1013,13 +1066,13 @@ function sellInstanceModal(uid){
   try{
     const item=getInstance(profile,uid), sale=getInstanceSale(profile,uid), card=getCard(item.cardId);
     if(sale.reason)return toast(sale.reason);
-    modal(`<div class="eyebrow">PASS ON A STORY</div><h2>讓這張卡，暫別行囊？</h2><p><b>${card.name}</b> · ${safe(printLabel(card,{printId:item.printId}))} · Lv.${item.level} · ${item.xp} EXP<br>卡牌編號 <span class="instance-serial">#${safe(item.uid)}</span></p><p>商旅出價 <b>${sale.sellPrice} 金幣</b>。這張卡的等級、經驗及出戰紀錄會保留；之後可付 ${sale.buybackPrice} 金幣原卡回購。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">留在行囊</button><button class="primary" data-action="confirm-instance-sell" data-id="${safe(uid)}">出售這張卡 →</button></div>`);
+    modal(`<div class="eyebrow">PASS ON A STORY</div><h2>讓這張卡，暫別行囊？</h2><p><b>${card.name}</b> · ${safe(printLabel(card,{printId:item.printId}))} · Lv.${item.level} · ${item.xp} EXP<br>卡牌編號 <span class="instance-serial">#${safe(item.uid)}</span></p><p>商旅出價 <b>${sale.sellPrice} 金幣</b>。這張卡的等級、歷練及出戰紀錄會保留；之後可付 ${sale.buybackPrice} 金幣原卡回購。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">留在行囊</button><button class="primary" data-action="confirm-instance-sell" data-id="${safe(uid)}">出售這張卡 →</button></div>`);
   }catch(error){toast(error.message);}
 }
 function cardExperienceMarkup(){
   const changes=lastReward?.cardXP||[];
   if(!changes.length)return '';
-  return `<div class="card-xp-results"><h3>同行者的歷練</h3>${changes.map(change=>`<div><span>${isMistGate()?`<button type="button" class="text-button result-card-link" data-action="result-card" data-id="${safe(change.uid)}" aria-label="查看${safe(getCard(change.cardId).name)}的同行記，編號 ${safe(change.uid)}">${getCard(change.cardId).name} <span aria-hidden="true">↗</span></button>`:getCard(change.cardId).name} <small>#${safe(change.uid)}</small></span><b>${change.afterLevel>change.beforeLevel?`Lv.${change.beforeLevel} → ${change.afterLevel} ✧`:`Lv.${change.afterLevel}`} <em>+${change.gainedXP} EXP</em></b></div>`).join('')}<p>經驗只記在今場真正出戰的那張卡。修練能力在遊歷生效。</p></div>`;
+  return `<div class="card-xp-results"><h3>同行者的歷練</h3>${changes.map(change=>`<div><span>${isMistGate()?`<button type="button" class="text-button result-card-link" data-action="result-card" data-id="${safe(change.uid)}" aria-label="查看${safe(getCard(change.cardId).name)}的同行記，編號 ${safe(change.uid)}">${getCard(change.cardId).name} <span aria-hidden="true">↗</span></button>`:getCard(change.cardId).name} <small>#${safe(change.uid)}</small></span><b>${change.afterLevel>change.beforeLevel?`Lv.${change.beforeLevel} → ${change.afterLevel} ✧`:`Lv.${change.afterLevel}`} <em>+${change.gainedXP} EXP</em></b></div>`).join('')}<p>歷練只記在今場真正出戰的那張卡。修練能力在遊歷生效。</p></div>`;
 }
 function resultCardModal(uid) {
   if(!recorded||match?.status!=='finished'||!lastReward?.cardXP?.some(change=>change.uid===uid))return;
@@ -1302,7 +1355,13 @@ document.addEventListener('click', event=>{
   if(action==='next-encounter')return prepareNextEncounter();
   if(action==='result-deck')return prepareNextEncounter({editDeck:true});
   if(action==='battle-menu')return requestNavigation('home');
-  if(action==='quest-go')return requestNavigation(id);
+  // T1.1: on a first visit, a task any battle counts toward leads to 霧隱渡口, as the rules do.
+  if(action==='quest-go'){
+    const latest=loadProfile(),route=questGoRoute(latest,{destination:id,field:button.dataset.field});
+    if(route.kind!=='expedition')return requestNavigation(route.destination);
+    if(economyBusy)return;
+    syncProfile(latest);return openFirstExpedition(route.nodeId);
+  }
   if(['home','collection','world','daily','market','arena','classics','bag','account'].includes(action))return requestNavigation(action);
   const accountActions = {
     'account-retry': () => account.init(),
@@ -1482,8 +1541,19 @@ document.addEventListener('click', event=>{
   }
   if(action==='navigate-confirm'){try{persistBattle();navigate(id);}catch(error){toast(error.message);}return;}
   if(action==='rules')return rulesModal();
+  // T1: a header resource opens 詞彙 at its term. WebKit does not focus a tapped button; focusing
+  // it here makes closing the dialog, or Back, return to it (as the inspect branch does).
+  if(action==='glossary'){button.focus({preventScroll:true});return rulesModal({term:id});}
   if(action==='close-modal')return dismissModal();
-  if(action==='start'||action==='rules-start')return prepareEncounter();
+  if(action==='start')return prepareEncounter();
+  // T1: a first visit's rules lead to 霧隱渡口, where D3's first-battle coach runs (docs/TUTORIAL-T1.md §1).
+  if(action==='rules-start'){
+    if(economyBusy)return;
+    syncProfile(loadProfile());
+    const route=rulesStartRoute(profile);
+    if(route.kind!=='expedition')return prepareEncounter();
+    return openFirstExpedition(route.nodeId);
+  }
   if(action==='end-home')return navigate('home');
   // WebKit does not focus a clicked button; record the origin so closing returns to it.
   if(action==='inspect'){if(screen==='battle')button.focus({preventScroll:true});return detailModal(id,button.dataset.side||'player');}
@@ -1518,6 +1588,9 @@ document.addEventListener('change',event=>{
   if(event.target.id==='experience-sound'){
     experience.setPreferences({sound:event.target.checked});experience.unlockAudio().then(()=>playTone('select'));return;
   }
+  // T1's switch (docs/TUTORIAL-T1.md §5.6): off removes the hint behind the dialog at once; on
+  // leaves the visits in progress quiet, so hints return from each next visit.
+  if(event.target.id==='guide-hints'){guide.setEnabled(event.target.checked);if(!event.target.checked)render();return;}
   if(event.target.id==='experience-motion'||event.target.id==='experience-pace'){
     experience.setPreferences({[event.target.id==='experience-motion'?'motion':'pace']:event.target.value});return;
   }

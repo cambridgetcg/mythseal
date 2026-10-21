@@ -79,7 +79,7 @@ export function previewCommand(profile, intent) {
   const cost = getUpgradeCost(profile, uid), blockers = [];
   if (cost.blockedReason) blockers.push({ code: 'in-journey', message: cost.blockedReason });
   if (cost.maxed) {
-    blockers.push({ code: 'maxed', message: '這張卡牌已達最高修為。' });
+    blockers.push({ code: 'maxed', message: '這張卡牌已達最高等級。' });
     return deepFreeze({ ...base, blockers });
   }
   if (profile.coins < cost.coins) blockers.push({ code: 'coins', message: '金幣不足。' });
