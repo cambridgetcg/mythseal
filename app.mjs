@@ -533,7 +533,7 @@ function endCoach(outcome) {
   // 跳過 leaves with the mark: keep a keyboard player on the table's selected card.
   if(skipFocused)(app.querySelector('.player-hand [aria-pressed="true"]')||app.querySelector('[data-action="commit"]'))?.focus({preventScroll:true});
 }
-const revealTeachingMarkup=()=>revealTipMarkup(revealTip(createRevealView(match)),{coach:coach?.step==='reveal'?coachCopy('reveal'):null,owed:Boolean(coach?.owed&&match.status==='playing')});
+const revealTeachingMarkup=()=>revealTipMarkup(revealTip(createRevealView(match),aiOptions(guardian)),{coach:coach?.step==='reveal'?coachCopy('reveal'):null,owed:Boolean(coach?.owed&&match.status==='playing')});
 function battleMarkup() {
   const view=planningView();
   return battleTableMarkup(view,battleTableOptions(view,movePanel()));

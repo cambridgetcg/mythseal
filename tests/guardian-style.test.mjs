@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RULES, createMatch } from '../engine.mjs';
 import { GENTLE_GUARDIAN, guardianStyle, styleById, aiOptions } from '../guardian-style.mjs';
-import { coachStart } from '../battle-teaching.mjs';
+import { coachStart, revealTip } from '../battle-teaching.mjs';
 import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResultMarkup, mistGateRuleMarkup, GENTLE_ARRIVAL_QUOTE } from '../mist-gate-ui.mjs';
 import { simulate, playFirstBattle, POLICIES, parseStyle } from '../tools/guardian-sim.mjs';
 
@@ -71,4 +71,17 @@ test('O1 disclosure copy: the guardian hints in his voice, the plain line states
   for (const round of [1, 4]) for (const initiative of ['player', 'opponent']) assert.equal(mistGateBattleMarkup({ round, initiative, guardian: null }), mistGateBattleMarkup({ round, initiative }));
   assert.match(mistGateBattleMarkup({}), /aria-label="霧隱渡口，守渡弈者"><div class="mist-battle-place">.*<small>守渡弈者 <span aria-hidden="true">·<\/span> AI 對弈<\/small>/);
   assert.doesNotMatch(mistGateArrivalMarkup({}) + mistGateBattleMarkup({}) + mistGateResultMarkup({ outcome: 'player' }) + mistGateResultMarkup({ outcome: 'opponent' }), /緩渡|不再讓/);
+});
+
+test('O1 the reveal tip states the disclosed cap where 提防對手重注 would contradict it', () => {
+  const view = (opponent, player, nextRound = 2) => ({ phase: 'reveal', rounds: RULES.rounds, next: nextRound === null ? null : { round: nextRound }, opponent: { pills: opponent }, player: { pills: player } });
+  const options = aiOptions(GENTLE_GUARDIAN);
+  assert.equal(revealTip(view(10, 4), options).kind, 'capped');
+  assert.equal(revealTip(view(10, 4), options).text, '對手剩 10 丹 · 你剩 4 丹 · 對手每回合至多出 2 丹');
+  assert.equal(revealTip(view(10, 4)).hint, '提防對手重注', 'without a cap the tip is unchanged');
+  assert.deepEqual(revealTip(view(10, 4), {}), revealTip(view(10, 4)));
+  // Every other kind reads the same with or without the cap.
+  for (const [opponent, player, next] of [[0, 3, 2], [4, 12, 2], [8, 12, 2], [6, 6, 2], [3, 7, null], [1, 1, 4]]) {
+    assert.deepEqual(revealTip(view(opponent, player, next), options), revealTip(view(opponent, player, next)), `${opponent}/${player}`);
+  }
 });
