@@ -147,7 +147,8 @@ this index.
 
 Collectible commercialization stopped being a delivery objective on 2026-09-23
 ([ROADMAP](../ROADMAP.md#retired-collectible-launch-phases)). These documents
-explain the earlier thinking; none is an instruction to mint or sell.
+explain the earlier thinking, and the dated 2026-10-21 trading-route proposal
+reopens the investigation; none is an instruction to mint or sell.
 
 | Document | What it covers | Status |
 | --- | --- | --- |
