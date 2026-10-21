@@ -20,6 +20,8 @@
  * no hint and writes no record, its switch's one-line caption names the newcomer bound, and off
  * then on it still sees none; browsing writes only shanhai.guide.v1 and no profile byte; no
  * hint or guide write in battle; Back keeps its depth and goes home from a scene with a hint.
+ * T1.1 added home-next, measured on the first won journey's 洞府 (青玉森庭's line is the shortest
+ * a lobby shows) with home-start's lobby checks, and gone beside 繼續對局 while a battle waits.
  * At 844×390 and 734×343 (items 17 and 18) the same layout checks are recorded as NOTE lines
  * when the control already flags, and asserted otherwise.
  *
@@ -273,6 +275,8 @@ async function openTerm(page, id, at) {
 const HINT = Object.fromEntries(GUIDE_HINTS.map(hint => [hint.id, hint]));
 const SCENES = [
   { id: 'home-start', fixture: 'fresh', root: '#app', reach: async () => {} },
+  // T1.1: after the first result. 青玉森庭's line is the shortest a lobby can show (18 code points).
+  { id: 'home-next', fixture: 'won', root: '#app', reach: async () => {} },
   { id: 'arena-first', fixture: 'fresh', root: '#app', reach: async page => { await tap(page, '.game-dock [data-action="arena"]'); await reveal(page, '#app .arena-lobby-copy h2'); } },
   { id: 'market-printing', fixture: 'fresh', root: '#app', reach: async page => { await tap(page, '.game-dock [data-action="market"]'); await reveal(page, '#app .scene-wx01-offer h2'); } },
   { id: 'quests-why', fixture: 'fresh', root: '#overlay-root .modal', reach: async page => { await tap(page, '.game-lobby [data-action="quests"]'); await reveal(page, '#overlay-root .daily-gift h2'); } },
@@ -335,11 +339,12 @@ function compare(scene, size, control, hinted) {
     const before = control.frames[index];
     check(item.top <= before.top + slack && item.height >= before.height - slack, `${at}: list frame ${item.name} keeps its place and height (top ${before.top.toFixed(1)} → ${item.top.toFixed(1)}, height ${before.height.toFixed(1)} → ${item.height.toFixed(1)})`);
   });
-  for (const [selector, before] of scene.id === 'home-start' ? Object.entries(control.lobby) : []) {
+  const lobby = scene.id.startsWith('home-');
+  for (const [selector, before] of lobby ? Object.entries(control.lobby) : []) {
     const after = hinted.lobby[selector];
     if (!before) { check(after === null, `${at}: ${selector}`); continue; }
     check(after.bottom <= before.bottom + slack, `${at}: ${selector} is no lower (${before.bottom.toFixed(1)} → ${after.bottom.toFixed(1)})`);
-    if (scene.id === 'home-start') check(after.bottom <= hinted.dock + slack, `${at}: ${selector} stays above the dock`);
+    check(after.bottom <= hinted.dock + slack, `${at}: ${selector} stays above the dock`);
   }
   const fresh = hinted.flags.filter(flag => !control.flags.includes(flag));
   check(!fresh.length, `${at}: no new viewport-overflow flag (${fresh.join(', ')})`);
@@ -481,9 +486,11 @@ try {
     });
     assert.equal(again, 1, 'one quests-why after re-rendering and placing twice');
     await release(page);
-    // Condition hints follow the profile: one finished battle ends both guardian hints.
+    // Condition hints follow the profile: one finished battle ends both guardian hints, and
+    // home-next takes home-start's line until the third (T1.1).
     const later = await open('won');
-    assert.equal(await hintCount(later, '#app'), 0, 'no home-start after the first battle');
+    assert.equal(await later.locator('#app [data-guide-hint="home-start"]').count(), 0, 'no home-start after the first battle');
+    assert.equal(await later.locator('#app [data-guide-hint="home-next"]').count(), 1, 'home-next after the first result');
     await tap(later, '.game-dock [data-action="arena"]');
     assert.equal(await later.locator('#app [data-guide-hint="arena-first"]').count(), 0, 'no arena-first after the first battle');
     // 火焰山 opened straight on 牌組: not recorded; on 山行 it shows, unrecorded until seen.
@@ -500,6 +507,22 @@ try {
     await later.waitForFunction(key => JSON.parse(localStorage.getItem(key) ?? 'null')?.seen?.includes('fire-mountain'), GUIDE_KEY, { timeout: 4000 });
     passed('condition hints follow the profile; a first visit with another volume\'s locked node keeps 「渡口首勝後，展開此卷」; placement is idempotent; 火焰山 is not recorded while 牌組 is open and shows once more');
     await release(later);
+  }
+
+  // ── 4b. home-next leaves the lobby to a battle in progress (T1.1) ───────────────────
+  {
+    const page = await open('won');
+    assert.equal(await page.locator('#app [data-guide-hint="home-next"]').count(), 1);
+    await tap(page, '.game-lobby [data-action="continue-journey"]');
+    await tap(page, '#overlay-root [data-action="confirm-start"]');
+    await page.locator('#app .battle-table').waitFor(); await settle(page);
+    await tap(page, '.game-header [data-action="battle-menu"]');
+    await tap(page, '#overlay-root [data-action="navigate-confirm"]');
+    await page.locator('.game-lobby').waitFor(); await settle(page);
+    assert.equal(await page.locator('#app .lobby-continue').getAttribute('data-action'), 'resume');
+    assert.equal(await hintCount(page, '#app'), 0, 'no home-next beside 繼續對局');
+    passed('home-next shows on 洞府 after the first result, and gives way to 繼續對局 while a battle is in progress');
+    await release(page);
   }
 
   // ── 5. The switch in 聲息與節奏 ───────────────────────────────────────────────────
