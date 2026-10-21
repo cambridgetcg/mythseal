@@ -62,7 +62,7 @@ export const GUIDE_HINTS = freeze([
       const node = selectedNodeOf(ctx);
       return isNewcomer(ctx.profile) && isNodeUnlocked(ctx.profile, node.id) && node.level > activeDeckTopLevel(ctx.profile);
     },
-    copy: () => '建議 Lv 僅供參考，修練越高越穩。',
+    copy: () => '建議 Lv 僅供參考，戰卡等級越高越穩。',
   },
   {
     id: 'bag-copies', channel: 'screen', scene: key => key === 'bag-cards', voice: 'narrator', lasts: 'visit',
