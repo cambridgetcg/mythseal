@@ -261,7 +261,9 @@ the private archive.
   texture only.
 - Original literary interpretation of Pu Songling's characters. Supply **no
   reference images** and do not imitate any film, television, animation or game
-  costume, scene or celebrity likeness.
+  costume, scene or celebrity likeness. (These prompts were sent without
+  references. Since 2026-10-20, new work may use Mythseal's own committed art as
+  a reference; see the [reference-image principle](ART.md#reference-images--2026-10-20).)
 - Everyone is fully clothed. Nothing is sexualized. Do not show gore, flayed skin,
   surgery, corpses, drowning or an embrace. The mood is uncanny, not violent.
 - Faces stay readable at card size, and the bottom fifth stays quiet for overlays.
@@ -820,7 +822,7 @@ Embedded content credential (C2PA manifest in the PNG caBX chunk: claim generato
 Orchestrating agent + its model, if any (listed separately; not the image model):
 Exact prompt sent (verbatim; note and explain any difference from the brief above):
 Prompt SHA-256 (UTF-8 bytes of the exact prompt, no trailing newline):
-Input images and SHA-256 (expected: none supplied):
+Input images and SHA-256 (none, or Mythseal's own committed art by repository path; see ART.md's reference-image principle, 2026-10-20):
 Private archive original path + filename:
 Output SHA-256 of the archive original:
 SHA-256 of the repository copy (must equal the original; byte-for-byte copy, no crop/resize/compression/metadata edit):
