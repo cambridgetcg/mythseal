@@ -285,7 +285,7 @@ the cap in the candidate filter that already enforces affordability.
 
 ```js
 export const GENTLE_GUARDIAN = Object.freeze({ id: 'gentle-crossing', name: '緩渡', nodeId: 'mist-gate', spendCap: 2 });
-export function guardianStyle({ encounter = null, played = 0 } = {}) { … }   // §4's condition
+export function guardianStyle({ encounter = null, played = 0, cleared = [] } = {}) { … }   // §4's condition
 export const styleById = id => (id === GENTLE_GUARDIAN.id ? GENTLE_GUARDIAN : null);
 export const aiOptions = style => (style ? { spendCap: style.spendCap } : {});
 ```
@@ -305,7 +305,7 @@ vanish from the final reveal, and the result could not know the battle used
 緩渡. So:
 
 - **One decision per battle.** `enterStartedBattle` sets a module variable,
-  `guardian = guardianStyle({ encounter, played: profile.stats.played })`,
+  `guardian = guardianStyle({ encounter, played: profile.stats.played, cleared: profile.cleared })`,
   from the profile the start transaction has just saved, whose `played` is
   the value `beginBattle` saw. `persistBattle` writes `guardian: guardian?.id ?? null`
   into the battle snapshot, and `resumeBattle` reads it back with `styleById`
@@ -355,10 +355,11 @@ parameter; leaving the contradiction is open question 4.
 ## 4. Where it applies
 
 **Condition:** the encounter is the 霧隱渡口 expedition (`kind` is
-`expedition` and `nodeId` is `mist-gate`) and `profile.stats.played === 0`,
-meaning no battle has been finished, at the moment the battle starts. This is
-D3's coach condition (`battle-teaching.mjs:217-218`) without its device-local
-half:
+`expedition` and `nodeId` is `mist-gate`), `profile.stats.played === 0` and
+`profile.cleared` does not include `mist-gate`, meaning no battle has been
+finished, at the moment the battle starts. This is D3's coach condition
+(`battle-teaching.mjs:217-218`) without its device-local half, and with the
+save's clears as a second witness:
 
 - **No `seen`.** The coach's `shanhai.coach.v1` lives on one device, and
   跳過 sets it. How the guardian plays should depend on the save alone, so a
@@ -367,6 +368,16 @@ half:
 - **It matches T1.** `isFirstVisit` (`t1:first-visit.mjs`) is
   `stats.played === 0 && !pending`, and the guardian lines that send a new
   player to his ferry depend on it.
+- **Why the clears too.** A save whose `stats` are missing or invalid
+  hydrates `played` as 0 (`progression.mjs:196`) but keeps its clears, and a
+  snapshot or file import of a save with `played` 0 and clears passes the
+  canonical check, because hydration does not reconcile the two. Clearing the
+  ferry needs a won battle, so such a save is a returning player: without
+  this half its revisit played the capped AI and was told 「初渡之局」 in place
+  of 「燈還亮着。」. For a save with intact stats the two halves agree, so this
+  changes nothing else. D3's coach and T1's hints read `played` alone and
+  still treat such a save as new; they teach, they do not change how he
+  plays, and O1 leaves them to their own packets.
 - **It is excluded:** 切磋, 擂台, 火焰山, story and campaign nodes, every
   other realm, and any battle once one has been finished, including a second
   visit to 霧隱渡口 after a loss. A save migrated from v1 with
@@ -524,7 +535,9 @@ engines. All are on this branch.
    encounters (霧隱渡口, 赤燼關, 青玉森庭, practice, arena, activity, a
    practice match carrying `mist-gate`, none) and `played` 0, 1, 2 and 10,
    `guardianStyle` is `GENTLE_GUARDIAN` exactly for the 霧隱渡口 expedition
-   at 0, and `!== null` equals `coachStart({ seen: null, … }) !== null`.
+   at 0, and `!== null` equals `coachStart({ seen: null, … }) !== null`. A
+   save hydrated without stats but with 霧隱渡口 cleared gets no style and
+   the returning arrival line; the same save with nothing cleared gets it.
    Returning players and every fair mode get `{}`. `styleById` knows only the
    style's id.
 5. **`tests/guardian-style.test.mjs`: the seeded result.** `tools/guardian-sim.mjs`
@@ -549,12 +562,14 @@ engines. All are on this branch.
    the last round the table still names the style, the result gives the
    advice for its outcome and today's note; the second crossing shows no rule
    line and today's arrival line and starts without a style. A first battle
-   saved before O1 resumes without the style. At 302×640, 320×568 and
-   393×852 the rule line shows inside the preparation in at most two lines,
-   the preparation keeps its page count and size, the status row and heading
-   keep their height and the reveal footer is no taller with the *capped* tip
-   than with 「提防對手重注」; at 1280×720 the label shows on one line, as
-   tall as without the style. No PNG is written.
+   saved before O1 resumes without the style. A save with `played` 0 that has
+   cleared 霧隱渡口 shows 「燈還亮着。」, no rule line, and starts without a
+   style. At 302×640, 320×568 and 393×852 the rule line shows inside the
+   preparation in at most two lines, the preparation keeps its page count and
+   size, the status row and heading keep their height and the reveal footer
+   is no taller with the *capped* tip than with 「提防對手重注」; at 1280×720
+   the label shows on one line, as tall as without the style. No PNG is
+   written.
 
 ## 8. Exit evidence
 
@@ -613,10 +628,11 @@ engines. All are on this branch.
    is one constant. The roadmap's wording was a cap on round 1 alone; §1.2
    shows why it is not recommended.
 2. **How long 緩渡 lasts.** As briefed, only while no battle has been
-   finished (`played === 0`), the same first battle as D3 and T1. The
-   alternative is every 霧隱渡口 visit until it is first cleared. On that
-   second try a player who has learned to spread pills would win 99.5 % under
-   緩渡 against 64.4 % today. This changes the condition.
+   finished (`played === 0`, and 霧隱渡口 not cleared, §4), the same first
+   battle as D3 and T1. The alternative is every 霧隱渡口 visit until it is
+   first cleared. On that second try a player who has learned to spread pills
+   would win 99.5 % under 緩渡 against 64.4 % today. This changes the
+   condition.
 3. **The name and the lines.** Is 緩渡 the right name? Alternatives: 讓丹,
    留燈. Is 「初渡之局，我出手放輕，你放膽試。」 his line? Should the rule
    line show the number 2?
@@ -684,3 +700,16 @@ first page holds only THE DUEL IS COMPLETE and 悟 at 302 and 320 px, and adds
 the heading at 393×659 in WebKit; the advice is on its second page there, with
 or without 緩渡. D3's check of the advice is an arena loss, where it is on
 the first page.
+
+## 14. Review round 2 · 2026-10-21
+
+One finding (low): a save with cleared nodes but `stats.played` 0 (missing or
+invalid stats in an old, imported or recovered save) got 緩渡 and the
+first-crossing line on its 霧隱渡口 revisit. **Accepted**, with the first of
+the two fixes the review offered: `guardianStyle` also takes `cleared` and
+gives no style once 霧隱渡口 is cleared (§4), in `01d78de`. That fixes the AI
+as well as the line, which letting `returning` win the arrival line alone
+would not, and it makes the guardian and returning lines exclusive, so the
+markup test that pinned their order is dropped. D3's coach shares the
+`played` half and still coaches such a save; O1 does not change it (§4).
+Checks: [VALIDATION](VALIDATION.md#o1-gentle-first-guardian--2026-10-21).

@@ -159,13 +159,14 @@ Candidate packet O1, which the owner asked on 2026-10-21 to have prepared now
 as a reviewable fallback for D3 (「保守守衛」), is implemented on the branch
 **`o1/gentle-guardian`**, from `main` **`3f3d351`**, as local commits; not
 pushed, merged or deployed, and not in the proposed v0.6.0 scope unless the
-owner adds it. [Spec](GENTLE-GUARDIAN-O1.md) (revised after review round 1,
-its §12), [checks](VALIDATION.md#o1-gentle-first-guardian--2026-10-21).
+owner adds it. [Spec](GENTLE-GUARDIAN-O1.md) (revised after review rounds 1
+and 2, its §12 and §14), [checks](VALIDATION.md#o1-gentle-first-guardian--2026-10-21).
 
 - **What changed.** In the player's first battle (霧隱渡口 expedition, no
   battle finished yet: D3's coach condition without the device-local coach
-  record), 守渡弈者 plays the disclosed style 緩渡: each commitment costs at
-  most 2 pills, in every round, so no Fury. Every other battle, including
+  record, and 霧隱渡口 not cleared on the save, since review round 2),
+  守渡弈者 plays the disclosed style 緩渡: each commitment costs at most 2
+  pills, in every round, so no Fury. Every other battle, including
   later 霧隱渡口 visits and every fair mode, plays today's AI. A cap on round
   1 alone was rejected because the AI then spends the pills later (spec
   §1.2).
@@ -184,7 +185,7 @@ its §12), [checks](VALIDATION.md#o1-gentle-first-guardian--2026-10-21).
 - **Evidence.** `tools/guardian-sim.mjs` reproduces the spec's tables: on
   2,000 held-out seeds a coach-follower wins 99.5 % (64.4 % today), a player
   who never adds pills or adds all 12 at once wins none, and a player who bids
-  at random wins 39.9 % (49.2 % today). `npm test` 676/676; both builds;
+  at random wins 39.9 % (49.2 % today). `npm test` 677/677; both builds;
   `test:coach` (with the new O1 sections), `test:battle-table` and
   `test:viewport` in Chromium and WebKit.
 - **Open.** The owner's questions in spec §10, first the number (2 by default;

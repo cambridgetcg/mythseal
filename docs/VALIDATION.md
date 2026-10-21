@@ -50,10 +50,10 @@ use 22 and 24), Python 3.14.6, Playwright 1.63.0 with Chromium for Testing
 
 Branch `o1/gentle-guardian`, from `main` **`3f3d351`**; packet O1, which the
 owner asked on 2026-10-21 to have prepared as a reviewable fallback for D3.
-Source commits `9abe311`, `fb61473`, `3c98e60`, `cabb2a5` and `dea40b6`; the
-spec revision `665352b` and the documentation commit after them change no
-served, test or tool file. Not pushed, merged or deployed; no network
-request beyond the loopback server. Design:
+Source commits `9abe311`, `fb61473`, `3c98e60`, `cabb2a5` and `dea40b6`, and
+`01d78de` after review round 2; the spec revision `665352b` and the
+documentation commits change no served, test or tool file. Not pushed,
+merged or deployed; no network request beyond the loopback server. Design:
 [GENTLE-GUARDIAN-O1](GENTLE-GUARDIAN-O1.md).
 
 **Environment.** macOS 26.6.2 (Darwin 25.6.0) on arm64, Node 26.0.0, Python
@@ -109,6 +109,29 @@ suite; the browsers ran one at a time. Synthetic saves only.
   (9 min 15 s).
 - Their 318 screenshots and four JSON reports in `test-results/` were
   deleted afterwards.
+
+**Review round 2 (`01d78de`, spec §14).** `guardianStyle` also takes the
+save's clears, so a save with `played` 0 that has cleared 霧隱渡口 gets no
+style. Same environment and port.
+
+- `npm test`: exit 0, **677/677** (one new test: a save hydrated without
+  stats but with 霧隱渡口 cleared gets no style and the returning line; the
+  same save with nothing cleared gets 緩渡). With `guardian-style.mjs` from
+  `dea40b6` it is the one test that fails.
+- `npm run test:coach`: exit 0, **20/20 checks in each engine** (one new in
+  section 8: on a save with `played` 0 and 霧隱渡口 cleared, the preparation
+  shows 「燈還亮着。這一程，你想怎樣走？」 and no rule line, and the battle
+  names no style), 39 s in Chromium and 45 s in WebKit. With
+  `guardian-style.mjs` from `dea40b6` the new check fails in Chromium (it
+  finds the rule line). Section 8's first battle again committed 2, 2, 1, 2 and section
+  8b measured as before.
+- `npm run build`: exit 0, 93 public files, manifest `4393cbe2…0958`;
+  `npm run build:native`: exit 0, 90 public files, manifest
+  `d1ab3464…22df`. `dist/` was deleted afterwards.
+- Not re-run, because the change cannot reach them: `test:battle-table`
+  (its 霧隱渡口 battle resumes a snapshot, which carries its own style) and
+  `test:viewport` (its save has 霧隱渡口 cleared and `played` 0, but it
+  plays only a practice battle).
 
 **Scratch evidence (not committed).** A loopback probe played a 0-pill
 霧隱渡口 battle to a loss with and without 緩渡 at 302×640, 320×568 and
