@@ -62,6 +62,17 @@ export const GUIDE_HINTS = freeze([
     copy: ctx => ctx.coachSeen ? '燈在渡口等你，先落第一子。' : '燈在渡口等你，首局我陪你走。',
   },
   {
+    // T1.1 (docs/TUTORIAL-T1.md, T1.1): after the first result, where to look next, in the one
+    // line home-start has before it (16 code points fit beside the seal at 302 px). The narrator
+    // speaks: a first battle may have been practice or the arena, so the guardian may not have
+    // been met, and this points to the game's own pages, not to his ferry. It says where things
+    // are and asks for nothing: 修練 spends only when the player presses 修練升級 (DN4).
+    id: 'home-next', channel: 'screen', scene: key => key === 'home', voice: 'narrator', lasts: 'condition',
+    slot: { replace: '.lobby-route > p', remove: [], requires: '.lobby-continue[data-action="continue-journey"]' },
+    when: ctx => [1, 2].includes(ctx.profile?.stats?.played) && !ctx.profile.pending,
+    copy: () => '功課在任務手札，修練在同行記。',
+  },
+  {
     id: 'arena-first', channel: 'screen', scene: key => key === 'arena', voice: 'guardian', lasts: 'condition',
     slot: { replace: '.arena-lobby-copy > .arena-fairness', remove: [], requires: null },
     when: ctx => isFirstVisit(ctx.profile),

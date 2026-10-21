@@ -99,9 +99,9 @@ const withPlayed = (profile, played) => ({ ...profile, stats: { ...profile.stats
 const codePoints = text => [...text].length;
 function deepFreeze(value) { if (value && typeof value === 'object' && !Object.isFrozen(value)) { Object.values(value).forEach(deepFreeze); Object.freeze(value); } return value; }
 
-test('the registry: eight hints, each with a slot, a voice, a lifetime and short copy', () => {
+test('the registry: nine hints, each with a slot, a voice, a lifetime and short copy', () => {
   assert.ok(GUIDE_HINTS.length >= 6 && GUIDE_HINTS.length <= 10, `${GUIDE_HINTS.length} hints`);
-  assert.equal(GUIDE_HINTS.length, 8);
+  assert.equal(GUIDE_HINTS.length, 9, 'T1\'s eight and T1.1\'s home-next');
   assert.equal(new Set(GUIDE_HINTS.map(hint => hint.id)).size, GUIDE_HINTS.length, 'unique ids');
   for (const hint of GUIDE_HINTS) {
     assert.ok(['screen', 'dialog'].includes(hint.channel), hint.id);
@@ -132,7 +132,7 @@ test('conditions on a fresh journey and after the first ferry win', () => {
   assert.equal(activeDeckTopLevel(start), 1);
   assert.deepEqual(holds(start, { selectedNode: 'ember-pass' }).includes('world-level'), false, 'a locked node keeps its own lines');
   const after = won();
-  assert.deepEqual(holds(after), ['bag-copies', 'bag-decks', 'fire-mountain', 'market-printing', 'quests-why']);
+  assert.deepEqual(holds(after), ['bag-copies', 'bag-decks', 'fire-mountain', 'home-next', 'market-printing', 'quests-why']);
   assert.ok(holds(after, { selectedNode: 'jade-forest' }).includes('world-level'), '青玉森庭 asks Lv.2 of a Lv.1 deck');
   const uid = getActiveDeck(after).instanceIds[0], trained = setInstanceXP(after, uid, 80);
   assert.equal(activeDeckTopLevel(trained), 2);
@@ -157,6 +157,33 @@ test('conditions follow pending and abandoned battles, fire-mountain runs, deck 
   const opened = buyPack(after, { set: 'wx01', rng: () => 0.23, now }).profile;
   assert.equal(opened.wx01.opened, 1);
   assert.equal(holds(opened).includes('market-printing'), false, 'one WX-01 pack opened');
+});
+
+test('home-next: after the first result, on 洞府, for the first and second finished battles only', () => {
+  const next = profile => holds(profile).includes('home-next');
+  const homeNext = GUIDE_HINTS.find(item => item.id === 'home-next'), homeStart = GUIDE_HINTS.find(item => item.id === 'home-start');
+  assert.equal(next(fresh()), false, 'no result yet: home-start speaks instead');
+  assert.equal(next(abandonBattle(begun().profile)), false, 'an abandoned first battle is no result');
+  for (const [label, profile] of [['a ferry win', finished()], ['a ferry loss', finished('opponent')], ['a first practice', finished('player', { kind: 'practice' })], ['a first arena draw', finished('draw', { kind: 'arena' })]]) {
+    assert.equal(profile.stats.played, 1, label);
+    assert.equal(next(profile), true, `${label}: it shows`);
+  }
+  assert.equal(next(withPlayed(finished(), 2)), true, 'the second result');
+  assert.equal(next(withPlayed(finished(), 3)), false, 'the third retires it');
+  assert.equal(next(begun(finished(), { kind: 'practice' }).profile), false, 'a battle in progress: 繼續對局 is the next step');
+  assert.deepEqual(guideHints({ profile: finished(), key: 'world', selectedNode: 'mist-gate' }, 'screen').map(item => item.id).includes('home-next'), false, '洞府 only');
+  // Newcomers only, never beside home-start: it shares home-start's line.
+  assert.deepEqual({ ...homeNext.slot, remove: [...homeNext.slot.remove] }, { ...homeStart.slot, remove: [...homeStart.slot.remove] });
+  for (let played = 0; played <= NEWCOMER_BATTLES + 2; played++) for (const profile of [withPlayed(fresh(), played), withPlayed(begun().profile, played)]) {
+    const ids = holds(profile);
+    assert.ok(!(ids.includes('home-start') && ids.includes('home-next')), `played ${played}: one line, one hint`);
+    if (ids.includes('home-next')) assert.ok(isNewcomer(profile), `played ${played}: newcomers only`);
+  }
+  // The narrator, a condition hint, and the copy the owner reviews (13–25 code points; one line at 302 px).
+  assert.equal(homeNext.voice, 'narrator');
+  assert.equal(homeNext.lasts, 'condition');
+  assert.equal(homeNext.copy({}), '功課在任務手札，修練在同行記。');
+  assert.ok(codePoints(homeNext.copy({})) >= 13 && codePoints(homeNext.copy({})) <= 25);
 });
 
 test('fire-mountain: the copy states the recovery a won battle applies, from the same floor', () => {
