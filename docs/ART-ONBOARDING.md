@@ -1,6 +1,6 @@
 # Onboarding, tutorial and key art — provenance record
 
-Status: `proposal · 2026-10-20`; the ArtCraft store gate was
+Status: `proposal · 2026-10-20`; the ArtCraft 上架 gate was
 [decided on 2026-10-21](#artcraft-what-is-known-and-what-is-pending). Nothing
 listed here has been briefed, generated or committed. This file names the planned onboarding, tutorial and
 key art, sets out the fields each selected image fills in, and records what is
@@ -127,19 +127,23 @@ signed in to or generated for this record.
   not been checked one by one.
 - **Written confirmation before 上架 · decided 2026-10-21.** Mindicraft
   Limited is the App Store publisher ([IOS-FIRST-FLIGHT](IOS-FIRST-FLIGHT.md)).
-  The owner decided on 2026-10-21 that no ArtCraft output goes 上架, meaning
-  it ships in a store build or appears in a store listing, until Storyteller
-  confirms in writing that Mindicraft may use the outputs commercially.
-  Committing an output to this repository before then is allowed. The reason:
-  the confirmation is about Mindicraft's commercial use, and a store build or
-  listing is where that use begins. The confirmation has not been requested or
+  Asked whether Storyteller's written confirmation that Mindicraft may use
+  ArtCraft outputs commercially must come before an output is committed, or
+  only before 上架, the owner chose 上架 on 2026-10-21: no ArtCraft output
+  goes 上架 (on the store: its release or its listing) until that
+  confirmation is in hand, and committing an output to this repository before
+  then is allowed. This record's reading, not the owner's words, of why 上架
+  is the point: the confirmation concerns Mindicraft's commercial use, which
+  the store release starts. The confirmation has not been requested or
   received; the same request can ask whether uploads and outputs are kept
   private. Separately open: how Mindicraft holds the rights to Mythseal's art
   at all (App Review Guideline 5.2.1).
 - **Committing is publishing.** The repository is public
   ([AGENTS.md](../AGENTS.md)), so a committed output is published at once,
   which the decision above allows. Not yet asked: whether serving an output on
-  `mythseal.com` counts as 上架.
+  `mythseal.com` counts as 上架, and whether a store build that is neither
+  released nor listed does, such as an Xcode Cloud build for TestFlight
+  testers, made by the same `npm run build:native` as the release.
 - **ArtCraft's built-in library is third-party material.** Its 3D kits,
   characters, skyboxes and sounds include items whose rights are unclear (the
   NOTICE file on its main branch lists third-party material). Under the

@@ -119,8 +119,9 @@ Planned key art (K-01), the 守渡弈者 guide figure (T-01), the 霧隱渡口 s
 have a provenance record, [ART-ONBOARDING.md](ART-ONBOARDING.md), ready before
 any of them is generated. It also records what is known about ArtCraft, the
 planned tool for the illustrated 入門卷, and the written confirmation of
-commercial use that must come before any of its output ships in a store build
-or listing (decided 2026-10-21; committing before then is allowed).
+commercial use that must come before any of its output goes 上架, on the store
+(decided 2026-10-21; committing before then is allowed; whether a TestFlight
+build counts was not asked).
 No image has been generated or committed for it.
 
 ## Reference images · 2026-10-20
