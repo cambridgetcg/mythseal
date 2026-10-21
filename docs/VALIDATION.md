@@ -157,7 +157,7 @@ kept).
 names only the 執令者's journey experience and 歷練 only a card's EXP in the
 UI copy; two 經驗 strings it missed are fixed in `c77d5df`, below), `eba3c2f`
 (a glossary test for that) and `60194b1` (the
-`world-level` line); see [TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-yu).
+`world-level` line); see [TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-the-owner).
 Same environment; servers on 127.0.0.1: this checkout (`tools/serve.py`,
 4591), a fresh `git archive` export of `3f3d351` (4592, `BASELINE_URL`) and a
 copy of the store build's `dist/` (4593, `NATIVE_URL`). One browser suite at a

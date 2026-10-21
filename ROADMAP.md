@@ -536,7 +536,7 @@ fraction of a pixel at some widths.
 2026-10-20 onboarding decision, implemented on branch `t1/first-visit-hints`
 (from `main` `3f3d351`) as local commits; not pushed, merged or deployed, and
 not in the proposed v0.6.0 scope unless the owner adds it
-([TUTORIAL-T1 §8](docs/TUTORIAL-T1.md#8-open-questions-for-yu), question 9).
+([TUTORIAL-T1 §8](docs/TUTORIAL-T1.md#8-open-questions-for-the-owner), question 9).
 The rules-first trap is fixed: on a first visit the rules dialog's 知其道，入其局
 opens the 霧隱渡口 preparation, so a player who reads the rules first still
 gets D3's coached first battle. Eight 初見 hints for newcomers (fewer than ten

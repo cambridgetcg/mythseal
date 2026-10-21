@@ -63,7 +63,7 @@ documents ([review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21)); then
 the owner's 2026-10-21 decisions, **`ac61074`** (修為 names only the
 執令者's journey experience and 歷練 only a card's EXP in the UI copy),
 **`eba3c2f`** (its test) and **`60194b1`** (the `world-level` line), and
-their documents ([TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-yu));
+their documents ([TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-the-owner));
 then, from a review of those, **`c77d5df`** (two card-EXP strings still said
 經驗, and 旅程閣's copy said 歷練 for the 修為 total) and **`559c680`** (the
 glossary test no longer ties each word to one 詞彙 group). The draft privacy
@@ -110,7 +110,7 @@ page's list and the Latin 「EXP」 are left to the owner (§8).
   `test:coach`; n2 and PR #17 edit the end of the list). `tools/shell-smoke.mjs`
   is untouched (n2 edits it); add `'guide-hints'` to its `INPUT_IDS` after n2
   lands.
-- **Merging with n2** (`~/Games/mythseal-landscape`, uncommitted), beyond
+- **Merging with n2** (uncommitted), beyond
   `package.json` and `INPUT_IDS`:
   - n2's `expansion.css` stacks `.game-header-resources` in a column when
     its short-landscape rule moves the resume strip into the header row.

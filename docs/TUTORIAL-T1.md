@@ -13,12 +13,12 @@ lists the commits and every place the build departs from this text, with the
 measurement behind it; where they differ, the record and the code are current.
 A review of the build the same day led to the
 [review fixes](#review-fixes--2026-10-21); the sections above already carry
-them. Yu answered four of the open points on 2026-10-21; §8 records the
+them. The owner answered four of the open points on 2026-10-21; §8 records the
 answers, and the sections above carry them. [T1.1](#t11--2026-10-21), the
 same day, leads 任務手札's 前往 to the ferry on a first visit and adds a ninth
 hint, `home-next`, after the first result.
 
-**Owner decisions it implements (Yu, 2026-10-20):**
+**Owner decisions it implements (2026-10-20):**
 
 - Fix the rules-first trap. On a first visit, 知其道，入其局 leads to the
   霧隱渡口 first expedition preparation instead of 自由切磋. Everything else
@@ -38,7 +38,7 @@ Contents: [1 · Rules-first fix](#1-the-rules-first-fix) ·
 [4 · Header resources](#4-tappable-header-resources) ·
 [5 · State and modules](#5-state-and-module-design) ·
 [6 · Accessibility, Back, builds](#6-accessibility-motion-back-native-and-web-builds) ·
-[7 · Tests](#7-test-plan) · [8 · Open questions](#8-open-questions-for-yu) ·
+[7 · Tests](#7-test-plan) · [8 · Open questions](#8-open-questions-for-the-owner) ·
 [9 · Order and coordination](#9-implementation-order-coordination-and-scope) ·
 [T1.1](#t11--2026-10-21) ·
 [Appendix · facts checked](#appendix-facts-checked-in-code) ·
@@ -277,7 +277,7 @@ node and T1's route ever disagree.
      for a newcomer (within the first `NEWCOMER_BATTLES` battles; `bag-decks`
      and `market-printing` only while their own signals still hold; item 5,
      §5.6).
-   - Whether Yu wants a per-hint 知道了 anyway is open question 5.
+   - Whether the owner wants a per-hint 知道了 anyway is open question 5.
 3. **Inline, `role="note"`, never a Back layer.** A hint is page text in
    reading order.
    - It is not a dialog, overlay or live region, and it never takes focus.
@@ -368,7 +368,7 @@ Visual marker:
 `home-start` and `quests-why` were cut to one line. The table quotes the built
 copies; the spec's longer drafts and the measurements are in the
 [implementation record](#implementation-record--2026-10-21). `world-level`'s
-copy is Yu's of 2026-10-21 (§8).
+copy is the owner's of 2026-10-21 (§8).
 
 *T1.1 (2026-10-21):* a ninth hint, `home-next`, shares `home-start`'s slot on
 洞府 after the first and second finished battles, so the line below is
@@ -394,7 +394,7 @@ are in [T1.1](#t11--2026-10-21).
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `home-start` · 洞府 (`home`) | `navigation-ui.mjs:67` → `.lobby-route > p` (the realm's subtitle: on a first visit normally 霧隱渡口's 「渡船停在霧中，掌燈人正等你落下第一子。」, also shown in its preparation); keeps `.lobby-route-footnote` (「四回合對弈 · AI 守境人」; the spec removed it, implementation record item 1); **requires** `.lobby-continue[data-action="continue-journey"]`. When the lobby shows a locked node of another volume (`blocked`, `:60`), the button reads 先赴霧隱渡口 and the footnote 「渡口首勝後，展開此卷」 (`:67`): those already say what the hint would, so no hint is placed and the footnote stays | `isFirstVisit(profile)` | 守渡弈者 | Coach not yet ended: 「燈在渡口等你，首局我陪你走。」 (14). Coach ended (`coachMemory.seen()`): 「燈在渡口等你，先落第一子。」 (13) | condition · the first finished battle |
 | 2 | `arena-first` · 對弈, 問道 module (`arena`) | `adventure-ui.mjs:74` → `.arena-lobby-copy > .arena-fairness` (「保留同族共鳴與技能；出過牌的卡各得 12 EXP（勝）或 8 EXP（和／敗）。」) | `isFirstVisit(profile)` | 守渡弈者 | Coach not ended: 「擂台與切磋不急。先到遊歷的霧隱渡口，首局我陪你走一遍。」 (27). Ended: 「擂台與切磋不急。先到遊歷的霧隱渡口，落下第一子。」 (24) | condition · the first finished battle |
-| 3 | `world-level` · 遊歷, 此境 module (`world`) | `adventure-ui.mjs:31` → `.destination-panel > .destination-subtitle` (the node's four-character flavour line, for example 「聽風尋跡」). The footnote 「勝利後續寫下一境；每日首勝另有秘藏。」 stays | `isNewcomer(profile)`, the selected node is unlocked (`isNodeUnlocked`; a locked node keeps its 「先踏破…」 lines), and its 建議 Lv is above the highest card level in the active deck (`activeDeckTopLevel`) | narrator | 「建議 Lv 僅供參考，戰卡等級越高越穩。」 (20; Yu, 2026-10-21) | condition · the deck catches up, or the tenth finished battle |
+| 3 | `world-level` · 遊歷, 此境 module (`world`) | `adventure-ui.mjs:31` → `.destination-panel > .destination-subtitle` (the node's four-character flavour line, for example 「聽風尋跡」). The footnote 「勝利後續寫下一境；每日首勝另有秘藏。」 stays | `isNewcomer(profile)`, the selected node is unlocked (`isNodeUnlocked`; a locked node keeps its 「先踏破…」 lines), and its 建議 Lv is above the highest card level in the active deck (`activeDeckTopLevel`) | narrator | 「建議 Lv 僅供參考，戰卡等級越高越穩。」 (20; owner, 2026-10-21) | condition · the deck catches up, or the tenth finished battle |
 | 4 | `bag-copies` · 藏卡 我的戰卡 (`bag-cards`) | `backpack-ui.mjs:96` → `.bag-lead > .bag-overview` (持有卡牌 · 收集角色 · 已鎖定珍藏), outside every module and above the framed list. An opened character (`expandedCardId`) renders no lead, so no slot: the hint stays pinned to the visit and returns when the character closes | `isNewcomer(profile)` | narrator | 「同名卡可藏多張，每張各記編號、畫作與歷練；哪張出牌，哪張得歷練。」 (32) | visit |
 | 5 | `bag-decks` · 藏卡 三套牌組 (`bag-decks`) | the same `.bag-overview` (the lead also shows on 三套牌組). The full rule now sits only on the last tab, 編組說明 (`backpack-ui.mjs:85`, moved by `scene-adapters.mjs:29,36`) | `isNewcomer(profile)` and one deck slot (`deckSlots.length === 1`) | narrator | 「每套 8 位不同角色、總星數不超過 25；可存 3 套，設為出戰的才上陣。」 (37). The three numbers are rendered from `RULES.deckSize`, `RULES.starLimit` and `MAX_DECK_SLOTS` | visit |
 | 6 | `market-printing` · 市集, 秘匣 module, WX-01 offer (`market`) | `adventure-ui.mjs:62` → `.scene-wx01-offer .scene-pack-copy > p` (「16 位同行者，29 種版本。本畫、異畫與領契，記下不同瞬間。」). The slot exists only while 西行秘匣 is selected (the default); the classic packs keep their own description. The eyebrow, 西行秘匣 and 「每匣 3 張 · 至少一張靈品或神品」 stay | `isNewcomer(profile)` and no WX-01 pack opened yet (`wx01.opened === 0`) | narrator | 「凡、靈、神品是品階，本畫、異畫是畫作；皆不改變星數與能力。」 (29) | visit |
@@ -541,7 +541,7 @@ it becomes the list's last item.)
   - without a term (and in battle): THE ART OF THE DUEL /
     「入局，先知取捨。」, unchanged;
   - opened at a term: WORDS ON THE ROAD / 「識其名，知其用。」 (proposed;
-    the copy goes to Yu, open question 2).
+    the copy goes to the owner, open question 2).
 - It opens as `modal(content, 'rules-dialog', true, 'rules')`. Today the kind
   is `null`, which shares the viewport key `modal-dialog` with other dialogs.
   With its own kind, its module and page memory are its own.
@@ -975,7 +975,7 @@ The switch is the only control T1 adds besides the header buttons.
   again. As the eighth item the row still adds a page where `main`'s seven
   just filled one: 360×780, 393×780 and 412×790 (2 against 1), and 734×343,
   640×360 and 568×320 (8 against 7). guide-smoke records the page counts
-  against `main`. On 2026-10-21 Yu accepted the extra page on the three
+  against `main`. On 2026-10-21 the owner accepted the extra page on the three
   portrait sizes (§8); the landscape sizes were not asked. Its
   「設定會記在此裝置」 footnote stays true.
 - The checkbox's computed font size must stay ≥ 16 px, as N1 requires of
@@ -1322,15 +1322,15 @@ in installed Chrome, then WebKit as an iPhone 15):
 
 ---
 
-## 8. Open questions for Yu
+## 8. Open questions for the owner
 
-**Answered by Yu on 2026-10-21** (local commits `ac61074`, `eba3c2f`,
+**Answered by the owner on 2026-10-21** (local commits `ac61074`, `eba3c2f`,
 `60194b1`, then `c77d5df` and `559c680` after a review of them; everything
 else below stays open). Each answer is recorded at the scope of the question
-put to Yu:
+put to the owner:
 
 - **The guardian's tone (part of question 1):** asked whether the tone of
-  守渡弈者's two lines (§2.3) is right, Yu approved them as built. Whether the
+  守渡弈者's two lines (§2.3) is right, the owner approved them as built. Whether the
   split is right was not asked and stays open.
 - **修為 and 歷練 (question 4, its first part):** one name per concept. 修為
   is only the 執令者's journey experience, the total that sets 執令者 Lv;
@@ -1411,7 +1411,7 @@ put to Yu:
    do exactly that). And is 「明白了」 right when it opens at a term?
 8. **After the first result.** *Settled on 2026-10-21 with the onboarding
    research's recommendation: the lobby alternative, built as T1.1's
-   `home-next`; D3's 勝負已定 page stays frozen. Its copy is for Yu
+   `home-next`; D3's 勝負已定 page stays frozen. Its copy is for the owner
    ([T1.1](#t11--2026-10-21)).* A "where next" hint on D3's 勝負已定 page
    (pointing to 同行記, 任務手札 and 修練) would need D3's freeze lifted:
    T1.1? An alternative that leaves D3 alone: a lobby condition hint while
@@ -1460,7 +1460,7 @@ put to Yu:
 
 **Other hands.** Never touch their uncommitted worktrees:
 
-- **r1** (`~/Games/mythseal-review-fixes`) edits `app.mjs`'s `modal()`,
+- **r1** (another hand's local worktree) edits `app.mjs`'s `modal()`,
   `closeModal()`, `render()` and the dispatcher, plus `nav-stack.mjs`. As
   the UX review reported (not re-read for this revision):
   - its untracked `tests/support/app-controller.mjs` reads `app.mjs`'s
@@ -1472,7 +1472,7 @@ put to Yu:
     (after `refreshDaily`), and before `fitOverlay()` in `refreshOverlay`.
     T1's `closeModal` line sits beside `modalKind=null`, and its `render`
     lines sit after `app.innerHTML`.
-- **n2** (`~/Games/mythseal-landscape`) edits `scene-navigation.css`,
+- **n2** (another hand's local worktree) edits `scene-navigation.css`,
   `expansion.css`, `package.json` and `tools/shell-smoke.mjs`. It changes
   `scene-navigation.css:153,174` from `(min-width:701px)` to
   `(orientation:landscape)`, which restyles `.lobby-route>p`,
@@ -1493,7 +1493,7 @@ put to Yu:
     button`. It must select `.game-header button:visible`, because 執令者 Lv
     is now a button that is `display:none` below 1,051 px (and n2's own
     resume rule hides it too).
-  - For Yu: the give-way hides 金幣 and 靈砂 whenever the WX-01 receipt and a
+  - For the owner: the give-way hides 金幣 and 靈砂 whenever the WX-01 receipt and a
     pending battle or run show together on a short landscape screen, on
     市集 too, and also without n2. Keeping the wallet as a row alone failed
     only 568×320 with 47 px insets; a give-way limited to the narrowest
@@ -1536,7 +1536,7 @@ merge points.
   list frame, at any §7.2 size.
 - The profile, exports, backups and the native mirror are byte-for-byte as
   before.
-- Yu has answered §8's copy and voice questions.
+- The owner has answered §8's copy and voice questions.
 
 As with D3, the real test of the teaching is a playtest with first-time
 players on a phone, and automation does not replace it.
@@ -1587,7 +1587,7 @@ iPhone 15):
    at every size measured; 734×343 loses `main`'s overflow flag, and 568×320
    keeps it. Because the intro is now a list item, the 弈道 list has one more
    page where it was already full: 430×932 (1 → 2) and the landscape sizes
-   (5 → 6); Yu accepted the 430×932 page on 2026-10-21 (§8), and the
+   (5 → 6); the owner accepted the 430×932 page on 2026-10-21 (§8), and the
    landscape pages were not asked. The intro keeps
    its 11 px size inside the list.
 4. **Header buttons have no padding** (spec: `0 2px`). With it the header was
@@ -1616,10 +1616,10 @@ iPhone 15):
 10. **`tests/privacy-page.test.mjs`**' static guard now accepts
    `rulesModal`'s options argument (`function rulesModal\([^)]*\)`).
 
-**Copy questions added for Yu** (beside §8): the three cut copies in item 2;
+**Copy questions added for the owner** (beside §8): the three cut copies in item 2;
 whether hiding the eyebrow on short landscape screens is acceptable, or the
 tab row should move into the heading row there instead; and whether 弈道's
-extra page at 430×932 matters. On 2026-10-21 Yu approved the tone of the
+extra page at 430×932 matters. On 2026-10-21 the owner approved the tone of the
 guardian's two cut lines and accepted the extra page at 430×932 (§8); the cut
 `quests-why` line, the eyebrow and the landscape page counts stay open.
 
@@ -1658,7 +1658,7 @@ a local commit on this branch, and the sections above were updated to match:
    pages there. Now 「畫作 · 本畫／異畫等」: 4 and 5 pages (§3.3).
 7. **n2's stacked wallet** (`742e07c`). See §9: two `guide.css` rules for
    short landscape screens, the `landscape-smoke.mjs:394` change n2 needs,
-   and the trade-off for Yu.
+   and the trade-off for the owner.
 8. **Checks** (`93ff4f6`). test:guide now compares 聲息與節奏 with `main`
    (row height and page 1), checks the switch's caption on the veteran
    journey and that off then on still shows nothing there, checks every
@@ -1675,7 +1675,7 @@ The checks run after these fixes are in
 
 Two follow-ups from the onboarding research on the branch
 `research/onboarding-i18n` (PR #20, `docs/BENCHMARKS-HABBY-SUPERCELL.md`,
-packets O2 and O3), which Yu approved on 2026-10-21 as recommended. Built on
+packets O2 and O3), which the owner approved on 2026-10-21 as recommended. Built on
 this branch after `ae96aa2` as local commits: `6697c05` (O2), `ba3f1cb` (its
 coach-smoke case), `7443926` (O3), `e532631` (guide-smoke) and these
 documents. Not pushed, merged or deployed. Checks:
@@ -1693,7 +1693,7 @@ carries its task's counter as `data-field`, `adventure-ui.mjs:39`).
   `finishBattle` adds to for every kind of battle (`progression.mjs:645`),
   so the ferry battle counts toward them. Packet O2 names 今日落子;
   七日弈緣 is the same counter and the same trap on the 每週 tab. Limiting it
-  to 今日落子 is a one-line change if Yu prefers.
+  to 今日落子 is a one-line change if the owner prefers.
 - Not rerouted: 問道五弈 counts only arena battles, so the ferry would not
   advance it; its 前往 still opens 對弈, where `arena-first` speaks.
   山海行旅 already opens 遊歷.
@@ -1732,7 +1732,7 @@ carries its task's counter as `data-field`, `adventure-ui.mjs:39`).
   lines in Chromium (46.3 against 28.1 px) and lowered 繼續遊歷 by 9 px.
 - D3's 勝負已定 page is unchanged.
 
-**For Yu:** the copy. Primary: 「功課在任務手札，修練在同行記。」 (15), a map.
+**For the owner:** the copy. Primary: 「功課在任務手札，修練在同行記。」 (15), a map.
 Alternative: 「再上路前，看看任務手札與同行記。」 (16), an invitation that
 names 同行記 but not 修練. Both are one line at every tested size in both
 engines (the alternative measured by a scratch probe at the same widths).
