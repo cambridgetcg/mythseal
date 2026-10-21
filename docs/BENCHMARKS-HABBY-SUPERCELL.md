@@ -22,7 +22,7 @@ Owner 於 2026-10-21 提出：研究 Habby 與 Supercell 的 onboarding 流程�
 | Mythseal 前提 | 出處 | 對比較的影響 |
 | --- | --- | --- |
 | 免費遊戲，沒有營收、獲客、留存、產出或學習指標；商業化已退役 | [ROADMAP](../ROADMAP.md#freely-chosen-game-direction) 第 7–13 行；[AGENTS.md](../AGENTS.md) | 為留存或付費而設計的節奏（多日解鎖序列、首購禮包）沒有存在理由 |
-| 2026-10-21：owner 認為逼人課金不道德，並想探討交易、NFT 與 trading card 的路線。ROADMAP 2026-09-23 的「商業化已退役」照寫仍然有效；這條路線只在 `research/trading-chain` 分支上研究，沒有作出任何決定 | owner 2026-10-21；[ROADMAP](../ROADMAP.md#retired-collectible-launch-phases) | 不論研究結果如何，2.4 與 3.5 點名的壓力手法都不採用；本文的判斷以上一行的現行前提為準 |
+| 2026-10-21：owner 認為逼人課金不太道德，並表示想走交易、NFT 與 trading card 的路線；要先弄清楚的是怎樣打通區塊鏈玩法、登入與授權流程（auth flow），以及實際交易的 gas 費怎樣處理。這三個問題由 `research/trading-chain` 分支研究，有答案之前不作任何決定；ROADMAP 2026-09-23 的「商業化已退役」照寫仍然有效 | owner 2026-10-21；[ROADMAP](../ROADMAP.md#retired-collectible-launch-phases) | 不論研究結果如何，2.4 與 3.5 點名的壓力手法都不採用；本文的判斷以上一行的現行前提為準 |
 | 沒有 IAP、廣告、體力；卡包只用賺得的金幣；包率在遊戲內公開 | `adventure-ui.mjs:63`；`progression.mjs:56`；[PROGRESSION](PROGRESSION.md) 第 72 行；[CAMPAIGN-AND-EVENTS](CAMPAIGN-AND-EVENTS.md) 第 107 行 | 兩家的營利壓力手法逐項點名，但不建議採用 |
 | 不做倒數、near-miss、稀缺倒計時 | [WX01-DROP-RATES](WX01-DROP-RATES.md) 第 320–322 行；[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 LZ-E 項 | 同上 |
 | 沒有遙測：手機版私隱頁草稿寫明沒有帳號、廣告、分析或追蹤 | `privacy.html:31,39` | 兩家用 A/B 測試與留存數據調 onboarding；Mythseal 的評估途徑是真人試玩（[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 Acceptance 段與 First battle teaching (D3) status 段） |

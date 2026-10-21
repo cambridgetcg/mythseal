@@ -148,7 +148,7 @@ this index.
 | [Mobile field notes](MOBILE-FIELD-NOTES.md) | Dated evidence for every mobile run, console step and review, each with a "pay attention to" lesson | `record`, dated per entry |
 | [iOS first flight](IOS-FIRST-FLIGHT.md) | Every change on the `ios/first-flight` branch (PR #13 merged and fixed for Mindicraft, Xcode Cloud and native saves), its reason and the ladder rung it reached | `record · 2026-10-20` · branch only, not merged |
 | [Content release pipeline](CONTENT-RELEASE-PIPELINE.md) | Art versions, animation budget and compatible release manifests (中文) | `proposal · 2026-09-21` |
-| [Multi-language plan](I18N-PLAN.md) | Languages, with the Habby/Supercell language tables as reference, string catalogue, locale selection, `<html lang>`, fonts, per-locale layout budgets, stable save identities, translation pipeline (Claude drafts with provenance, the owner reviews), store localization, phases L0–L3 then languages by popularity, costs, risks and owner decisions (中文) | `proposal · 2026-10-21`; its §9 answered by the owner the same day (first wave English and 簡中; agent's picks marked); not in v0.6.0; nothing implemented |
+| [Multi-language plan](I18N-PLAN.md) | Languages, with the Habby/Supercell language tables as reference, string catalogue, locale selection, `<html lang>`, fonts, per-locale layout budgets, stable save identities, translation pipeline (Claude drafts with provenance; reviewers proposed, awaiting the owner), store localization, phases L0–L3 then languages by popularity, costs, risks and owner decisions (中文) | `proposal · 2026-10-21`; its §9 answered by the owner the same day (first wave English and 簡中; agent's picks marked); not in v0.6.0; nothing implemented |
 
 ## Retired collectible research
 
