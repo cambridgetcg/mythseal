@@ -1,6 +1,6 @@
 # Habby 與 Supercell：新手流程與遊戲設計對照 · 2026-10-21
 
-**狀態：** 第 1–5 節是 `record · 2026-10-21`（公開資料考據，所有來源均於 2026-10-21 讀取）；第 6–8 節的 Mythseal 判斷與候選工作包是 `proposal · 2026-10-21`。沒有實作、合併或部署任何東西。Mythseal 程式碼引用以 `main` `3f3d351` 為準；`t1:` 開頭的引用指 `t1/first-visit-hints`（draft PR #18）已推送的 `0675b08` 上的檔案。本分支自己也改了 ROADMAP，所以 ROADMAP 引用用章節錨點與段落名，而不用行號：行號在合併時會再移動。
+**狀態：** 第 1–5 節是 `record · 2026-10-21`（公開資料考據，所有來源均於 2026-10-21 讀取）；第 6–8 節的 Mythseal 判斷與候選工作包是 `proposal · 2026-10-21`。沒有實作、合併或部署任何東西。Mythseal 程式碼引用以 `main` `3f3d351` 為準；`t1:` 開頭的引用指 `t1/first-visit-hints`（draft PR #18）已推送的 `0675b08` 上的檔案。本分支自己也改了 ROADMAP，所以 ROADMAP 引用用章節錨點與段落名，而不用行號：行號在合併時會再移動。Owner 於 2026-10-21 回答了第 8 節的七項決定，答案以「已答」記在各題之下；第 1 節的前提表同日加了一行。
 
 Owner 於 2026-10-21 提出：研究 Habby 與 Supercell 的 onboarding 流程與局內設計，並以這兩家公司為參照，把多語言支援列入路線圖。多語言部分另見 [I18N-PLAN.md](I18N-PLAN.md)；本文只在第 4 節第 10 點提及兩家的上架語言時序。
 
@@ -22,6 +22,7 @@ Owner 於 2026-10-21 提出：研究 Habby 與 Supercell 的 onboarding 流程�
 | Mythseal 前提 | 出處 | 對比較的影響 |
 | --- | --- | --- |
 | 免費遊戲，沒有營收、獲客、留存、產出或學習指標；商業化已退役 | [ROADMAP](../ROADMAP.md#freely-chosen-game-direction) 第 7–13 行；[AGENTS.md](../AGENTS.md) | 為留存或付費而設計的節奏（多日解鎖序列、首購禮包）沒有存在理由 |
+| 2026-10-21：owner 認為逼人課金不道德，並想探討交易、NFT 與 trading card 的路線。ROADMAP 2026-09-23 的「商業化已退役」照寫仍然有效；這條路線只在 `research/trading-chain` 分支上研究，沒有作出任何決定 | owner 2026-10-21；[ROADMAP](../ROADMAP.md#retired-collectible-launch-phases) | 不論研究結果如何，2.4 與 3.5 點名的壓力手法都不採用；本文的判斷以上一行的現行前提為準 |
 | 沒有 IAP、廣告、體力；卡包只用賺得的金幣；包率在遊戲內公開 | `adventure-ui.mjs:63`；`progression.mjs:56`；[PROGRESSION](PROGRESSION.md) 第 72 行；[CAMPAIGN-AND-EVENTS](CAMPAIGN-AND-EVENTS.md) 第 107 行 | 兩家的營利壓力手法逐項點名，但不建議採用 |
 | 不做倒數、near-miss、稀缺倒計時 | [WX01-DROP-RATES](WX01-DROP-RATES.md) 第 320–322 行；[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 LZ-E 項 | 同上 |
 | 沒有遙測：手機版私隱頁草稿寫明沒有帳號、廣告、分析或追蹤 | `privacy.html:31,39` | 兩家用 A/B 測試與留存數據調 onboarding；Mythseal 的評估途徑是真人試玩（[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 Acceptance 段與 First battle teaching (D3) status 段） |
@@ -190,7 +191,7 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 
 ## 7. 候選工作包（proposal）
 
-這些只是候選，不是工作指令。每一項都要 owner 選定後才開始，並遵守一個檔案一位作者。
+這些只是候選，不是工作指令。每一項都要 owner 選定後才開始，並遵守一個檔案一位作者。Owner 2026-10-21 的選擇記在第 8 節各題之下。
 
 **O1 · 首戰守衛的開局（AI 首回合仙丹問題）**
 - 關係：D3 的出口是至少三位新玩家的試玩；[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 First battle teaching (D3) status 段把限制 AI 首回合出丹列為試玩後的 owner 後備選項。
@@ -222,16 +223,26 @@ Habby 的旗艦作（Archero、Survivor!.io、Capybara Go!、Archero 2、Wittle 
 **O7 · 試玩紀錄格式**
 - 關係：D3 出口與 M4 驗收（[ROADMAP M4](../ROADMAP.md#m4--grow-the-game-presentation-and-competitive-play) 的 Acceptance 段）都靠真人試玩。
 - 建議：一頁表格，記錄到第一個結果的時間、在哪裡停下或迷路、能否解釋一次揭曉、能否指出哪張卡得到歷練，並在可能時觀察第二次遊玩。不加遙測。
+- 2026-10-21 起草為 [PLAYTEST-RECORD.md](PLAYTEST-RECORD.md)。
 
 ## 8. Owner 決定
 
+Owner 於 2026-10-21 明確選了第 1 項，其餘說「照建議」。第 3、4 項本文原本沒有建議，由 agent 選定並寫明理由，標為「agent 代選」，owner 可以推翻。
+
 1. **AI 首回合：** 維持「先試玩，後備方案留待之後」，還是現在就準備 O1 的具名保守守衛？
+   - **已答 · 2026-10-21：** 現在就準備 O1 的保守守衛，作為一個可審閱的工作包，在 `o1/gentle-guardian` 分支並行製作。準備好的包經 owner 審閱後才合併。
 2. **目的地：** O4 的 (A)、(B) 或 (C)？建議先 (A)，以試玩決定是否轉 (B)。
+   - **已答 · 2026-10-21：** 先 (A)，全部開放；若試玩顯示新玩家迷路，轉 (B)。迷路與否記在 [PLAYTEST-RECORD](PLAYTEST-RECORD.md) 的「在哪裡停下或迷路」一欄。
 3. **練習旁路：** O2 作為 T1.1 跟 T1 一起，還是等 D3 試玩？
+   - **已答 · 2026-10-21（agent 代選）：** O2 沒有建議，所以由 agent 選定導向：首次遊玩前，今日落子 的 前往 也導向霧隱渡口準備，與 T1 §1 的做法一致，而不是在切磋前提示。理由：同一個「首次」條件、同一個終點，玩家不用多讀一句；提示仍會讓人走進錯過引導的那一局。正在 PR #18 以 T1.1 製作。owner 可以推翻。
 4. **首勝後的指路放在哪裡：** 勝負已定 頁（要解凍 D3）還是洞府條件提示（T1 問題 8）？
+   - **已答 · 2026-10-21（agent 代選）：** O3 沒有建議，所以由 agent 選定洞府條件提示（T1 問題 8 的替代方案：`stats.played` 為 1–2 時指向 任務手札 與 修練）。理由：D3 保持凍結，它已測過的結果頁與 `shanhai.coach.v1` 都不用重開。正在 PR #18 以 T1.1 製作。owner 可以推翻。
 5. **入門卷的位置：** 可隨時打開的參考（建議），還是首次啟動時出現？
+   - **已答 · 2026-10-21：** 可隨時打開的參考，不擋在首戰之前（照建議）。
 6. **遙測：** 確認 onboarding 評估只用真人試玩，不加分析。
+   - **已答 · 2026-10-21：** 確認。只用真人試玩，不加遙測或分析；紀錄格式是 O7 的 [PLAYTEST-RECORD](PLAYTEST-RECORD.md)。
 7. **起始卡選擇：** 是否探討「自選一位歡迎同伴」？建議暫不做。
+   - **已答 · 2026-10-21：** 暫不做（照建議）。
 
 ## 9. 本次未確立
 
