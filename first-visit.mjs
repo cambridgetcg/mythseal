@@ -3,7 +3,7 @@
  * no storage of its own (createGuideMemory is handed one). */
 import { RULES } from './engine.mjs';
 import { MAX_DECK_SLOTS, getActiveDeck } from './collection.mjs';
-import { NODES, getExpansionSummary, isNodeUnlocked } from './progression.mjs';
+import { NODES, getExpansionSummary, isNodeUnlocked, ACTIVITY_PILL_FLOOR } from './progression.mjs';
 
 /** Device-local, beside shanhai.coach.v1 and shanhai.experience.v1: never in the profile, a
  * battle snapshot, an export, a backup or the native mirror. */
@@ -98,7 +98,9 @@ export const GUIDE_HINTS = freeze([
       const { activity } = getExpansionSummary(ctx.profile);
       return activity.unlocked && !activity.run && ctx.profile.expansion?.serial === 0;
     },
-    copy: () => '三戰相連：生命與仙丹帶到下一戰，戰間可選一項補給；敗或和即止，所得仍在。',
+    // The overview's own line below already says a loss or draw ends the run; this one gives
+    // the after-win recovery instead (progression.mjs settleActivity, expansion-ui.mjs rules).
+    copy: () => `三戰相連：生命與仙丹帶到下一戰，勝後生命 +2、仙丹至少補至 ${ACTIVITY_PILL_FLOOR}，再選一項補給。`,
   },
 ]);
 /** The dialog kinds that have hints: fitOverlay skips every other kind. */

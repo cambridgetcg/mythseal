@@ -4,13 +4,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CARDS, RULES, createMatch, resolveRound, previewMove, hasFactionBonus, getCard } from '../engine.mjs';
 import {
-  NODES, RARITIES, WEEKLY_TASKS, createProfile, beginBattle, finishBattle, startActivity, advanceActivity, getUpgradeCost, getHeroLevel, buyPack,
+  NODES, RARITIES, WEEKLY_TASKS, ACTIVITY_PILL_FLOOR, createProfile, beginBattle, finishBattle, startActivity, advanceActivity, getUpgradeCost, getHeroLevel, buyPack,
 } from '../progression.mjs';
 import { XP_THRESHOLDS, getInstanceLevel, setInstanceXP, mintInstance } from '../collection.mjs';
 import { previewInheritance } from '../inheritance.mjs';
 import { PRINT_TREATMENTS } from '../card-presentation.mjs';
 import { CAMPAIGN_NODES } from '../campaign-content.mjs';
 import { GLOSSARY, GLOSSARY_IDS, glossaryMarkup } from '../glossary.mjs';
+import { GUIDE_HINTS } from '../first-visit.mjs';
 
 const now = '2026-09-22T12:00:00.000Z';
 const text = id => GLOSSARY.find(entry => entry.id === id).text;
@@ -65,18 +66,23 @@ test('truth: battle rules and the numbers taken from them', () => {
   // 執令者 Lv: 1 + ⌊√(修為/100)⌋, so the stated thresholds are 100, 400 and 900.
   assert.deepEqual([99, 100, 399, 400, 899, 900, 1600].map(xp => getHeroLevel({ xp })), [1, 2, 2, 3, 3, 4, 5]);
   assert.match(text('hero-level'), /滿 100 為 Lv\.2、400 為 Lv\.3、900 為 Lv\.4/);
-  // 修練: Lv.L costs 120×L coins and 6×L 靈砂.
+  // 修練: at the current level L it costs 120×L coins and 6×L 靈砂, said in words.
   const profile = createProfile({ now }), uid = profile.instances[0].uid;
   assert.deepEqual((({ coins, dust }) => ({ coins, dust }))(getUpgradeCost(profile, uid)), { coins: 120, dust: 6 });
   assert.deepEqual((({ coins, dust }) => ({ coins, dust }))(getUpgradeCost(setInstanceXP(profile, uid, XP_THRESHOLDS[1]), uid)), { coins: 240, dust: 12 });
-  assert.match(text('card-level'), /120×L 金幣、6×L 靈砂/);
+  assert.match(text('card-level'), /付現有等級 ×120 金幣、×6 靈砂/);
+  assert.doesNotMatch(text('card-level'), /Lv\.L|×L/, 'no unexplained letter');
   // Levels come automatically with card EXP.
   assert.deepEqual(XP_THRESHOLDS.map(getInstanceLevel), [1, 2, 3, 4, 5]);
   assert.equal(getInstanceLevel(XP_THRESHOLDS[1] - 1), 1);
   assert.match(text('card-level'), /^Lv\.1–5：歷練夠即升級/);
   // Collection names come from the data.
   assert.equal(term('rarity'), `品階 · ${Object.values(RARITIES).map(rarity => rarity.name).join('／')}`);
-  for (const treatment of Object.values(PRINT_TREATMENTS)) assert.ok(term('printing').includes(treatment.name), treatment.name);
+  // 畫作's title names the first two treatments, as the market hint does, and says there are more.
+  const treatments = Object.values(PRINT_TREATMENTS).map(treatment => treatment.name);
+  assert.ok(treatments.length > 2);
+  assert.equal(term('printing'), `畫作 · ${treatments.slice(0, 2).join('／')}等`);
+  assert.ok(GUIDE_HINTS.find(hint => hint.id === 'market-printing').copy({}).includes(treatments.slice(0, 2).join('、')), 'the names the market hint uses');
 });
 
 test('truth: battle rewards, card EXP and the daily cache', () => {
@@ -109,7 +115,8 @@ test('truth: battle rewards, card EXP and the daily cache', () => {
 });
 
 test('truth: the fire mountain, tickets and seals', () => {
-  const settle = (profile, winner) => finishBattle(profile, { encounterId: profile.pending.id, winner, playedCardIds: profile.pending.playerDeck.slice(0, 1), finalResources: { hp: 12, pills: 12 }, now });
+  const settleWith = (profile, finalResources, winner = 'player') => finishBattle(profile, { encounterId: profile.pending.id, winner, playedCardIds: profile.pending.playerDeck.slice(0, 1), finalResources, now });
+  const settle = (profile, winner) => settleWith(profile, { hp: 12, pills: 12 }, winner);
   // A loss pays nothing; a win 60 coins, 3 (+2) 靈砂 and 30 修為, and 12 card EXP on own cards.
   const lost = settle(startActivity(ready(), { rng: () => 0.23, now }).profile, 'opponent');
   for (const field of ['coins', 'dust', 'xp']) assert.equal(lost.reward[field], 0, field);
@@ -117,6 +124,12 @@ test('truth: the fire mountain, tickets and seals', () => {
   const won = settle(startActivity(ready(), { rng: () => 0.23, now }).profile, 'player');
   assert.ok([60, 90].includes(won.reward.coins) && [3, 5].includes(won.reward.dust) && won.reward.xp === 30, JSON.stringify(won.reward));
   assert.deepEqual(cardXP(won), [12]);
+  // After a win the run keeps its life, plus 2, and its pills topped up to at least the floor the
+  // 仙丹 entry states; more than the floor stays.
+  const after = pills => settleWith(startActivity(ready(), { rng: () => 0.23, now }).profile, { hp: 9, pills }).profile.expansion.fireMountain.run;
+  assert.deepEqual((({ hp, pills }) => ({ hp, pills }))(after(1)), { hp: 11, pills: ACTIVITY_PILL_FLOOR });
+  assert.equal(after(ACTIVITY_PILL_FLOOR + 2).pills, ACTIVITY_PILL_FLOOR + 2);
+  assert.ok(text('pills').endsWith(`火焰山勝後至少補至 ${ACTIVITY_PILL_FLOOR}。`), text('pills'));
   // The first and third full clears of a week each give a ticket.
   let profile = ready();
   const tickets = [];
@@ -177,6 +190,10 @@ test('truth: resonance, initiative, 減力, 減攻 and 封鎖 through the engine
     if (difference) { assert.equal(state.initiative, difference > 0 ? 'player' : 'opponent'); compared++; }
   }
   assert.ok(compared > 10, 'unequal star sums were drawn');
+  // The sums compared are those of the hands: RULES.rounds cards each, the 四張 both entries name.
+  assert.equal(RULES.rounds, 4);
+  assert.equal(createMatch({ rng: () => 0.23 }).player.hand.length, RULES.rounds);
+  for (const id of ['initiative', 'stars']) assert.ok(text(id).includes('首回合') && text(id).includes('四張'), id);
   // An equal sum: one more rng draw after the two hands decides (< 0.5 is the player).
   const mirror = ['qingxiao', 'yaoheng', 'yanxin', 'duying', 'cuixian', 'yunya', 'chiling', 'cangjiao'];
   for (const [last, leader] of [[0.1, 'player'], [0.9, 'opponent']]) {

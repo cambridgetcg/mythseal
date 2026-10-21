@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMatch, RULES } from '../engine.mjs';
-import { createProfile, beginBattle, finishBattle, abandonBattle, startActivity, abandonActivity, buyPack } from '../progression.mjs';
+import { createProfile, beginBattle, finishBattle, abandonBattle, startActivity, abandonActivity, buyPack, ACTIVITY_PILL_FLOOR } from '../progression.mjs';
 import { getActiveDeck, saveInstanceDeck, setInstanceXP, MAX_DECK_SLOTS } from '../collection.mjs';
 import { coachStart } from '../battle-teaching.mjs';
 import { lobbyMarkup } from '../navigation-ui.mjs';
@@ -123,6 +123,15 @@ test('conditions follow pending and abandoned battles, fire-mountain runs, deck 
   const opened = buyPack(after, { set: 'wx01', rng: () => 0.23, now }).profile;
   assert.equal(opened.wx01.opened, 1);
   assert.equal(holds(opened).includes('market-printing'), false, 'one WX-01 pack opened');
+});
+
+test('fire-mountain: the copy states the recovery a won battle applies, from the same floor', () => {
+  const copy = GUIDE_HINTS.find(hint => hint.id === 'fire-mountain').copy({});
+  assert.equal(copy, `三戰相連：生命與仙丹帶到下一戰，勝後生命 +2、仙丹至少補至 ${ACTIVITY_PILL_FLOOR}，再選一項補給。`);
+  assert.doesNotMatch(copy, /敗或和/, 'the overview\'s own line already says a loss or draw ends the run');
+  const run = startActivity(won(), { rng: () => 0.23, now }).profile;
+  const after = finishBattle(run, { encounterId: run.pending.id, winner: 'player', playedCardIds: run.pending.playerDeck.slice(0, 1), finalResources: { hp: 9, pills: 1 }, now }).profile.expansion.fireMountain.run;
+  assert.deepEqual({ hp: after.hp, pills: after.pills, phase: after.phase }, { hp: 9 + 2, pills: ACTIVITY_PILL_FLOOR, phase: 'supply' });
 });
 
 test('veterans: ten finished battles see no hint, except a mountain never climbed', () => {
