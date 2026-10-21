@@ -6,9 +6,10 @@ import { createProfile, beginBattle, finishBattle, abandonBattle, startActivity,
 import { getActiveDeck, saveInstanceDeck, setInstanceXP, MAX_DECK_SLOTS } from '../collection.mjs';
 import { coachStart } from '../battle-teaching.mjs';
 import { lobbyMarkup } from '../navigation-ui.mjs';
+import { dailyMarkup } from '../adventure-ui.mjs';
 import {
-  FIRST_EXPEDITION, GUIDE_KEY, GUIDE_HINTS, GUIDE_DIALOG_KINDS, NEWCOMER_BATTLES, isFirstVisit, isNewcomer, rulesStartRoute,
-  guideScreenKey, activeDeckTopLevel, guideHints, hintMarkup, createGuideMemory,
+  FIRST_EXPEDITION, GUIDE_KEY, GUIDE_HINTS, GUIDE_DIALOG_KINDS, NEWCOMER_BATTLES, ANY_BATTLE_TASK_FIELD, isFirstVisit, isNewcomer, rulesStartRoute,
+  questGoRoute, guideScreenKey, activeDeckTopLevel, guideHints, hintMarkup, createGuideMemory,
 } from '../first-visit.mjs';
 
 const now = new Date('2026-10-20T12:00:00.000Z');
@@ -51,6 +52,39 @@ test('the route and D3 agree: the first-visit route starts the coach at its firs
   assert.equal(coachStart({ encounter: route, played: 0, match })?.step, 'card', 'D3 coaches the battle the rules lead to');
   // And the practice route is the one D3 leaves alone.
   assert.equal(coachStart({ encounter: rulesStartRoute(finished()), played: 0, match: createMatch({ rng: () => 0.23 }) }), null);
+});
+
+// ── T1.1: 任務手札's 前往 (docs/TUTORIAL-T1.md, T1.1) ─────────────────────────────────
+/** The 前往 buttons as 任務手札 renders them: each task's destination and counter. */
+const questButtons = (profile, tab) => dailyMarkup(profile, null, tab).split('class="task-row"').slice(1).flatMap(row => {
+  const title = row.match(/<h3>([^<]+)<\/h3>/)?.[1], button = row.match(/data-action="quest-go" data-id="([a-z]+)" data-field="([A-Za-z]+)"/);
+  return button ? [{ title, destination: button[1], field: button[2] }] : [];
+});
+const routes = (profile, tab) => Object.fromEntries(questButtons(profile, tab).map(({ title, ...button }) => [title, { ...questGoRoute(profile, button) }]));
+
+test('任務手札: on a first visit 今日落子 and 七日弈緣 lead to 霧隱渡口; every other 前往 keeps its place', () => {
+  const ferry = { kind: 'expedition', nodeId: 'mist-gate' }, go = destination => ({ kind: 'navigate', destination });
+  assert.deepEqual(routes(fresh(), 'daily'), { 今日落子: ferry, 山海行旅: go('world'), 星匣初啟: go('market') }, 'fresh, daily');
+  assert.deepEqual(routes(fresh(), 'weekly'), { 七日弈緣: ferry, 踏遍山海: go('world'), 問道五弈: go('arena') }, 'fresh, weekly: an arena-only task keeps 對弈');
+  assert.deepEqual(routes(abandonBattle(begun().profile), 'daily').今日落子, ferry, 'an abandoned first battle: still a first visit');
+  for (const [label, profile] of [['won', finished()], ['lost', finished('opponent')], ['practice', finished('player', { kind: 'practice' })], ['pending', begun().profile]]) {
+    assert.deepEqual(routes(profile, 'daily').今日落子, go('arena'), `${label}: 對弈, as before`);
+    assert.deepEqual(routes(profile, 'weekly').七日弈緣, go('arena'), `${label}: 對弈, as before`);
+  }
+  assert.deepEqual({ ...questGoRoute(fresh()) }, go(null), 'no task: nothing to reroute');
+  assert.ok(Object.isFrozen(questGoRoute(fresh(), { destination: 'arena', field: ANY_BATTLE_TASK_FIELD })));
+});
+
+test('任務手札: the rerouted tasks are the ones the ferry battle counts toward, and D3 coaches it', () => {
+  for (const kind of ['expedition', 'practice', 'arena']) {
+    const options = kind === 'expedition' ? { kind, nodeId: FIRST_EXPEDITION } : { kind };
+    const after = finished('opponent', options);
+    assert.equal(after.daily[ANY_BATTLE_TASK_FIELD], 1, `${kind}: every finished battle adds to the daily counter`);
+    assert.equal(after.weekly[ANY_BATTLE_TASK_FIELD], 1, `${kind}: and to the weekly one`);
+  }
+  assert.equal(finished('player', { kind: 'expedition', nodeId: FIRST_EXPEDITION }).weekly.arenaMatches, 0, 'the ferry does not count toward 問道五弈');
+  const route = questGoRoute(fresh(), { destination: 'arena', field: ANY_BATTLE_TASK_FIELD });
+  assert.equal(coachStart({ encounter: route, played: 0, match: createMatch({ mode: route.kind, rng: () => 0.23 }) })?.step, 'card');
 });
 
 // ── T1 hints (docs/TUTORIAL-T1.md §2) ─────────────────────────────────────────────

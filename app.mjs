@@ -40,7 +40,7 @@ import { prepareDialog } from './scene-dialogs.mjs';
 import { buyWX01Box, acknowledgeWX01Receipt, redeemWX01Print, claimWX01StoryPrint, setLeaderInstance } from './progression.mjs';
 import { BACK, createNavHistory, navLayers, navSignature, backDecision } from './nav-stack.mjs';
 import { attackFormula, costVariants, furyNote, planningHint, revealTip, coachStart, advanceCoach, coachCopy, createCoachMemory } from './battle-teaching.mjs';
-import { createGuideMemory, guideHints, guideScreenKey, hintMarkup, rulesStartRoute, GUIDE_DIALOG_KINDS } from './first-visit.mjs';
+import { createGuideMemory, guideHints, guideScreenKey, hintMarkup, rulesStartRoute, questGoRoute, GUIDE_DIALOG_KINDS } from './first-visit.mjs';
 import { glossaryMarkup, GLOSSARY_IDS } from './glossary.mjs';
 
 const app = document.querySelector('#app');
@@ -835,6 +835,15 @@ function prepareEncounter(kind='practice',nodeId=null,route='owned') {
   preparation={kind,nodeId,route};
   modal(`<div class="prep-content">${preparationContent()}</div>`,`encounter-prep${isMistGate(preparation)?' is-mist-prep':''}`,true,'preparation');
 }
+/** T1 and T1.1 (docs/TUTORIAL-T1.md §1, T1.1): a first visit's rules or 任務手札 lead to 霧隱渡口's
+ * preparation on 遊歷. navigate() removes the control that was tapped, so focus moves to the
+ * dock's 遊歷 first, and cancelling the preparation returns it there; nothing is written until
+ * 踏上渡口. */
+function openFirstExpedition(nodeId) {
+  selectedNode=nodeId;navigate('world');
+  app.querySelector('.game-dock [data-action="world"]')?.focus({preventScroll:true});
+  return prepareEncounter('expedition',nodeId);
+}
 function openPreparationDeck() {
   if(!preparation)return;
   const origin={screen,scroll:modalOrigin?.scroll??window.scrollY,focus:modalOrigin?.focus||captureFocus(app)};
@@ -1346,7 +1355,13 @@ document.addEventListener('click', event=>{
   if(action==='next-encounter')return prepareNextEncounter();
   if(action==='result-deck')return prepareNextEncounter({editDeck:true});
   if(action==='battle-menu')return requestNavigation('home');
-  if(action==='quest-go')return requestNavigation(id);
+  // T1.1: on a first visit, a task any battle counts toward leads to 霧隱渡口, as the rules do.
+  if(action==='quest-go'){
+    const latest=loadProfile(),route=questGoRoute(latest,{destination:id,field:button.dataset.field});
+    if(route.kind!=='expedition')return requestNavigation(route.destination);
+    if(economyBusy)return;
+    syncProfile(latest);return openFirstExpedition(route.nodeId);
+  }
   if(['home','collection','world','daily','market','arena','classics','bag','account'].includes(action))return requestNavigation(action);
   const accountActions = {
     'account-retry': () => account.init(),
@@ -1537,9 +1552,7 @@ document.addEventListener('click', event=>{
     syncProfile(loadProfile());
     const route=rulesStartRoute(profile);
     if(route.kind!=='expedition')return prepareEncounter();
-    selectedNode=route.nodeId;navigate('world');
-    app.querySelector('.game-dock [data-action="world"]')?.focus({preventScroll:true});
-    return prepareEncounter(route.kind,route.nodeId);
+    return openFirstExpedition(route.nodeId);
   }
   if(action==='end-home')return navigate('home');
   // WebKit does not focus a clicked button; record the origin so closing returns to it.

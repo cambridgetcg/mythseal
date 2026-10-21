@@ -24,6 +24,18 @@ export function rulesStartRoute(profile) {
     ? { kind: 'expedition', nodeId: FIRST_EXPEDITION }
     : { kind: 'practice', nodeId: null });
 }
+/** The task counter every finished battle adds to (progression.mjs finishBattle), whatever its kind. */
+export const ANY_BATTLE_TASK_FIELD = 'matches';
+/** Where a task's 前往 in 任務手札 leads (docs/TUTORIAL-T1.md, T1.1): its own destination, except
+ * that on a first visit a task any finished battle counts toward (今日落子, 七日弈緣) leads to the
+ * 霧隱渡口 preparation, as the rules dialog does, so that first battle is still D3's coached one.
+ * A task only an arena battle counts toward keeps 對弈, where arena-first speaks. Decided at tap
+ * time from the profile alone. */
+export function questGoRoute(profile, { destination = null, field = null } = {}) {
+  return Object.freeze(field === ANY_BATTLE_TASK_FIELD && isFirstVisit(profile)
+    ? { kind: 'expedition', nodeId: FIRST_EXPEDITION }
+    : { kind: 'navigate', destination });
+}
 /** The screen channel's visit key (§2.1 item 6): the screen, or bag-cards / bag-decks. Unlike
  * app.mjs viewKey(), it does not change when the bag's layout changes or a character opens. */
 export const guideScreenKey = (screen, bagTab) => screen === 'bag' ? `bag-${bagTab === 'decks' ? 'decks' : 'cards'}` : screen;
