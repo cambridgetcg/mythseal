@@ -207,6 +207,13 @@ Back closes the preparation, and the next Back goes home. 稍後出發 leaves th
 player on 遊歷 with focus on the dock's 遊歷 button, and nothing is written
 until 踏上渡口.
 
+Since T1.1 (2026-10-21), 任務手札's 前往 takes the same route on a first visit
+for a task every finished battle counts toward (今日落子, 七日弈緣); 問道五弈's
+still opens 對弈, and after the first finished battle every 前往 leads where it
+did ([TUTORIAL-T1, T1.1](TUTORIAL-T1.md#t11--2026-10-21)). From 洞府
+(`modal:quests`) the tap pushes one entry; from 對弈
+(`destination:arena>modal:quests`) it replaces it.
+
 The dialog has its own kind and Back signature, `modal:rules`, and since T1 two
 modules: 弈道 and 詞彙. Opened from a header resource (金幣, 靈砂, or 執令者 Lv
 on screens 1,051 px and wider), it opens on 詞彙 at that term, focused, under

@@ -14,7 +14,9 @@ measurement behind it; where they differ, the record and the code are current.
 A review of the build the same day led to the
 [review fixes](#review-fixes--2026-10-21); the sections above already carry
 them. Yu answered four of the open points on 2026-10-21; §8 records the
-answers, and the sections above carry them.
+answers, and the sections above carry them. [T1.1](#t11--2026-10-21), the
+same day, leads 任務手札's 前往 to the ferry on a first visit and adds a ninth
+hint, `home-next`, after the first result.
 
 **Owner decisions it implements (Yu, 2026-10-20):**
 
@@ -38,6 +40,7 @@ Contents: [1 · Rules-first fix](#1-the-rules-first-fix) ·
 [6 · Accessibility, Back, builds](#6-accessibility-motion-back-native-and-web-builds) ·
 [7 · Tests](#7-test-plan) · [8 · Open questions](#8-open-questions-for-yu) ·
 [9 · Order and coordination](#9-implementation-order-coordination-and-scope) ·
+[T1.1](#t11--2026-10-21) ·
 [Appendix · facts checked](#appendix-facts-checked-in-code) ·
 [Critique log](#critique-log)
 
@@ -78,6 +81,7 @@ outside battle:
 One more first-visit path to practice stays open: in 任務手札, 今日落子's
 前往 leads to 對弈 (`adventure-ui.mjs:38`, `matches` → `arena`). The
 `arena-first` hint (§2.3) speaks there, but T1 does not reroute it.
+[T1.1](#t11--2026-10-21) does.
 
 D3's design says a first practice or arena battle shows no marks (the Ending
 row in [BATTLE-LAYOUT-PLAN](BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-10-12);
@@ -473,6 +477,7 @@ The 9 px `!important` rule for `.destination-panel .panel-footnote` on phones
 - **`arena-modes`** (the first draft's #3): see §2.3.
 - **A "where next" hint on the first match result.** It would sit on D3's
   勝負已定 page. T1 keeps D3 frozen, so this is open question 8.
+  [T1.1](#t11--2026-10-21) took the question's lobby alternative instead.
 
 ---
 
@@ -1390,7 +1395,10 @@ put to Yu:
    at tap time either way; a profile-dependent label could go stale in a
    dialog kept open across a restore (command-smoke and save-durability-smoke
    do exactly that). And is 「明白了」 right when it opens at a term?
-8. **After the first result.** A "where next" hint on D3's 勝負已定 page
+8. **After the first result.** *Settled on 2026-10-21 with the onboarding
+   research's recommendation: the lobby alternative, built as T1.1's
+   `home-next`; D3's 勝負已定 page stays frozen. Its copy is for Yu
+   ([T1.1](#t11--2026-10-21)).* A "where next" hint on D3's 勝負已定 page
    (pointing to 同行記, 任務手札 and 修練) would need D3's freeze lifted:
    T1.1? An alternative that leaves D3 alone: a lobby condition hint while
    `stats.played` is 1–2, pointing to 任務手札 and 修練.
@@ -1499,10 +1507,11 @@ merge points.
 - Design A;
 - any change to `battle-teaching.mjs`, the coach or `shanhai.coach.v1`;
 - the AI round-1 cap;
-- the "where next" hint (open question 8);
+- the "where next" hint (open question 8; since built as T1.1's
+  `home-next`, on 洞府);
 - showing the 修為 total in more places (open question 4; the 修為/歷練
   wording itself was settled on 2026-10-21, §8);
-- rerouting 任務手札's 今日落子 前往 (§1.1);
+- rerouting 任務手札's 今日落子 前往 (§1.1; since done in T1.1);
 - locking destinations behind progress.
 
 **Acceptance for T1:**
@@ -1645,6 +1654,75 @@ a local commit on this branch, and the sections above were updated to match:
 
 The checks run after these fixes are in
 [VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
+
+---
+
+## T1.1 · 2026-10-21
+
+Two follow-ups from the onboarding research on the branch
+`research/onboarding-i18n` (PR #20, `docs/BENCHMARKS-HABBY-SUPERCELL.md`,
+packets O2 and O3), which Yu approved on 2026-10-21 as recommended. Built on
+this branch after `ae96aa2` as local commits: `6697c05` (O2), `ba3f1cb` (its
+coach-smoke case), `7443926` (O3), `e532631` (guide-smoke) and these
+documents. Not pushed, merged or deployed. Checks:
+[VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
+
+**O2 · 任務手札's 前往 on a first visit.** §1.1 left one path from a first
+visit to practice: 今日落子's 前往 opened 對弈, where a finished practice
+match sets `stats.played` and D3's marks never start. Now, on a first visit
+(`isFirstVisit`, the lobby's predicate), the 前往 of a task that every
+finished battle counts toward opens the 霧隱渡口 preparation on 遊歷
+(`questGoRoute`, `first-visit.mjs:34`, decided at tap time; the button
+carries its task's counter as `data-field`, `adventure-ui.mjs:39`).
+
+- Which tasks: 今日落子 and 七日弈緣. Both count `matches`, which
+  `finishBattle` adds to for every kind of battle (`progression.mjs:645`),
+  so the ferry battle counts toward them. Packet O2 names 今日落子;
+  七日弈緣 is the same counter and the same trap on the 每週 tab. Limiting it
+  to 今日落子 is a one-line change if Yu prefers.
+- Not rerouted: 問道五弈 counts only arena battles, so the ferry would not
+  advance it; its 前往 still opens 對弈, where `arena-first` speaks.
+  山海行旅 already opens 遊歷.
+- As §1.3: the rules route and this one share `openFirstExpedition`
+  (`app.mjs:842`). Focus moves to the dock's 遊歷, 稍後出發 leaves the
+  player there, and nothing is written until 踏上渡口. While another action
+  is saving (`economyBusy`), the tap does nothing. Back: from 洞府
+  (`modal:quests`, depth 1) the tap pushes one entry; from 對弈
+  (`destination:arena>modal:quests`, depth 2) it replaces it. Either way
+  Back closes the preparation and the next Back goes home.
+- After the first finished battle, every 前往 leads where it did before.
+
+**O3 · `home-next`, a ninth hint.**
+
+| id · scene | Slot | Condition | Voice | Copy | Lasts |
+| --- | --- | --- | --- | --- | --- |
+| `home-next` · 洞府 (`home`) | `home-start`'s: `.lobby-route > p`, **requires** `.lobby-continue[data-action="continue-journey"]` (so none beside 繼續對局 or 先赴霧隱渡口) | `stats.played` is 1 or 2, no `pending` | narrator | 「功課在任務手札，修練在同行記。」 (15) | condition · the third finished battle |
+
+- **Why the narrator.** A first result may come from practice or the arena,
+  so the player may never have met 守渡弈者. The line points to the game's
+  own pages, not to his ferry, which is the narrator's side of §2.2's
+  split. It also keeps his voice scarce.
+- **Truth.** 任務手札 holds the daily and weekly 功課 (and 每日修練). 同行記
+  is each card's own page (headed 「…同行記」, `backpack-ui.mjs:112`), whose
+  修練與保管 module offers 修練升級 at its stated price. The line claims no
+  reward is waiting; the lobby's 任務手札 button already counts those.
+- **Spends nothing (DN4).** A hint holds no control. The line says where
+  things are and asks for nothing; 修練 costs coins and 靈砂 only when the
+  player presses 修練升級.
+- **Newcomers only, no taller.** It shows only after the first or second
+  finished battle, and takes the line `home-start` has before the first
+  result, so the two never show together. It is measured on 青玉森庭's line
+  (18 code points), the shortest of all 66 nodes' lines, so every other lobby
+  line is at least as tall. At 302 px, 16 code points fit beside the seal in
+  Chromium and 18 do not (WebKit fits 18). The first draft, 「功課在任務手札，歷練與修練在同行記。」 (18), took two
+  lines in Chromium (46.3 against 28.1 px) and lowered 繼續遊歷 by 9 px.
+- D3's 勝負已定 page is unchanged.
+
+**For Yu:** the copy. Primary: 「功課在任務手札，修練在同行記。」 (15), a map.
+Alternative: 「再上路前，看看任務手札與同行記。」 (16), an invitation that
+names 同行記 but not 修練. Both are one line at every tested size in both
+engines (the alternative measured by a scratch probe at the same widths).
+Also: should 七日弈緣 follow 今日落子 (above)?
 
 ---
 
