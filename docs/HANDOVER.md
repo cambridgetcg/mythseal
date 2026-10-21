@@ -59,7 +59,11 @@ on the branch **`t1/first-visit-hints`**, started from `main` **`3f3d351`**
 these documents; then the review fixes **`f08b0bb`** (the switch's caption),
 **`1399923`** (詞彙 and the `fire-mountain` hint), **`742e07c`** (the wallet
 under n2's header rule), **`93ff4f6`** (more test:guide checks) and their
-documents ([review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21)).
+documents ([review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21)); then
+the owner's 2026-10-21 decisions, **`ac61074`** (修為 names only the
+執令者's journey experience and 歷練 only a card's EXP, in every UI string),
+**`eba3c2f`** (its test) and **`60194b1`** (the `world-level` line), and
+their documents ([TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-yu)).
 **Status:** not pushed, merged or deployed; no hosted service was called.
 
 - **Changed:** on a first visit the rules dialog's 知其道，入其局 opens the
@@ -115,8 +119,9 @@ documents ([review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21)).
     `.game-header button:visible`: 執令者 Lv is a `display:none` button below
     1,051 px.
 - **Checked:** see [VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
-- **Open:** the owner's review of the copy and voice (TUTORIAL-T1 §8 and the
-  implementation record's added questions); whether the 初見提點 row should
+- **Open:** the rest of the owner's copy review (TUTORIAL-T1 §8 and the
+  implementation record's added questions; the voice, 修為/歷練, the page
+  counts and the `world-level` line were answered on 2026-10-21); whether the 初見提點 row should
   show only while a hint can still apply (§8 question 10); whether the
   wallet may give way whenever both resume actions show on short landscape
   screens, also on 市集 and also without n2 (TUTORIAL-T1 §9); a playtest

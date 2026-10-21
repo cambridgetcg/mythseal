@@ -153,6 +153,43 @@ kept).
   constant, which `npm test` and `test:expansion` cover), and everything in
   the list above.
 
+**Owner decisions of 2026-10-21, checks on `60194b1`.** `ac61074` (修為
+names only the 執令者's journey experience and 歷練 only a card's EXP, in
+every UI string), `eba3c2f` (a glossary test for that) and `60194b1` (the
+`world-level` line); see [TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-yu).
+Same environment; servers on 127.0.0.1: this checkout (`tools/serve.py`,
+4591), a fresh `git archive` export of `3f3d351` (4592, `BASELINE_URL`) and a
+copy of the store build's `dist/` (4593, `NATIVE_URL`). One browser suite at a
+time; every screenshot deleted from `test-results/` afterwards
+(`webkit-runtime` kept).
+
+- `npm test`: exit 0, **695/695** (one new, in `tests/glossary.test.mjs`).
+  `npm run audit:content`: exit 0, no findings. `git diff --check 0675b08`:
+  exit 0.
+- `npm run build`: exit 0, 95 public files, manifest `cde0b88d…fa07a`.
+  Against `0675b08`'s build, by path and `sha256`: changed `account-ui.mjs`,
+  `collection.mjs`, `first-visit.mjs`, `glossary.mjs`, `inheritance.mjs`,
+  `inheritance-ui.mjs`, `local-commands.mjs`, `progression.mjs` and
+  `save-ui.mjs`; every other asset identical. `npm run build:native`: exit 0,
+  92 public files, manifest `1fb47c3e…8593e`; the same changes without
+  `account-ui.mjs`, which the store build does not ship.
+- `npm run test:guide` with `BASELINE_URL` and `NATIVE_URL`: Chromium **21
+  checks**, WebKit **21 checks**, no page or console error. `world-level`'s
+  new line is one line, 17.6 px against its slot's 18.1, at all ten portrait
+  sizes in both engines (302×640 and 320×568 included), and is asserted at
+  844×390 and 734×343. Every other hint, 詞彙's pages, the rules dialog and
+  聲息與節奏 against `main` measure as in the review-fix run above.
+- `npm run test:saves` (the import comparison's 修為 label): 20 groups in
+  each engine. `tools/account-smoke.mjs` (旅程閣's label): 11 checks,
+  Chromium. `tools/inheritance-smoke.mjs` (the 同名傳承 result): 9 PASS lines
+  in each engine. `npm run test:commands` (the `maxed` blocker): 13 checks in
+  each. No smoke asserts the changed strings; `tests/progression.test.mjs`
+  and `tests/local-commands.test.mjs` do, and were updated.
+- **Not run** for these changes: `test:coach`, `test:back`, `test:shell`,
+  `test:viewport`, `test:expansion`, `test:native` and the other regression
+  suites (only strings changed in code they exercise), and everything in the
+  first list's "Not run".
+
 ## iOS first flight · 2026-10-20
 
 Branch `ios/first-flight` (local when these checks ran; later pushed as PR #17,

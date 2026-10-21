@@ -13,7 +13,8 @@ lists the commits and every place the build departs from this text, with the
 measurement behind it; where they differ, the record and the code are current.
 A review of the build the same day led to the
 [review fixes](#review-fixes--2026-10-21); the sections above already carry
-them.
+them. Yu answered four of the open points on 2026-10-21; §8 records the
+answers, and the sections above carry them.
 
 **Owner decisions it implements (Yu, 2026-10-20):**
 
@@ -358,8 +359,10 @@ Visual marker:
 ### 2.3 Registry (8 hints)
 
 *Built (2026-10-21):* `home-start` keeps the lobby footnote, and the copies of
-`home-start` and `quests-why` were cut to one line; see the
-[implementation record](#implementation-record--2026-10-21).
+`home-start` and `quests-why` were cut to one line. The table quotes the built
+copies; the spec's longer drafts and the measurements are in the
+[implementation record](#implementation-record--2026-10-21). `world-level`'s
+copy is Yu's of 2026-10-21 (§8).
 
 **How to read the table:**
 
@@ -378,13 +381,13 @@ Visual marker:
 
 | # | id · scene (key) | Slot: render site → replaced (removed, requires) | Condition (read-only) | Voice | Copy | Lasts · retires |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `home-start` · 洞府 (`home`) | `navigation-ui.mjs:67` → `.lobby-route > p` (the realm's subtitle: on a first visit normally 霧隱渡口's 「渡船停在霧中，掌燈人正等你落下第一子。」, also shown in its preparation); **removes** `.lobby-route-footnote` (「四回合對弈 · AI 守境人」); **requires** `.lobby-continue[data-action="continue-journey"]`. When the lobby shows a locked node of another volume (`blocked`, `:60`), the button reads 先赴霧隱渡口 and the footnote 「渡口首勝後，展開此卷」 (`:67`): those already say what the hint would, so no hint is placed and the footnote stays | `isFirstVisit(profile)` | 守渡弈者 | Coach not yet ended: 「燈在渡口等你。首局，我陪你一步步走。」 (18). Coach ended (`coachMemory.seen()`): 「燈在渡口等你。先落第一子，其餘慢慢來。」 (19) | condition · the first finished battle |
+| 1 | `home-start` · 洞府 (`home`) | `navigation-ui.mjs:67` → `.lobby-route > p` (the realm's subtitle: on a first visit normally 霧隱渡口's 「渡船停在霧中，掌燈人正等你落下第一子。」, also shown in its preparation); keeps `.lobby-route-footnote` (「四回合對弈 · AI 守境人」; the spec removed it, implementation record item 1); **requires** `.lobby-continue[data-action="continue-journey"]`. When the lobby shows a locked node of another volume (`blocked`, `:60`), the button reads 先赴霧隱渡口 and the footnote 「渡口首勝後，展開此卷」 (`:67`): those already say what the hint would, so no hint is placed and the footnote stays | `isFirstVisit(profile)` | 守渡弈者 | Coach not yet ended: 「燈在渡口等你，首局我陪你走。」 (14). Coach ended (`coachMemory.seen()`): 「燈在渡口等你，先落第一子。」 (13) | condition · the first finished battle |
 | 2 | `arena-first` · 對弈, 問道 module (`arena`) | `adventure-ui.mjs:74` → `.arena-lobby-copy > .arena-fairness` (「保留同族共鳴與技能；出過牌的卡各得 12 EXP（勝）或 8 EXP（和／敗）。」) | `isFirstVisit(profile)` | 守渡弈者 | Coach not ended: 「擂台與切磋不急。先到遊歷的霧隱渡口，首局我陪你走一遍。」 (27). Ended: 「擂台與切磋不急。先到遊歷的霧隱渡口，落下第一子。」 (24) | condition · the first finished battle |
-| 3 | `world-level` · 遊歷, 此境 module (`world`) | `adventure-ui.mjs:31` → `.destination-panel > .destination-subtitle` (the node's four-character flavour line, for example 「聽風尋跡」). The footnote 「勝利後續寫下一境；每日首勝另有秘藏。」 stays | `isNewcomer(profile)`, the selected node is unlocked (`isNodeUnlocked`; a locked node keeps its 「先踏破…」 lines), and its 建議 Lv is above the highest card level in the active deck (`activeDeckTopLevel`) | narrator | 「建議 Lv 僅供參考，修練越高越穩。」 (18) | condition · the deck catches up, or the tenth finished battle |
+| 3 | `world-level` · 遊歷, 此境 module (`world`) | `adventure-ui.mjs:31` → `.destination-panel > .destination-subtitle` (the node's four-character flavour line, for example 「聽風尋跡」). The footnote 「勝利後續寫下一境；每日首勝另有秘藏。」 stays | `isNewcomer(profile)`, the selected node is unlocked (`isNodeUnlocked`; a locked node keeps its 「先踏破…」 lines), and its 建議 Lv is above the highest card level in the active deck (`activeDeckTopLevel`) | narrator | 「建議 Lv 僅供參考，戰卡等級越高越穩。」 (20; Yu, 2026-10-21) | condition · the deck catches up, or the tenth finished battle |
 | 4 | `bag-copies` · 藏卡 我的戰卡 (`bag-cards`) | `backpack-ui.mjs:96` → `.bag-lead > .bag-overview` (持有卡牌 · 收集角色 · 已鎖定珍藏), outside every module and above the framed list. An opened character (`expandedCardId`) renders no lead, so no slot: the hint stays pinned to the visit and returns when the character closes | `isNewcomer(profile)` | narrator | 「同名卡可藏多張，每張各記編號、畫作與歷練；哪張出牌，哪張得歷練。」 (32) | visit |
 | 5 | `bag-decks` · 藏卡 三套牌組 (`bag-decks`) | the same `.bag-overview` (the lead also shows on 三套牌組). The full rule now sits only on the last tab, 編組說明 (`backpack-ui.mjs:85`, moved by `scene-adapters.mjs:29,36`) | `isNewcomer(profile)` and one deck slot (`deckSlots.length === 1`) | narrator | 「每套 8 位不同角色、總星數不超過 25；可存 3 套，設為出戰的才上陣。」 (37). The three numbers are rendered from `RULES.deckSize`, `RULES.starLimit` and `MAX_DECK_SLOTS` | visit |
 | 6 | `market-printing` · 市集, 秘匣 module, WX-01 offer (`market`) | `adventure-ui.mjs:62` → `.scene-wx01-offer .scene-pack-copy > p` (「16 位同行者，29 種版本。本畫、異畫與領契，記下不同瞬間。」). The slot exists only while 西行秘匣 is selected (the default); the classic packs keep their own description. The eyebrow, 西行秘匣 and 「每匣 3 張 · 至少一張靈品或神品」 stay | `isNewcomer(profile)` and no WX-01 pack opened yet (`wx01.opened === 0`) | narrator | 「凡、靈、神品是品階，本畫、異畫是畫作；皆不改變星數與能力。」 (29) | visit |
-| 7 | `quests-why` · 任務手札, 朝露 module (dialog `quests`) | `adventure-ui.mjs:51` → `.daily-gift > p` (「每日上線，收一份遠方捎來的心意。」), the only description of the 朝露 gift: `.daily-gift .eyebrow` is hidden there (`navigation.css:137`). The copy therefore names the daily gift as well as the tasks | `isNewcomer(profile)` | narrator | 「每日贈禮與功課所得的金幣、靈砂，正是開匣與修練所需。」 (26) | visit |
+| 7 | `quests-why` · 任務手札, 朝露 module (dialog `quests`) | `adventure-ui.mjs:51` → `.daily-gift > p` (「每日上線，收一份遠方捎來的心意。」), the only description of the 朝露 gift: `.daily-gift .eyebrow` is hidden there (`navigation.css:137`). The copy therefore names the daily gift as well as the tasks | `isNewcomer(profile)` | narrator | 「朝露與功課，助你開匣修練。」 (13) | visit |
 | 8 | `fire-mountain` · 火焰山三連戰, 山行 module (dialog `activity`) | `expansion-ui.mjs:44` → `.activity-arrival > p` (`FIRE_MOUNTAIN.description`, about 45 characters) | `getExpansionSummary(profile).activity`: `unlocked` and no `run`; and `profile.expansion.serial === 0`, which `startActivity` increments on every run start (`progression.mjs:737`), so a run abandoned before its first result also counts as tried | narrator | 「三戰相連：生命與仙丹帶到下一戰，勝後生命 +2、仙丹至少補至 8，再選一項補給。」 (40; the 8 is `ACTIVITY_PILL_FLOOR`). The loss rule is not repeated: the overview's own line below, 「不收門票，不限次數。每戰四回合；輸或和局結束本次山行。」, already gives it | visit · or the first run started |
 
 The first draft's ninth hint, `arena-modes`, is dropped: the arena page
@@ -448,12 +451,12 @@ width is cut shorter (§2.1), never allowed to grow the scene.
 
 | Hint | Slot at 302 px (estimate) | Copy (estimate) |
 | --- | --- | --- |
-| `home-start` | Subtitle 1–2 lines at 11–12 px (`scene-navigation.css:111,121,156`), plus the 10 px footnote and its 5–8 px margin | label and quote inline, 2 lines at the slot's size |
+| `home-start` | Subtitle 1–2 lines at 11–12 px (`scene-navigation.css:111,121,156`), plus the 10 px footnote and its 5–8 px margin | label and quote inline, 2 lines at the slot's size. Built: the subtitle alone, one line, with 13–14 code points (implementation record items 1–2) |
 | `arena-first` | 2 lines at 10 px / 1.7 (`scene-navigation.css:118`), about 24 characters a line | label and 27 characters, 2 lines |
-| `world-level` | Subtitle, 1 line at 11 px (12 px wider; `scene-navigation.css:61,113`) with 3 px letter-spacing (`adventure.css:54`) | 1 line at 11 px with letter-spacing 0: 18 code points plus the seal, about 215 px of a panel about 240 px wide |
+| `world-level` | Subtitle, 1 line at 11 px (12 px wider; `scene-navigation.css:61,113`) with 3 px letter-spacing (`adventure.css:54`) | 1 line at 11 px with letter-spacing 0: 20 code points plus the seal (2026-10-21 copy). Measured: one line, 17.6 px against the subtitle's 18.1, at every tested size in both engines |
 | `bag-*` | the overview's figure row, about 37 px | 2 lines at 11 px / 1.6 (`guide.css`), about 35 px |
 | `market-printing` | the WX-01 copy column, about 141 px wide (offer padding 12 px, grid `91px minmax(0,1fr)` with a 14 px gap, `scene-navigation.css:114`), p at 11 px / 1.7, about 12 characters a line: 3 lines | 29 code points, 3 lines |
-| `quests-why` | `.daily-gift > p` at 10 px in the quests dialog (`navigation.css:139`), 1–2 lines beside the reward figure | 26 code points, 2 lines |
+| `quests-why` | `.daily-gift > p` at 10 px in the quests dialog (`navigation.css:139`), 1–2 lines beside the reward figure | 26 code points, 2 lines. Built: 13 code points, 1 line (implementation record item 2) |
 | `fire-mountain` | 3–4 lines at 11 px (`expansion.css:96`) | 40 code points (37.5 display units: `+2` and `8` are ASCII), ≤ 3 lines; the slot's own description is 42 code points |
 
 The 9 px `!important` rule for `.destination-panel .panel-footnote` on phones
@@ -575,7 +578,7 @@ come from constants or data where they exist (§5.3). The sources are at
 | --- | --- | --- | --- |
 | `coins` | 金幣 | 開秘匣、購卡與修練所用；遊歷、擂台、火焰山勝、任務手札與寄售可得，切磋不得。 | Start 1,200: `progression.mjs:137`. Spent on packs, boxes, market, buyback, 修練 and training: `:334,349,376,483,510,550,559`. Earned: expedition win or not (`:646`), arena win or not (`:670`), fire-mountain wins only (`:769`; a loss pays nothing, `:793`), the 朝露 gift, tasks and the 三戰 chest (`:73-84`), sales (`:493`). No practice branch in `finishBattle` |
 | `dust` | 靈砂 | 修練戰卡所需，與金幣同付（見「修練」）；遊歷勝、擂台、火焰山勝與任務手札可得。 | `getUpgradeCost` `progression.mjs:533-538`. An expedition loss or draw pays 0 靈砂 (`:646`); the arena pays 3 or 1 (`:670`); a fire-mountain win 3 (+2 from the gift roll) (`:769-775`); gift, tasks and chest (`:73-84`). The only 靈砂 spends are 修練 and training (`:550,559`) |
-| `xp` | 修為 | 執令者的旅途閱歷，又稱旅途歷練；遊歷、擂台、火焰山勝與任務手札可得。 | `addReward` `progression.mjs:266-268`. Expedition win or not (`:646`), arena win or not (`:670`), fire-mountain wins (`:769`), gift, tasks and chest (`:73-84`). Used only by `getHeroLevel` (`:839-841`). Shown as 「旅途歷練」 in 旅程閣 (`account-ui.mjs:13`) and in the import comparison (`save-ui.mjs:119`). Not 歷練 alone, which the game uses for card EXP (`backpack-ui.mjs:28,112`). See open question 4 |
+| `xp` | 修為 | 執令者的旅途閱歷，累積決定其 Lv；遊歷、擂台、火焰山勝與任務手札可得。 | `addReward` `progression.mjs:266-268`. Expedition win or not (`:646`), arena win or not (`:670`), fire-mountain wins (`:769`), gift, tasks and chest (`:73-84`). Used only by `getHeroLevel` (`:839-841`). Shown as 修為 in 旅程閣 (`account-ui.mjs:13`) and in the import comparison (`save-ui.mjs:119`); before 2026-10-21 both said 「旅途歷練」 and this entry added 「又稱旅途歷練」. 歷練 names card EXP only (`backpack-ui.mjs:28,112`; open question 4, answered) |
 | `hero-level` | 執令者 Lv | 由修為而定：滿 100 為 Lv.2、400 為 Lv.3、900 為 Lv.4，如此類推；不加戰力。 | `getHeroLevel` = 1 + ⌊√(修為/100)⌋, `progression.mjs:839-841`, no cap; nothing in battle reads it |
 | `cache` | 秘藏 | 主線與故事各境，每日首勝另得一份秘藏：金幣、靈砂與修為；續卷沒有。 | `progression.mjs:660-664` (`!node.campaign`, once per node per day); `dailyReward` `:71`, `stories.mjs:51`; 續卷 nodes have none (`campaign-content.mjs:114`) |
 | `stars` | 星數 | 角色 2–5 星；每套合計不超過 25 星。首回合手上四張星多者先手；同攻時低星勝。 | Range from `CARDS` (2–5 at `3f3d351`, rendered from data); `RULES.starLimit` `engine.mjs:12`; first player `:177-179`, comparing the two drawn hands of `RULES.rounds` cards (`drawHand` `:143-151`), not the decks' totals; attack tie `:256-259`; rule 02 `app.mjs:837` |
@@ -960,7 +963,8 @@ The switch is the only control T1 adds besides the header buttons.
   again. As the eighth item the row still adds a page where `main`'s seven
   just filled one: 360×780, 393×780 and 412×790 (2 against 1), and 734×343,
   640×360 and 568×320 (8 against 7). guide-smoke records the page counts
-  against `main`. Its 「設定會記在此裝置」 footnote stays true.
+  against `main`; Yu accepted the extra page on 2026-10-21 (§8). Its
+  「設定會記在此裝置」 footnote stays true.
 - The checkbox's computed font size must stay ≥ 16 px, as N1 requires of
   every input. `tools/shell-smoke.mjs`'s `INPUT_IDS` should gain
   `'guide-hints'` once n2 has landed, since n2 edits that file (§9);
@@ -1300,13 +1304,32 @@ in installed Chrome, then WebKit as an iPhone 15):
 
 ## 8. Open questions for Yu
 
-1. **Voice.** Is the split right: 守渡弈者 for the two ferry hints, a narrator
-   for the other six? And may the guardian promise 「首局，我陪你一步步走」?
-   He is that battle's opponent, and the teaching comes from the table's
-   marks.
+**Answered by Yu on 2026-10-21** (local commits `ac61074`, `eba3c2f`,
+`60194b1`; everything else below stays open):
+
+- **Voice and the guardian's lines (question 1):** approved as built, the
+  split and both of 守渡弈者's lines (§2.3).
+- **修為 and 歷練 (question 4, its first part):** one name per concept. 修為
+  is only the 執令者's journey experience, the total that sets 執令者 Lv;
+  歷練 is only a card's EXP. UI copy that used either word for the other, or
+  an alias, now uses the one name, and a card at its top level says
+  已達最高等級, as the card page already did. Story and lore prose was left
+  alone. Showing the 修為 total in more places stays open.
+- **Page counts:** accepted. 聲息與節奏 takes two pages instead of one on
+  360×780, 393×780 and 412×790 (§5.6), and 弈道 two instead of one at
+  430×932 (implementation record item 3).
+- **`world-level`'s line:** 「建議 Lv 僅供參考，戰卡等級越高越穩。」 (§2.3),
+  measured no taller than the subtitle it replaces at every tested size.
+  What 建議 Lv means (question 3) is unchanged in code and stays open.
+
+1. **Voice.** *Answered 2026-10-21: approved as built.* Is the split right:
+   守渡弈者 for the two ferry hints, a narrator for the other six? And may the
+   guardian promise 「首局我陪你走」? He is that battle's opponent, and the
+   teaching comes from the table's marks.
 2. **Copy and tone.** Please review the 10 hint strings (§2.3), the 20
    definitions (§3.2) and the term-mode heading WORDS ON THE ROAD /
-   「識其名，知其用。」 (§3.1). Conventions questions:
+   「識其名，知其用。」 (§3.1); the guardian's two lines and `world-level`'s
+   are settled above. Conventions questions:
    - 着 as the game writes it;
    - 「Lv」 and 「EXP」 in Latin letters, as the UI shows them;
    - Arabic numerals in rules (8 位、25 星), as the deck editor writes them;
@@ -1319,7 +1342,10 @@ in installed Chrome, then WebKit as an iPhone 15):
      (`progression.mjs:720`).
 
    Was it meant as card Lv or 執令者 Lv? The hint avoids claiming either.
-4. **修為 means two things.**
+4. **修為 means two things.** *First part answered 2026-10-21 (above): the
+   card uses below now say 等級 or 歷練, and 旅程閣 and the import
+   comparison label the total 修為. The second part, where else to show the
+   total, stays open.*
    - Reward lines and the glossary use it for journey experience
      (`adventure-ui.mjs:10`; `expansion-ui.mjs:11,53`).
    - It means a card's level or EXP in visible copy and messages:
@@ -1457,7 +1483,8 @@ merge points.
 - any change to `battle-teaching.mjs`, the coach or `shanhai.coach.v1`;
 - the AI round-1 cap;
 - the "where next" hint (open question 8);
-- the 修為 wording fix and a 修為 total display (open question 4);
+- showing the 修為 total in more places (open question 4; the 修為/歷練
+  wording itself was settled on 2026-10-21, §8);
 - rerouting 任務手札's 今日落子 前往 (§1.1);
 - locking destinations behind progress.
 
@@ -1520,7 +1547,8 @@ iPhone 15):
    at every size measured; 734×343 loses `main`'s overflow flag, and 568×320
    keeps it. Because the intro is now a list item, the 弈道 list has one more
    page where it was already full: 430×932 (1 → 2) and the landscape sizes
-   (5 → 6). The intro keeps its 11 px size inside the list.
+   (5 → 6); Yu accepted the 430×932 page on 2026-10-21 (§8). The intro keeps
+   its 11 px size inside the list.
 4. **Header buttons have no padding** (spec: `0 2px`). With it the header was
    8 px wider than `main`'s at 302 px with 999,999 coins; without it the widths
    are equal there and at the cap. At the cap `main`'s header already
@@ -1550,7 +1578,9 @@ iPhone 15):
 **Copy questions added for Yu** (beside §8): the three cut copies in item 2;
 whether hiding the eyebrow on short landscape screens is acceptable, or the
 tab row should move into the heading row there instead; and whether 弈道's
-extra page at 430×932 matters.
+extra page at 430×932 matters. On 2026-10-21 Yu approved the guardian's two
+cut lines and accepted the extra page (§8); the cut `quests-why` line and the
+eyebrow stay open.
 
 ### Review fixes · 2026-10-21
 
@@ -1683,7 +1713,7 @@ point was checked against the code for this revision.
 
 | # | Point | Outcome |
 | --- | --- | --- |
-| 1 | 修為 defined with 歷練 | Applied: 「執令者的旅途閱歷，又稱旅途歷練…」 (§3.2). Correction: besides 旅程閣, the import comparison in both builds also labels it 旅途歷練 (`save-ui.mjs:119`) |
+| 1 | 修為 defined with 歷練 | Applied: 「執令者的旅途閱歷，又稱旅途歷練…」 (§3.2). Correction: besides 旅程閣, the import comparison in both builds also labels it 旅途歷練 (`save-ui.mjs:119`). (2026-10-21: the alias and both labels now say 修為 alone, §8) |
 | 2 | Open question 4 incomplete | Applied, with the same correction: the total is not shown only in web 旅程閣 |
 | 3 | "Only the played copy gets EXP" | Applied in `card-exp`, `bag-copies` and the truth lines |
 | 4 | Tickets per volume final | Applied |
