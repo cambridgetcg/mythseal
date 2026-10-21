@@ -17,7 +17,8 @@
  * a first visit with another volume's locked node keeps 「渡口首勝後，展開此卷」; 火焰山 is not
  * recorded while 牌組 is open; placement is idempotent; the switch turns hints off at once and
  * back on from the next visit, is absent in battle and keeps 16 px; a twelve-battle journey sees
- * no hint and writes no record; browsing writes only shanhai.guide.v1 and no profile byte; no
+ * no hint and writes no record, its switch's one-line caption names the newcomer bound, and off
+ * then on it still sees none; browsing writes only shanhai.guide.v1 and no profile byte; no
  * hint or guide write in battle; Back keeps its depth and goes home from a scene with a hint.
  * At 844×390 and 734×343 (items 17 and 18) the same layout checks are recorded as NOTE lines
  * when the control already flags, and asserted otherwise.
@@ -25,10 +26,12 @@
  * 詞彙: 金幣 and 靈砂 at every portrait size, and 執令者 Lv at 1280×800, open the rules dialog on
  * 詞彙 at that term, on its page and focused, under the term-mode heading; Back closes it and
  * focus returns to the button; the lobby's 弈道 link opens on 弈道 page 1 with the intro first,
- * even after the dialog was left on 詞彙; every definition fits two lines at 302 px. With
- * BASELINE_URL (a loopback server for main's checkout), the 弈道 module and list gain no
- * viewport-overflow flag main lacks and the list frame is never shorter, at every portrait size
- * and at 852×393 (an iPhone's landscape insets), 844×390 and 734×343; 667×375, 640×360 and
+ * even after the dialog was left on 詞彙; every definition fits two lines and every title one at
+ * 302 px. With BASELINE_URL (a loopback server for main's checkout), the 弈道 module and list gain
+ * no viewport-overflow flag main lacks and the list frame is never shorter, and 聲息與節奏's
+ * 初見提點 row is no taller than main's tallest setting and its page 1 holds as many items as
+ * main's (even without main, the row is no taller than the tallest other setting, at every
+ * size), at every portrait size and at 852×393 (an iPhone's landscape insets), 844×390 and 734×343; 667×375, 640×360 and
  * 568×320 are recorded only (n2's landscape work has not landed).
  *
  * Header: at every portrait size and 1280×800 every control is 44 × 44, none overlaps another,
@@ -205,13 +208,26 @@ const rulesState = page => page.evaluate(() => {
     focused: document.activeElement?.dataset.glossaryTerm ?? null, focusedVisible: visible(document.activeElement), glossaryPage: words?.dataset.page ?? null };
 });
 const termFits = page => page.evaluate(() => [...document.querySelectorAll('#overlay-root .glossary-term')].map(term => {
-  const text = term.querySelector('p'), style = getComputedStyle(text), range = document.createRange();
-  // Count lines by the text's own line boxes, so a hidden page item can be measured too.
-  const hidden = term.hidden; term.hidden = false; range.selectNodeContents(text);
-  const tops = new Set([...range.getClientRects()].map(rect => Math.round(rect.top)));
-  const lines = Math.round(text.getBoundingClientRect().height / parseFloat(style.lineHeight)); term.hidden = hidden;
-  return { id: term.dataset.glossaryTerm, lines: Math.max(lines, tops.size) };
+  // Count lines by each element's own line boxes, so a hidden page item can be measured too.
+  const count = node => {
+    const range = document.createRange(); range.selectNodeContents(node);
+    const tops = new Set([...range.getClientRects()].filter(rect => rect.width > 0).map(rect => Math.round(rect.top)));
+    return Math.max(Math.round(node.getBoundingClientRect().height / parseFloat(getComputedStyle(node).lineHeight)), tops.size);
+  };
+  const hidden = term.hidden; term.hidden = false;
+  const result = { id: term.dataset.glossaryTerm, lines: count(term.querySelector('p')), titleLines: count(term.querySelector('h3')) };
+  term.hidden = hidden;
+  return result;
 }));
+/** 聲息與節奏's paged list: pages, items on page 1, and each item's height with margins. The
+ * pager sizes every row by the tallest item (viewport.mjs measurePageCapacity). */
+const SETTINGS_LIST = page => page.evaluate(() => {
+  const list = document.querySelector('#overlay-root [data-viewport-list="experience-settings"]'); if (!list) return null;
+  const outer = node => { const hidden = node.hidden; node.hidden = false; const style = getComputedStyle(node), height = node.getBoundingClientRect().height + parseFloat(style.marginTop) + parseFloat(style.marginBottom); node.hidden = hidden; return height; };
+  const items = [...list.children], heights = items.map(outer), guide = items.findIndex(node => node.querySelector('#guide-hints'));
+  return { pages: Number(list.dataset.pageCount ?? 1), visible: items.filter(node => !node.hidden).length, total: items.length, tallest: Math.max(...heights),
+    guide: guide < 0 ? null : heights[guide], others: Math.max(...heights.filter((_, index) => index !== guide)) };
+});
 const RULES_FRAME = page => page.evaluate(() => {
   const list = document.querySelector('#overlay-root [data-viewport-list="rules"]'), module = list?.closest('[data-viewport-module]');
   return { frame: list?.closest('.viewport-list-frame')?.getBoundingClientRect().height ?? null, pages: list?.dataset.pageCount ?? null,
@@ -537,11 +553,28 @@ try {
     await tap(page, '#overlay-root .modal-close');
     assert.equal(await stored(page, GUIDE_KEY), null, 'no record written');
     assert.equal((await writes(page)).includes(GUIDE_KEY), false);
-    passed('a twelve-battle journey with a fire-mountain run tried shows no hint on any scene or dialog and never writes shanhai.guide.v1');
+    // The switch says the hints are for the first battles, in one line; off and on again, a
+    // veteran still sees none (the newcomer bound, docs/TUTORIAL-T1.md §2.1 item 5).
+    await tap(page, '.game-dock [data-action="home"]');
+    await tap(page, '.game-header [data-action="experience-settings"]');
+    await reveal(page, '#overlay-root #guide-hints');
+    const caption = await page.locator('#overlay-root .experience-field:has(#guide-hints) small').evaluate(node => {
+      const range = document.createRange(); range.selectNodeContents(node);
+      return { text: node.textContent, lines: new Set([...range.getClientRects()].filter(rect => rect.width > 0).map(rect => Math.round(rect.top))).size };
+    });
+    assert.match(caption.text, /^入門期間/, `veteran: the switch names its bound (${caption.text})`);
+    assert.equal(caption.lines, 1, 'veteran: the caption is one line');
+    const field = page.locator('#overlay-root #guide-hints');
+    await field.tap(); await settle(page); await field.tap(); await settle(page);
+    assert.deepEqual(await guideRecord(page), { seen: [] }, 'off then on leaves an empty record');
+    await tap(page, '#overlay-root .modal-close');
+    for (const destination of ['bag', 'market', 'world', 'arena', 'home']) { await tap(page, `.game-dock [data-action="${destination}"]`); await visit(`${destination}, hints back on`); }
+    passed('a twelve-battle journey with a fire-mountain run tried shows no hint on any scene or dialog and never writes shanhai.guide.v1; its switch reads 入門期間 in one line, and off then on still shows none');
     await release(page);
   }
 
   // ── 7. 詞彙 from the header, Back and focus, and 弈道's first page ─────────────────
+  const glossaryPages = [];
   for (const size of SIZE_FILTER) {
     const page = await open('fresh', { size }), at = size.label;
     for (const id of ['coins', 'dust']) {
@@ -562,11 +595,14 @@ try {
     assert.ok(rules.firstItem.startsWith('P:每局') && rules.firstVisible, `${at}: the intro is the list's first item (${rules.firstItem})`);
     assert.equal(rules.title, '入局，先知取捨。');
     assert.match(rules.action, /^知其道，入其局/);
+    await tap(page, '#overlay-root [data-viewport-action="module"][data-viewport-target="glossary"]');
+    glossaryPages.push(`${at} ${await page.locator('#overlay-root [data-viewport-list="glossary"]').getAttribute('data-page-count')}`);
     if (size.width === 302) {
-      await tap(page, '#overlay-root [data-viewport-action="module"][data-viewport-target="glossary"]');
       const fits = await termFits(page);
       assert.equal(fits.length, 20);
       for (const term of fits) assert.ok(term.lines <= 2, `302 px: ${term.id} fits two lines (${term.lines})`);
+      // The pager sizes every term by the tallest, so one wrapped title would cost every page a term.
+      for (const term of fits) assert.equal(term.titleLines, 1, `302 px: ${term.id}'s title fits one line (${term.titleLines})`);
     }
     await release(page);
   }
@@ -578,29 +614,40 @@ try {
     assertHeader(await headerClash(page), '1280x800');
     await release(page);
   }
-  passed(`詞彙: 金幣 and 靈砂 at ${SIZE_FILTER.length} portrait size${SIZE_FILTER.length > 1 ? 's' : ''} and 執令者 Lv at 1280×800 open the dialog on 詞彙 at their term, focused and on its page, under WORDS ON THE ROAD; Back closes it (one history entry) and returns focus to the button; the lobby's 弈道 opens on page 1 with the intro first even after 詞彙; every definition fits two lines at 302 px`);
+  passed(`詞彙: 金幣 and 靈砂 at ${SIZE_FILTER.length} portrait size${SIZE_FILTER.length > 1 ? 's' : ''} and 執令者 Lv at 1280×800 open the dialog on 詞彙 at their term, focused and on its page, under WORDS ON THE ROAD; Back closes it (one history entry) and returns focus to the button; the lobby's 弈道 opens on page 1 with the intro first even after 詞彙; every definition fits two lines and every title one at 302 px; 詞彙 pages: ${glossaryPages.join(', ')}`);
 
   // ── 8. The rules dialog against main ─────────────────────────────────────────────
   {
     const LANDSCAPES = [{ width: 852, height: 393, insets: { top: 0, right: 59, bottom: 21, left: 59 }, label: '852x393 (iPhone landscape insets)' },
       { width: 844, height: 390, insets: null, label: '844x390' }, { width: 734, height: 343, insets: null, label: '734x343' }];
     const RECORDED = [[667, 375], [640, 360], [568, 320]].map(([width, height]) => ({ width, height, insets: null, label: `${width}x${height}` }));
-    const rows = [];
+    const rows = [], settingsRows = [];
     for (const size of [...SIZE_FILTER, ...(process.env.GUIDE_SIZE ? [] : [...LANDSCAPES, ...RECORDED])]) {
-      const views = [];
+      const views = [], settingsViews = [];
       for (const url of [base, ...(baseline ? [baseline] : [])]) {
         const page = await open('fresh', { size, url });
         await tap(page, '.game-lobby [data-action="rules"]');
-        views.push(await RULES_FRAME(page)); await release(page);
+        views.push(await RULES_FRAME(page));
+        // 聲息與節奏 from the lobby: T1's switch is its eighth item.
+        await tap(page, '#overlay-root .modal-close');
+        await tap(page, '.game-header [data-action="experience-settings"]');
+        settingsViews.push(await SETTINGS_LIST(page)); await release(page);
       }
       const [mine, theirs] = views, row = `${size.label} ${mine.frame.toFixed(1)}${theirs ? `/${theirs.frame.toFixed(1)}` : ''} px, ${mine.pages}${theirs ? `/${theirs.pages}` : ''} pages${mine.flags.length ? `, flags ${mine.flags}` : ''}${theirs?.flags.length ? `, main flags ${theirs.flags}` : ''}`;
       rows.push(row);
+      const [ours, main] = settingsViews;
+      settingsRows.push(`${size.label} page 1 ${ours.visible}/${ours.total}${main ? ` (main ${main.visible}/${main.total})` : ''}, ${ours.pages}${main ? `/${main.pages}` : ''} pages, 初見提點 ${ours.guide.toFixed(1)} px against ${ours.others.toFixed(1)}${main ? ` (main tallest ${main.tallest.toFixed(1)})` : ''}`);
+      assert.ok(ours.guide <= ours.others + 0.5, `${size.label}: the 初見提點 row (${ours.guide} px) is no taller than the other settings (${ours.others} px)`);
       if (!theirs || RECORDED.includes(size)) continue;
       assert.deepEqual(mine.flags.filter(flag => !theirs.flags.includes(flag)), [], `${size.label}: the rules dialog gains no overflow flag main lacks`);
       assert.ok(mine.frame >= theirs.frame - 0.5, `${size.label}: the 弈道 list frame is not shorter than main's (${mine.frame} against ${theirs.frame})`);
+      assert.ok(ours.guide <= main.tallest + 0.5, `${size.label}: the 初見提點 row (${ours.guide} px) is no taller than main's tallest setting (${main.tallest} px)`);
+      assert.ok(ours.visible >= main.visible, `${size.label}: 聲息與節奏's page 1 holds as many items as main's (${ours.visible} against ${main.visible})`);
     }
     if (baseline) passed(`the rules dialog against main (frame px and pages, T1/main): ${rows.join('; ')} (the last three recorded only)`);
     else note(`BASELINE_URL unset: the rules dialog was not compared with main (${rows.join('; ')})`);
+    if (baseline) passed(`聲息與節奏 against main: ${settingsRows.join('; ')} (the last three recorded only)`);
+    else note(`BASELINE_URL unset: 聲息與節奏 was not compared with main (${settingsRows.join('; ')})`);
   }
 
   // ── 9. The header ─────────────────────────────────────────────────────────────────
