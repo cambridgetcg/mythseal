@@ -748,7 +748,7 @@ try {
     const page = await open('fresh', { api }), offer = page.locator('[data-save-notice="restore-offer"]');
     await offer.waitFor(); await settle(page, 'home');
     const started = JSON.parse(await profileRaw(page)), writes = await profileWrites(page);
-    const coins = () => page.locator('.game-header [title="金幣"] b').textContent().then(text => Number(text.replace(/\D/g, '')));
+    const coins = () => page.locator('.game-header [data-action="glossary"][data-id="coins"] b').textContent().then(text => Number(text.replace(/\D/g, '')));
     assert.equal(await coins(), started.coins); assert.notEqual(backup.coins, started.coins);
     await click(page, '[data-save-notice="restore-offer"] [data-action="restore-offer-cloud"]'); await settle(page, 'account', 1);
     await page.locator('.account-confirmation').waitFor();
