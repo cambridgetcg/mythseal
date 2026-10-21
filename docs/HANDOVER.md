@@ -153,6 +153,50 @@ during `npm run preview -- --dry-run`, outside the project's services.
   PRs #14 and #15; this checkpoint supersedes them. All four packets are
   merged into `main`, and none is deployed.
 
+## O1 gentle first guardian checkpoint · 2026-10-21 (local only)
+
+Candidate packet O1, which the owner asked on 2026-10-21 to have prepared now
+as a reviewable fallback for D3 (「保守守衛」), is implemented on the branch
+**`o1/gentle-guardian`**, from `main` **`3f3d351`**, as local commits; not
+pushed, merged or deployed, and not in the proposed v0.6.0 scope unless the
+owner adds it. [Spec](GENTLE-GUARDIAN-O1.md) (revised after review rounds 1
+and 2, its §12 and §14), [checks](VALIDATION.md#o1-gentle-first-guardian--2026-10-21).
+
+- **What changed.** In the player's first battle (霧隱渡口 expedition, no
+  battle finished yet: D3's coach condition without the device-local coach
+  record, and 霧隱渡口 not cleared on the save, since review round 2),
+  守渡弈者 plays the disclosed style 緩渡: each commitment costs at most 2
+  pills, in every round, so no Fury. Every other battle, including
+  later 霧隱渡口 visits and every fair mode, plays today's AI. A cap on round
+  1 alone was rejected because the AI then spends the pills later (spec
+  §1.2).
+- **Where.** `engine.mjs` gains one opt-in argument, `chooseAIMove(…, {
+  spendCap })`, which only narrows the candidates; rules and the
+  public-information boundary are unchanged. `guardian-style.mjs` (new, pure,
+  allowlisted) decides where the style applies. `app.mjs` decides the style
+  once when the battle starts, keeps its id in the battle snapshot
+  (`guardian`; a snapshot without it plays today's AI) and routes the three AI
+  calls through `aiChoose`. `mist-gate-ui.mjs` adds the guardian's arrival
+  line, the plain rule line on the preparation screen and the table label.
+  `battle-teaching.mjs`'s `revealTip` takes the cap, so the tip states it
+  instead of 「提防對手重注」 (owner question 4 asks whether to keep this D3
+  change). After a 緩渡 loss the result advice is ②'s sentence; the result
+  note keeps today's lines.
+- **Evidence.** `tools/guardian-sim.mjs` reproduces the spec's tables: on
+  2,000 held-out seeds a coach-follower wins 99.5 % (64.4 % today), a player
+  who never adds pills or adds all 12 at once wins none, and a player who bids
+  at random wins 39.9 % (49.2 % today). `npm test` 677/677; both builds;
+  `test:coach` (with the new O1 sections), `test:battle-table` and
+  `test:viewport` in Chromium and WebKit.
+- **Open.** The owner's questions in spec §10, first the number (2 by default;
+  1 is kinder to every player who uses pills, §2); D3's playtest with at least
+  three first-time players, which should watch whether players bid
+  erratically under 緩渡; real phones and screen readers.
+- **Merging.** T1 (`t1/first-visit-hints`) also adds to `tools/coach-smoke.mjs`,
+  `hosting/public-assets.json`, `ROADMAP.md`, this file, VALIDATION and the
+  docs index, in other places; neither branch changes the other's `app.mjs`
+  functions (spec §9).
+
 ## N1 mobile shell checkpoint · 2026-10-11 (local only)
 
 Roadmap packet N1 (mobile shell polish), which the owner approved on 2026-10-11

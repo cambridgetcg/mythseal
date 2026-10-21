@@ -168,19 +168,22 @@ export function planningHint(view, { commitLabel = '落子 · 決勝' } = {}) {
  * One short tip after a round's reveal, from the public reveal view only: both
  * sides' remaining pills (as the table already shows them) and the rounds left.
  * Never a hidden bid, Fury or the next AI commitment, which the view does not hold.
+ * `spendCap` is the opponent's disclosed per-round limit (O1's 緩渡,
+ * docs/GENTLE-GUARDIAN-O1.md), a constant fixed before the battle: where it holds his
+ * stake below his reserve, 提防對手重注 would contradict it, so the tip states the limit.
  */
-export function revealTip(view) {
+export function revealTip(view, { spendCap = Infinity } = {}) {
   if (view?.phase !== 'reveal') throw new RangeError('The tip needs a reveal view.');
   const opponentPills = view.opponent.pills, playerPills = view.player.pills;
   const roundsLeft = view.next ? view.rounds - view.next.round + 1 : 0;
   let kind;
   if (!view.next) kind = 'final';
   else if (opponentPills === 0) kind = 'empty';
-  else if (opponentPills >= playerPills + 4) kind = 'rich';
+  else if (opponentPills >= playerPills + 4) kind = spendCap < opponentPills ? 'capped' : 'rich';
   else if (opponentPills < 2 * roundsLeft) kind = 'low';
   else if (playerPills >= opponentPills + 4) kind = 'lead';
   else kind = 'even';
-  const hint = { final: '此局已定', empty: '對手丹藥已盡', rich: '提防對手重注', low: '對手丹藥將盡', lead: '你丹較多，可後發制人', even: '雙方丹藥相近' }[kind];
+  const hint = { final: '此局已定', empty: '對手丹藥已盡', rich: '提防對手重注', capped: `對手每回合至多出 ${spendCap} 丹`, low: '對手丹藥將盡', lead: '你丹較多，可後發制人', even: '雙方丹藥相近' }[kind];
   return Object.freeze({ opponentPills, playerPills, roundsLeft, kind, hint, text: `對手剩 ${opponentPills} 丹 · 你剩 ${playerPills} 丹 · ${hint}` });
 }
 

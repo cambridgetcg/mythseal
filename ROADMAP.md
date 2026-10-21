@@ -513,6 +513,7 @@ profile change. [Design](docs/BATTLE-LAYOUT-PLAN.md#first-battle-teaching--2026-
 and [checks](docs/VALIDATION.md#d3-first-battle-teaching--2026-10-12). The
 exit is an owner playtest with at least three first-time players, which is
 pending; capping the AI's round-1 spend stays an owner fallback after it.
+**2026-10-21:** that fallback is prepared as O1 on the branch `o1/gentle-guardian` and is not merged ([spec](docs/GENTLE-GUARDIAN-O1.md)).
 Review round 1 (2026-10-13) fixed five defects: a false sum in a clamped
 formula, the Fury cost line hiding the pills left, mark ② cut at 360 px, Back
 during the animated reveal skipping mark ④, and untested 預計 and announced-card

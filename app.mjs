@@ -12,7 +12,8 @@ import { getInheritanceMaterials, previewInheritance, inheritInstances } from '.
 import { inheritanceMarkup, inheritanceConfirmMarkup, inheritanceResultMarkup } from './inheritance-ui.mjs';
 import { worldMarkup, dailyMarkup, marketMarkup, arenaMarkup, rewardText } from './adventure-ui.mjs';
 import { gameHeaderMarkup, gameDockMarkup, lobbyMarkup } from './navigation-ui.mjs';
-import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResonanceMarkup, mistGateResultMarkup, mistGateRevealMarkup } from './mist-gate-ui.mjs';
+import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResonanceMarkup, mistGateResultMarkup, mistGateRevealMarkup, mistGateRuleMarkup } from './mist-gate-ui.mjs';
+import { guardianStyle, styleById, aiOptions } from './guardian-style.mjs';
 import { createExperienceController } from './experience.mjs';
 import { battleResourcesMarkup, battleClashMarkup, battleTableMarkup, battleConfrontationMarkup, battleLineupMarkup, revealPairMarkup, battleStatusMarkup, battleHintMarkup, battleCoachMarkup, COACH_SKIP_MARKUP, revealTipMarkup } from './battle-ui.mjs';
 import { createRoundPresentation, paintRoundResources, permittedAnnouncement, createPlanningView, createRevealView } from './battle-presentation.mjs';
@@ -87,6 +88,9 @@ const worldSelections=new Map(), worldScrollPositions=new Map(), worldPieces=new
 let mapTravel=null;
 let bagView={tab:'cards',layout:'groups',expandedCardId:null,printId:'all',query:'',filter:'all',faction:'all',sort:'recent',editingSlotId:profile.activeDeckId,draftInstanceIds:[],deckName:''},bagGroupReturn=null;
 let match=null, encounter=null, selected=null, pills=0, fury=false, aiMove=null, busy=false, recorded=false, revealPending=false, lastReward=null;
+// O1 (docs/GENTLE-GUARDIAN-O1.md): the style this battle plays, decided once when it starts and kept
+// in its snapshot, so every AI choice and every disclosure reads it until the result has been shown.
+let guardian=null;
 let lastRoundPresentation=null, battleEntering=false;
 let sound=false, toastTimer, lastFocus=null, economyBusy=false;
 let experience, experienceReturn=null, packOpening=null;
@@ -337,7 +341,7 @@ async function economy(change,message,after,onSaved){
 }
 function persistBattle(){
   if(!match||!encounter||loadProfile().pending?.id!==encounter.id)return;
-  localStorage.setItem(BATTLE_KEY,JSON.stringify({match,encounter,selected,pills,fury,aiMove,revealPending,recorded,lastReward}));
+  localStorage.setItem(BATTLE_KEY,JSON.stringify({match,encounter,selected,pills,fury,aiMove,revealPending,recorded,lastReward,guardian:guardian?.id??null}));
 }
 function clearBattleSnapshot(id){if(read(BATTLE_KEY,null)?.encounter?.id===id)localStorage.removeItem(BATTLE_KEY);}
 function pendingBanner(){
@@ -456,7 +460,7 @@ const dialogCoach=()=>coach?.step==='reveal'&&modalKind==='round-result'&&overla
 const coachText=(step,leader=match.initiative)=>coachCopy(step,{leader,commitLabel:commitLabel(),pills:match.player.pills,roundsLeft:RULES.rounds-match.round+1});
 function statusOptions(view) {
   const mist=isMistGate(),copy=view.phase==='planning'&&tableCoach()?coachText(coach.step,view.leader):null;
-  return {eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader}):'',
+  return {eyebrow:`${modeName(encounter?.kind)} · 策略對弈`,ornament:mist?mistGateBattleMarkup({round:view.round,initiative:view.leader,guardian}):'',
     hint:copy?battleCoachMarkup(copy):battleHintMarkup(planningHint(view,{commitLabel:commitLabel()})),coach:copy?.step||null,coachControls:copy?COACH_SKIP_MARKUP:''};
 }
 /** A new first battle starts at its first mark; a resumed one at the mark this device kept for it. */
@@ -529,7 +533,7 @@ function endCoach(outcome) {
   // 跳過 leaves with the mark: keep a keyboard player on the table's selected card.
   if(skipFocused)(app.querySelector('.player-hand [aria-pressed="true"]')||app.querySelector('[data-action="commit"]'))?.focus({preventScroll:true});
 }
-const revealTeachingMarkup=()=>revealTipMarkup(revealTip(createRevealView(match)),{coach:coach?.step==='reveal'?coachCopy('reveal'):null,owed:Boolean(coach?.owed&&match.status==='playing')});
+const revealTeachingMarkup=()=>revealTipMarkup(revealTip(createRevealView(match),aiOptions(guardian)),{coach:coach?.step==='reveal'?coachCopy('reveal'):null,owed:Boolean(coach?.owed&&match.status==='playing')});
 function battleMarkup() {
   const view=planningView();
   return battleTableMarkup(view,battleTableOptions(view,movePanel()));
@@ -781,6 +785,7 @@ async function launchActivity({route, supply, expectedRunId, expectedStage}={}) 
 }
 function enterStartedBattle(result) {
   encounter=result.encounter;match=result.nextMatch;recorded=false;lastReward=null;
+  guardian=guardianStyle({encounter,played:profile.stats.played,cleared:profile.cleared});
   closeModal();preparation=null;preparationReturn=null;screen='battle';prepareRound();startCoach({fresh:true});battleEntering=true;render();window.scrollTo({top:0,behavior:'instant'});announce('對局開始。選一張戰卡，再分配仙丹。');playTone('select');
 }
 function preparationContent() {
@@ -788,8 +793,8 @@ function preparationContent() {
   const loaner=preparation.route==='loaner'&&node?.loanerDeck;
   const valid=loaner?validateDeck(loaner).valid:validateInstanceDeck(profile,deck?.instanceIds).valid;
   const cards=loaner?loaner.map(cardId=>({cardId,level:1,printId:undefined})):(deck?.instanceIds||[]).map(uid=>profile.instances.find(i=>i.uid===uid)).filter(Boolean);
-  const mist=isMistGate(preparation);
-  return `${storyArrivalMarkup(node)||(mist?mistGateArrivalMarkup({returning:profile.cleared.includes(node.id)}):`<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2>`)}<p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`${mist||node.worldId!=='shanhai'?'':`<p>${safe(node.description)}</p>`}<p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(loaner?'借用同行牌組':deck?.name||'尚未選擇牌組')}</h3>${loaner?`<button class="text-button" data-action="travel" data-id="${node.id}">改用自家牌組 →</button>`:'<button class="text-button" data-action="prep-deck">更換／整備牌組 →</button>'}</div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId),{printId:i.printId})}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${loaner?'借牌固定 Lv.1；戰卡不入藏，亦不獲卡牌 EXP。':kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>${mist?'踏上渡口':'進入對局'} →</button></div>${mist?'<button class="text-button" data-action="experience-settings">聲息與節奏 · 設定</button>':''}`;
+  const mist=isMistGate(preparation),style=guardianStyle({encounter:preparation,played:profile.stats.played,cleared:profile.cleared});
+  return `${storyArrivalMarkup(node)||(mist?mistGateArrivalMarkup({returning:profile.cleared.includes(node.id),guardian:style}):`<div class="eyebrow">${modeName(kind)} · 出發前整備</div><h2>${safe(node?.name||modeName(kind))}</h2>`)}<p class="prep-opponent">${safe(node?.enemyName||'山海弈者')} · AI 對手<br>${style?`${mistGateRuleMarkup(style)}<br>`:''}${kind==='expedition'?'四回合 · 此張戰卡的修練加成生效':'四回合 · 使用基礎能力對弈'}</p>${node?`${mist||node.worldId!=='shanhai'?'':`<p>${safe(node.description)}</p>`}<p class="destination-rewards">勝利獎勵 · ${rewardText(node.winReward)}</p>`:''}<div class="prep-deck-heading"><h3>${safe(loaner?'借用同行牌組':deck?.name||'尚未選擇牌組')}</h3>${loaner?`<button class="text-button" data-action="travel" data-id="${node.id}">改用自家牌組 →</button>`:'<button class="text-button" data-action="prep-deck">更換／整備牌組 →</button>'}</div><div class="prep-deck-strip">${cards.map(i=>`<div>${cardMarkup(getCard(i.cardId),{printId:i.printId})}<small>Lv.${i.level}</small></div>`).join('')}</div><p class="panel-footnote">從這八張卡隨機抽四張出戰。${loaner?'借牌固定 Lv.1；戰卡不入藏，亦不獲卡牌 EXP。':kind==='practice'?'自由切磋不獲金幣或卡牌 EXP。':''}</p>${valid?'':'<p class="account-message is-error">先儲存並啟用八張不同角色、總星數不超過 25 的牌組。</p>'}<div class="modal-actions"><button class="secondary" data-action="close-modal">稍後出發</button><button class="primary" data-action="confirm-start" ${valid?'':'disabled'}>${mist?'踏上渡口':'進入對局'} →</button></div>${mist?'<button class="text-button" data-action="experience-settings">聲息與節奏 · 設定</button>':''}`;
 }
 function prepareEncounter(kind='practice',nodeId=null,route='owned') {
   if(economyBusy)return;
@@ -1036,11 +1041,13 @@ function opponentDeck(node) {
   }
   return [...defaultDeckIds];
 }
+/** Every AI commitment goes through here: the battle's disclosed style is its only option. */
+const aiChoose=(revealedCardId=null)=>chooseAIMove(match,Math.random,revealedCardId,aiOptions(guardian));
 function prepareRound() {
   selected=match.player.hand.find(id=>!match.player.used.includes(id));pills=0;fury=false;busy=false;revealPending=false;
   lastRoundPresentation=null;
   // The AI commits before any human choice on its opening turn.
-  aiMove=match.initiative==='opponent'?chooseAIMove(match):null;
+  aiMove=match.initiative==='opponent'?aiChoose():null;
   persistBattle();
 }
 /** A leading AI commits from public state before the player plans. Old or damaged
@@ -1048,7 +1055,7 @@ function prepareRound() {
 function ensureLeadingCommitment() {
   if(revealPending||match?.status!=='playing'||match.initiative!=='opponent')return false;
   try{if(permittedAnnouncement(match,aiMove,{revealPending}))return false;}catch{}
-  aiMove=chooseAIMove(match);persistBattle();return true;
+  aiMove=aiChoose();persistBattle();return true;
 }
 async function startMatch(kind='practice',nodeId=null,route='owned') {
   if(economyBusy)return;
@@ -1085,6 +1092,8 @@ async function resumeBattle(){
       if(!Array.isArray(who.hand)||who.hand.length!==4||!Array.isArray(who.used)||who.hand.some(id=>!CARDS.some(c=>c.id===id)))throw Error('對局記錄不完整，請重新出發。');
     }
     syncProfile(p);match=saved.match;encounter=p.pending;selected=saved.selected;pills=saved.pills||0;fury=!!saved.fury;aiMove=saved.aiMove;revealPending=!!saved.revealPending;recorded=false;lastReward=null;busy=revealPending;
+    // The style this battle started with; a snapshot from before O1 names none and plays today's AI.
+    guardian=styleById(saved.guardian);
     if(encounter.kind==='expedition')selectedNode=encounter.nodeId;
     closeModal();screen='battle';lastRoundPresentation=null;battleEntering=false;
     if(match.status==='finished'){await recordFinishedMatch();render();return matchEndModal();}
@@ -1161,7 +1170,7 @@ async function commitMove() {
     const playerMove={cardId:selected,pills,fury};
     // The responding AI sees only the revealed card, never the hidden bid. A
     // leading AI committed in prepareRound; it never sees the player's card.
-    if(match.initiative==='player')aiMove=chooseAIMove(match,Math.random,selected);
+    if(match.initiative==='player')aiMove=aiChoose(selected);
     else if(ensureLeadingCommitment()){busy=false;render();return toast('對手剛亮出本輪戰卡，請確認後再落子。');}
     const before={player:{hp:match.player.hp,pills:match.player.pills},opponent:{hp:match.opponent.hp,pills:match.opponent.pills}};
     // resolveRound advances round/initiative; the old move must not outlive it.
@@ -1215,7 +1224,7 @@ function matchEndModal({celebrate=false,returning=false}={}) {
   const activity=encounter?.kind==='activity', run=profile.expansion.fireMountain.run;
   const nextLabel=activity?(run?.phase==='supply'?'前往山間補給':'再入火焰山'):encounter?.kind==='expedition'?(next.nodeId!==encounter.nodeId?'前往下一境':win?'重遊此境':'再戰此境'):'再弈一局';
   if(celebrate)playTone(draw?'draw':win?'win':'lose');
-  modal(`<div class="eyebrow">THE DUEL IS COMPLETE</div><div class="match-symbol">${draw?'和':win?'勝':'悟'}</div><h2>${draw?'山海之間，不分高下。':win?'此局山海，盡入你手。':'一局有盡，弈道無窮。'}</h2><p>${draw?'棋逢對手，何妨再弈。':win?'藏鋒有時，出手有度。這一場，是你的傳說。':'記住對手的出丹節奏，下一次，換你掌握勝負。'}</p><div class="match-score"><div><span>你的生命</span><br><strong>${match.player.hp}</strong></div><span>—</span><div><span>對手生命</span><br><strong>${match.opponent.hp}</strong></div></div>${lastReward?`<div class="earned-rewards"><span>${lastReward.firstClear?'首次踏破 · ':''}${lastReward.dailyCache?'今日秘藏 · ':''}旅程已儲存</span><p>${rewardText(lastReward)}</p>${cardExperienceMarkup()}</div>`:''}${historyMarkup()}${activity?activityResultMarkup():storyResultMarkup()}${isMistGate()?mistGateResultMarkup({outcome:match.winner,firstClear:!!lastReward?.firstClear,nextName:NODES.find(n=>n.id===next.nodeId)?.name||''}):''}<div class="modal-actions match-next">${activity?'':'<button class="secondary" data-action="result-deck">調整牌組</button>'}<button class="primary" data-action="next-encounter">${nextLabel} <span>↗</span></button></div><div class="match-return"><button class="text-button" data-action="end-home">返回洞府</button><button class="text-button" data-action="${encounter?.kind==='expedition'?'world':'arena'}">${encounter?.kind==='expedition'?'查看山海圖':'返回對弈'}</button>${profile.expansion.grants.length||profile.expansion.tickets?'<button class="text-button" data-action="expansion-rewards">旅途獎勵架 →</button>':''}${isMistGate()?'<button class="text-button" data-action="experience-settings">聲息與節奏</button>':''}</div>`,`result-modal${isMistGate()?' mist-complete':''}`,false,'match-result');
+  modal(`<div class="eyebrow">THE DUEL IS COMPLETE</div><div class="match-symbol">${draw?'和':win?'勝':'悟'}</div><h2>${draw?'山海之間，不分高下。':win?'此局山海，盡入你手。':'一局有盡，弈道無窮。'}</h2><p>${draw?'棋逢對手，何妨再弈。':win?'藏鋒有時，出手有度。這一場，是你的傳說。':guardian?'十二丹撐四回合，莫一次押盡。下一次，換你掌握勝負。':'記住對手的出丹節奏，下一次，換你掌握勝負。'}</p><div class="match-score"><div><span>你的生命</span><br><strong>${match.player.hp}</strong></div><span>—</span><div><span>對手生命</span><br><strong>${match.opponent.hp}</strong></div></div>${lastReward?`<div class="earned-rewards"><span>${lastReward.firstClear?'首次踏破 · ':''}${lastReward.dailyCache?'今日秘藏 · ':''}旅程已儲存</span><p>${rewardText(lastReward)}</p>${cardExperienceMarkup()}</div>`:''}${historyMarkup()}${activity?activityResultMarkup():storyResultMarkup()}${isMistGate()?mistGateResultMarkup({outcome:match.winner,firstClear:!!lastReward?.firstClear,nextName:NODES.find(n=>n.id===next.nodeId)?.name||''}):''}<div class="modal-actions match-next">${activity?'':'<button class="secondary" data-action="result-deck">調整牌組</button>'}<button class="primary" data-action="next-encounter">${nextLabel} <span>↗</span></button></div><div class="match-return"><button class="text-button" data-action="end-home">返回洞府</button><button class="text-button" data-action="${encounter?.kind==='expedition'?'world':'arena'}">${encounter?.kind==='expedition'?'查看山海圖':'返回對弈'}</button>${profile.expansion.grants.length||profile.expansion.tickets?'<button class="text-button" data-action="expansion-rewards">旅途獎勵架 →</button>':''}${isMistGate()?'<button class="text-button" data-action="experience-settings">聲息與節奏</button>':''}</div>`,`result-modal${isMistGate()?' mist-complete':''}`,false,'match-result');
 }
 function activityResultMarkup() {
   const result=lastReward?.activity,run=profile.expansion.fireMountain.run;
