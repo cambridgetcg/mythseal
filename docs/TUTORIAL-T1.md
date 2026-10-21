@@ -296,7 +296,8 @@ node and T1's route ever disagree.
    - `fire-mountain` uses only its own exact signal (no run ever started), so
      a veteran who has never climbed it sees it once;
    - the condition hints have their own conditions (`home-start` and
-     `arena-first` need `played === 0`; `world-level` needs `isNewcomer`).
+     `arena-first` need `played === 0`; `world-level` needs `isNewcomer`;
+     [T1.1](#t11--2026-10-21)'s `home-next` needs `played` 1 or 2).
 
    A journey with ten or more finished battles therefore sees no hint after
    the update, and none again after site data is cleared or iOS evicts
@@ -334,7 +335,8 @@ node and T1's route ever disagree.
   「霧未散，船也還在。歇一息，再來。」 (`mistGateResultMarkup`, `:24-25`).
   (「水面很靜，落子由你。」 is the battle heading's caption, `:13`, not one of
   his quoted lines.)
-- **A neutral narrator for the six system hints**, in the register of the
+- **A neutral narrator for the six system hints** (seven with
+  [T1.1](#t11--2026-10-21)'s `home-next`), in the register of the
   footnotes they replace (「每張卡各有畫作、編號與歷練；點開卡面查看同行記。」
   `backpack-ui.mjs:61`).
 
@@ -360,13 +362,18 @@ Visual marker:
 - Both carry a screen-reader prefix 「初見提點：」, as the coach's
   「新手指引 n / 4：」 does (`battle-ui.mjs:86`).
 
-### 2.3 Registry (8 hints)
+### 2.3 Registry (8 hints; a ninth in T1.1)
 
 *Built (2026-10-21):* `home-start` keeps the lobby footnote, and the copies of
 `home-start` and `quests-why` were cut to one line. The table quotes the built
 copies; the spec's longer drafts and the measurements are in the
 [implementation record](#implementation-record--2026-10-21). `world-level`'s
 copy is Yu's of 2026-10-21 (§8).
+
+*T1.1 (2026-10-21):* a ninth hint, `home-next`, shares `home-start`'s slot on
+洞府 after the first and second finished battles, so the line below is
+`home-start`'s only before the first result. Its row, condition and reasons
+are in [T1.1](#t11--2026-10-21).
 
 **How to read the table:**
 
@@ -1059,7 +1066,8 @@ with the term read first, under VoiceOver and under TalkBack.
 **`tests/first-visit.test.mjs`**
 
 - *Registry:*
-  - 6–10 hints with unique ids (8 now);
+  - 6–10 hints with unique ids (9 now: T1's eight and
+    [T1.1](#t11--2026-10-21)'s `home-next`);
   - each copy ≤ 40 code points for every `ctx` variant;
   - each has a channel, scene, slot, voice and lasts;
   - guardian copy is 「quoted」;
@@ -1079,6 +1087,12 @@ with the term read first, under VoiceOver and under TalkBack.
     abandoned before any result (`serial` 1, `lastResult` null, `clears` 0).
   - `bag-decks` stops holding with a second deck slot; `market-printing`
     after one WX-01 pack.
+  - `home-next` ([T1.1](#t11--2026-10-21)): holds after a first finished
+    battle of any kind (a ferry win or loss, a first practice, a first arena
+    draw) and after the second; not on a fresh journey, after an abandoned
+    first battle, with a pending battle, after the third, or off 洞府. It has
+    `home-start`'s slot, never holds beside it, and holds only for
+    newcomers.
   - **Veteran:** a journey with `stats.played === 10` (and one fire-mountain
     run tried) gets no hint at all, on every scene and dialog; with no run
     ever started it gets only `fire-mountain`. One with 9 finished battles
