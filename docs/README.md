@@ -15,7 +15,9 @@ the merges of PRs #5 and #9 and to PR #10, which merges that branch. On
 release plan, the validation log, the handover, the roadmap, navigation, the
 battle table, the local-commands contract, the mobile plan, accounts and
 hosting were brought up to D1, N1, D2 and D3 (PRs #11, #12, #14 and #15); the
-document count is unchanged.
+document count is unchanged. On 2026-10-21, on `research/onboarding-i18n` from
+`main` `3f3d351`, the Habby and Supercell onboarding benchmarks and the i18n plan
+gained rows, and later that day the playtest record (O7).
 
 ## Status vocabulary
 
@@ -49,6 +51,9 @@ contract.
 | Which checks actually ran, and on what? | [VALIDATION.md](VALIDATION.md) |
 | Which save and backup formats does `main` use? | [Guarded saves](HANDOVER.md#playable-local-wx-01-and-guarded-saves) and the [save and settlement contract](CAMPAIGN-AND-EVENTS.md#save-and-settlement-contract) |
 | Who owns which source file? | [Code ownership map](HANDOVER.md#code-ownership-map) |
+| Which languages, in what order, and how? | [I18N-PLAN](I18N-PLAN.md), a proposal (M4.7) with the owner's answers in its §9 |
+| What do Habby and Supercell do in a first session? | [BENCHMARKS-HABBY-SUPERCELL](BENCHMARKS-HABBY-SUPERCELL.md) |
+| How do I write down a playtest? | [PLAYTEST-RECORD](PLAYTEST-RECORD.md), the form behind D3's exit and M4's acceptance |
 
 ## Start here
 
@@ -124,6 +129,7 @@ this index.
 | [Hosting, releases and rollback](HOSTING.md) | Public boundary, build and deploy procedure, rollback and exact deployment receipts | `current` procedure, with dated receipts; its "19 runtime files" is the v0.5.1 count (`main`'s allowlist has 90 at `0281798`: 80 before Q1, 83 after it, then D1, D2 and D3 add seven files) |
 | [Next release plan · v0.6.0](RELEASE-NEXT.md) | The proposed v0.6.0: scope (Q1, then D1, N1, D2 and D3), release gates, ordered checklist, data safety, staging options, rollback, payload budget and owner decisions | `proposal · 2026-10-11`, revised for Q1 the same day and for D1–D3 on 2026-10-13 (candidate: `main` at or after `0281798`, plus the release PR; hosted CI blocked by an Actions budget); nothing in it is deployed, migrated or provisioned |
 | [Validation log](VALIDATION.md) | Which checks ran, when, on which commit and in which environment; mostly newest first, with two later appendices at the end | `record`, dated per entry; its Q0, Q4 and Q1 entries record checks on their branches before PRs #5 and #9 and PR #10 merged them, as its LZ-01 special-printings entry does before PR #8 (`daf18ed`), and its N1, D1, D2 and D3 entries before PRs #12, #11, #14 and #15. Its [v0.6.0 integration](VALIDATION.md#v060-integration--2026-10-13) entry (2026-10-13) records the builds, first-screen and browser checks at `main` `0281798`; on the branch `ios/first-flight` a newer [iOS first flight](VALIDATION.md#ios-first-flight--2026-10-20) entry (2026-10-20) records that branch's checks |
+| [Playtest record](PLAYTEST-RECORD.md) | One form per tester, written by hand: time to first result, where they stopped or got lost, a reveal explained, the card that gained 歷練, playing again, a second session, device and build. Feeds D3's exit (at least three first-time players) and M4's acceptance; no telemetry, aliases only | `proposal · 2026-10-21` for the form (packet O7); each filled-in session is a `record` of its date; none yet |
 | [Developer connections](CONNECTIONS.md) | Service identities, verified access, credential locations and remaining setup | `record · 2026-09-21`, rechecked 2026-09-22 |
 | [Fresh-clone toolkit check](TOOLKIT.md) | One fresh clone's setup, access rechecks and local test receipts | `record · 2026-09-21`, updated 2026-09-22 |
 | [Account API contract](../server/README.md) | Worker routes, cookies, bindings and the database access boundary | `current` |
@@ -142,6 +148,7 @@ this index.
 | [Mobile field notes](MOBILE-FIELD-NOTES.md) | Dated evidence for every mobile run, console step and review, each with a "pay attention to" lesson | `record`, dated per entry |
 | [iOS first flight](IOS-FIRST-FLIGHT.md) | Every change on the `ios/first-flight` branch (PR #13 merged and fixed for Mindicraft, Xcode Cloud and native saves), its reason and the ladder rung it reached | `record · 2026-10-20` · branch only, not merged |
 | [Content release pipeline](CONTENT-RELEASE-PIPELINE.md) | Art versions, animation budget and compatible release manifests (中文) | `proposal · 2026-09-21` |
+| [Multi-language plan](I18N-PLAN.md) | Languages, with the Habby/Supercell language tables as reference, string catalogue, locale selection, `<html lang>`, fonts, per-locale layout budgets, stable save identities, translation pipeline (Claude drafts with provenance; the owner reviews), store localization, phases L0–L3 then languages by popularity, costs, risks and owner decisions (中文) | `proposal · 2026-10-21`; its §9 answered by the owner the same day (first wave English and 簡中; agent's picks marked); not in v0.6.0; nothing implemented |
 
 ## Retired collectible research
 
@@ -177,6 +184,7 @@ explain the earlier thinking; none is an instruction to mint or sell.
 | [Classical source notes](CLASSICAL-SOURCES.md) | Primary-text anchors behind the classical characters (中文) | `record · 2026-09-21` |
 | [Naming decision and history](NAMING.md) | Why 萬象契 / Mythseal, and the earlier shortlist | `record · 2026-09-21` |
 | [Domain-check snapshot](DOMAIN-CHECKS.json) | Registry lookups behind the naming shortlist; not current availability | `record · 2026-09-21` |
+| [Habby and Supercell onboarding benchmarks](BENCHMARKS-HABBY-SUPERCELL.md) | First sessions, unlock pacing and in-game design at both companies, the monetization-pressure patterns named as such, where Clash Royale's analogy breaks, what fits Mythseal, candidate onboarding packets O1–O7 and owner decisions (中文) | `record · 2026-10-21` for the research; its Mythseal judgments and packets are `proposal · 2026-10-21`; its §8 answered by the owner the same day (agent's picks marked) |
 
 ## Keeping the library useful
 
