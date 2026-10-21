@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { RULES, createMatch } from '../engine.mjs';
 import { GENTLE_GUARDIAN, guardianStyle, styleById, aiOptions } from '../guardian-style.mjs';
 import { coachStart } from '../battle-teaching.mjs';
+import { mistGateArrivalMarkup, mistGateBattleMarkup, mistGateResultMarkup, mistGateRuleMarkup, GENTLE_ARRIVAL_QUOTE } from '../mist-gate-ui.mjs';
 import { simulate, playFirstBattle, POLICIES, parseStyle } from '../tools/guardian-sim.mjs';
 
 const ENCOUNTERS = [
@@ -50,4 +51,24 @@ test('O1 seeded first battles: following the coach wins, never adding pills or s
   for (const seed of seeds.slice(0, 5)) assert.deepEqual(playFirstBattle(seed, POLICIES.rand, parseStyle(style)), playFirstBattle(seed, POLICIES.rand, parseStyle(style)));
   // Under the style the AI never commits more than the cap in any round.
   for (const seed of seeds.slice(0, 40)) assert.ok(playFirstBattle(seed, POLICIES.coach, parseStyle(style)).aiSpend.every(spent => spent <= GENTLE_GUARDIAN.spendCap));
+});
+
+test('O1 disclosure copy: the guardian hints in his voice, the plain line states the rule, and without a style nothing changes', () => {
+  const codePoints = [...GENTLE_ARRIVAL_QUOTE].length;
+  assert.ok(codePoints >= 13 && codePoints <= 30, `arrival line: ${codePoints} code points`);
+  assert.doesNotMatch(GENTLE_ARRIVAL_QUOTE, /\d|[一二兩三四五六七八九十]丹|怒擊/, 'no number or mechanic in his quoted voice (T1 §2.2)');
+  assert.match(mistGateArrivalMarkup({ guardian: GENTLE_GUARDIAN }), new RegExp(`「${GENTLE_ARRIVAL_QUOTE}」`));
+  assert.match(mistGateArrivalMarkup({ guardian: GENTLE_GUARDIAN, returning: true }), new RegExp(`「${GENTLE_ARRIVAL_QUOTE}」`));
+  assert.equal(mistGateRuleMarkup(GENTLE_GUARDIAN), '<span class="mist-guardian-rule" data-guardian-style="gentle-crossing">緩渡 · 本局守渡弈者每回合至多出 2 丹，不用怒擊</span>');
+  assert.equal(mistGateRuleMarkup(null), '');
+  const table = mistGateBattleMarkup({ round: 2, initiative: 'opponent', guardian: GENTLE_GUARDIAN });
+  assert.match(table, /aria-label="霧隱渡口，守渡弈者，緩渡"/);
+  assert.match(table, /<small>守渡弈者 <span aria-hidden="true">·<\/span> 緩渡 <span aria-hidden="true">·<\/span> AI 對弈<\/small>/);
+  // Without a style each function returns what it returned before O1.
+  for (const returning of [false, true]) assert.equal(mistGateArrivalMarkup({ returning, guardian: null }), mistGateArrivalMarkup({ returning }));
+  assert.match(mistGateArrivalMarkup({}), /「不必急着渡河，先看清手中的牌。」/);
+  assert.match(mistGateArrivalMarkup({ returning: true }), /「燈還亮着。這一程，你想怎樣走？」/);
+  for (const round of [1, 4]) for (const initiative of ['player', 'opponent']) assert.equal(mistGateBattleMarkup({ round, initiative, guardian: null }), mistGateBattleMarkup({ round, initiative }));
+  assert.match(mistGateBattleMarkup({}), /aria-label="霧隱渡口，守渡弈者"><div class="mist-battle-place">.*<small>守渡弈者 <span aria-hidden="true">·<\/span> AI 對弈<\/small>/);
+  assert.doesNotMatch(mistGateArrivalMarkup({}) + mistGateBattleMarkup({}) + mistGateResultMarkup({ outcome: 'player' }) + mistGateResultMarkup({ outcome: 'opponent' }), /緩渡|不再讓/);
 });
