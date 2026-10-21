@@ -1057,13 +1057,13 @@ function sellInstanceModal(uid){
   try{
     const item=getInstance(profile,uid), sale=getInstanceSale(profile,uid), card=getCard(item.cardId);
     if(sale.reason)return toast(sale.reason);
-    modal(`<div class="eyebrow">PASS ON A STORY</div><h2>讓這張卡，暫別行囊？</h2><p><b>${card.name}</b> · ${safe(printLabel(card,{printId:item.printId}))} · Lv.${item.level} · ${item.xp} EXP<br>卡牌編號 <span class="instance-serial">#${safe(item.uid)}</span></p><p>商旅出價 <b>${sale.sellPrice} 金幣</b>。這張卡的等級、經驗及出戰紀錄會保留；之後可付 ${sale.buybackPrice} 金幣原卡回購。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">留在行囊</button><button class="primary" data-action="confirm-instance-sell" data-id="${safe(uid)}">出售這張卡 →</button></div>`);
+    modal(`<div class="eyebrow">PASS ON A STORY</div><h2>讓這張卡，暫別行囊？</h2><p><b>${card.name}</b> · ${safe(printLabel(card,{printId:item.printId}))} · Lv.${item.level} · ${item.xp} EXP<br>卡牌編號 <span class="instance-serial">#${safe(item.uid)}</span></p><p>商旅出價 <b>${sale.sellPrice} 金幣</b>。這張卡的等級、歷練及出戰紀錄會保留；之後可付 ${sale.buybackPrice} 金幣原卡回購。</p><div class="modal-actions"><button class="secondary" data-action="close-modal">留在行囊</button><button class="primary" data-action="confirm-instance-sell" data-id="${safe(uid)}">出售這張卡 →</button></div>`);
   }catch(error){toast(error.message);}
 }
 function cardExperienceMarkup(){
   const changes=lastReward?.cardXP||[];
   if(!changes.length)return '';
-  return `<div class="card-xp-results"><h3>同行者的歷練</h3>${changes.map(change=>`<div><span>${isMistGate()?`<button type="button" class="text-button result-card-link" data-action="result-card" data-id="${safe(change.uid)}" aria-label="查看${safe(getCard(change.cardId).name)}的同行記，編號 ${safe(change.uid)}">${getCard(change.cardId).name} <span aria-hidden="true">↗</span></button>`:getCard(change.cardId).name} <small>#${safe(change.uid)}</small></span><b>${change.afterLevel>change.beforeLevel?`Lv.${change.beforeLevel} → ${change.afterLevel} ✧`:`Lv.${change.afterLevel}`} <em>+${change.gainedXP} EXP</em></b></div>`).join('')}<p>經驗只記在今場真正出戰的那張卡。修練能力在遊歷生效。</p></div>`;
+  return `<div class="card-xp-results"><h3>同行者的歷練</h3>${changes.map(change=>`<div><span>${isMistGate()?`<button type="button" class="text-button result-card-link" data-action="result-card" data-id="${safe(change.uid)}" aria-label="查看${safe(getCard(change.cardId).name)}的同行記，編號 ${safe(change.uid)}">${getCard(change.cardId).name} <span aria-hidden="true">↗</span></button>`:getCard(change.cardId).name} <small>#${safe(change.uid)}</small></span><b>${change.afterLevel>change.beforeLevel?`Lv.${change.beforeLevel} → ${change.afterLevel} ✧`:`Lv.${change.afterLevel}`} <em>+${change.gainedXP} EXP</em></b></div>`).join('')}<p>歷練只記在今場真正出戰的那張卡。修練能力在遊歷生效。</p></div>`;
 }
 function resultCardModal(uid) {
   if(!recorded||match?.status!=='finished'||!lastReward?.cardXP?.some(change=>change.uid===uid))return;
