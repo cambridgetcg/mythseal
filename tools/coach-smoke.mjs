@@ -46,6 +46,9 @@
  * rules dialog's 知其道，入其局 opens the 霧隱渡口 preparation on 遊歷 (from the lobby and from
  * 旅程閣), its 稍後出發 writes nothing, Back reaches 洞府, and boarding shows mark ①; a
  * veteran's still opens 自由切磋. A first practice match still shows no mark (section 4).
+ * T1.1 (docs/TUTORIAL-T1.md, T1.1) added: on a first visit 任務手札's 前往 for 今日落子 and
+ * 七日弈緣 opens the same 霧隱渡口 preparation (from 洞府 and from 對弈), with the same cancel,
+ * focus, Back and mark ①; 問道五弈's still opens 對弈, and so does a veteran's 今日落子.
  * Headless engines only: the owner's playtest with first-time players is the real exit
  * (docs/VALIDATION.md).
  * Usage: GAME_URL=http://127.0.0.1:<port> [BROWSER=webkit] node tools/coach-smoke.mjs
@@ -779,6 +782,74 @@ try {
     assert.equal((await veteranPage.locator(`${prep} .eyebrow`).first().textContent()).trim(), '自由切磋 · 出發前整備');
     assert.equal(await veteranPage.locator('#app .game-lobby').count(), 1, 'the veteran stays on 洞府');
     passed('on a first visit 知其道，入其局 opens the 霧隱渡口 preparation on 遊歷, from the lobby and from 旅程閣; 稍後出發 writes nothing and returns focus to 遊歷, Back reaches 洞府, and boarding shows mark ①; a veteran still gets 自由切磋');
+    await release(veteranPage);
+  }
+
+  // ── 4c. 任務手札's 前往 leads a first visit to the ferry too (T1.1, docs/TUTORIAL-T1.md) ──
+  {
+    const prep = '#overlay-root .encounter-prep', ferry = '#overlay-root .encounter-prep.is-mist-prep';
+    const onWorld = page => page.locator('#app .scene-world').waitFor();
+    const go = task => `#overlay-root .task-row[data-viewport-id="${task}"] [data-action="quest-go"]`;
+    const tapGo = async (page, task) => {
+      const button = page.locator(go(task));
+      await revealViewportItem(page, button);
+      assert.equal(await button.getAttribute('data-field'), task === 'arena' ? 'arenaMatches' : 'matches');
+      await button.tap(); await viewportFrames(page);
+    };
+    // 洞府 → 任務手札 → 今日落子's 前往.
+    const page = await open('fresh');
+    const profile = await stored(page, PROFILE_KEY);
+    await tap(page, '.game-lobby [data-action="quests"]');
+    await tapGo(page, 'matches');
+    await page.locator(ferry).waitFor();
+    await onWorld(page);
+    await settleDepth(page, 2, 'the ferry preparation on 遊歷, from 任務手札');
+    await tap(page, '#overlay-root .modal-actions [data-action="close-modal"]');
+    await page.waitForFunction(() => !document.querySelector('#overlay-root .modal'), null, { timeout: 4000 });
+    await onWorld(page);
+    assert.equal(await stored(page, battleKey), null, '稍後出發 starts no battle');
+    assert.equal(await stored(page, PROFILE_KEY), profile, 'the 前往 route writes no profile');
+    assert.equal(await coachRecord(page), null, 'the 前往 route writes no coach record');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('.game-dock [data-action="world"]')), true, 'focus returns to the dock\'s 遊歷');
+    await page.goBack(); await page.locator('.game-lobby').waitFor();
+    await settleDepth(page, 0, 'one Back from 遊歷 reaches 洞府');
+    // Again, boarding this time: D3's first mark shows.
+    await tap(page, '.game-lobby [data-action="quests"]');
+    await tapGo(page, 'matches');
+    await page.locator(ferry).waitFor();
+    await tap(page, '#overlay-root [data-action="confirm-start"]');
+    await planning(page);
+    assert.equal(JSON.parse(await stored(page, battleKey)).encounter.nodeId, 'mist-gate');
+    await assertCoach(page, 'card', 'the battle 任務手札 led to');
+    await release(page);
+    // 對弈 → 每週行跡: 問道五弈 counts only arena battles and keeps 對弈; 七日弈緣 leads to the ferry,
+    // replacing 對弈's entry, so Back twice reaches 洞府.
+    const arena = await open('fresh');
+    await tap(arena, '.game-dock [data-action="arena"]');
+    const weekly = arena.locator('#app .arena-paths [data-action="quests"][data-id="weekly"]');
+    await revealViewportItem(arena, weekly); await weekly.tap(); await viewportFrames(arena);
+    await tapGo(arena, 'arena');
+    await arena.locator('#app .scene-arena').waitFor();
+    await arena.waitForFunction(() => !document.querySelector('#overlay-root .modal'), null, { timeout: 4000 });
+    assert.equal(await arena.locator(prep).count(), 0, '問道五弈 opens 對弈, no preparation');
+    await revealViewportItem(arena, weekly); await weekly.tap(); await viewportFrames(arena);
+    await tapGo(arena, 'matches');
+    await arena.locator(ferry).waitFor();
+    await onWorld(arena);
+    await settleDepth(arena, 2, 'the ferry preparation on 遊歷, from 對弈');
+    await arena.goBack();
+    await arena.waitForFunction(() => !document.querySelector('#overlay-root .modal'), null, { timeout: 4000 });
+    await onWorld(arena);
+    await arena.goBack(); await arena.locator('.game-lobby').waitFor();
+    await release(arena);
+    // A veteran's 今日落子 still opens 對弈.
+    const veteranPage = await open('veteran');
+    await tap(veteranPage, '.game-lobby [data-action="quests"]');
+    await tapGo(veteranPage, 'matches');
+    await veteranPage.locator('#app .scene-arena').waitFor();
+    await veteranPage.waitForFunction(() => !document.querySelector('#overlay-root .modal'), null, { timeout: 4000 });
+    assert.equal(await veteranPage.locator(prep).count(), 0, 'no preparation for a veteran');
+    passed('on a first visit 任務手札\'s 前往 for 今日落子 and 七日弈緣 opens the 霧隱渡口 preparation on 遊歷, from 洞府 and from 對弈; 稍後出發 writes nothing and returns focus to 遊歷, Back reaches 洞府, and boarding shows mark ①; 問道五弈 and a veteran\'s 今日落子 still open 對弈');
     await release(veteranPage);
   }
 
