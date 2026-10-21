@@ -507,22 +507,21 @@ evidence that needs no telemetry (store-region interest, playtester requests,
 community), so Japanese and Korean are candidates rather than committed next
 phases. Each language gets layout runs of the existing viewport smokes, a
 translation provenance record and, as its exit evidence, a fluent reader's LQA,
-because players cannot tell which lines nobody has read. The owner chose Claude
-to draft the translations, recording model, date and a hash of each source
-string, so the drafts need no outsourcing budget. Who reviews is the agent's
-proposal, awaiting the owner: the owner for Simplified Chinese, and playtesters
-or a fluent reader for English (I18N-PLAN §4.4). The first store submission
-preferably carries English, Traditional and Simplified Chinese; the mainland
-China store is excluded until it is researched separately. The language
+because players cannot tell which lines nobody has read. Claude drafts the
+translations, recording model, date and a hash of each source string, so the
+drafts need no outsourcing budget; the owner reviews English and Simplified
+Chinese and does their LQA (owner, 2026-10-21; I18N-PLAN §4.4). The first store
+submission preferably carries English, Traditional and Simplified Chinese; the
+mainland China store is excluded until it is researched separately. The language
 preference stays on the device, and fonts stay system fonts. One saved identity
-is display text today, the 聽見萬聲 and 借得東風 titles; the plan keeps them as
-frozen ids. Default deck names are also written into saves, but they are player
-data and are shown as saved; new decks get theirs in the language of the moment.
-Not in the v0.6.0 scope; L0 is best started after T1 merges and the v0.6.0
-candidate is built, because v0.6.0's open layout and review fixes touch the same
-files (I18N-PLAN §7). Store languages tie into M5.3 and M7. Nothing is
-implemented; the owner's answers are in its §9, where the agent's picks and
-proposals for questions the plan had not recommended on are marked as such.
+is display text today, the 聽見萬聲 and 借得東風 titles; the plan keeps them as frozen
+ids. Default deck names are also written into saves, but they are player data
+and are shown as saved; new decks get theirs in the language of the moment. Not
+in the v0.6.0 scope; L0 is best started after T1 merges and the v0.6.0 candidate
+is built, because v0.6.0's open layout and review fixes touch the same files
+(I18N-PLAN §7). Store languages tie into M5.3 and M7. Nothing is implemented;
+the owner's answers are in its §9, where the agent's picks for questions the
+plan had not recommended on are marked as such.
 
 - Improve onboarding (benchmarks and candidate packets: [BENCHMARKS-HABBY-SUPERCELL](docs/BENCHMARKS-HABBY-SUPERCELL.md)), explain four-round decisions and exact-card growth, and move text into a string catalogue without changing save identities (M4.7 above). Playtest balance, daily pacing, travel encounters and pack odds before expanding rewards.
 - Add new classical characters through explicit rules/content versions. Build per-card artwork manifests/derivatives with provenance; trial one card's CSS/Web Animations effects with reduced-motion, skip and background/resume support before scaling the art pipeline.
@@ -728,7 +727,7 @@ The server records append-only XP against a stable card identity. A collectible 
 | Online economy entry | Fresh server-issued inventory; offline journeys remain preserved and editable. | M2 starter grant and progression contract. |
 | Infrastructure/operations | Existing Workers + Supabase; one transactional command authority; expand services only from measured need. | Authoritative alpha rollout and any paid resource. |
 | Audience and native product | iOS App Store and Android Google Play remain the selected native direction (2026-09-22), now an optional undated release; use the shared game shell and a Capacitor trial. Supported regions/ages and devices remain open; no paid scope is planned. | Closed beta/store disclosures. |
-| Languages | Traditional Chinese source; first wave English and Simplified Chinese, then more by language popularity (owner, 2026-10-21; [I18N-PLAN](docs/I18N-PLAN.md) §9). The first store submission preferably carries all three. Claude drafts translations with provenance (the owner's choice); who reviews each language is the agent's proposal, awaiting the owner (I18N-PLAN §4.4). The mainland China store is excluded until researched separately; a language is not a launch territory. | M4.7 L0; the first store submission with more than one language. |
+| Languages | Traditional Chinese source; first wave English and Simplified Chinese, then more by language popularity (owner, 2026-10-21; [I18N-PLAN](docs/I18N-PLAN.md) §9). The first store submission preferably carries all three. Claude drafts translations with provenance and the owner reviews English and Simplified Chinese (owner, 2026-10-21; I18N-PLAN §4.4). The mainland China store is excluded until researched separately; a language is not a launch territory. | M4.7 L0; the first store submission with more than one language. |
 | Wallet and chain research | Retained as optional technical research; no active issuance objective. | Any new explicitly selected experiment. |
 | Commercial editions | Retired delivery objective; old supply drafts create no entitlement. | No sale or marketplace is planned by this roadmap. |
 | Name, artwork and source licensing | 萬象契 / Mythseal selected; original art with provenance; no open-source license selected. | Public licensing/commercial release; domain ownership does not establish trademark clearance. |
