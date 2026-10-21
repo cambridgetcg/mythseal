@@ -61,9 +61,13 @@ these documents; then the review fixes **`f08b0bb`** (the switch's caption),
 under n2's header rule), **`93ff4f6`** (more test:guide checks) and their
 documents ([review fixes](TUTORIAL-T1.md#review-fixes--2026-10-21)); then
 the owner's 2026-10-21 decisions, **`ac61074`** (修為 names only the
-執令者's journey experience and 歷練 only a card's EXP, in every UI string),
+執令者's journey experience and 歷練 only a card's EXP in the UI copy),
 **`eba3c2f`** (its test) and **`60194b1`** (the `world-level` line), and
-their documents ([TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-yu)).
+their documents ([TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-yu));
+then, from a review of those, **`c77d5df`** (two card-EXP strings still said
+經驗, and 旅程閣's copy said 歷練 for the 修為 total) and **`559c680`** (the
+glossary test no longer ties each word to one 詞彙 group). The draft privacy
+page's list and the Latin 「EXP」 are left to the owner (§8).
 **Status:** not pushed, merged or deployed; no hosted service was called.
 
 - **Changed:** on a first visit the rules dialog's 知其道，入其局 opens the
@@ -120,8 +124,10 @@ their documents ([TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-yu)).
     1,051 px.
 - **Checked:** see [VALIDATION](VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
 - **Open:** the rest of the owner's copy review (TUTORIAL-T1 §8 and the
-  implementation record's added questions; the voice, 修為/歷練, the page
-  counts and the `world-level` line were answered on 2026-10-21); whether the 初見提點 row should
+  implementation record's added questions; the guardian's tone, 修為/歷練,
+  the portrait page counts and the `world-level` line were answered on
+  2026-10-21, and the guardian/narrator split and the landscape page counts
+  were not asked); whether the 初見提點 row should
   show only while a hint can still apply (§8 question 10); whether the
   wallet may give way whenever both resume actions show on short landscape
   screens, also on 市集 and also without n2 (TUTORIAL-T1 §9); a playtest

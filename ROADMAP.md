@@ -546,8 +546,9 @@ phone; a 20-term 詞彙 is the rules dialog's second module; the header's 金幣
 device-local `shanhai.guide.v1`; a switch in 聲息與節奏 turns hints off or
 replays them. [Spec and implementation record](docs/TUTORIAL-T1.md),
 [checks](docs/VALIDATION.md#t1-first-visit-hints-and-glossary--2026-10-21).
-Open: the rest of the owner's copy review (§8; the voice, 修為/歷練, the
-page counts and the `world-level` line were answered on 2026-10-21), and a
+Open: the rest of the owner's copy review (§8; the guardian's tone,
+修為/歷練, the portrait page counts and the `world-level` line were answered
+on 2026-10-21), and a
 playtest with first-time players on a phone, which automation does not
 replace. Later: T2's illustrated 入門卷 (Mythseal's own reference art,
 provenance recorded), and a guided full session only if playtests show players

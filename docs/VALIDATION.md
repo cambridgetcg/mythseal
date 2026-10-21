@@ -154,8 +154,9 @@ kept).
   the list above.
 
 **Owner decisions of 2026-10-21, checks on `60194b1`.** `ac61074` (修為
-names only the 執令者's journey experience and 歷練 only a card's EXP, in
-every UI string), `eba3c2f` (a glossary test for that) and `60194b1` (the
+names only the 執令者's journey experience and 歷練 only a card's EXP in the
+UI copy; two 經驗 strings it missed are fixed in `c77d5df`, below), `eba3c2f`
+(a glossary test for that) and `60194b1` (the
 `world-level` line); see [TUTORIAL-T1 §8](TUTORIAL-T1.md#8-open-questions-for-yu).
 Same environment; servers on 127.0.0.1: this checkout (`tools/serve.py`,
 4591), a fresh `git archive` export of `3f3d351` (4592, `BASELINE_URL`) and a
@@ -189,6 +190,32 @@ time; every screenshot deleted from `test-results/` afterwards
   `test:viewport`, `test:expansion`, `test:native` and the other regression
   suites (only strings changed in code they exercise), and everything in the
   first list's "Not run".
+
+**Review fixes to the owner decisions, checks on `559c680`.** `c77d5df`
+(the sell dialog and the battle result's card block say 歷練 instead of
+經驗; 旅程閣's copy says 修為 for the total it backs up, where it said 歷練)
+and `559c680` (the glossary test no longer ties 修為 to 旅途 entries and
+歷練 to 卡牌 ones; its check that 旅程閣 and the import comparison label the
+total with `term('xp')` stays). Same environment; this checkout served by
+`tools/serve.py` on 4591, one browser at a time, every screenshot deleted
+from `test-results/` afterwards (`webkit-runtime` kept).
+
+- `npm test`: exit 0, **695/695**. `npm run audit:content`: exit 0, no
+  findings. `git diff --check`: exit 0.
+- `npm run build`: exit 0, 95 public files, manifest `85fca4e3…ae636`.
+  Against `60194b1`'s build, by path and `sha256`: changed `app.mjs` and
+  `account-ui.mjs`; every other asset identical. `npm run build:native`:
+  exit 0, 92 public files, manifest `60597fd9…0dfd2`; only `app.mjs`
+  changed.
+- Chromium smokes that open the changed views: `tools/journey-smoke.mjs`
+  (sells a copy through the sell dialog), `tools/backpack-smoke.mjs` (the
+  sell dialog), `tools/immersion-smoke.mjs` (battle results with the card
+  block and its 同行記 links) and `tools/account-smoke.mjs` (旅程閣, 11
+  checks, including the unavailable notice and no horizontal overflow at
+  390 px): each exit 0, no browser errors. No smoke asserts the changed
+  strings, and every string keeps its length.
+- **Not run** for these changes: `test:guide` and the other suites (no
+  string they measure changed), and WebKit for the four smokes above.
 
 ## iOS first flight · 2026-10-20
 

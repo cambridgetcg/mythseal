@@ -963,7 +963,8 @@ The switch is the only control T1 adds besides the header buttons.
   again. As the eighth item the row still adds a page where `main`'s seven
   just filled one: 360×780, 393×780 and 412×790 (2 against 1), and 734×343,
   640×360 and 568×320 (8 against 7). guide-smoke records the page counts
-  against `main`; Yu accepted the extra page on 2026-10-21 (§8). Its
+  against `main`. On 2026-10-21 Yu accepted the extra page on the three
+  portrait sizes (§8); the landscape sizes were not asked. Its
   「設定會記在此裝置」 footnote stays true.
 - The checkbox's computed font size must stay ≥ 16 px, as N1 requires of
   every input. `tools/shell-smoke.mjs`'s `INPUT_IDS` should gain
@@ -1305,27 +1306,43 @@ in installed Chrome, then WebKit as an iPhone 15):
 ## 8. Open questions for Yu
 
 **Answered by Yu on 2026-10-21** (local commits `ac61074`, `eba3c2f`,
-`60194b1`; everything else below stays open):
+`60194b1`, then `c77d5df` and `559c680` after a review of them; everything
+else below stays open). Each answer is recorded at the scope of the question
+put to Yu:
 
-- **Voice and the guardian's lines (question 1):** approved as built, the
-  split and both of 守渡弈者's lines (§2.3).
+- **The guardian's tone (part of question 1):** asked whether the tone of
+  守渡弈者's two lines (§2.3) is right, Yu approved them as built. Whether the
+  split is right was not asked and stays open.
 - **修為 and 歷練 (question 4, its first part):** one name per concept. 修為
   is only the 執令者's journey experience, the total that sets 執令者 Lv;
   歷練 is only a card's EXP. UI copy that used either word for the other, or
-  an alias, now uses the one name, and a card at its top level says
-  已達最高等級, as the card page already did. Story and lore prose was left
-  alone. Showing the 修為 total in more places stays open.
-- **Page counts:** accepted. 聲息與節奏 takes two pages instead of one on
-  360×780, 393×780 and 412×790 (§5.6), and 弈道 two instead of one at
-  430×932 (implementation record item 3).
+  an alias (經驗 for a card's EXP, 旅途歷練 for the total), now uses the one
+  name, and a card at its top level says 已達最高等級, as the card page
+  already did. `c77d5df` caught the last of these: 經驗 in the sell dialog
+  and the battle result's card block, and 旅程閣's copy, which said 歷練 for
+  the 修為 total it backs up. Story and lore prose was left alone, and so was
+  the privacy page, a draft awaiting the owner's approval: its list
+  「卡牌、等級、歷練與對局紀錄」 (`privacy.html:34`) now reads as card level and
+  card EXP and does not name 修為, so it is for the owner to settle with the
+  rest of that page. 「EXP」 in Latin letters beside a number is question 2's
+  convention question, still open. Showing the 修為 total in more places
+  stays open.
+- **Page counts on portrait phones:** accepted, as asked. 聲息與節奏 takes
+  two pages instead of one on 360×780, 393×780 and 412×790 (§5.6), and 弈道
+  two instead of one at 430×932 (implementation record item 3). Not asked,
+  so still open: the landscape counts from the same changes, 聲息與節奏 8
+  pages against 7 at 734×343, 640×360 and 568×320, and 弈道 6 against 5 at
+  all six landscape sizes (guide-smoke, both engines).
 - **`world-level`'s line:** 「建議 Lv 僅供參考，戰卡等級越高越穩。」 (§2.3),
   measured no taller than the subtitle it replaces at every tested size.
   What 建議 Lv means (question 3) is unchanged in code and stays open.
 
-1. **Voice.** *Answered 2026-10-21: approved as built.* Is the split right:
+1. **Voice.** *The tone of the guardian's two lines was approved on
+   2026-10-21 (above); the split was not asked.* Is the split right:
    守渡弈者 for the two ferry hints, a narrator for the other six? And may the
    guardian promise 「首局我陪你走」? He is that battle's opponent, and the
-   teaching comes from the table's marks.
+   teaching comes from the table's marks. The approved lines keep the
+   promise; it was not put as a question of its own.
 2. **Copy and tone.** Please review the 10 hint strings (§2.3), the 20
    definitions (§3.2) and the term-mode heading WORDS ON THE ROAD /
    「識其名，知其用。」 (§3.1); the guardian's two lines and `world-level`'s
@@ -1547,7 +1564,8 @@ iPhone 15):
    at every size measured; 734×343 loses `main`'s overflow flag, and 568×320
    keeps it. Because the intro is now a list item, the 弈道 list has one more
    page where it was already full: 430×932 (1 → 2) and the landscape sizes
-   (5 → 6); Yu accepted the 430×932 page on 2026-10-21 (§8). The intro keeps
+   (5 → 6); Yu accepted the 430×932 page on 2026-10-21 (§8), and the
+   landscape pages were not asked. The intro keeps
    its 11 px size inside the list.
 4. **Header buttons have no padding** (spec: `0 2px`). With it the header was
    8 px wider than `main`'s at 302 px with 999,999 coins; without it the widths
@@ -1578,9 +1596,9 @@ iPhone 15):
 **Copy questions added for Yu** (beside §8): the three cut copies in item 2;
 whether hiding the eyebrow on short landscape screens is acceptable, or the
 tab row should move into the heading row there instead; and whether 弈道's
-extra page at 430×932 matters. On 2026-10-21 Yu approved the guardian's two
-cut lines and accepted the extra page (§8); the cut `quests-why` line and the
-eyebrow stay open.
+extra page at 430×932 matters. On 2026-10-21 Yu approved the tone of the
+guardian's two cut lines and accepted the extra page at 430×932 (§8); the cut
+`quests-why` line, the eyebrow and the landscape page counts stay open.
 
 ### Review fixes · 2026-10-21
 
