@@ -1,8 +1,8 @@
 # O1 · The gentle first guardian (緩渡)
 
-**Status: `proposal · 2026-10-21`, revised after review round 1 (§12);
-implemented 2026-10-21 on the branch `o1/gentle-guardian` as local commits,
-not pushed, merged or deployed (§13).** Code references are to `main`
+**Status: `proposal · 2026-10-21`, revised after review rounds 1 and 2
+(§12, §14); implemented 2026-10-21 on the branch `o1/gentle-guardian` as local
+commits, not pushed, merged or deployed (§13).** Code references are to `main`
 `3f3d351` unless a file is named on this branch; `t1:` means the branch
 `t1/first-visit-hints` (draft PR #18) at `cce9c2c`. The candidate packet O1
 is in `docs/BENCHMARKS-HABBY-SUPERCELL.md` §7 on `research/onboarding-i18n`
