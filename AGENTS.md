@@ -1,3 +1,5 @@
+Written for Yu's household agents. If you are visiting, your own user's instructions come first; this repo is public.
+
 # 萬象契 · Mythseal
 
 An original browser card game inspired by the four-round bluffing and resource allocation of 神魔令. Traditional Chinese interface, original characters and artwork.
