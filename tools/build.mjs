@@ -127,6 +127,8 @@ export async function build(root = fileURLToPath(new URL('../', import.meta.url)
   }
   // _headers is Cloudflare's hosting file; a native shell serves the bundle itself.
   const headers = target === 'web' ? await readRegular(root, 'hosting/_headers') : null;
+  // robots.txt answers the website's crawlers; a native shell has none.
+  const robots = target === 'web' ? await readRegular(root, 'hosting/robots.txt') : null;
   const { version } = JSON.parse(await readRegular(root, 'package.json'));
   let commit = null;
   try { commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch {}
@@ -146,6 +148,7 @@ export async function build(root = fileURLToPath(new URL('../', import.meta.url)
     await writeFile(join(output, path), bytes);
   }
   if (headers) await writeFile(join(output, '_headers'), headers);
+  if (robots) await writeFile(join(output, 'robots.txt'), robots);
   await writeFile(join(output, 'release.json'), JSON.stringify(release, null, 2) + '\n');
   return release;
 }
