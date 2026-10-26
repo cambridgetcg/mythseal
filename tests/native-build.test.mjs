@@ -20,7 +20,7 @@ const fixtureText = { 'app.mjs': APP, 'index.html': INDEX, 'account-offline.mjs'
 async function fixture(t, { headers = true, text = {} } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'mythseal-native-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const paths = [...PUBLIC_FILES, 'package.json', ...(headers ? ['hosting/_headers'] : [])];
+  const paths = [...PUBLIC_FILES, 'package.json', ...(headers ? ['hosting/_headers', 'hosting/robots.txt'] : [])];
   const contents = { ...fixtureText, ...text };
   for (const path of paths) {
     await mkdir(dirname(join(root, path)), { recursive: true });
@@ -63,7 +63,7 @@ test('a native build ships the allowlist without the account files or _headers, 
 test('a web build is unchanged: every file byte for byte, _headers, no target key, account features still gated', async t => {
   const root = await fixture(t);
   const release = await build(root);
-  assert.deepEqual(await outputFiles(root), [...PUBLIC_FILES, '_headers', 'release.json'].sort());
+  assert.deepEqual(await outputFiles(root), [...PUBLIC_FILES, '_headers', 'release.json', 'robots.txt'].sort());
   for (const path of ['app.mjs', 'index.html', 'account-client.mjs']) assert.equal(await readFile(join(root, 'dist', path), 'utf8'), await readFile(join(root, path), 'utf8'), path);
   assert.equal('target' in release, false);
   assert.match(release.hostingHeadersSHA256, /^[0-9a-f]{64}$/);

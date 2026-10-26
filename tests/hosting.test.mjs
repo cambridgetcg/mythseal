@@ -36,7 +36,7 @@ function closure(entry) {
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'mythseal-build-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  for (const path of [...PUBLIC_FILES, 'hosting/_headers', 'package.json', '.env', 'docs/private.md', '.git/config', 'atelier.html', 'assets/expansion/wukong-alt.png']) {
+  for (const path of [...PUBLIC_FILES, 'hosting/_headers', 'hosting/robots.txt', 'package.json', '.env', 'docs/private.md', '.git/config', 'atelier.html', 'assets/expansion/wukong-alt.png']) {
     await mkdir(dirname(join(root, path)), { recursive: true });
     await writeFile(join(root, path), path === 'package.json' ? '{"version":"0.4.1"}' : `fixture ${path}`);
   }
@@ -50,7 +50,7 @@ test('public build excludes private files and stale output; manifest matches byt
   const entries = await readdir(join(root, 'dist'), { recursive: true });
   const files = await Promise.all(entries.map(async path => (await lstat(join(root, 'dist', path))).isFile() ? path : null));
   const output = files.filter(Boolean).sort();
-  assert.deepEqual(output, [...PUBLIC_FILES, '_headers', 'release.json'].sort());
+  assert.deepEqual(output, [...PUBLIC_FILES, '_headers', 'release.json', 'robots.txt'].sort());
   for (const file of release.assets) {
     const bytes = await readFile(join(root, 'dist', file.path));
     assert.equal(bytes.length, file.bytes);
